@@ -180,7 +180,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
                   <tr key={s.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                     <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>
                       {s.ticker}
-                      {s.disruption != null && s.disruption < 50 && (
+                      {s.disruption != null && s.disruption < 8 && (
                         <span title="Disruption risk — review thesis" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12, cursor: "help" }}>⚠</span>
                       )}
                     </td>
