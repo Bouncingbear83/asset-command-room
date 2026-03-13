@@ -159,6 +159,19 @@ function parseMonitor(rows: Record<string, any>[]) {
   }));
 }
 
+
+function parseDisruption(rows: Record<string, any>[]) {
+  return rows.map((r) => ({
+    ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
+    disruptionScore: typeof r["disruption_score"] === "number" ? r["disruption_score"] : null,
+    status: String(r["status"] ?? r["STATUS"] ?? ""),
+    lastChecked: r["last_checked"] ?? r["LAST_CHECKED"] ?? null,
+    amberTrigger: String(r["amber_trigger"] ?? r["AMBER_TRIGGER"] ?? ""),
+    redTrigger: String(r["red_trigger"] ?? r["RED_TRIGGER"] ?? ""),
+    evidence: String(r["evidence"] ?? r["EVIDENCE"] ?? ""),
+  }));
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type LiveHolding = ReturnType<typeof parseHoldings>[number];
@@ -167,6 +180,7 @@ export type LiveLayer = ReturnType<typeof parseLayers>[number];
 export type LiveScore = ReturnType<typeof parseScores>[number];
 export type LiveScoreLog = ReturnType<typeof parseScoreLog>[number];
 export type LiveMonitor = ReturnType<typeof parseMonitor>[number];
+export type LiveDisruption = ReturnType<typeof parseDisruption>[number];
 
 export interface PortfolioData {
   sipp: LiveHolding[];
