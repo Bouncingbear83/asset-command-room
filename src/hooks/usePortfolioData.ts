@@ -11,6 +11,8 @@ export const GIDS = {
   prices: "542365971",
   cash: "356224071",
   cashflow: "1642346013",
+  scoreLog: "1353977523",
+  monitor: "1097453724",
 };
 
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
@@ -28,7 +30,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
       });
       return obj;
     })
-    .filter((row: any) => row["ticker"] || row["TICKER"] || row["NAME"] || row["name"]);
+    .filter((row: any) => row["ticker"] || row["TICKER"] || row["NAME"] || row["name"] || row["type"] || row["TYPE"]);
 }
 
 // ── Parsers ────────────────────────────────────────────────────────────────
@@ -127,12 +129,42 @@ function parseScores(rows: Record<string, any>[]) {
   }));
 }
 
+function parseScoreLog(rows: Record<string, any>[]) {
+  return rows.map((r) => ({
+    date: r["date"] ?? r["DATE"] ?? null,
+    ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
+    score: typeof r["score"] === "number" ? r["score"] : null,
+    substrate: typeof r["substrate"] === "number" ? r["substrate"] : null,
+    demand: typeof r["demand"] === "number" ? r["demand"] : null,
+    moat: typeof r["moat"] === "number" ? r["moat"] : null,
+    valuation: typeof r["valuation"] === "number" ? r["valuation"] : null,
+    mgmt: typeof r["mgmt"] === "number" ? r["mgmt"] : null,
+    changeNote: String(r["change_note"] ?? r["CHANGE_NOTE"] ?? ""),
+  }));
+}
+
+function parseMonitor(rows: Record<string, any>[]) {
+  return rows.map((r) => ({
+    type: String(r["type"] ?? r["TYPE"] ?? ""),
+    name: String(r["name"] ?? r["NAME"] ?? ""),
+    current: r["current"] ?? r["CURRENT"] ?? null,
+    unit: String(r["unit"] ?? r["UNIT"] ?? ""),
+    amberThreshold: r["amber_threshold"] ?? r["AMBER_THRESHOLD"] ?? null,
+    redThreshold: r["red_threshold"] ?? r["RED_THRESHOLD"] ?? null,
+    status: String(r["status"] ?? r["STATUS"] ?? ""),
+    lastUpdated: r["last_updated"] ?? r["LAST_UPDATED"] ?? null,
+    notes: String(r["notes"] ?? r["NOTES"] ?? ""),
+  }));
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type LiveHolding = ReturnType<typeof parseHoldings>[number];
 export type LiveWatchItem = ReturnType<typeof parseWatchlist>[number];
 export type LiveLayer = ReturnType<typeof parseLayers>[number];
 export type LiveScore = ReturnType<typeof parseScores>[number];
+export type LiveScoreLog = ReturnType<typeof parseScoreLog>[number];
+export type LiveMonitor = ReturnType<typeof parseMonitor>[number];
 
 export interface PortfolioData {
   sipp: LiveHolding[];
@@ -140,6 +172,8 @@ export interface PortfolioData {
   watchlist: LiveWatchItem[];
   layers: LiveLayer[];
   scores: LiveScore[];
+  scoreLog: LiveScoreLog[];
+  monitor: LiveMonitor[];
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
@@ -155,6 +189,8 @@ export function usePortfolioData(): PortfolioData {
     watchlist: [],
     layers: [],
     scores: [],
+    scoreLog: [],
+    monitor: [],
     lastUpdated: null,
     loading: true,
     error: null,
@@ -163,12 +199,14 @@ export function usePortfolioData(): PortfolioData {
   const load = useCallback(async () => {
     setState((p) => ({ ...p, loading: true, error: null }));
     try {
-      const [sippRaw, isaRaw, watchRaw, layersRaw, scoresRaw] = await Promise.all([
+      const [sippRaw, isaRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw] = await Promise.all([
         fetchSheet(GIDS.sipp),
         fetchSheet(GIDS.isa),
         fetchSheet(GIDS.watchlist),
         fetchSheet(GIDS.layers).catch(() => []),
         fetchSheet(GIDS.scores).catch(() => []),
+        fetchSheet(GIDS.scoreLog).catch(() => []),
+        fetchSheet(GIDS.monitor).catch(() => []),
       ]);
       setState({
         sipp: parseHoldings(sippRaw),
@@ -176,6 +214,8 @@ export function usePortfolioData(): PortfolioData {
         watchlist: parseWatchlist(watchRaw),
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
+        scoreLog: parseScoreLog(scoreLogRaw),
+        monitor: parseMonitor(monitorRaw),
         lastUpdated: new Date().toLocaleTimeString("en-GB"),
         loading: false,
         error: null,
