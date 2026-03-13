@@ -37,12 +37,12 @@ const TIER_STYLE: Record<string, React.CSSProperties> = {
 };
 
 const STATIC: LiveScore[] = [
-  { ticker: "ASML", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "" },
-  { ticker: "NVDA", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "" },
-  { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
+  { ticker: "ASML", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, disruption: 85, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "" },
+  { ticker: "NVDA", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, disruption: 72, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "" },
+  { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 90, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
 ];
 
-type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "buyLow" | "scoreDate";
+type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate";
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { label: string; key: ScoreSortKey }[] = [
@@ -53,6 +53,7 @@ const COLUMNS: { label: string; key: ScoreSortKey }[] = [
   { label: "Moat /100", key: "moat" },
   { label: "Valuation /100", key: "valuation" },
   { label: "Mgmt /100", key: "mgmt" },
+  { label: "Disruption /100", key: "disruption" },
   { label: "Buy Range", key: "buyLow" },
   { label: "Dated", key: "scoreDate" },
 ];
@@ -169,7 +170,12 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
                 const buyRange = s.buyLow && s.buyHigh ? `${s.currency} ${s.buyLow}–${s.buyHigh}` : s.buyLow ? `${s.currency} >${s.buyLow}` : "—";
                 return (
                   <tr key={s.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                    <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>{s.ticker}</td>
+                    <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                      {s.ticker}
+                      {s.disruption != null && s.disruption < 50 && (
+                        <span title="Disruption risk — review thesis" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12, cursor: "help" }}>⚠</span>
+                      )}
+                    </td>
                     <td style={{ padding: "10px 12px" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
                         {s.score ?? "—"}
@@ -181,6 +187,7 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={100} color="var(--green)" /></td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={100} color="var(--amber)" /></td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={100} color="var(--text-mid)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={100} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{dateStr}</td>
                     <td style={{ padding: "10px 12px" }}>
