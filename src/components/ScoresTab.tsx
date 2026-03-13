@@ -45,17 +45,17 @@ const STATIC: LiveScore[] = [
 type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate";
 type SortDir = "asc" | "desc";
 
-const COLUMNS: { label: string; key: ScoreSortKey }[] = [
-  { label: "Ticker", key: "ticker" },
-  { label: "Score", key: "score" },
-  { label: "Substrate /100", key: "substrate" },
-  { label: "Demand /100", key: "demand" },
-  { label: "Moat /100", key: "moat" },
-  { label: "Valuation /100", key: "valuation" },
-  { label: "Mgmt /100", key: "mgmt" },
-  { label: "Disruption /100", key: "disruption" },
-  { label: "Buy Range", key: "buyLow" },
-  { label: "Dated", key: "scoreDate" },
+const COLUMNS: { label: string; key: ScoreSortKey; max: number }[] = [
+  { label: "Ticker", key: "ticker", max: 0 },
+  { label: "Score", key: "score", max: 100 },
+  { label: "Sub /25", key: "substrate", max: 25 },
+  { label: "Dem /22", key: "demand", max: 22 },
+  { label: "Moat /18", key: "moat", max: 18 },
+  { label: "Val /13", key: "valuation", max: 13 },
+  { label: "Mgmt /7", key: "mgmt", max: 7 },
+  { label: "Disr /15", key: "disruption", max: 15 },
+  { label: "Buy Range", key: "buyLow", max: 0 },
+  { label: "Dated", key: "scoreDate", max: 0 },
 ];
 
 function sortScores(data: LiveScore[], key: ScoreSortKey, dir: SortDir): LiveScore[] {
