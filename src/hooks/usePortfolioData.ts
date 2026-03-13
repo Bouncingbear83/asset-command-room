@@ -208,6 +208,7 @@ export function usePortfolioData(): PortfolioData {
     scores: [],
     scoreLog: [],
     monitor: [],
+    disruption: [],
     lastUpdated: null,
     loading: true,
     error: null,
