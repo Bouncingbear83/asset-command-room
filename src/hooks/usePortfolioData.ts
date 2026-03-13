@@ -121,6 +121,7 @@ function parseScores(rows: Record<string, any>[]) {
     moat: typeof r["moat"] === "number" ? r["moat"] : null,
     valuation: typeof r["valuation"] === "number" ? r["valuation"] : null,
     mgmt: typeof r["mgmt"] === "number" ? r["mgmt"] : null,
+    disruption: typeof r["disruption"] === "number" ? r["disruption"] : null,
     buyLow: typeof r["buy_low"] === "number" ? r["buy_low"] : null,
     buyHigh: typeof r["buy_high"] === "number" ? r["buy_high"] : null,
     fullThesis: String(r["full_thesis"] ?? ""),

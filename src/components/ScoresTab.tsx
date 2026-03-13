@@ -187,6 +187,7 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={100} color="var(--green)" /></td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={100} color="var(--amber)" /></td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={100} color="var(--text-mid)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={100} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{dateStr}</td>
                     <td style={{ padding: "10px 12px" }}>
