@@ -11,6 +11,8 @@ export const GIDS = {
   prices: "542365971",
   cash: "356224071",
   cashflow: "1642346013",
+  scoreLog: "1353977523",
+  monitor: "1097453724",
 };
 
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
