@@ -182,12 +182,12 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
                         <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} />
                       </span>
                     </td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.substrate} max={100} color="var(--gold)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.demand} max={100} color="var(--accent)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={100} color="var(--green)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={100} color="var(--amber)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={100} color="var(--text-mid)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={100} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.substrate} max={25} color="var(--gold)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.demand} max={22} color="var(--accent)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={18} color="var(--green)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={13} color="var(--amber)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{dateStr}</td>
                     <td style={{ padding: "10px 12px" }}>
