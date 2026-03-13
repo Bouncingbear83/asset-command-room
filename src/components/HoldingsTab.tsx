@@ -70,9 +70,60 @@ function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHold
   });
 }
 
+function InlineRangeBar({ h }: { h: LiveHolding }) {
+  if (h.ma60 == null || h.high_52w == null || h.low_52w == null || h.price == null) return null;
+  const low = h.low_52w;
+  const high = h.high_52w;
+  const price = h.price;
+  const ma60 = h.ma60;
+  const range = high - low;
+  if (range <= 0) return null;
+
+  const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
+  const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
+  const distFromMa = ((price - ma60) / ma60) * 100;
+
+  let statusColor: string;
+  let statusLabel: string;
+  if (price > ma60 * 1.10) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
+  else if (price < ma60 * 0.90) { statusColor = "var(--red)"; statusLabel = "Under pressure"; }
+  else { statusColor = "var(--green)"; statusLabel = "On trend"; }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
+      {/* Range bar */}
+      <div style={{ flex: 1, position: "relative", height: 22, display: "flex", alignItems: "center", minWidth: 120 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
+          <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+        </div>
+        <div style={{ position: "absolute", left: `${pricePct}%`, top: 3, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+        <span style={{ position: "absolute", left: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
+        <span style={{ position: "absolute", right: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
+      </div>
+      {/* Status + distance */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <span style={{
+          background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
+          color: statusColor,
+          border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
+          padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
+        }}>
+          {statusLabel}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
+          {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
   const addVal = h.add_trigger || "—";
   const exitVal = h.exit_trigger || "—";
+  const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
   return (
     <>
       <tr>
@@ -87,6 +138,16 @@ function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
           <span style={{ color: "var(--text-mid)" }}>{exitVal}</span>
         </td>
       </tr>
+      {has52w && (
+        <tr>
+          <td colSpan={colSpan} style={detailRowS}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", flexShrink: 0 }}>52W</span>
+              <InlineRangeBar h={h} />
+            </div>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
@@ -354,7 +415,23 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
   );
 }
 
+type PriceMapSort = "ma_dist" | "pct_above_low" | "pct_below_high";
+
+function getPriceMapSortValue(h: LiveHolding, sort: PriceMapSort): number {
+  const price = h.price!;
+  const low = h.low_52w!;
+  const high = h.high_52w!;
+  const ma60 = h.ma60!;
+  switch (sort) {
+    case "pct_above_low": return ((price - low) / low) * 100;
+    case "pct_below_high": return ((high - price) / high) * 100;
+    case "ma_dist": return Math.abs(((price - ma60) / ma60) * 100);
+  }
+}
+
 function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
+  const [sortMode, setSortMode] = useState<PriceMapSort>("ma_dist");
+
   // Deduplicate by ticker, prefer the one with more data
   const deduped = new Map<string, LiveHolding>();
   for (const h of allHoldings) {
@@ -389,80 +466,96 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
     );
   }
 
+  const SORT_OPTIONS: { key: PriceMapSort; label: string }[] = [
+    { key: "ma_dist", label: "60d MA Dist" },
+    { key: "pct_above_low", label: "% Above 52W Low" },
+    { key: "pct_below_high", label: "% Below 52W High" },
+  ];
+
   return (
     <div style={{ padding: "12px 20px" }}>
-      {layers.map(([layer, holdings]) => (
-        <div key={layer} style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>
-            {layer}
-          </div>
-          {[...holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
-            const low = h.low_52w!;
-            const high = h.high_52w!;
-            const price = h.price!;
-            const ma60 = h.ma60!;
-            const range = high - low;
-            if (range <= 0) return null;
+      {/* Sort controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-dim)", marginRight: 4 }}>Sort</span>
+        {SORT_OPTIONS.map((opt) => (
+          <ToggleButton key={opt.key} active={sortMode === opt.key} label={opt.label} onClick={() => setSortMode(opt.key)} />
+        ))}
+      </div>
+      {layers.map(([layer, holdings]) => {
+        const sorted = [...holdings].sort((a, b) => getPriceMapSortValue(a, sortMode) - getPriceMapSortValue(b, sortMode));
+        return (
+          <div key={layer} style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>
+              {layer}
+            </div>
+            {sorted.map((h) => {
+              const low = h.low_52w!;
+              const high = h.high_52w!;
+              const price = h.price!;
+              const ma60 = h.ma60!;
+              const range = high - low;
+              if (range <= 0) return null;
 
-            const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
-            const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
-            const distFromMa = ((price - ma60) / ma60) * 100;
+              const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
+              const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
+              const distFromMa = ((price - ma60) / ma60) * 100;
+              const sortVal = getPriceMapSortValue(h, sortMode);
 
-            let statusColor: string;
-            let statusLabel: string;
-            if (price > ma60 * 1.10) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
-            else if (price < ma60 * 0.90) { statusColor = "var(--red)"; statusLabel = "Under pressure"; }
-            else { statusColor = "var(--green)"; statusLabel = "On trend"; }
+              let statusColor: string;
+              let statusLabel: string;
+              if (price > ma60 * 1.10) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
+              else if (price < ma60 * 0.90) { statusColor = "var(--red)"; statusLabel = "Under pressure"; }
+              else { statusColor = "var(--green)"; statusLabel = "On trend"; }
 
-            return (
-              <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
-                {/* Left: ticker + name */}
-                <div style={{ width: 120, flexShrink: 0 }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
-                </div>
-
-                {/* Centre: range bar */}
-                <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
-                  {/* Track background */}
-                  <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
-                  {/* MA60 marker (dashed, gold) */}
-                  <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
-                    <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+              return (
+                <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
+                  {/* Left: ticker + name */}
+                  <div style={{ width: 120, flexShrink: 0 }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
                   </div>
-                  {/* Price marker */}
-                  <div style={{ position: "absolute", left: `${pricePct}%`, top: 4, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
-                  {/* Low / High labels */}
-                  <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
-                  <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
-                </div>
 
-                {/* Right: price */}
-                <div style={{ width: 80, flexShrink: 0, textAlign: "right" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{price.toFixed(2)}</span>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{h.currency}</div>
-                </div>
+                  {/* Centre: range bar */}
+                  <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
+                    <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+                    <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
+                      <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+                    </div>
+                    <div style={{ position: "absolute", left: `${pricePct}%`, top: 4, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+                    <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
+                    <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
+                  </div>
 
-                {/* Status chip + distance */}
-                <div style={{ width: 120, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{
-                    background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
-                    color: statusColor,
-                    border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
-                    padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
-                  }}>
-                    {statusLabel}
-                  </span>
-                  <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
-                    {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
-                  </span>
+                  {/* Right: price */}
+                  <div style={{ width: 80, flexShrink: 0, textAlign: "right" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{price.toFixed(2)}</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{h.currency}</div>
+                  </div>
+
+                  {/* Status chip + distance */}
+                  <div style={{ width: 140, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{
+                      background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
+                      color: statusColor,
+                      border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
+                      padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
+                    }}>
+                      {statusLabel}
+                    </span>
+                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
+                      {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
+                    </span>
+                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 8, color: "var(--text-dim)", whiteSpace: "nowrap" }}>
+                      ({sortVal.toFixed(1)}%)
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
