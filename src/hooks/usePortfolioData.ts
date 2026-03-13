@@ -30,7 +30,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
       });
       return obj;
     })
-    .filter((row: any) => row["ticker"] || row["TICKER"] || row["NAME"] || row["name"]);
+    .filter((row: any) => row["ticker"] || row["TICKER"] || row["NAME"] || row["name"] || row["type"] || row["TYPE"]);
 }
 
 // ── Parsers ────────────────────────────────────────────────────────────────
