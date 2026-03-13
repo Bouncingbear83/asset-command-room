@@ -168,7 +168,7 @@ export default function Index() {
         {active === "Monitor" && <MonitorTab />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} />}
         {active === "Layers" && <LayersTab liveData={portfolio.layers} />}
-        {active === "Scores" && <ScoresTab scores={portfolio.scores} />}
+        {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} />}
       </div>
