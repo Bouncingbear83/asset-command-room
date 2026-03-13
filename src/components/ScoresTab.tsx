@@ -139,9 +139,9 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
         {[
           { label: "Total scored", value: String(sorted.length), color: "var(--text)" },
           { label: "Core ≥80", value: String(core), color: "var(--green)" },
-          { label: "Hold 60–79", value: String(hold), color: "var(--accent)" },
-          { label: "Monitor 40–59", value: String(monitor), color: "var(--amber)" },
-          { label: "Exit <40", value: String(exit), color: "var(--red)" },
+          { label: "Anchor 60–79", value: String(anchor), color: "var(--accent)" },
+          { label: "Satellite 40–59", value: String(satellite), color: "var(--amber)" },
+          { label: "Spec <40", value: String(spec), color: "var(--red)" },
         ].map((m) => (
           <div key={m.label} style={{ ...cardS, padding: "16px 20px", marginBottom: 0 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 300, color: m.color }}>{m.value}</div>
