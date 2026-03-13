@@ -33,14 +33,44 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
 
 // ── Parsers ────────────────────────────────────────────────────────────────
 
+function parseMv(val: any): number {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[£,\s]/g, "");
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) return num;
+  }
+  return 0;
+}
+
+function parseGl(val: any): number {
+  if (typeof val === "number") return val * 100;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[%+,\s]/g, "");
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) return num;
+  }
+  return 0;
+}
+
+function parseDay(val: any): number {
+  if (typeof val === "number") return val * 100;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[%+,\s]/g, "");
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) return num;
+  }
+  return 0;
+}
+
 function parseHoldings(rows: Record<string, any>[]) {
   return rows.map((r) => ({
     ticker: String(r["TICKER"] ?? ""),
     name: String(r["NAME"] ?? ""),
     layer: String(r["LAYER"] ?? ""),
-    mv: typeof r["MV (£)"] === "number" ? r["MV (£)"] : 0,
-    gl: typeof r["G/L %"] === "number" ? r["G/L %"] * 100 : 0,
-    day: typeof r["DAY %"] === "number" ? r["DAY %"] * 100 : 0,
+    mv: parseMv(r["MV (£)"]),
+    gl: parseGl(r["G/L %"]),
+    day: parseDay(r["DAY %"] ?? r["Day %"]),
     notes: String(r["NOTES"] ?? ""),
     action: String(r["ACTION"] ?? "HOLD"),
     price: typeof r["PRICE_LOCAL"] === "number" ? r["PRICE_LOCAL"] : null,
