@@ -1,6 +1,17 @@
 import { LAYER_TARGETS } from "@/data/portfolio";
+import { LiveLayer } from "@/hooks/usePortfolioData";
 
-export default function LayersTab({ liveData }: { liveData?: any[] }) {
+interface Props {
+  liveData: LiveLayer[];
+}
+
+export default function LayersTab({ liveData }: Props) {
+  // Use live data if available, else static
+  const layers =
+    liveData.length > 0
+      ? liveData
+      : LAYER_TARGETS.map((l) => ({ name: l.name, target: l.target, current: l.current, mv: 0 }));
+
   const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
   const cardHeader: React.CSSProperties = {
     display: "flex",
@@ -23,9 +34,18 @@ export default function LayersTab({ liveData }: { liveData?: any[] }) {
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Layer Weights vs Target</span>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: liveData.length > 0 ? "var(--green)" : "var(--text-dim)",
+            }}
+          >
+            {liveData.length > 0 ? "● LIVE" : "● STATIC"}
+          </span>
         </div>
-        <div style={{ padding: "16px 20px" }}>
-          {LAYER_TARGETS.map((l) => {
+        <div style={{ padding: "16px 24px" }}>
+          {layers.map((l) => {
             const diff = l.current - l.target;
             const pct = l.target > 0 ? Math.min((l.current / l.target) * 100, 130) : 0;
             const diffColor = Math.abs(diff) < 1 ? "var(--green)" : Math.abs(diff) < 3 ? "var(--amber)" : "var(--red)";
@@ -35,11 +55,12 @@ export default function LayersTab({ liveData }: { liveData?: any[] }) {
               <div
                 key={l.name}
                 style={{
-                  display: "flex",
+                  display: "grid",
+                  gridTemplateColumns: "120px 1fr 48px 44px 52px",
                   alignItems: "center",
                   gap: 12,
                   padding: "12px 0",
-                  borderBottom: "1px solid rgba(28,28,48,0.5)",
+                  borderBottom: "1px solid rgba(28,28,48,0.4)",
                 }}
               >
                 <div
@@ -48,63 +69,43 @@ export default function LayersTab({ liveData }: { liveData?: any[] }) {
                     fontSize: 11,
                     fontWeight: 600,
                     textTransform: "uppercase",
-                    letterSpacing: "0.12em",
+                    letterSpacing: "0.1em",
                     color: "var(--text-mid)",
-                    width: 110,
-                    flexShrink: 0,
                   }}
                 >
                   {l.name}
                 </div>
-                <div style={{ flex: 1, height: 2, background: "var(--muted)", position: "relative" }}>
+                <div style={{ height: 2, background: "var(--muted)", position: "relative" }}>
                   <div
                     style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
                       height: 2,
                       background: fillColor,
                       width: `${pct}%`,
                       maxWidth: "100%",
-                      transition: "width 1s",
+                      transition: "width 0.8s ease",
                     }}
                   />
                 </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                    color: "var(--text)",
-                    width: 40,
-                    textAlign: "right",
-                  }}
-                >
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text)", textAlign: "right" }}>
                   {l.current.toFixed(1)}%
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", width: 44 }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
                   /{l.target}%
                 </div>
                 <div
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: 10,
+                    fontSize: 11,
                     color: diffColor,
-                    width: 48,
                     textAlign: "right",
+                    fontWeight: 600,
                   }}
                 >
                   {diff >= 0 ? "+" : ""}
                   {diff.toFixed(1)}%
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 9,
-                    color: "var(--text-dim)",
-                    maxWidth: 200,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {l.key}
                 </div>
               </div>
             );
@@ -115,44 +116,48 @@ export default function LayersTab({ liveData }: { liveData?: any[] }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div style={card}>
           <div style={cardHeader}>
-            <span style={cardTitle}>Layer Gap Analysis</span>
+            <span style={cardTitle}>Layer Gap Actions</span>
           </div>
-          <div style={{ padding: "0 20px 16px" }}>
+          <div style={{ padding: "0 20px 12px" }}>
             {[
               {
                 layer: "Robotics",
-                gap: "New layer — zero position",
+                gap: "Zero position — new layer",
                 priority: "URGENT",
-                candidates: "Renishaw (T1 NOW), Hexagon (T1 NOW)",
+                action: "Renishaw T1 NOW · Hexagon T1 NOW · ROBG ETF £15k",
               },
-              { layer: "Biological", gap: "~15% vs 20.1% target", priority: "HIGH", candidates: "DHR, RGEN at $110" },
+              {
+                layer: "Biological",
+                gap: "~5% below 20.1% target",
+                priority: "HIGH",
+                action: "DHR at ~$200 · RGEN at $110–120",
+              },
               {
                 layer: "Compute",
-                gap: "NVDA undersized at 2.9%",
+                gap: "NVDA undersized at ~3% AUM",
                 priority: "MEDIUM",
-                candidates: "NVDA size-up to £60k. MU scoring.",
+                action: "Size NVDA to £60k target. MU on watchlist.",
               },
               {
                 layer: "Energy",
-                gap: "GEV + HVDC uncovered",
+                gap: "HVDC/cable infra uncovered",
                 priority: "MEDIUM",
-                candidates: "GEV ($600-650), Prysmian, ABB",
+                action: "Prysmian or NKT — deep research pending",
               },
-              {
-                layer: "Sovereignty",
-                gap: "KTOS pending",
-                priority: "LOW",
-                candidates: "KTOS ($60-70), Shield AI (pre-IPO)",
-              },
+              { layer: "Sovereignty", gap: "KTOS pending", priority: "LOW", action: "KTOS at $60–70" },
             ].map((g) => (
-              <div key={g.layer} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.5)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{g.layer}</span>
+              <div key={g.layer} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}
+                >
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                    {g.layer}
+                  </span>
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
                       fontSize: 9,
-                      letterSpacing: "0.15em",
+                      letterSpacing: "0.12em",
                       padding: "2px 8px",
                       borderRadius: 2,
                       background:
@@ -178,9 +183,7 @@ export default function LayersTab({ liveData }: { liveData?: any[] }) {
                 >
                   {g.gap}
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent)" }}>
-                  {g.candidates}
-                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent)" }}>{g.action}</div>
               </div>
             ))}
           </div>
@@ -190,17 +193,19 @@ export default function LayersTab({ liveData }: { liveData?: any[] }) {
           <div style={cardHeader}>
             <span style={cardTitle}>Pre-IPO Watch</span>
           </div>
-          <div style={{ padding: "0 20px 16px" }}>
+          <div style={{ padding: "0 20px 12px" }}>
             {[
               { name: "Anduril Industries", layer: "Sovereignty", note: "Defence AI hardware. HIGH alignment." },
               { name: "Shield AI", layer: "Sovereignty", note: "Autonomous military systems." },
-              { name: "SpaceX / Starlink", layer: "Sovereignty", note: "Orbital substrate. Re-rates RKLB." },
-              { name: "Figure AI", layer: "Robotics", note: "$39B private. Wait post-IPO." },
+              { name: "SpaceX / Starlink", layer: "Sovereignty", note: "Orbital substrate — re-rates RKLB on filing." },
+              { name: "Figure AI", layer: "Robotics", note: "$39B private. Wait for post-IPO price discovery." },
               { name: "PsiQuantum", layer: "Compute", note: "Wait for hardware milestone proof." },
             ].map((p) => (
-              <div key={p.name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.5)" }}>
+              <div key={p.name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{p.name}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)" }}>
+                    {p.name}
+                  </span>
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
