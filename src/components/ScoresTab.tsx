@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { LiveScore, LiveScoreLog } from "@/hooks/usePortfolioData";
+import { LiveScore, LiveScoreLog, LiveDisruption } from "@/hooks/usePortfolioData";
 
 interface Props {
   scores: LiveScore[];
   scoreLog: LiveScoreLog[];
+  disruptionData?: LiveDisruption[];
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
@@ -99,11 +100,18 @@ function ScoreTrend({ ticker, scoreLog }: { ticker: string; scoreLog: LiveScoreL
   );
 }
 
-export default function ScoresTab({ scores, scoreLog }: Props) {
+const DISRUPTION_STATUS_STYLE: Record<string, React.CSSProperties> = {
+  GREEN: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
+  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  RED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+};
+
+export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Props) {
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const data = scores.length > 0 ? scores : STATIC;
+  const disruptionMap = new Map(disruptionData.map((d) => [d.ticker, d]));
   const sorted = sortScores(data, sortKey, sortDir);
   const isLive = scores.length > 0;
 
@@ -187,7 +195,22 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={18} color="var(--green)" /></td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={13} color="var(--amber)" /></td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
+                        {(() => {
+                          const dd = disruptionMap.get(s.ticker);
+                          if (!dd || !dd.status) return null;
+                          const st = dd.status.toUpperCase();
+                          const style = DISRUPTION_STATUS_STYLE[st] ?? DISRUPTION_STATUS_STYLE.MONITOR;
+                          return (
+                            <span title={dd.evidence || undefined} style={{ ...style, padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em", whiteSpace: "nowrap", cursor: dd.evidence ? "help" : "default" }}>
+                              {st}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{dateStr}</td>
                     <td style={{ padding: "10px 12px" }}>

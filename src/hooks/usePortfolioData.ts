@@ -159,6 +159,19 @@ function parseMonitor(rows: Record<string, any>[]) {
   }));
 }
 
+
+function parseDisruption(rows: Record<string, any>[]) {
+  return rows.map((r) => ({
+    ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
+    disruptionScore: typeof r["disruption_score"] === "number" ? r["disruption_score"] : null,
+    status: String(r["status"] ?? r["STATUS"] ?? ""),
+    lastChecked: r["last_checked"] ?? r["LAST_CHECKED"] ?? null,
+    amberTrigger: String(r["amber_trigger"] ?? r["AMBER_TRIGGER"] ?? ""),
+    redTrigger: String(r["red_trigger"] ?? r["RED_TRIGGER"] ?? ""),
+    evidence: String(r["evidence"] ?? r["EVIDENCE"] ?? ""),
+  }));
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type LiveHolding = ReturnType<typeof parseHoldings>[number];
@@ -167,6 +180,7 @@ export type LiveLayer = ReturnType<typeof parseLayers>[number];
 export type LiveScore = ReturnType<typeof parseScores>[number];
 export type LiveScoreLog = ReturnType<typeof parseScoreLog>[number];
 export type LiveMonitor = ReturnType<typeof parseMonitor>[number];
+export type LiveDisruption = ReturnType<typeof parseDisruption>[number];
 
 export interface PortfolioData {
   sipp: LiveHolding[];
@@ -176,6 +190,7 @@ export interface PortfolioData {
   scores: LiveScore[];
   scoreLog: LiveScoreLog[];
   monitor: LiveMonitor[];
+  disruption: LiveDisruption[];
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
@@ -193,6 +208,7 @@ export function usePortfolioData(): PortfolioData {
     scores: [],
     scoreLog: [],
     monitor: [],
+    disruption: [],
     lastUpdated: null,
     loading: true,
     error: null,
@@ -201,7 +217,7 @@ export function usePortfolioData(): PortfolioData {
   const load = useCallback(async () => {
     setState((p) => ({ ...p, loading: true, error: null }));
     try {
-      const [sippRaw, isaRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw] = await Promise.all([
+      const [sippRaw, isaRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw] = await Promise.all([
         fetchSheet(GIDS.sipp),
         fetchSheet(GIDS.isa),
         fetchSheet(GIDS.watchlist),
@@ -209,6 +225,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet(GIDS.scores).catch(() => []),
         fetchSheet(GIDS.scoreLog).catch(() => []),
         fetchSheet(GIDS.monitor).catch(() => []),
+        fetchSheet(GIDS.disruption).catch(() => []),
       ]);
       setState({
         sipp: parseHoldings(sippRaw),
@@ -218,6 +235,7 @@ export function usePortfolioData(): PortfolioData {
         scores: parseScores(scoresRaw),
         scoreLog: parseScoreLog(scoreLogRaw),
         monitor: parseMonitor(monitorRaw),
+        disruption: parseDisruption(disruptionRaw),
         lastUpdated: new Date().toLocaleTimeString("en-GB"),
         loading: false,
         error: null,
