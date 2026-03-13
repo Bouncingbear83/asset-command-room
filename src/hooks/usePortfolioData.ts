@@ -172,6 +172,8 @@ export interface PortfolioData {
   watchlist: LiveWatchItem[];
   layers: LiveLayer[];
   scores: LiveScore[];
+  scoreLog: LiveScoreLog[];
+  monitor: LiveMonitor[];
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
@@ -187,6 +189,8 @@ export function usePortfolioData(): PortfolioData {
     watchlist: [],
     layers: [],
     scores: [],
+    scoreLog: [],
+    monitor: [],
     lastUpdated: null,
     loading: true,
     error: null,
