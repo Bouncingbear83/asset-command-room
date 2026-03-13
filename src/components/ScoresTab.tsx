@@ -45,17 +45,17 @@ const STATIC: LiveScore[] = [
 type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate";
 type SortDir = "asc" | "desc";
 
-const COLUMNS: { label: string; key: ScoreSortKey }[] = [
-  { label: "Ticker", key: "ticker" },
-  { label: "Score", key: "score" },
-  { label: "Substrate /100", key: "substrate" },
-  { label: "Demand /100", key: "demand" },
-  { label: "Moat /100", key: "moat" },
-  { label: "Valuation /100", key: "valuation" },
-  { label: "Mgmt /100", key: "mgmt" },
-  { label: "Disruption /100", key: "disruption" },
-  { label: "Buy Range", key: "buyLow" },
-  { label: "Dated", key: "scoreDate" },
+const COLUMNS: { label: string; key: ScoreSortKey; max: number }[] = [
+  { label: "Ticker", key: "ticker", max: 0 },
+  { label: "Score", key: "score", max: 100 },
+  { label: "Sub /25", key: "substrate", max: 25 },
+  { label: "Dem /22", key: "demand", max: 22 },
+  { label: "Moat /18", key: "moat", max: 18 },
+  { label: "Val /13", key: "valuation", max: 13 },
+  { label: "Mgmt /7", key: "mgmt", max: 7 },
+  { label: "Disr /15", key: "disruption", max: 15 },
+  { label: "Buy Range", key: "buyLow", max: 0 },
+  { label: "Dated", key: "scoreDate", max: 0 },
 ];
 
 function sortScores(data: LiveScore[], key: ScoreSortKey, dir: SortDir): LiveScore[] {
@@ -182,12 +182,12 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
                         <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} />
                       </span>
                     </td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.substrate} max={100} color="var(--gold)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.demand} max={100} color="var(--accent)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={100} color="var(--green)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={100} color="var(--amber)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={100} color="var(--text-mid)" /></td>
-                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={100} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.substrate} max={25} color="var(--gold)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.demand} max={22} color="var(--accent)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.moat} max={18} color="var(--green)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.valuation} max={13} color="var(--amber)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /></td>
+                    <td style={{ padding: "10px 12px" }}><ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} /></td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
                     <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{dateStr}</td>
                     <td style={{ padding: "10px 12px" }}>
@@ -207,7 +207,7 @@ export default function ScoresTab({ scores, scoreLog }: Props) {
       {/* Framework reminder */}
       <div style={{ ...cardS, padding: "12px 20px" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", lineHeight: 2 }}>
-          DIMENSION WEIGHTS (applied to raw /100 sub-scores) · Substrate 30% · Civilisational Demand 25% · Moat Durability 20% · Valuation Discipline 15% · Management 10% &nbsp;·&nbsp; THRESHOLDS · ≥80 Core (4–7% AUM) · 60–79 Hold/Monitor (2–4%) · 40–59 Reduce (≤2%) · &lt;40 Exit
+          DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; THRESHOLDS · ≥80 Core (4–7% AUM) · 60–79 Hold/Monitor (2–4%) · 40–59 Reduce (≤2%) · &lt;40 Exit
         </div>
       </div>
     </div>

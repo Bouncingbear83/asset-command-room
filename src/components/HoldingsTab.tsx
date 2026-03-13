@@ -7,6 +7,8 @@ interface Props {
   isa: LiveHolding[];
 }
 
+type ViewMode = "layer" | "account";
+
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
   HOLD: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
   ADD: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
@@ -176,7 +178,157 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
   );
 }
 
+function ToggleButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        padding: "4px 12px",
+        border: "1px solid var(--rim)",
+        background: active ? "var(--accent-dim)" : "transparent",
+        color: active ? "var(--accent)" : "var(--text-dim)",
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+interface LayerGroup {
+  layer: string;
+  holdings: LiveHolding[];
+  totalMv: number;
+  pctAum: number;
+}
+
+function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; totalAum: number }) {
+  const grouped = new Map<string, LiveHolding[]>();
+  for (const h of allHoldings) {
+    const key = h.layer || "Uncategorised";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(h);
+  }
+
+  const layers: LayerGroup[] = Array.from(grouped.entries())
+    .map(([layer, holdings]) => {
+      const totalMv = holdings.reduce((s, h) => s + (h.mv || 0), 0);
+      return { layer, holdings, totalMv, pctAum: totalAum > 0 ? (totalMv / totalAum) * 100 : 0 };
+    })
+    .sort((a, b) => b.totalMv - a.totalMv);
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleRow = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const thS: React.CSSProperties = {
+    fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)",
+    padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400, whiteSpace: "nowrap",
+  };
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+        <thead>
+          <tr>
+            <th style={thS}>Ticker</th>
+            <th style={thS}>Name</th>
+            <th style={{ ...thS, textAlign: "right" }}>MV £</th>
+            <th style={{ ...thS, textAlign: "right" }}>G/L %</th>
+            <th style={{ ...thS, textAlign: "right" }}>Day %</th>
+            <th style={{ ...thS, textAlign: "right" }}>Price</th>
+            <th style={thS}>Notes</th>
+            <th style={thS}>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {layers.map((lg) => (
+            <>
+              {/* Layer header row */}
+              <tr key={`layer-${lg.layer}`} style={{ background: "rgba(28,28,48,0.6)" }}>
+                <td colSpan={2} style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  {lg.layer}
+                  <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>
+                    {lg.holdings.length} holding{lg.holdings.length !== 1 ? "s" : ""}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>
+                  £{lg.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+                </td>
+                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>
+                  {lg.pctAum.toFixed(1)}% AUM
+                </td>
+                <td colSpan={4} />
+              </tr>
+              {/* Holdings within layer */}
+              {[...lg.holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
+                const isOpen = expanded.has(h.ticker);
+                return (
+                  <tr
+                    key={h.ticker}
+                    onClick={() => toggleRow(h.ticker)}
+                    style={{ borderBottom: "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}
+                    title={isOpen ? "Click to collapse" : "Click to expand"}
+                  >
+                    <td style={{ padding: "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                    <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
+                    <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
+                      {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
+                      {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
+                      {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
+                      {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
+                    </td>
+                    <td style={{
+                      padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260,
+                      overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis",
+                      whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5,
+                    }}>
+                      {h.notes}
+                    </td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
+                        {h.action}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={2} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
+            <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              £{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+            </td>
+            <td colSpan={6} style={{ borderTop: "1px solid var(--rim)" }} />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 export default function HoldingsTab({ sipp, isa }: Props) {
+  const [view, setView] = useState<ViewMode>("layer");
+
   const sippData: LiveHolding[] =
     sipp.length > 0
       ? sipp
@@ -186,31 +338,52 @@ export default function HoldingsTab({ sipp, isa }: Props) {
       ? isa
       : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0 }));
 
+  const allHoldings = [...sippData, ...isaData];
+  const totalAum = allHoldings.reduce((s, h) => s + (h.mv || 0), 0);
   const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0);
   const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0);
 
   return (
     <div>
-      <div style={card}>
+      {/* View toggle header */}
+      <div style={{ ...card, marginBottom: 20 }}>
         <div style={cardHeader}>
-          <span style={cardTitle}>SIPP Holdings</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
-            £{sippTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-            <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span>
-          </span>
+          <span style={cardTitle}>Holdings</span>
+          <div style={{ display: "flex", gap: 0 }}>
+            <ToggleButton active={view === "layer"} label="By Layer" onClick={() => setView("layer")} />
+            <ToggleButton active={view === "account"} label="By Account" onClick={() => setView("account")} />
+          </div>
         </div>
-        <HoldingsTable holdings={sippData} />
+
+        {view === "layer" ? (
+          <LayerView allHoldings={allHoldings} totalAum={totalAum} />
+        ) : null}
       </div>
-      <div style={card}>
-        <div style={cardHeader}>
-          <span style={cardTitle}>ISA Holdings</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
-            £{isaTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-            <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span>
-          </span>
-        </div>
-        <HoldingsTable holdings={isaData} />
-      </div>
+
+      {view === "account" && (
+        <>
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>SIPP Holdings</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
+                £{sippTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+                <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span>
+              </span>
+            </div>
+            <HoldingsTable holdings={sippData} />
+          </div>
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>ISA Holdings</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
+                £{isaTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+                <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span>
+              </span>
+            </div>
+            <HoldingsTable holdings={isaData} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
