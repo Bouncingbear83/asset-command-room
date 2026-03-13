@@ -8,7 +8,7 @@ interface Props {
   isa: LiveHolding[];
 }
 
-type ViewMode = "layer" | "account";
+type ViewMode = "layer" | "account" | "pricemap";
 
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
   HOLD: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
@@ -354,17 +354,130 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
   );
 }
 
+function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
+  // Deduplicate by ticker, prefer the one with more data
+  const deduped = new Map<string, LiveHolding>();
+  for (const h of allHoldings) {
+    if (!deduped.has(h.ticker) || (h.ma60 && !deduped.get(h.ticker)!.ma60)) {
+      deduped.set(h.ticker, h);
+    }
+  }
+
+  // Filter valid rows
+  const valid = Array.from(deduped.values()).filter(
+    (h) => h.ma60 && h.high_52w && h.low_52w && h.price != null
+  );
+
+  // Group by layer
+  const grouped = new Map<string, LiveHolding[]>();
+  for (const h of valid) {
+    const key = h.layer || "Uncategorised";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(h);
+  }
+  const layers = Array.from(grouped.entries()).sort((a, b) => {
+    const mvA = a[1].reduce((s, h) => s + (h.mv || 0), 0);
+    const mvB = b[1].reduce((s, h) => s + (h.mv || 0), 0);
+    return mvB - mvA;
+  });
+
+  if (valid.length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+        No price map data — populate MA60, HIGH_52w, LOW_52w columns in holdings sheets.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "12px 20px" }}>
+      {layers.map(([layer, holdings]) => (
+        <div key={layer} style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>
+            {layer}
+          </div>
+          {[...holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
+            const low = h.low_52w!;
+            const high = h.high_52w!;
+            const price = h.price!;
+            const ma60 = h.ma60!;
+            const range = high - low;
+            if (range <= 0) return null;
+
+            const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
+            const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
+            const distFromMa = ((price - ma60) / ma60) * 100;
+
+            let statusColor: string;
+            let statusLabel: string;
+            if (price > ma60 * 1.10) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
+            else if (price < ma60 * 0.90) { statusColor = "var(--red)"; statusLabel = "Under pressure"; }
+            else { statusColor = "var(--green)"; statusLabel = "On trend"; }
+
+            return (
+              <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
+                {/* Left: ticker + name */}
+                <div style={{ width: 120, flexShrink: 0 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
+                </div>
+
+                {/* Centre: range bar */}
+                <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
+                  {/* Track background */}
+                  <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+                  {/* MA60 marker (dashed, gold) */}
+                  <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
+                    <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+                  </div>
+                  {/* Price marker */}
+                  <div style={{ position: "absolute", left: `${pricePct}%`, top: 4, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+                  {/* Low / High labels */}
+                  <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
+                  <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
+                </div>
+
+                {/* Right: price */}
+                <div style={{ width: 80, flexShrink: 0, textAlign: "right" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{price.toFixed(2)}</span>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{h.currency}</div>
+                </div>
+
+                {/* Status chip + distance */}
+                <div style={{ width: 120, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{
+                    background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
+                    color: statusColor,
+                    border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
+                    padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
+                  }}>
+                    {statusLabel}
+                  </span>
+                  <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
+                    {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function HoldingsTab({ sipp, isa }: Props) {
   const [view, setView] = useState<ViewMode>("layer");
 
   const sippData: LiveHolding[] =
     sipp.length > 0
       ? sipp
-      : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "" }));
+      : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", ma60: null, high_52w: null, low_52w: null }));
   const isaData: LiveHolding[] =
     isa.length > 0
       ? isa
-      : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "" }));
+      : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", ma60: null, high_52w: null, low_52w: null }));
 
   const allHoldings = [...sippData, ...isaData];
   const totalAum = allHoldings.reduce((s, h) => s + (h.mv || 0), 0);
@@ -380,12 +493,12 @@ export default function HoldingsTab({ sipp, isa }: Props) {
           <div style={{ display: "flex", gap: 0 }}>
             <ToggleButton active={view === "layer"} label="By Layer" onClick={() => setView("layer")} />
             <ToggleButton active={view === "account"} label="By Account" onClick={() => setView("account")} />
+            <ToggleButton active={view === "pricemap"} label="Price Map" onClick={() => setView("pricemap")} />
           </div>
         </div>
 
-        {view === "layer" ? (
-          <LayerView allHoldings={allHoldings} totalAum={totalAum} />
-        ) : null}
+        {view === "layer" && <LayerView allHoldings={allHoldings} totalAum={totalAum} />}
+        {view === "pricemap" && <PriceMapView allHoldings={allHoldings} />}
       </div>
 
       {view === "account" && (

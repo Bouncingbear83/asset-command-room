@@ -83,6 +83,9 @@ function parseHoldings(rows: Record<string, any>[]) {
     shares: typeof r["SHARES"] === "number" ? r["SHARES"] : null,
     add_trigger: String(r["add_trigger"] ?? r["ADD_TRIGGER"] ?? ""),
     exit_trigger: String(r["exit_trigger"] ?? r["EXIT_TRIGGER"] ?? ""),
+    ma60: parseFloat(r["MA60"]) || null,
+    high_52w: parseFloat(r["HIGH_52w"]) || null,
+    low_52w: parseFloat(r["LOW_52w"]) || null,
   }));
 }
 
