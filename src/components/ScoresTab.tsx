@@ -24,23 +24,23 @@ function ScoreBar({ value, max, color }: { value: number | null; max: number; co
 function getTier(score: number | null): string {
   if (score == null) return "UNSCORED";
   if (score >= 80) return "CORE";
-  if (score >= 60) return "HOLD";
-  if (score >= 40) return "MONITOR";
-  return "EXIT";
+  if (score >= 60) return "ANCHOR";
+  if (score >= 40) return "SATELLITE";
+  return "SPEC";
 }
 
 const TIER_STYLE: Record<string, React.CSSProperties> = {
   CORE: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
-  HOLD: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
-  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  EXIT: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+  ANCHOR: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
+  SATELLITE: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  SPEC: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
   UNSCORED: { background: "rgba(28,28,48,0.5)", color: "var(--text-dim)", border: "1px solid var(--rim)" },
 };
 
 const STATIC: LiveScore[] = [
-  { ticker: "ASML", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, disruption: 85, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "" },
-  { ticker: "NVDA", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, disruption: 72, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "" },
-  { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 90, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
+  { ticker: "ASML", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, disruption: 13, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "" },
+  { ticker: "NVDA", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, disruption: 11, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "" },
+  { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 14, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
 ];
 
 type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate";
@@ -123,9 +123,9 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
   const arrow = (key: ScoreSortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
   const core = sorted.filter((s) => (s.score ?? 0) >= 80).length;
-  const hold = sorted.filter((s) => (s.score ?? 0) >= 60 && (s.score ?? 0) < 80).length;
-  const monitor = sorted.filter((s) => (s.score ?? 0) >= 40 && (s.score ?? 0) < 60).length;
-  const exit = sorted.filter((s) => (s.score ?? 0) < 40).length;
+  const anchor = sorted.filter((s) => (s.score ?? 0) >= 60 && (s.score ?? 0) < 80).length;
+  const satellite = sorted.filter((s) => (s.score ?? 0) >= 40 && (s.score ?? 0) < 60).length;
+  const spec = sorted.filter((s) => (s.score ?? 0) < 40).length;
 
   const cardS: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
   const cardHeaderS: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid var(--rim)" };
@@ -139,9 +139,9 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
         {[
           { label: "Total scored", value: String(sorted.length), color: "var(--text)" },
           { label: "Core ≥80", value: String(core), color: "var(--green)" },
-          { label: "Hold 60–79", value: String(hold), color: "var(--accent)" },
-          { label: "Monitor 40–59", value: String(monitor), color: "var(--amber)" },
-          { label: "Exit <40", value: String(exit), color: "var(--red)" },
+          { label: "Anchor 60–79", value: String(anchor), color: "var(--accent)" },
+          { label: "Satellite 40–59", value: String(satellite), color: "var(--amber)" },
+          { label: "Spec <40", value: String(spec), color: "var(--red)" },
         ].map((m) => (
           <div key={m.label} style={{ ...cardS, padding: "16px 20px", marginBottom: 0 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 300, color: m.color }}>{m.value}</div>
@@ -180,7 +180,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
                   <tr key={s.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                     <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>
                       {s.ticker}
-                      {s.disruption != null && s.disruption < 50 && (
+                      {s.disruption != null && s.disruption < 8 && (
                         <span title="Disruption risk — review thesis" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12, cursor: "help" }}>⚠</span>
                       )}
                     </td>
@@ -197,7 +197,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /></td>
                     <td style={{ padding: "10px 12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
+                        <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 11 ? "var(--green)" : s.disruption >= 8 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
                         {(() => {
                           const dd = disruptionMap.get(s.ticker);
                           if (!dd || !dd.status) return null;
@@ -230,7 +230,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
       {/* Framework reminder */}
       <div style={{ ...cardS, padding: "12px 20px" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", lineHeight: 2 }}>
-          DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; THRESHOLDS · ≥80 Core (4–7% AUM) · 60–79 Hold/Monitor (2–4%) · 40–59 Reduce (≤2%) · &lt;40 Exit
+          DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; THRESHOLDS · ≥80 Core (4–7% AUM) · 60–79 Anchor (3–5%) · 40–59 Satellite (1–3%) · &lt;40 Spec (≤1%)
         </div>
       </div>
     </div>
