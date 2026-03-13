@@ -70,9 +70,60 @@ function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHold
   });
 }
 
+function InlineRangeBar({ h }: { h: LiveHolding }) {
+  if (h.ma60 == null || h.high_52w == null || h.low_52w == null || h.price == null) return null;
+  const low = h.low_52w;
+  const high = h.high_52w;
+  const price = h.price;
+  const ma60 = h.ma60;
+  const range = high - low;
+  if (range <= 0) return null;
+
+  const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
+  const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
+  const distFromMa = ((price - ma60) / ma60) * 100;
+
+  let statusColor: string;
+  let statusLabel: string;
+  if (price > ma60 * 1.10) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
+  else if (price < ma60 * 0.90) { statusColor = "var(--red)"; statusLabel = "Under pressure"; }
+  else { statusColor = "var(--green)"; statusLabel = "On trend"; }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
+      {/* Range bar */}
+      <div style={{ flex: 1, position: "relative", height: 22, display: "flex", alignItems: "center", minWidth: 120 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
+          <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+        </div>
+        <div style={{ position: "absolute", left: `${pricePct}%`, top: 3, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+        <span style={{ position: "absolute", left: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
+        <span style={{ position: "absolute", right: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
+      </div>
+      {/* Status + distance */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <span style={{
+          background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
+          color: statusColor,
+          border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
+          padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
+        }}>
+          {statusLabel}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
+          {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
   const addVal = h.add_trigger || "—";
   const exitVal = h.exit_trigger || "—";
+  const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
   return (
     <>
       <tr>
@@ -87,6 +138,16 @@ function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
           <span style={{ color: "var(--text-mid)" }}>{exitVal}</span>
         </td>
       </tr>
+      {has52w && (
+        <tr>
+          <td colSpan={colSpan} style={detailRowS}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", flexShrink: 0 }}>52W</span>
+              <InlineRangeBar h={h} />
+            </div>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
