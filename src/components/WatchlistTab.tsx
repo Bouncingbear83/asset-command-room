@@ -1,8 +1,8 @@
 import { WATCHLIST } from "@/data/portfolio";
-import { LiveWatchlistItem } from "@/hooks/usePortfolioData";
+import { LiveWatchItem } from "@/hooks/usePortfolioData";
 
 interface Props {
-  liveData: LiveWatchlistItem[];
+  liveData: LiveWatchItem[];
 }
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
@@ -42,7 +42,7 @@ const th: React.CSSProperties = {
   whiteSpace: "nowrap" as const,
 };
 
-function WatchTable({ items }: { items: LiveWatchlistItem[] }) {
+function WatchTable({ items }: { items: LiveWatchItem[] }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
@@ -126,8 +126,8 @@ function WatchTable({ items }: { items: LiveWatchlistItem[] }) {
 }
 
 export default function WatchlistTab({ liveData }: Props) {
-  // Map static watchlist to LiveWatchlistItem shape as fallback
-  const staticItems: LiveWatchlistItem[] = WATCHLIST.map((w) => ({
+  // Map static watchlist to LiveWatchItem shape as fallback
+  const staticItems: LiveWatchItem[] = WATCHLIST.map((w) => ({
     name: w.name,
     ticker: "",
     layer: w.layer,
