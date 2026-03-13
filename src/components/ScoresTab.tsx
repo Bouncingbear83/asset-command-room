@@ -42,7 +42,7 @@ const STATIC: LiveScore[] = [
   { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 90, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
 ];
 
-type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "buyLow" | "scoreDate";
+type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate";
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { label: string; key: ScoreSortKey }[] = [
@@ -53,6 +53,7 @@ const COLUMNS: { label: string; key: ScoreSortKey }[] = [
   { label: "Moat /100", key: "moat" },
   { label: "Valuation /100", key: "valuation" },
   { label: "Mgmt /100", key: "mgmt" },
+  { label: "Disruption /100", key: "disruption" },
   { label: "Buy Range", key: "buyLow" },
   { label: "Dated", key: "scoreDate" },
 ];
