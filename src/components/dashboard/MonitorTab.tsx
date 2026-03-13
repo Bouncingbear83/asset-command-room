@@ -1,67 +1,128 @@
-import { Activity, Crosshair } from "lucide-react";
-import { monitorMetrics, structuralTriggers } from "@/data/portfolio";
+import { COST_CURVES, STRUCTURAL_TRIGGERS } from "@/data/portfolio";
 
-const RagChip = ({ rag, children }: { rag: "red" | "amber" | "green"; children: React.ReactNode }) => (
-  <span className={`rag-${rag}`}>
-    <span className="w-1.5 h-1.5 rounded-full bg-current" />
-    {children}
-  </span>
-);
+const rag = (status: string): React.CSSProperties => {
+  const map: Record<string, [string, string, string]> = {
+    NORMAL: ["var(--green-dim)", "var(--green)", "rgba(90,191,160,0.2)"],
+    WATCH: ["var(--amber-dim)", "var(--amber)", "rgba(200,146,90,0.2)"],
+    MONITOR: ["var(--accent-dim)", "var(--accent)", "rgba(110,142,200,0.2)"],
+    TRIGGERED: ["var(--red-dim)", "var(--red)", "rgba(200,90,90,0.2)"],
+    CLEAR: ["var(--green-dim)", "var(--green)", "rgba(90,191,160,0.2)"],
+  };
+  const [bg, color, border] = map[status] ?? map.MONITOR;
+  return {
+    background: bg,
+    color,
+    border: `1px solid ${border}`,
+    fontFamily: "var(--font-mono)",
+    fontSize: 9,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    padding: "3px 10px",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+  };
+};
 
-const MonitorTab = () => {
+const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
+const cardHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "14px 20px",
+  borderBottom: "1px solid var(--rim)",
+};
+const cardTitle: React.CSSProperties = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
+  color: "var(--text-mid)",
+};
+const row: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: 20,
+  padding: "14px 0",
+  borderBottom: "1px solid rgba(28,28,48,0.5)",
+};
+
+const WEEKLY = [
+  { name: "S&P 500 intraday drop >5%", detail: "Pause all wave execution", status: "CLEAR" },
+  { name: "S&P 500 rolling 5-day >10%", detail: "Full review, consider hedge adds", status: "CLEAR" },
+  { name: "Uranium spot <$50/lb", detail: "CCJ/SPUT thesis review", status: "CLEAR" },
+  { name: "Copper spot <$3.50/lb", detail: "FCX position review", status: "CLEAR" },
+  { name: "Any holding >10% weekly move", detail: "Review thesis immediately", status: "CLEAR" },
+];
+
+export default function MonitorTab() {
   return (
-    <div className="space-y-6">
-      {/* Cost Curve Metrics */}
-      <div className="panel-base p-5">
-        <h3 className="font-ui text-xs uppercase tracking-[0.2em] text-muted-foreground mb-5 flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5 text-primary" /> Cost Curve Metrics
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {monitorMetrics.map((metric) => (
-            <div key={metric.name} className="panel-elevated p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-ui text-xs text-muted-foreground">{metric.name}</span>
-                <RagChip rag={metric.rag}>{metric.rag.toUpperCase()}</RagChip>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={card}>
+        <div style={cardHeader}>
+          <span style={cardTitle}>Cost Curve Metrics</span>
+          <span style={rag("MONITOR")}>5 METRICS</span>
+        </div>
+        <div style={{ padding: "0 20px 16px" }}>
+          {COST_CURVES.map((m) => (
+            <div key={m.name} style={row}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{m.name}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                  Current: {m.current} · AMBER: {m.amber} · RED: {m.red}
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
+                  → {m.impact}
+                </div>
               </div>
-              <p className="font-mono-data text-xl text-foreground">{metric.value}</p>
-              <p className="font-ui text-xs text-muted-foreground">{metric.detail}</p>
+              <span style={rag(m.status)}>{m.status}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Structural Triggers */}
-      <div className="panel-base p-5">
-        <h3 className="font-ui text-xs uppercase tracking-[0.2em] text-muted-foreground mb-5 flex items-center gap-2">
-          <Crosshair className="w-3.5 h-3.5 text-primary" /> Structural Triggers
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left font-ui text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">Trigger</th>
-                <th className="text-left font-ui text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">Condition</th>
-                <th className="text-left font-ui text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">Current Status</th>
-                <th className="text-center font-ui text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">RAG</th>
-              </tr>
-            </thead>
-            <tbody>
-              {structuralTriggers.map((t) => (
-                <tr key={t.trigger} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                  <td className="py-3 px-4 font-ui text-sm text-foreground">{t.trigger}</td>
-                  <td className="py-3 px-4 font-mono-data text-sm text-muted-foreground">{t.condition}</td>
-                  <td className="py-3 px-4 font-mono-data text-sm text-foreground">{t.status}</td>
-                  <td className="py-3 px-4 text-center">
-                    <RagChip rag={t.rag}>{t.rag.toUpperCase()}</RagChip>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div style={card}>
+        <div style={cardHeader}>
+          <span style={cardTitle}>Structural Triggers</span>
+          <span style={rag("MONITOR")}>6 TRIGGERS</span>
+        </div>
+        <div style={{ padding: "0 20px 16px" }}>
+          {STRUCTURAL_TRIGGERS.map((t) => (
+            <div key={t.id} style={row}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
+                  {t.id} — {t.name}
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                  → {t.impact}
+                </div>
+              </div>
+              <span style={rag(t.status)}>{t.status}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ ...card, gridColumn: "1 / -1" }}>
+        <div style={cardHeader}>
+          <span style={cardTitle}>Weekly Market Triggers</span>
+          <span style={rag("CLEAR")}>ALL CLEAR</span>
+        </div>
+        <div style={{ padding: "0 20px 16px" }}>
+          {WEEKLY.map((w) => (
+            <div key={w.name} style={row}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{w.name}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                  → {w.detail}
+                </div>
+              </div>
+              <span style={rag(w.status)}>{w.status}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
-};
-
-export default MonitorTab;
+}
