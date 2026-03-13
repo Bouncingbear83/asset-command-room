@@ -188,6 +188,59 @@ export default function CommandTab() {
             GO →
           </button>
         </div>
+
+        {/* Sheet Update Pack */}
+        <div style={{ padding: "0 20px 20px" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "var(--text-dim)",
+              marginBottom: 8,
+            }}
+          >
+            Sheet Update Pack
+          </div>
+          <textarea
+            readOnly
+            value={`── WEEKLY SHEET UPDATE ──────────────────────\n\nDate: ${new Date().toISOString().slice(0, 10)}\n\nTICKER | NEW ACTION | REASON\n\n[run weekly check and paste changes here]\n\n─────────────────────────────────────────────`}
+            style={{
+              width: "100%",
+              background: "var(--surface, #0D0D1A)",
+              border: "1px solid var(--rim)",
+              color: "var(--text-mid)",
+              padding: 12,
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              lineHeight: 1.6,
+              resize: "none",
+              minHeight: 140,
+              boxSizing: "border-box",
+            }}
+          />
+          <button
+            onClick={() => {
+              const tmpl = `── WEEKLY SHEET UPDATE ──────────────────────\n\nDate: ${new Date().toISOString().slice(0, 10)}\n\nTICKER | NEW ACTION | REASON\n\n[run weekly check and paste changes here]\n\n─────────────────────────────────────────────`;
+              navigator.clipboard.writeText(tmpl).catch(() => {});
+            }}
+            style={{
+              marginTop: 8,
+              background: "var(--surface, #0D0D1A)",
+              border: "1px solid var(--rim)",
+              color: "var(--text-mid)",
+              padding: "8px 16px",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+            }}
+          >
+            Copy
+          </button>
+        </div>
       </div>
 
       {/* Right: risk + bubble flags + golden rules */}
