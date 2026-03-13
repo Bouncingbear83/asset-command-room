@@ -44,6 +44,16 @@ const th: React.CSSProperties = {
 };
 
 function WatchTable({ items }: { items: LiveWatchItem[] }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggle = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
@@ -60,11 +70,18 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
         </thead>
         <tbody>
           {items.map((w) => {
+            const key = w.name + w.ticker;
+            const isOpen = expanded.has(key);
             const curr = typeof w.current === "number" ? w.current : null;
             const entryNum = w.entry ? parseFloat(w.entry.replace(/[^0-9.]/g, "")) : null;
             const atTarget = curr != null && entryNum != null ? curr <= entryNum : null;
             return (
-              <tr key={w.name} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+              <tr
+                key={key}
+                onClick={() => toggle(key)}
+                style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}
+                title={isOpen ? "Click to collapse" : "Click to expand"}
+              >
                 <td style={{ padding: "12px 16px", color: "var(--text)", fontWeight: 600, whiteSpace: "nowrap" }}>
                   {w.name}
                 </td>
@@ -83,10 +100,11 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
                   style={{
                     padding: "12px 16px",
                     color: "var(--text-dim)",
-                    maxWidth: 180,
+                    maxWidth: 240,
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    textOverflow: isOpen ? "unset" : "ellipsis",
+                    whiteSpace: isOpen ? "normal" : "nowrap",
+                    lineHeight: 1.5,
                   }}
                 >
                   {w.trigger}
@@ -95,10 +113,11 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
                   style={{
                     padding: "12px 16px",
                     color: "var(--text-dim)",
-                    maxWidth: 220,
+                    maxWidth: 280,
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    textOverflow: isOpen ? "unset" : "ellipsis",
+                    whiteSpace: isOpen ? "normal" : "nowrap",
+                    lineHeight: 1.5,
                   }}
                 >
                   {w.rationale}
