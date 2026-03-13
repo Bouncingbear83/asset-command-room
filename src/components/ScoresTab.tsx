@@ -230,7 +230,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
       {/* Framework reminder */}
       <div style={{ ...cardS, padding: "12px 20px" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", lineHeight: 2 }}>
-          DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; THRESHOLDS · ≥80 Core (4–7% AUM) · 60–79 Hold/Monitor (2–4%) · 40–59 Reduce (≤2%) · &lt;40 Exit
+          DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; THRESHOLDS · ≥80 Core (4–7% AUM) · 60–79 Anchor (3–5%) · 40–59 Satellite (1–3%) · &lt;40 Spec (≤1%)
         </div>
       </div>
     </div>
