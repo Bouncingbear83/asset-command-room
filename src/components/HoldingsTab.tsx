@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding } from "@/hooks/usePortfolioData";
 
@@ -39,6 +40,14 @@ const cardTitle: React.CSSProperties = {
   color: "var(--text-mid)",
 };
 
+const detailRowS: React.CSSProperties = {
+  padding: "6px 12px 6px 36px",
+  fontFamily: "'DM Mono', var(--font-mono)",
+  fontSize: "0.78rem",
+  background: "color-mix(in srgb, var(--panel) 90%, white 10%)",
+  borderBottom: "1px solid rgba(28,28,48,0.25)",
+};
+
 type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action";
 type SortDir = "asc" | "desc";
 
@@ -59,6 +68,27 @@ function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHold
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
     return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
   });
+}
+
+function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
+  const addVal = h.add_trigger || "—";
+  const exitVal = h.exit_trigger || "—";
+  return (
+    <>
+      <tr>
+        <td colSpan={colSpan} style={detailRowS}>
+          <span style={{ color: "var(--green)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>ADD</span>
+          <span style={{ color: "var(--text-mid)" }}>{addVal}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colSpan={colSpan} style={detailRowS}>
+          <span style={{ color: "var(--red)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>EXIT</span>
+          <span style={{ color: "var(--text-mid)" }}>{exitVal}</span>
+        </td>
+      </tr>
+    </>
+  );
 }
 
 function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
@@ -85,8 +115,8 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
 
   const sorted = sortHoldings(holdings, sortKey, sortDir);
   const total = holdings.reduce((s, h) => s + (h.mv || 0), 0);
-
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+  const totalCols = COLUMNS.length + 2; // +Notes +Action
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -98,17 +128,11 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
                 key={col.key}
                 onClick={() => handleSort(col.key)}
                 style={{
-                  fontSize: 9,
-                  letterSpacing: "0.15em",
-                  textTransform: "uppercase",
+                  fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase",
                   color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)",
-                  padding: "8px 12px",
-                  borderBottom: "1px solid var(--rim)",
-                  textAlign: col.align ?? "left",
-                  fontWeight: 400,
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                  userSelect: "none",
+                  padding: "8px 12px", borderBottom: "1px solid var(--rim)",
+                  textAlign: col.align ?? "left", fontWeight: 400, whiteSpace: "nowrap",
+                  cursor: "pointer", userSelect: "none",
                 }}
               >
                 {col.label}{arrow(col.key)}
@@ -116,51 +140,52 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
             ))}
             <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Notes</th>
             <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Action</th>
+            <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
           </tr>
         </thead>
         <tbody>
           {sorted.map((h) => {
             const isOpen = expanded.has(h.ticker);
             return (
-              <tr
-                key={h.ticker}
-                onClick={() => toggle(h.ticker)}
-                style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}
-                title={isOpen ? "Click to collapse" : "Click to expand"}
-              >
-                <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
-                <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
-                <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>
-                <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
-                  {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
-                </td>
-                <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
-                  {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
-                </td>
-                <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
-                  {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
-                </td>
-                <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
-                  {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
-                </td>
-                <td style={{
-                  padding: "10px 12px",
-                  color: "var(--text-dim)",
-                  fontSize: 10,
-                  maxWidth: 260,
-                  overflow: "hidden",
-                  textOverflow: isOpen ? "unset" : "ellipsis",
-                  whiteSpace: isOpen ? "normal" : "nowrap",
-                  lineHeight: 1.5,
-                }}>
-                  {h.notes}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
-                    {h.action}
-                  </span>
-                </td>
-              </tr>
+              <>
+                <tr
+                  key={h.ticker}
+                  onClick={() => toggle(h.ticker)}
+                  style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}
+                >
+                  <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
+                    {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
+                    {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
+                    {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
+                    {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
+                  </td>
+                  <td style={{
+                    padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260,
+                    overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis",
+                    whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5,
+                  }}>
+                    {h.notes}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
+                      {h.action}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </td>
+                </tr>
+                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} />}
+              </>
             );
           })}
         </tbody>
@@ -170,7 +195,7 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               £{total.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
             </td>
-            <td colSpan={5} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={totalCols - 3} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
@@ -183,16 +208,11 @@ function ToggleButton({ active, label, onClick }: { active: boolean; label: stri
     <button
       onClick={onClick}
       style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: 9,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        padding: "4px 12px",
-        border: "1px solid var(--rim)",
+        fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase",
+        padding: "4px 12px", border: "1px solid var(--rim)",
         background: active ? "var(--accent-dim)" : "transparent",
         color: active ? "var(--accent)" : "var(--text-dim)",
-        cursor: "pointer",
-        transition: "all 0.15s ease",
+        cursor: "pointer", transition: "all 0.15s ease",
       }}
     >
       {label}
@@ -236,6 +256,8 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
     padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400, whiteSpace: "nowrap",
   };
 
+  const totalCols = 9; // all columns including chevron
+
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
@@ -249,6 +271,7 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
             <th style={{ ...thS, textAlign: "right" }}>Price</th>
             <th style={thS}>Notes</th>
             <th style={thS}>Action</th>
+            <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
           </tr>
         </thead>
         <tbody>
@@ -268,45 +291,50 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
                 <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>
                   {lg.pctAum.toFixed(1)}% AUM
                 </td>
-                <td colSpan={4} />
+                <td colSpan={5} />
               </tr>
               {/* Holdings within layer */}
               {[...lg.holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
                 const isOpen = expanded.has(h.ticker);
                 return (
-                  <tr
-                    key={h.ticker}
-                    onClick={() => toggleRow(h.ticker)}
-                    style={{ borderBottom: "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}
-                    title={isOpen ? "Click to collapse" : "Click to expand"}
-                  >
-                    <td style={{ padding: "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
-                    <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
-                    <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
-                      {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
-                    </td>
-                    <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
-                      {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
-                    </td>
-                    <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
-                      {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
-                    </td>
-                    <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
-                      {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
-                    </td>
-                    <td style={{
-                      padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260,
-                      overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis",
-                      whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5,
-                    }}>
-                      {h.notes}
-                    </td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
-                        {h.action}
-                      </span>
-                    </td>
-                  </tr>
+                  <>
+                    <tr
+                      key={h.ticker}
+                      onClick={() => toggleRow(h.ticker)}
+                      style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}
+                    >
+                      <td style={{ padding: "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
+                        {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
+                      </td>
+                      <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
+                        {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
+                      </td>
+                      <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
+                        {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
+                      </td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
+                        {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
+                      </td>
+                      <td style={{
+                        padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260,
+                        overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis",
+                        whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5,
+                      }}>
+                        {h.notes}
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
+                          {h.action}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>
+                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </td>
+                    </tr>
+                    {isOpen && <TriggerRows h={h} colSpan={totalCols} />}
+                  </>
                 );
               })}
             </>
@@ -318,7 +346,7 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               £{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
             </td>
-            <td colSpan={6} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={totalCols - 2} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
@@ -332,11 +360,11 @@ export default function HoldingsTab({ sipp, isa }: Props) {
   const sippData: LiveHolding[] =
     sipp.length > 0
       ? sipp
-      : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0 }));
+      : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "" }));
   const isaData: LiveHolding[] =
     isa.length > 0
       ? isa
-      : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0 }));
+      : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "" }));
 
   const allHoldings = [...sippData, ...isaData];
   const totalAum = allHoldings.reduce((s, h) => s + (h.mv || 0), 0);

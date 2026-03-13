@@ -81,6 +81,8 @@ function parseHoldings(rows: Record<string, any>[]) {
     currency: String(r["CURRENCY"] ?? "USD"),
     costGbp: typeof r["COST_GBP"] === "number" ? r["COST_GBP"] : null,
     shares: typeof r["SHARES"] === "number" ? r["SHARES"] : null,
+    add_trigger: String(r["add_trigger"] ?? r["ADD_TRIGGER"] ?? ""),
+    exit_trigger: String(r["exit_trigger"] ?? r["EXIT_TRIGGER"] ?? ""),
   }));
 }
 
