@@ -435,8 +435,9 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   // Deduplicate by ticker, prefer the one with more data
   const deduped = new Map<string, LiveHolding>();
   for (const h of allHoldings) {
-    if (!deduped.has(h.ticker) || (h.ma60 && !deduped.get(h.ticker)!.ma60)) {
-      deduped.set(h.ticker, h);
+    const key = h.ticker || h.name;
+    if (!deduped.has(key) || (h.ma60 && !deduped.get(key)!.ma60)) {
+      deduped.set(key, h);
     }
   }
 
