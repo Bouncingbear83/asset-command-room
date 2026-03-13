@@ -13,6 +13,7 @@ export const GIDS = {
   cashflow: "1642346013",
   scoreLog: "1353977523",
   monitor: "1097453724",
+  disruption: "1166534580",
 };
 
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
