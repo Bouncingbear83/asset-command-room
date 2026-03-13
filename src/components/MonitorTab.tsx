@@ -70,6 +70,7 @@ export default function MonitorTab({ monitorData }: Props) {
 
   const liveCostCurves = hasLive ? monitorData.filter((m) => m.type === "cost_curve") : [];
   const liveStructural = hasLive ? monitorData.filter((m) => m.type === "structural") : [];
+  const liveDisruption = hasLive ? monitorData.filter((m) => m.type === "disruption") : [];
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -165,6 +166,38 @@ export default function MonitorTab({ monitorData }: Props) {
               ))}
         </div>
       </div>
+
+      {liveDisruption.length > 0 && (
+        <div style={{ ...card, gridColumn: "1 / -1" }}>
+          <div style={cardHeader}>
+            <span style={{ ...cardTitle, color: "var(--amber)" }}>Disruption Watch</span>
+            <span style={rag("AMBER")}>{liveDisruption.length} RISK{liveDisruption.length !== 1 ? "S" : ""}</span>
+          </div>
+          <div style={{ padding: "0 20px 16px" }}>
+            {liveDisruption.map((d, i) => (
+              <div key={d.name + i} style={row}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{d.name}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                    Current: {d.current}{d.unit ? ` ${d.unit}` : ""} · AMBER: {d.amberThreshold} · RED: {d.redThreshold}
+                  </div>
+                  {d.notes && (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
+                      → {d.notes}
+                    </div>
+                  )}
+                  {d.lastUpdated && (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>
+                      Updated: {d.lastUpdated}
+                    </div>
+                  )}
+                </div>
+                <span style={rag(d.status)}>{d.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ ...card, gridColumn: "1 / -1" }}>
         <div style={cardHeader}>
