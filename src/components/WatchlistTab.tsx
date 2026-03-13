@@ -43,6 +43,18 @@ const th: React.CSSProperties = {
   whiteSpace: "nowrap" as const,
 };
 
+function parseEntryTarget(entry: string): number | null {
+  if (!entry) return null;
+  // Split by range separators (–, -, "to")
+  const parts = entry.split(/\s*[-–]\s*|\s+to\s+/i);
+  const nums = parts
+    .map((p) => parseFloat(p.replace(/[^0-9.]/g, "")))
+    .filter((n) => !isNaN(n) && n > 0);
+  if (nums.length === 0) return null;
+  // Use upper bound of range for comparison
+  return Math.max(...nums);
+}
+
 function WatchTable({ items }: { items: LiveWatchItem[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -73,8 +85,29 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
             const key = w.name + w.ticker;
             const isOpen = expanded.has(key);
             const curr = typeof w.current === "number" ? w.current : null;
-            const entryNum = w.entry ? parseFloat(w.entry.replace(/[^0-9.]/g, "")) : null;
-            const atTarget = curr != null && entryNum != null ? curr <= entryNum : null;
+            const entryNum = parseEntryTarget(w.entry);
+            const hasBoth = curr != null && entryNum != null && entryNum > 0;
+            const pctDist = hasBoth ? ((curr - entryNum) / entryNum) * 100 : null;
+
+            let vsColor = "var(--text-dim)";
+            let vsLabel = "—";
+            let gaugeWidth = 50;
+            if (pctDist !== null) {
+              if (pctDist <= 0) {
+                vsColor = "var(--green)";
+                vsLabel = pctDist === 0 ? "✓ AT TARGET" : `${pctDist.toFixed(1)}%`;
+                gaugeWidth = 0;
+              } else if (pctDist <= 10) {
+                vsColor = "var(--amber)";
+                vsLabel = `+${pctDist.toFixed(1)}%`;
+                gaugeWidth = pctDist * 5; // 0-50% bar width for 0-10%
+              } else {
+                vsColor = "var(--red, #e05555)";
+                vsLabel = `+${pctDist.toFixed(1)}%`;
+                gaugeWidth = Math.min(100, pctDist * 2.5);
+              }
+            }
+
             return (
               <tr
                 key={key}
@@ -91,10 +124,27 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
                 <td style={{ padding: "12px 16px", color: "var(--text)", textAlign: "right" }}>
                   {curr != null ? curr.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}
                 </td>
-                <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                  {atTarget === true && <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ IN RANGE</span>}
-                  {atTarget === false && <span style={{ color: "var(--text-dim)" }}>above</span>}
-                  {atTarget === null && <span style={{ color: "var(--text-dim)" }}>—</span>}
+                <td style={{ padding: "12px 16px" }}>
+                  {pctDist !== null ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                      {/* Inline gauge */}
+                      <div style={{ width: 48, height: 4, background: "rgba(28,28,48,0.5)", borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
+                        <div style={{ width: `${gaugeWidth}%`, height: "100%", background: vsColor, borderRadius: 2, transition: "width 0.3s" }} />
+                      </div>
+                      {/* Percentage chip */}
+                      <span style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: vsColor,
+                        whiteSpace: "nowrap",
+                      }}>
+                        {vsLabel}
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ color: "var(--text-dim)" }}>—</span>
+                  )}
                 </td>
                 <td
                   style={{
