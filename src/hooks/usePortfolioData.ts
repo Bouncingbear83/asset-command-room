@@ -66,6 +66,29 @@ function parseDay(val: any): number {
   return 0;
 }
 
+function findCol(r: Record<string, any>, ...candidates: string[]): any {
+  for (const c of candidates) {
+    if (r[c] !== undefined && r[c] !== null) return r[c];
+  }
+  // Case-insensitive fallback
+  const keys = Object.keys(r);
+  for (const c of candidates) {
+    const lower = c.toLowerCase();
+    const match = keys.find((k) => k.toLowerCase() === lower);
+    if (match && r[match] !== undefined && r[match] !== null) return r[match];
+  }
+  return null;
+}
+
+function parseNum(val: any): number | null {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const n = parseFloat(val.replace(/[^0-9.\-]/g, ""));
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
 function parseHoldings(rows: Record<string, any>[]) {
   return rows.map((r) => ({
     ticker: String(r["TICKER"] ?? ""),
@@ -76,16 +99,16 @@ function parseHoldings(rows: Record<string, any>[]) {
     day: parseDay(r["DAY %"] ?? r["Day %"]),
     notes: String(r["NOTES"] ?? ""),
     action: String(r["ACTION"] ?? "HOLD"),
-    price: typeof r["PRICE_LOCAL"] === "number" ? r["PRICE_LOCAL"] : null,
-    prevClose: typeof r["PREV_CLOSE_LOCAL"] === "number" ? r["PREV_CLOSE_LOCAL"] : null,
+    price: parseNum(findCol(r, "PRICE_LOCAL", "price_local", "Price_Local")),
+    prevClose: parseNum(findCol(r, "PREV_CLOSE_LOCAL", "prev_close_local")),
     currency: String(r["CURRENCY"] ?? "USD"),
     costGbp: typeof r["COST_GBP"] === "number" ? r["COST_GBP"] : null,
     shares: typeof r["SHARES"] === "number" ? r["SHARES"] : null,
-    add_trigger: String(r["add_trigger"] ?? r["ADD_TRIGGER"] ?? ""),
-    exit_trigger: String(r["exit_trigger"] ?? r["EXIT_TRIGGER"] ?? ""),
-    ma60: parseFloat(r["MA60"]) || null,
-    high_52w: parseFloat(r["HIGH_52w"]) || null,
-    low_52w: parseFloat(r["LOW_52w"]) || null,
+    add_trigger: String(findCol(r, "add_trigger", "ADD_TRIGGER") ?? ""),
+    exit_trigger: String(findCol(r, "exit_trigger", "EXIT_TRIGGER") ?? ""),
+    ma60: parseNum(findCol(r, "MA60", "ma60", "Ma60")),
+    high_52w: parseNum(findCol(r, "HIGH_52w", "HIGH_52W", "high_52w", "High_52w")),
+    low_52w: parseNum(findCol(r, "LOW_52w", "LOW_52W", "low_52w", "Low_52w")),
   }));
 }
 
