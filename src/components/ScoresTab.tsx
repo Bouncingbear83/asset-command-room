@@ -123,9 +123,9 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
   const arrow = (key: ScoreSortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
   const core = sorted.filter((s) => (s.score ?? 0) >= 80).length;
-  const hold = sorted.filter((s) => (s.score ?? 0) >= 60 && (s.score ?? 0) < 80).length;
-  const monitor = sorted.filter((s) => (s.score ?? 0) >= 40 && (s.score ?? 0) < 60).length;
-  const exit = sorted.filter((s) => (s.score ?? 0) < 40).length;
+  const anchor = sorted.filter((s) => (s.score ?? 0) >= 60 && (s.score ?? 0) < 80).length;
+  const satellite = sorted.filter((s) => (s.score ?? 0) >= 40 && (s.score ?? 0) < 60).length;
+  const spec = sorted.filter((s) => (s.score ?? 0) < 40).length;
 
   const cardS: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
   const cardHeaderS: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid var(--rim)" };
