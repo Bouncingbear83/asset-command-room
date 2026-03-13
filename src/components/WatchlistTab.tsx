@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { WATCHLIST } from "@/data/portfolio";
 import { LiveWatchItem } from "@/hooks/usePortfolioData";
 
