@@ -1,5 +1,5 @@
 import { WATCHLIST } from "@/data/portfolio";
-import { LiveWatchlistItem } from "@/hooks/usePortfolioData";
+import { LiveWatchItem } from "@/hooks/usePortfolioData";
 
 interface Props {
   liveData: LiveWatchlistItem[];
