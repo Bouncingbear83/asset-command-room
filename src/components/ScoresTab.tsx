@@ -66,7 +66,39 @@ function sortScores(data: LiveScore[], key: ScoreSortKey, dir: SortDir): LiveSco
   });
 }
 
-export default function ScoresTab({ scores }: Props) {
+function ScoreTrend({ ticker, scoreLog }: { ticker: string; scoreLog: LiveScoreLog[] }) {
+  const entries = scoreLog
+    .filter((e) => e.ticker === ticker && e.score != null)
+    .sort((a, b) => String(a.date ?? "").localeCompare(String(b.date ?? "")));
+
+  if (entries.length === 0) return null;
+
+  if (entries.length === 1) {
+    return (
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>
+    );
+  }
+
+  const prev = entries[entries.length - 2].score!;
+  const latest = entries[entries.length - 1].score!;
+  const delta = latest - prev;
+
+  if (delta === 0) {
+    return (
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>
+    );
+  }
+
+  const isUp = delta > 0;
+  return (
+    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: isUp ? "var(--green)" : "var(--red)", marginLeft: 6 }}>
+      {isUp ? "↑" : "↓"}
+      <span style={{ fontSize: 9, marginLeft: 2 }}>{isUp ? `+${delta}` : delta}</span>
+    </span>
+  );
+}
+
+export default function ScoresTab({ scores, scoreLog }: Props) {
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
