@@ -62,6 +62,15 @@ function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHold
 function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggle = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -108,33 +117,50 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((h) => (
-            <tr key={h.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-              <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
-              <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
-              <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>
-              <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
-                {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
-              </td>
-              <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
-                {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
-              </td>
-              <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
-                {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
-              </td>
-              <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
-                {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
-              </td>
-              <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {h.notes}
-              </td>
-              <td style={{ padding: "10px 12px" }}>
-                <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
-                  {h.action}
-                </span>
-              </td>
-            </tr>
-          ))}
+          {sorted.map((h) => {
+            const isOpen = expanded.has(h.ticker);
+            return (
+              <tr
+                key={h.ticker}
+                onClick={() => toggle(h.ticker)}
+                style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}
+                title={isOpen ? "Click to collapse" : "Click to expand"}
+              >
+                <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
+                <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>
+                <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
+                  {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
+                </td>
+                <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
+                  {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
+                </td>
+                <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
+                  {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
+                </td>
+                <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
+                  {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
+                </td>
+                <td style={{
+                  padding: "10px 12px",
+                  color: "var(--text-dim)",
+                  fontSize: 10,
+                  maxWidth: 260,
+                  overflow: "hidden",
+                  textOverflow: isOpen ? "unset" : "ellipsis",
+                  whiteSpace: isOpen ? "normal" : "nowrap",
+                  lineHeight: 1.5,
+                }}>
+                  {h.notes}
+                </td>
+                <td style={{ padding: "10px 12px" }}>
+                  <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
+                    {h.action}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
         <tfoot>
           <tr>
