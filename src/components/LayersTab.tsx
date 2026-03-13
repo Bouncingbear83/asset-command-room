@@ -1,6 +1,6 @@
 import { LAYER_TARGETS } from "@/data/portfolio";
 
-export default function LayersTab() {
+export default function LayersTab({ liveData }: { liveData?: any[] }) {
   const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
   const cardHeader: React.CSSProperties = {
     display: "flex",

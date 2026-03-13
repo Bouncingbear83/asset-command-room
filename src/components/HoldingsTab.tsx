@@ -103,7 +103,7 @@ function HoldingsTable({ holdings }: { holdings: typeof SIPP_HOLDINGS }) {
   );
 }
 
-export default function HoldingsTab() {
+export default function HoldingsTab({ liveData }: { liveData?: any[] }) {
   return (
     <div>
       <div style={card}>
