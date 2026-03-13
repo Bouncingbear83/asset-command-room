@@ -24,16 +24,16 @@ function ScoreBar({ value, max, color }: { value: number | null; max: number; co
 function getTier(score: number | null): string {
   if (score == null) return "UNSCORED";
   if (score >= 80) return "CORE";
-  if (score >= 60) return "HOLD";
-  if (score >= 40) return "MONITOR";
-  return "EXIT";
+  if (score >= 60) return "ANCHOR";
+  if (score >= 40) return "SATELLITE";
+  return "SPEC";
 }
 
 const TIER_STYLE: Record<string, React.CSSProperties> = {
   CORE: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
-  HOLD: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
-  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  EXIT: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+  ANCHOR: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
+  SATELLITE: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  SPEC: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
   UNSCORED: { background: "rgba(28,28,48,0.5)", color: "var(--text-dim)", border: "1px solid var(--rim)" },
 };
 
