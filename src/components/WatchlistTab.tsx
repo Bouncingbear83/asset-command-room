@@ -43,6 +43,18 @@ const th: React.CSSProperties = {
   whiteSpace: "nowrap" as const,
 };
 
+function parseEntryTarget(entry: string): number | null {
+  if (!entry) return null;
+  // Split by range separators (–, -, "to")
+  const parts = entry.split(/\s*[-–]\s*|\s+to\s+/i);
+  const nums = parts
+    .map((p) => parseFloat(p.replace(/[^0-9.]/g, "")))
+    .filter((n) => !isNaN(n) && n > 0);
+  if (nums.length === 0) return null;
+  // Use upper bound of range for comparison
+  return Math.max(...nums);
+}
+
 function WatchTable({ items }: { items: LiveWatchItem[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
