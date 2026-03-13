@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { LiveScore } from "@/hooks/usePortfolioData";
+import { LiveScore, LiveScoreLog } from "@/hooks/usePortfolioData";
 
 interface Props {
   scores: LiveScore[];
+  scoreLog: LiveScoreLog[];
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
