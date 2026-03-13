@@ -1,65 +1,112 @@
-import { TrendingUp } from "lucide-react";
-import { returnsData } from "@/data/portfolio";
+import { SIPP_HOLDINGS, ISA_HOLDINGS, SIPP_AUM, ISA_AUM, AUM_TOTAL } from "@/data/portfolio";
 
-const ReturnCard = ({ label, value }: { label: string; value: number }) => (
-  <div className="panel-elevated p-4 text-center">
-    <p className="font-ui text-xs uppercase tracking-wider text-muted-foreground mb-2">{label}</p>
-    <p className={`font-mono-data text-2xl font-medium ${value >= 0 ? "text-success" : "text-destructive"}`}>
-      {value >= 0 ? "+" : ""}{value}%
-    </p>
-  </div>
-);
+export default function ReturnsTab() {
+  const allHoldings = [...SIPP_HOLDINGS, ...ISA_HOLDINGS];
+  const winners = [...allHoldings]
+    .filter((h) => h.gl > 0)
+    .sort((a, b) => b.gl - a.gl)
+    .slice(0, 5);
+  const losers = [...allHoldings]
+    .filter((h) => h.gl < 0)
+    .sort((a, b) => a.gl - b.gl)
+    .slice(0, 5);
 
-const ReturnsTab = () => {
-  const maxReturn = Math.max(...returnsData.monthlyReturns.map((m) => Math.abs(m.return)));
+  const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
+  const cardHeader: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "14px 20px",
+    borderBottom: "1px solid var(--rim)",
+  };
+  const cardTitle: React.CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase" as const,
+    color: "var(--text-mid)",
+  };
+
+  const metrics = [
+    { label: "Total AUM", value: `£${(AUM_TOTAL / 1000).toFixed(0)}k`, sub: "SIPP + ISA combined" },
+    { label: "SIPP", value: `£${(SIPP_AUM / 1000).toFixed(0)}k`, sub: "Long horizon" },
+    { label: "ISA", value: `£${(ISA_AUM / 1000).toFixed(0)}k`, sub: "Flexible wrapper" },
+    { label: "Target CAGR", value: "15–20%", sub: "Annual compound return" },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Period Returns */}
-      <div className="panel-base p-5">
-        <h3 className="font-ui text-xs uppercase tracking-[0.2em] text-muted-foreground mb-5 flex items-center gap-2">
-          <TrendingUp className="w-3.5 h-3.5 text-primary" /> Period Returns
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <ReturnCard label="YTD" value={returnsData.ytd} />
-          <ReturnCard label="1 Year" value={returnsData.oneYear} />
-          <ReturnCard label="3 Year" value={returnsData.threeYear} />
-          <ReturnCard label="5 Year" value={returnsData.fiveYear} />
-          <ReturnCard label="Inception" value={returnsData.sinceInception} />
-        </div>
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+        {metrics.map((m) => (
+          <div key={m.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, color: "var(--text)", fontWeight: 300 }}>
+              {m.value}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.15em",
+                textTransform: "uppercase",
+                color: "var(--text-dim)",
+                marginTop: 4,
+              }}
+            >
+              {m.label}
+            </div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
+              {m.sub}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Monthly Returns Bar Chart */}
-      <div className="panel-base p-5">
-        <h3 className="font-ui text-xs uppercase tracking-[0.2em] text-muted-foreground mb-5">
-          Monthly Returns (Last 12 Months)
-        </h3>
-        <div className="flex items-end gap-2 h-48">
-          {returnsData.monthlyReturns.map((m) => {
-            const height = (Math.abs(m.return) / maxReturn) * 100;
-            const isPositive = m.return >= 0;
-            return (
-              <div key={m.month} className="flex-1 flex flex-col items-center justify-end h-full relative">
-                <div className="flex-1 flex items-end w-full justify-center">
-                  <div className="relative w-full max-w-[32px] flex flex-col items-center" style={{ height: '100%' }}>
-                    {isPositive ? (
-                      <div className="mt-auto w-full rounded-t" style={{ height: `${height}%`, backgroundColor: 'hsl(var(--success))' }} />
-                    ) : (
-                      <div className="mt-auto w-full rounded-b" style={{ height: `${height}%`, backgroundColor: 'hsl(var(--destructive))' }} />
-                    )}
-                  </div>
-                </div>
-                <span className="font-mono-data text-[10px] text-muted-foreground mt-2">{m.month}</span>
-                <span className={`font-mono-data text-[10px] ${isPositive ? "text-success" : "text-destructive"}`}>
-                  {isPositive ? "+" : ""}{m.return}%
-                </span>
-              </div>
-            );
-          })}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={card}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Top Winners</span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+            <tbody>
+              {winners.map((h) => (
+                <tr key={h.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                  <td style={{ padding: "10px 16px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                  <td style={{ padding: "10px 16px", color: "var(--text)" }}>{h.name}</td>
+                  <td style={{ padding: "10px 16px", color: "var(--green)", textAlign: "right", fontWeight: 700 }}>
+                    +{h.gl.toFixed(1)}%
+                  </td>
+                  <td style={{ padding: "10px 16px", color: "var(--text-mid)", textAlign: "right" }}>
+                    £{h.mv.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={card}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Positions Under Pressure</span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+            <tbody>
+              {losers.map((h) => (
+                <tr key={h.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                  <td style={{ padding: "10px 16px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                  <td style={{ padding: "10px 16px", color: "var(--text)" }}>{h.name}</td>
+                  <td style={{ padding: "10px 16px", color: "var(--red)", textAlign: "right", fontWeight: 700 }}>
+                    {h.gl.toFixed(1)}%
+                  </td>
+                  <td style={{ padding: "10px 16px", color: "var(--text-mid)", textAlign: "right" }}>
+                    £{h.mv.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
-};
-
-export default ReturnsTab;
+}
