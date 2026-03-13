@@ -1,85 +1,115 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Command, Monitor, Eye, Layers, Star, TrendingUp, Briefcase } from "lucide-react";
-import CommandTab from "@/components/dashboard/CommandTab";
-import MonitorTab from "@/components/dashboard/MonitorTab";
-import WatchlistTab from "@/components/dashboard/WatchlistTab";
-import LayersTab from "@/components/dashboard/LayersTab";
-import ScoresTab from "@/components/dashboard/ScoresTab";
-import ReturnsTab from "@/components/dashboard/ReturnsTab";
-import HoldingsTab from "@/components/dashboard/HoldingsTab";
-import { portfolioSummary } from "@/data/portfolio";
+import CommandTab from "@/components/CommandTab";
+import MonitorTab from "@/components/MonitorTab";
+import WatchlistTab from "@/components/WatchlistTab";
+import LayersTab from "@/components/LayersTab";
+import ScoresTab from "@/components/ScoresTab";
+import ReturnsTab from "@/components/ReturnsTab";
+import HoldingsTab from "@/components/HoldingsTab";
 
-const tabs = [
-  { value: "command", label: "Command", icon: Command },
-  { value: "monitor", label: "Monitor", icon: Monitor },
-  { value: "watchlist", label: "Watchlist", icon: Eye },
-  { value: "layers", label: "Layers", icon: Layers },
-  { value: "scores", label: "Scores", icon: Star },
-  { value: "returns", label: "Returns", icon: TrendingUp },
-  { value: "holdings", label: "Holdings", icon: Briefcase },
-];
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings"] as const;
+type Tab = (typeof TABS)[number];
 
-const Index = () => {
+const s: Record<string, React.CSSProperties> = {
+  app: { minHeight: "100vh", background: "var(--void)" },
+  header: {
+    background: "rgba(4,4,10,0.96)",
+    borderBottom: "1px solid var(--rim)",
+    padding: "0 40px",
+    height: 56,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+  },
+  logo: {
+    fontFamily: "var(--font-display)",
+    fontSize: 22,
+    fontStyle: "italic",
+    color: "var(--text)",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  logoSep: { color: "var(--rim)", fontStyle: "normal", fontFamily: "var(--font-mono)", fontSize: 12 },
+  logoSub: {
+    fontFamily: "var(--font-mono)",
+    fontSize: 9,
+    letterSpacing: "0.2em",
+    textTransform: "uppercase" as const,
+    color: "var(--text-dim)",
+    fontStyle: "normal",
+  },
+  headerMid: { display: "flex", gap: 32 },
+  metaBlock: { fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.06em", color: "var(--text-dim)" },
+  metaVal: { color: "var(--gold)", fontWeight: 700 },
+  nav: { display: "flex", borderBottom: "1px solid var(--rim)", padding: "0 40px" },
+  tab: {
+    background: "transparent",
+    border: "none",
+    borderBottom: "2px solid transparent",
+    color: "var(--text-dim)",
+    cursor: "pointer",
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase" as const,
+    padding: "20px 20px 18px",
+    transition: "color 0.2s",
+  },
+  tabActive: { color: "var(--gold)", borderBottomColor: "var(--gold)" },
+  container: { maxWidth: 1280, margin: "0 auto", padding: "32px 40px 80px" },
+};
+
+export default function Index() {
+  const [active, setActive] = useState<Tab>("Command");
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded gold-gradient flex items-center justify-center">
-              <Star className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <h1 className="font-display text-2xl font-light tracking-wide text-foreground">
-              Stellar <span className="text-primary">Command</span>
-            </h1>
+    <div style={s.app}>
+      <header style={s.header}>
+        <div style={s.logo}>
+          <em>Stellar</em>
+          <span style={s.logoSep}>|</span>
+          <span style={s.logoSub}>Portfolio Command</span>
+        </div>
+        <div style={s.headerMid}>
+          <div style={s.metaBlock}>
+            AUM
+            <br />
+            <span style={s.metaVal}>~£1000K</span>
           </div>
-          <div className="hidden md:flex items-center gap-6">
-            <div className="text-right">
-              <p className="font-ui text-[10px] uppercase tracking-wider text-muted-foreground">SIPP</p>
-              <p className="font-mono-data text-sm text-foreground">£{portfolioSummary.sippValue.toLocaleString()}</p>
-            </div>
-            <div className="w-px h-8 bg-border" />
-            <div className="text-right">
-              <p className="font-ui text-[10px] uppercase tracking-wider text-muted-foreground">ISA</p>
-              <p className="font-mono-data text-sm text-foreground">£{portfolioSummary.isaValue.toLocaleString()}</p>
-            </div>
-            <div className="w-px h-8 bg-border" />
-            <div className="text-right">
-              <p className="font-ui text-[10px] uppercase tracking-wider text-muted-foreground">Income</p>
-              <p className="font-mono-data text-sm text-primary">£{portfolioSummary.annualIncome.toLocaleString()}/yr</p>
-            </div>
+          <div style={s.metaBlock}>
+            TARGET
+            <br />
+            <span style={s.metaVal}>15–20% PA</span>
+          </div>
+          <div style={s.metaBlock}>
+            ACCOUNTS
+            <br />
+            <span style={s.metaVal}>SIPP + ISA</span>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-6">
-        <Tabs defaultValue="command" className="space-y-6">
-          <TabsList className="bg-card border border-border h-auto p-1 flex flex-wrap gap-0">
-            {tabs.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="font-ui text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground px-4 py-2.5 gap-1.5 rounded-md transition-all"
-              >
-                <tab.icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      <nav style={s.nav}>
+        {TABS.map((t) => (
+          <button key={t} style={active === t ? { ...s.tab, ...s.tabActive } : s.tab} onClick={() => setActive(t)}>
+            {t}
+          </button>
+        ))}
+      </nav>
 
-          <TabsContent value="command"><CommandTab /></TabsContent>
-          <TabsContent value="monitor"><MonitorTab /></TabsContent>
-          <TabsContent value="watchlist"><WatchlistTab /></TabsContent>
-          <TabsContent value="layers"><LayersTab /></TabsContent>
-          <TabsContent value="scores"><ScoresTab /></TabsContent>
-          <TabsContent value="returns"><ReturnsTab /></TabsContent>
-          <TabsContent value="holdings"><HoldingsTab /></TabsContent>
-        </Tabs>
-      </main>
+      <div style={s.container}>
+        {active === "Command" && <CommandTab />}
+        {active === "Monitor" && <MonitorTab />}
+        {active === "Watchlist" && <WatchlistTab />}
+        {active === "Layers" && <LayersTab />}
+        {active === "Scores" && <ScoresTab />}
+        {active === "Returns" && <ReturnsTab />}
+        {active === "Holdings" && <HoldingsTab />}
+      </div>
     </div>
   );
-};
-
-export default Index;
+}
