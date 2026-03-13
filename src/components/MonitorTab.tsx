@@ -70,6 +70,7 @@ export default function MonitorTab({ monitorData }: Props) {
 
   const liveCostCurves = hasLive ? monitorData.filter((m) => m.type === "cost_curve") : [];
   const liveStructural = hasLive ? monitorData.filter((m) => m.type === "structural") : [];
+  const liveDisruption = hasLive ? monitorData.filter((m) => m.type === "disruption") : [];
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
