@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding } from "@/hooks/usePortfolioData";
 
@@ -36,35 +37,78 @@ const cardTitle: React.CSSProperties = {
   color: "var(--text-mid)",
 };
 
+type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action";
+type SortDir = "asc" | "desc";
+
+const COLUMNS: { label: string; key: SortKey; align?: "right" }[] = [
+  { label: "Ticker", key: "ticker" },
+  { label: "Name", key: "name" },
+  { label: "Layer", key: "layer" },
+  { label: "MV £", key: "mv", align: "right" },
+  { label: "G/L %", key: "gl", align: "right" },
+  { label: "Day %", key: "day", align: "right" },
+  { label: "Price", key: "price", align: "right" },
+];
+
+function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHolding[] {
+  return [...data].sort((a, b) => {
+    const av = a[key] ?? "";
+    const bv = b[key] ?? "";
+    if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
+    return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+}
+
 function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
+  const [sortKey, setSortKey] = useState<SortKey>("mv");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
+  const sorted = sortHoldings(holdings, sortKey, sortDir);
   const total = holdings.reduce((s, h) => s + (h.mv || 0), 0);
+
+  const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         <thead>
           <tr>
-            {["Ticker", "Name", "Layer", "MV £", "G/L %", "Day %", "Price", "Notes", "Action"].map((h) => (
+            {COLUMNS.map((col) => (
               <th
-                key={h}
+                key={col.key}
+                onClick={() => handleSort(col.key)}
                 style={{
                   fontSize: 9,
                   letterSpacing: "0.15em",
                   textTransform: "uppercase",
-                  color: "var(--text-dim)",
+                  color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)",
                   padding: "8px 12px",
                   borderBottom: "1px solid var(--rim)",
-                  textAlign: "left",
+                  textAlign: col.align ?? "left",
                   fontWeight: 400,
                   whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  userSelect: "none",
                 }}
               >
-                {h}
+                {col.label}{arrow(col.key)}
               </th>
             ))}
+            <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Notes</th>
+            <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Action</th>
           </tr>
         </thead>
         <tbody>
-          {holdings.map((h) => (
+          {sorted.map((h) => (
             <tr key={h.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
               <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
               <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
@@ -72,50 +116,20 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
               <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
                 {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
               </td>
-              <td
-                style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}
-              >
+              <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
                 {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
               </td>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)",
-                  textAlign: "right",
-                }}
-              >
+              <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
                 {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
               </td>
               <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
-                {h.price != null
-                  ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}`
-                  : "—"}
+                {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
               </td>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  color: "var(--text-dim)",
-                  fontSize: 10,
-                  maxWidth: 220,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {h.notes}
               </td>
               <td style={{ padding: "10px 12px" }}>
-                <span
-                  style={{
-                    ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR),
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 9,
-                    letterSpacing: "0.12em",
-                    padding: "2px 8px",
-                    borderRadius: 2,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
                   {h.action}
                 </span>
               </td>
@@ -124,30 +138,8 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
         </tbody>
         <tfoot>
           <tr>
-            <td
-              colSpan={3}
-              style={{
-                padding: "12px",
-                color: "var(--text-mid)",
-                fontWeight: 700,
-                borderTop: "1px solid var(--rim)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-              }}
-            >
-              TOTAL
-            </td>
-            <td
-              style={{
-                padding: "12px",
-                color: "var(--gold)",
-                fontWeight: 700,
-                textAlign: "right",
-                borderTop: "1px solid var(--rim)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-              }}
-            >
+            <td colSpan={3} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
+            <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               £{total.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
             </td>
             <td colSpan={5} style={{ borderTop: "1px solid var(--rim)" }} />
@@ -159,11 +151,14 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
 }
 
 export default function HoldingsTab({ sipp, isa }: Props) {
-  // Use live data if available, otherwise fall back to static
-  const sippData =
-    sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
-  const isaData =
-    isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
+  const sippData: LiveHolding[] =
+    sipp.length > 0
+      ? sipp
+      : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0 }));
+  const isaData: LiveHolding[] =
+    isa.length > 0
+      ? isa
+      : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0 }));
 
   const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0);
   const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0);

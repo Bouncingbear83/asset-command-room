@@ -2,7 +2,7 @@ import { WATCHLIST } from "@/data/portfolio";
 import { LiveWatchItem } from "@/hooks/usePortfolioData";
 
 interface Props {
-  liveData: LiveWatchlistItem[];
+  liveData: LiveWatchItem[];
 }
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
