@@ -100,11 +100,18 @@ function ScoreTrend({ ticker, scoreLog }: { ticker: string; scoreLog: LiveScoreL
   );
 }
 
-export default function ScoresTab({ scores, scoreLog }: Props) {
+const DISRUPTION_STATUS_STYLE: Record<string, React.CSSProperties> = {
+  GREEN: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
+  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  RED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+};
+
+export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Props) {
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const data = scores.length > 0 ? scores : STATIC;
+  const disruptionMap = new Map(disruptionData.map((d) => [d.ticker, d]));
   const sorted = sortScores(data, sortKey, sortDir);
   const isLive = scores.length > 0;
 
