@@ -165,7 +165,7 @@ export default function Index() {
 
       <div style={s.page}>
         {active === "Command" && <CommandTab />}
-        {active === "Monitor" && <MonitorTab />}
+        {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} />}
         {active === "Layers" && <LayersTab liveData={portfolio.layers} />}
         {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} />}
