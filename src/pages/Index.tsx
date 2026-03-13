@@ -6,6 +6,7 @@ import LayersTab from "@/components/LayersTab";
 import ScoresTab from "@/components/ScoresTab";
 import ReturnsTab from "@/components/ReturnsTab";
 import HoldingsTab from "@/components/HoldingsTab";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings"] as const;
 type Tab = (typeof TABS)[number];
