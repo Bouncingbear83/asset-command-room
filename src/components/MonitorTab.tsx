@@ -87,7 +87,7 @@ export default function MonitorTab({ monitorData }: Props) {
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{m.name}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                      Current: {m.current}{m.unit ? ` ${m.unit}` : ""} · AMBER: {m.amber_threshold} · RED: {m.red_threshold}
+                      Current: {m.current}{m.unit ? ` ${m.unit}` : ""} · AMBER: {m.amberThreshold} · RED: {m.redThreshold}
                     </div>
                     {m.notes && (
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
