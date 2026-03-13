@@ -1,40 +1,159 @@
-import { Eye, TrendingUp, TrendingDown } from "lucide-react";
-import { watchlist } from "@/data/portfolio";
+import { WATCHLIST } from "@/data/portfolio";
 
-const WatchlistTab = () => {
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  WAIT: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  WATCH: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
+  "BUY T1": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
+  RESEARCH: { background: "rgba(28,28,48,0.5)", color: "var(--text-dim)", border: "1px solid var(--rim)" },
+};
+
+export default function WatchlistTab() {
+  const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
+  const cardHeader: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "14px 20px",
+    borderBottom: "1px solid var(--rim)",
+  };
+  const cardTitle: React.CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase" as const,
+    color: "var(--text-mid)",
+  };
+
+  const buys = WATCHLIST.filter((w) => w.status === "BUY T1");
+  const watches = WATCHLIST.filter((w) => w.status !== "BUY T1");
+
   return (
-    <div className="space-y-6">
-      <div className="panel-base p-5">
-        <h3 className="font-ui text-xs uppercase tracking-[0.2em] text-muted-foreground mb-5 flex items-center gap-2">
-          <Eye className="w-3.5 h-3.5 text-primary" /> Watchlist
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {watchlist.map((item) => (
-            <div key={item.ticker} className="panel-elevated p-4 hover:border-primary/30 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-data text-base font-medium text-foreground">{item.ticker}</span>
-                <span className={`rag-${item.rag}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                  {item.rag.toUpperCase()}
-                </span>
-              </div>
-              <p className="font-ui text-xs text-muted-foreground mb-3">{item.name}</p>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="font-mono-data text-2xl text-foreground">£{item.price.toFixed(2)}</p>
-                  <div className={`flex items-center gap-1 font-mono-data text-sm ${item.change >= 0 ? "text-success" : "text-destructive"}`}>
-                    {item.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                    {item.change >= 0 ? "+" : ""}{item.change}%
-                  </div>
-                </div>
-              </div>
-              <p className="font-ui text-xs text-primary/80 mt-3 pt-3 border-t border-border/50">{item.signal}</p>
-            </div>
-          ))}
+    <div>
+      {buys.length > 0 && (
+        <div style={{ ...card, borderColor: "rgba(90,191,160,0.3)" }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>⚡ Active Buys — Execute Now</span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                color: "var(--green)",
+                background: "var(--green-dim)",
+                border: "1px solid rgba(90,191,160,0.2)",
+                padding: "3px 10px",
+                borderRadius: 2,
+                letterSpacing: "0.15em",
+              }}
+            >
+              {buys.length} POSITIONS
+            </span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+            <thead>
+              <tr>
+                {["Name", "Layer", "Entry Target", "Trigger", "Rationale", "Status"].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      fontSize: 9,
+                      letterSpacing: "0.15em",
+                      textTransform: "uppercase",
+                      color: "var(--text-dim)",
+                      padding: "8px 16px",
+                      borderBottom: "1px solid var(--rim)",
+                      textAlign: "left",
+                      fontWeight: 400,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {buys.map((w) => (
+                <tr key={w.name} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                  <td style={{ padding: "12px 16px", color: "var(--text)", fontWeight: 600 }}>{w.name}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--text-dim)", fontSize: 10 }}>{w.layer}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--gold)" }}>{w.entry}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--text-dim)" }}>{w.trigger}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--text-dim)", maxWidth: 240 }}>{w.rationale}</td>
+                  <td style={{ padding: "12px 16px" }}>
+                    <span
+                      style={{
+                        ...STATUS_STYLE[w.status],
+                        padding: "3px 10px",
+                        borderRadius: 2,
+                        fontSize: 9,
+                        letterSpacing: "0.15em",
+                      }}
+                    >
+                      {w.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      <div style={card}>
+        <div style={cardHeader}>
+          <span style={cardTitle}>Price Alert Targets</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+            DO NOT BUY WITHOUT TRIGGER
+          </span>
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+          <thead>
+            <tr>
+              {["Name", "Layer", "Entry Target", "Trigger", "Rationale", "Status"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: "var(--text-dim)",
+                    padding: "8px 16px",
+                    borderBottom: "1px solid var(--rim)",
+                    textAlign: "left",
+                    fontWeight: 400,
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {watches.map((w) => (
+              <tr key={w.name} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                <td style={{ padding: "12px 16px", color: "var(--text)", fontWeight: 600 }}>{w.name}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-dim)", fontSize: 10 }}>{w.layer}</td>
+                <td style={{ padding: "12px 16px", color: "var(--gold)" }}>{w.entry}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-dim)" }}>{w.trigger}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-dim)", maxWidth: 240 }}>{w.rationale}</td>
+                <td style={{ padding: "12px 16px" }}>
+                  <span
+                    style={{
+                      ...(STATUS_STYLE[w.status] ?? STATUS_STYLE.WATCH),
+                      padding: "3px 10px",
+                      borderRadius: 2,
+                      fontSize: 9,
+                      letterSpacing: "0.15em",
+                    }}
+                  >
+                    {w.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
-};
-
-export default WatchlistTab;
+}
