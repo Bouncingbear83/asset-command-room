@@ -22,7 +22,14 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = await res.text();
   const json = JSON.parse(text.substring(47, text.length - 2));
-  const cols: string[] = json.table.cols.map((c: any) => c.label as string);
+  const cols: string[] = json.table.cols.map((c: any) => {
+    const label = (c.label as string).trim();
+    if (label.length > 20) {
+      const parts = label.split(/\s+/);
+      return parts[parts.length - 1];
+    }
+    return label;
+  });
   return json.table.rows
     .map((r: any) => {
       const obj: Record<string, any> = {};

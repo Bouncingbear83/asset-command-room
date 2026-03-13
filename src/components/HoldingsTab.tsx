@@ -509,7 +509,7 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
               else { statusColor = "var(--green)"; statusLabel = "On trend"; }
 
               return (
-                <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
+                <div key={h.ticker || h.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
                   {/* Left: ticker + name */}
                   <div style={{ width: 120, flexShrink: 0 }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
