@@ -126,8 +126,8 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
 }
 
 export default function WatchlistTab({ liveData }: Props) {
-  // Map static watchlist to LiveWatchlistItem shape as fallback
-  const staticItems: LiveWatchlistItem[] = WATCHLIST.map((w) => ({
+  // Map static watchlist to LiveWatchItem shape as fallback
+  const staticItems: LiveWatchItem[] = WATCHLIST.map((w) => ({
     name: w.name,
     ticker: "",
     layer: w.layer,
