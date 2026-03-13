@@ -190,6 +190,7 @@ export interface PortfolioData {
   scores: LiveScore[];
   scoreLog: LiveScoreLog[];
   monitor: LiveMonitor[];
+  disruption: LiveDisruption[];
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
