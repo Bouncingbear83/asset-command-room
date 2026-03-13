@@ -197,7 +197,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /></td>
                     <td style={{ padding: "10px 12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 70 ? "var(--green)" : s.disruption >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
+                        <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 11 ? "var(--green)" : s.disruption >= 8 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
                         {(() => {
                           const dd = disruptionMap.get(s.ticker);
                           if (!dd || !dd.status) return null;
