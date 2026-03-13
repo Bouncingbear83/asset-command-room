@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { LiveScore } from "@/hooks/usePortfolioData";
+import { LiveScore, LiveScoreLog } from "@/hooks/usePortfolioData";
 
 interface Props {
   scores: LiveScore[];
+  scoreLog: LiveScoreLog[];
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
@@ -65,7 +66,39 @@ function sortScores(data: LiveScore[], key: ScoreSortKey, dir: SortDir): LiveSco
   });
 }
 
-export default function ScoresTab({ scores }: Props) {
+function ScoreTrend({ ticker, scoreLog }: { ticker: string; scoreLog: LiveScoreLog[] }) {
+  const entries = scoreLog
+    .filter((e) => e.ticker === ticker && e.score != null)
+    .sort((a, b) => String(a.date ?? "").localeCompare(String(b.date ?? "")));
+
+  if (entries.length === 0) return null;
+
+  if (entries.length === 1) {
+    return (
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>
+    );
+  }
+
+  const prev = entries[entries.length - 2].score!;
+  const latest = entries[entries.length - 1].score!;
+  const delta = latest - prev;
+
+  if (delta === 0) {
+    return (
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>
+    );
+  }
+
+  const isUp = delta > 0;
+  return (
+    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: isUp ? "var(--green)" : "var(--red)", marginLeft: 6 }}>
+      {isUp ? "↑" : "↓"}
+      <span style={{ fontSize: 9, marginLeft: 2 }}>{isUp ? `+${delta}` : delta}</span>
+    </span>
+  );
+}
+
+export default function ScoresTab({ scores, scoreLog }: Props) {
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -138,8 +171,9 @@ export default function ScoresTab({ scores }: Props) {
                   <tr key={s.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                     <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>{s.ticker}</td>
                     <td style={{ padding: "10px 12px" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
                         {s.score ?? "—"}
+                        <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} />
                       </span>
                     </td>
                     <td style={{ padding: "10px 12px" }}><ScoreBar value={s.substrate} max={100} color="var(--gold)" /></td>
