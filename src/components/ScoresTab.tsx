@@ -38,9 +38,9 @@ const TIER_STYLE: Record<string, React.CSSProperties> = {
 };
 
 const STATIC: LiveScore[] = [
-  { ticker: "ASML", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, disruption: 85, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "" },
-  { ticker: "NVDA", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, disruption: 72, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "" },
-  { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 90, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
+  { ticker: "ASML", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, disruption: 13, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "" },
+  { ticker: "NVDA", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, disruption: 11, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "" },
+  { ticker: "CCJ", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 14, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "" },
 ];
 
 type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate";
