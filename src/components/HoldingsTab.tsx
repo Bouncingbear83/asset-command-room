@@ -518,7 +518,7 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
 
                   {/* Centre: range bar */}
                   <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
-                    <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+                    <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
                     <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
                       <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
                       <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
