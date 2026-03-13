@@ -93,12 +93,12 @@ function InlineRangeBar({ h }: { h: LiveHolding }) {
     <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
       {/* Range bar */}
       <div style={{ flex: 1, position: "relative", height: 22, display: "flex", alignItems: "center", minWidth: 120 }}>
-        <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
         <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
           <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
         </div>
-        <div style={{ position: "absolute", left: `${pricePct}%`, top: 3, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: `${pricePct}%`, top: 2, bottom: 2, width: 3, background: statusColor, borderRadius: 1 }} />
         <span style={{ position: "absolute", left: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
         <span style={{ position: "absolute", right: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
       </div>
@@ -435,8 +435,9 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   // Deduplicate by ticker, prefer the one with more data
   const deduped = new Map<string, LiveHolding>();
   for (const h of allHoldings) {
-    if (!deduped.has(h.ticker) || (h.ma60 && !deduped.get(h.ticker)!.ma60)) {
-      deduped.set(h.ticker, h);
+    const key = h.ticker || h.name;
+    if (!deduped.has(key) || (h.ma60 && !deduped.get(key)!.ma60)) {
+      deduped.set(key, h);
     }
   }
 
@@ -508,7 +509,7 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
               else { statusColor = "var(--green)"; statusLabel = "On trend"; }
 
               return (
-                <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
+                <div key={h.ticker || h.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
                   {/* Left: ticker + name */}
                   <div style={{ width: 120, flexShrink: 0 }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
@@ -517,12 +518,12 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
 
                   {/* Centre: range bar */}
                   <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
-                    <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "var(--muted)", borderRadius: 1 }} />
+                    <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
                     <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
                       <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
                       <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
                     </div>
-                    <div style={{ position: "absolute", left: `${pricePct}%`, top: 4, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+                    <div style={{ position: "absolute", left: `${pricePct}%`, top: 2, bottom: 2, width: 3, background: statusColor, borderRadius: 1 }} />
                     <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
                     <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
                   </div>
