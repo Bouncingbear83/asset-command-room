@@ -94,9 +94,9 @@ export default function MonitorTab({ monitorData }: Props) {
                         → {m.notes}
                       </div>
                     )}
-                    {m.last_updated && (
+                    {m.lastUpdated && (
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>
-                        Updated: {m.last_updated}
+                        Updated: {m.lastUpdated}
                       </div>
                     )}
                   </div>
