@@ -42,7 +42,7 @@ const th: React.CSSProperties = {
   whiteSpace: "nowrap" as const,
 };
 
-function WatchTable({ items }: { items: LiveWatchlistItem[] }) {
+function WatchTable({ items }: { items: LiveWatchItem[] }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
