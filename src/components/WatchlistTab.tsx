@@ -7,7 +7,7 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
   RESEARCH: { background: "rgba(28,28,48,0.5)", color: "var(--text-dim)", border: "1px solid var(--rim)" },
 };
 
-export default function WatchlistTab() {
+export default function WatchlistTab({ liveData }: { liveData?: any[] }) {
   const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
   const cardHeader: React.CSSProperties = {
     display: "flex",
