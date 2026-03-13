@@ -98,7 +98,7 @@ function InlineRangeBar({ h }: { h: LiveHolding }) {
           <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
           <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
         </div>
-        <div style={{ position: "absolute", left: `${pricePct}%`, top: 3, bottom: 2, width: 2, background: statusColor, borderRadius: 1 }} />
+        <div style={{ position: "absolute", left: `${pricePct}%`, top: 2, bottom: 2, width: 3, background: statusColor, borderRadius: 1 }} />
         <span style={{ position: "absolute", left: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
         <span style={{ position: "absolute", right: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
       </div>
