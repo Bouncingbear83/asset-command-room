@@ -1,14 +1,23 @@
+import { LiveMonitor } from "@/hooks/usePortfolioData";
 import { COST_CURVES, STRUCTURAL_TRIGGERS } from "@/data/portfolio";
 
+interface Props {
+  monitorData: LiveMonitor[];
+}
+
 const rag = (status: string): React.CSSProperties => {
+  const upper = (status ?? "").toUpperCase();
   const map: Record<string, [string, string, string]> = {
     NORMAL: ["var(--green-dim)", "var(--green)", "rgba(90,191,160,0.2)"],
-    WATCH: ["var(--amber-dim)", "var(--amber)", "rgba(200,146,90,0.2)"],
-    MONITOR: ["var(--accent-dim)", "var(--accent)", "rgba(110,142,200,0.2)"],
-    TRIGGERED: ["var(--red-dim)", "var(--red)", "rgba(200,90,90,0.2)"],
+    GREEN: ["var(--green-dim)", "var(--green)", "rgba(90,191,160,0.2)"],
     CLEAR: ["var(--green-dim)", "var(--green)", "rgba(90,191,160,0.2)"],
+    WATCH: ["var(--amber-dim)", "var(--amber)", "rgba(200,146,90,0.2)"],
+    AMBER: ["var(--amber-dim)", "var(--amber)", "rgba(200,146,90,0.2)"],
+    MONITOR: ["var(--accent-dim)", "var(--accent)", "rgba(110,142,200,0.2)"],
+    RED: ["var(--red-dim)", "var(--red)", "rgba(200,90,90,0.2)"],
+    TRIGGERED: ["var(--red-dim)", "var(--red)", "rgba(200,90,90,0.2)"],
   };
-  const [bg, color, border] = map[status] ?? map.MONITOR;
+  const [bg, color, border] = map[upper] ?? map.MONITOR;
   return {
     background: bg,
     color,
@@ -56,51 +65,104 @@ const WEEKLY = [
   { name: "Any holding >10% weekly move", detail: "Review thesis immediately", status: "CLEAR" },
 ];
 
-export default function MonitorTab() {
+export default function MonitorTab({ monitorData }: Props) {
+  const hasLive = monitorData.length > 0;
+
+  const liveCostCurves = hasLive ? monitorData.filter((m) => m.type === "cost_curve") : [];
+  const liveStructural = hasLive ? monitorData.filter((m) => m.type === "structural") : [];
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Cost Curve Metrics</span>
-          <span style={rag("MONITOR")}>5 METRICS</span>
+          <span style={rag("MONITOR")}>
+            {hasLive ? `${liveCostCurves.length} METRICS` : `${COST_CURVES.length} METRICS`}
+          </span>
         </div>
         <div style={{ padding: "0 20px 16px" }}>
-          {COST_CURVES.map((m) => (
-            <div key={m.name} style={row}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{m.name}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                  Current: {m.current} · AMBER: {m.amber} · RED: {m.red}
+          {hasLive
+            ? liveCostCurves.map((m) => (
+                <div key={m.name} style={row}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{m.name}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      Current: {m.current}{m.unit ? ` ${m.unit}` : ""} · AMBER: {m.amber_threshold} · RED: {m.red_threshold}
+                    </div>
+                    {m.notes && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
+                        → {m.notes}
+                      </div>
+                    )}
+                    {m.last_updated && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>
+                        Updated: {m.last_updated}
+                      </div>
+                    )}
+                  </div>
+                  <span style={rag(m.status)}>{m.status}</span>
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
-                  → {m.impact}
+              ))
+            : COST_CURVES.map((m) => (
+                <div key={m.name} style={row}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{m.name}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      Current: {m.current} · AMBER: {m.amber} · RED: {m.red}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
+                      → {m.impact}
+                    </div>
+                  </div>
+                  <span style={rag(m.status)}>{m.status}</span>
                 </div>
-              </div>
-              <span style={rag(m.status)}>{m.status}</span>
-            </div>
-          ))}
+              ))}
         </div>
       </div>
 
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Structural Triggers</span>
-          <span style={rag("MONITOR")}>6 TRIGGERS</span>
+          <span style={rag("MONITOR")}>
+            {hasLive ? `${liveStructural.length} TRIGGERS` : `${STRUCTURAL_TRIGGERS.length} TRIGGERS`}
+          </span>
         </div>
         <div style={{ padding: "0 20px 16px" }}>
-          {STRUCTURAL_TRIGGERS.map((t) => (
-            <div key={t.id} style={row}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
-                  {t.id} — {t.name}
+          {hasLive
+            ? liveStructural.map((t, i) => (
+                <div key={t.name + i} style={row}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{t.name}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      Current: {t.current}{t.unit ? ` ${t.unit}` : ""} · AMBER: {t.amber_threshold} · RED: {t.red_threshold}
+                    </div>
+                    {t.notes && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>
+                        → {t.notes}
+                      </div>
+                    )}
+                    {t.last_updated && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>
+                        Updated: {t.last_updated}
+                      </div>
+                    )}
+                  </div>
+                  <span style={rag(t.status)}>{t.status}</span>
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                  → {t.impact}
+              ))
+            : STRUCTURAL_TRIGGERS.map((t) => (
+                <div key={t.id} style={row}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
+                      {t.id} — {t.name}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      → {t.impact}
+                    </div>
+                  </div>
+                  <span style={rag(t.status)}>{t.status}</span>
                 </div>
-              </div>
-              <span style={rag(t.status)}>{t.status}</span>
-            </div>
-          ))}
+              ))}
         </div>
       </div>
 
