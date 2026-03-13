@@ -66,6 +66,7 @@ const s: Record<string, React.CSSProperties> = {
 
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
+  const { holdings, watchlist, layers, scores, lastUpdated, loading, error } = usePortfolioData();
 
   return (
     <div style={s.app}>
@@ -102,14 +103,40 @@ export default function Index() {
         ))}
       </nav>
 
+      {/* Status bar */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "6px 40px",
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.1em",
+        borderBottom: "1px solid var(--rim)",
+        background: "rgba(4,4,10,0.6)",
+      }}>
+        {loading && (
+          <span style={{ color: "var(--gold)", animation: "pulse 1.5s infinite" }}>● REFRESHING…</span>
+        )}
+        {lastUpdated && !loading && (
+          <span style={{ color: "var(--text-dim)" }}>SHEET SYNC: {lastUpdated}</span>
+        )}
+        {error && (
+          <span style={{ color: "var(--red)" }}>ERROR: {error} — using fallback data</span>
+        )}
+        {!loading && !error && lastUpdated && (
+          <span style={{ color: "var(--green)" }}>● LIVE</span>
+        )}
+      </div>
+
       <div style={s.container}>
         {active === "Command" && <CommandTab />}
         {active === "Monitor" && <MonitorTab />}
-        {active === "Watchlist" && <WatchlistTab />}
-        {active === "Layers" && <LayersTab />}
+        {active === "Watchlist" && <WatchlistTab liveData={watchlist.length > 0 ? watchlist : undefined} />}
+        {active === "Layers" && <LayersTab liveData={layers.length > 0 ? layers : undefined} />}
         {active === "Scores" && <ScoresTab />}
         {active === "Returns" && <ReturnsTab />}
-        {active === "Holdings" && <HoldingsTab />}
+        {active === "Holdings" && <HoldingsTab liveData={holdings.length > 0 ? holdings : undefined} />}
       </div>
     </div>
   );
