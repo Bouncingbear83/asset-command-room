@@ -8,7 +8,7 @@ interface Props {
   isa: LiveHolding[];
 }
 
-type ViewMode = "layer" | "account";
+type ViewMode = "layer" | "account" | "pricemap";
 
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
   HOLD: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
