@@ -1,14 +1,45 @@
+import { useState } from "react";
 import { RISK_CONTROLS, BUBBLE_FLAGS, GOLDEN_RULES } from "@/data/portfolio";
 
-const STELLAR_CTX = `STELLAR HYPOTHESIS — PORTFOLIO COMMAND
-AUM: ~£999k (SIPP £575k + ISA £424k) | Target: 15-20% CAGR
-Doctrine: Own the substrate. Stay one layer deeper than the narrative.
-Framework: Compute 22% | Energy 15.3% | Materials 12.6% | Biological 20.1% | Sovereignty 10.4% | Robotics 9% | Hedge ≥12%`;
+const PROJECT_ID = "PROJECT_ID"; // User to substitute their actual project ID
 
-function launchClaude(q = "") {
-  const text = STELLAR_CTX + (q ? "\n\n" + q : "");
-  navigator.clipboard.writeText(text).catch(() => {});
-  window.open("https://claude.ai/new", "_blank");
+const QUICK_COMMANDS = [
+  {
+    label: "Weekly check",
+    prompt:
+      "Run a weekly check. Search the web for: S&P 500, Nasdaq, and VIX current levels; uranium spot price; copper spot price; any holdings in my portfolio with >10% move this week. Compare against pause triggers (VIX >35) and Disruption Monitor AMBER/RED thresholds. Flag anything requiring action.",
+  },
+  {
+    label: "Monthly review",
+    prompt:
+      "Run a monthly review. Start with the weekly check, then: rescore the 3 lowest-scoring holdings, check all layer weights vs targets, verify top-5 concentration is ≤35% AUM, confirm hedge floor is ≥12% AUM, check bio twin-risk (ILMN+TWST combined ≤11% AUM). Recommend any actions required.",
+  },
+  {
+    label: "Quarterly review",
+    prompt:
+      "Run a quarterly review. Start with the monthly review, then refresh all 5 cost-curve metrics (solar LCOE, battery $/kWh, DNA synthesis $/bp, AI inference $/M tokens, humanoid unit production cost). Check all 6 structural triggers (China EUV access, AI drug Phase 3 trial, SSN(X) programme status, Kazatomprom Western market access, new major uranium mine, fleet closures). Update Disruption Monitor status and validate all thesis statements.",
+  },
+  {
+    label: "Substrate audit",
+    prompt:
+      "Run a substrate audit across every current holding. For each position apply the substrate test: is this the thing without which the transformation stalls? Return a table: TICKER | PASS/FAIL | ONE-LINE SUBSTRATE ARGUMENT. Flag any that fail or are borderline.",
+  },
+  {
+    label: "Layer gaps",
+    prompt:
+      "Analyse current layer weights vs targets (Compute 22%, Energy 15.3%, Materials 12.6%, Biological 20.1%, Sovereignty 10.4%, Robotics 9%, Hedge 15%+). Identify gaps, calculate £ required to reach target, and rank priority actions by conviction and current entry conditions.",
+  },
+  {
+    label: "Reclassification risk",
+    prompt:
+      "Review all current holdings and identify which have had their reclassification premium fully priced in by the market. For each, assess: has the label already changed? Is the multiple already re-rated? Where is the easy money done and capital should rotate to the next unlabelled substrate?",
+  },
+];
+
+function launchClaude(prompt: string) {
+  const encodedPrompt = encodeURIComponent(prompt);
+  const url = `https://claude.ai/new?project=${PROJECT_ID}&q=${encodedPrompt}`;
+  window.open(url, "_blank");
 }
 
 const RAG: Record<string, React.CSSProperties> = {
@@ -54,16 +85,15 @@ const divRow: React.CSSProperties = {
   gap: 16,
 };
 
-const QUICK = [
-  { label: "Weekly check", q: "weekly check" },
-  { label: "Monthly review", q: "monthly review" },
-  { label: "Quarterly review", q: "quarterly review" },
-  { label: "Substrate audit", q: "Run the substrate test on all holdings" },
-  { label: "Layer gaps", q: "What are the current layer gaps and how do I close them?" },
-  { label: "Reclassification risk", q: "Which holdings are at risk of reclassification being complete?" },
-];
-
 export default function CommandTab() {
+  const [customPrompt, setCustomPrompt] = useState("");
+
+  const handleGo = () => {
+    if (customPrompt.trim()) {
+      launchClaude(customPrompt.trim());
+    }
+  };
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
       {/* Left: launch + quick commands */}
@@ -94,10 +124,10 @@ export default function CommandTab() {
             One layer <em>deeper</em>.
           </div>
           <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 24 }}>
-            Copies your complete Stellar framework to clipboard and opens Claude.
+            Launch Claude with pre-filled Stellar prompts.
           </div>
           <button
-            onClick={() => launchClaude()}
+            onClick={() => launchClaude("")}
             style={{
               background: "var(--gold)",
               color: "var(--void)",
@@ -113,7 +143,8 @@ export default function CommandTab() {
             Open Stellar Intelligence
           </button>
         </div>
-        <div style={{ padding: "12px 20px 4px" }}>
+
+        <div style={{ padding: "20px" }}>
           <div
             style={{
               fontFamily: "var(--font-mono)",
@@ -121,72 +152,95 @@ export default function CommandTab() {
               letterSpacing: "0.2em",
               textTransform: "uppercase",
               color: "var(--text-dim)",
-              marginBottom: 8,
+              marginBottom: 12,
             }}
           >
             Quick Commands
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-            {QUICK.map((q) => (
+
+          {/* 2x3 Grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+              marginBottom: 20,
+            }}
+          >
+            {QUICK_COMMANDS.map((cmd) => (
               <button
-                key={q.label}
-                onClick={() => launchClaude(q.q)}
+                key={cmd.label}
+                onClick={() => launchClaude(cmd.prompt)}
                 style={{
                   background: "var(--surface, #0D0D1A)",
                   border: "1px solid var(--rim)",
                   color: "var(--text-mid)",
-                  padding: 10,
+                  padding: "12px 14px",
                   fontFamily: "var(--font-mono)",
                   fontSize: 10,
                   letterSpacing: "0.1em",
                   cursor: "pointer",
                   textAlign: "left",
+                  textTransform: "uppercase",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--gold)";
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--rim)";
+                  e.currentTarget.style.color = "var(--text-mid)";
                 }}
               >
-                {q.label}
+                {cmd.label}
               </button>
             ))}
           </div>
-        </div>
-        <div style={{ padding: "0 20px 20px", display: "flex", gap: 8 }}>
-          <textarea
-            placeholder="e.g. ASML dropped 12%, what do I do?"
-            style={{
-              flex: 1,
-              background: "var(--surface, #0D0D1A)",
-              border: "1px solid var(--rim)",
-              color: "var(--text)",
-              padding: 10,
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              resize: "vertical",
-              minHeight: 60,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                launchClaude((e.target as HTMLTextAreaElement).value.trim());
-              }
-            }}
-          />
-          <button
-            onClick={(e) => {
-              const ta = e.currentTarget.previousSibling as HTMLTextAreaElement;
-              launchClaude(ta.value.trim());
-            }}
-            style={{
-              background: "var(--gold)",
-              color: "var(--void)",
-              border: "none",
-              padding: "10px 20px",
-              fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            GO →
-          </button>
+
+          {/* Free text input */}
+          <div style={{ display: "flex", gap: 10 }}>
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Enter custom prompt..."
+              style={{
+                flex: 1,
+                background: "var(--surface, #0D0D1A)",
+                border: "1px solid var(--rim)",
+                color: "var(--text)",
+                padding: "10px 12px",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                resize: "none",
+                minHeight: 44,
+                outline: "none",
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGo();
+                }
+              }}
+            />
+            <button
+              onClick={handleGo}
+              style={{
+                background: "var(--gold)",
+                color: "var(--void)",
+                border: "none",
+                padding: "10px 24px",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                letterSpacing: "0.15em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              GO →
+            </button>
+          </div>
         </div>
 
         {/* Sheet Update Pack */}
