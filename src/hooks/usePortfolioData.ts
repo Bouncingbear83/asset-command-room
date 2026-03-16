@@ -99,24 +99,24 @@ function parseNum(val: any): number | null {
 function parseHoldings(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
-      const ticker = r["TICKER"];
-      const mv = r["MV (£)"];
+      const ticker = findCol(r, "TICKER", "ticker");
+      const mv = findCol(r, "MV (£)", "MV", "mv", "(£)");
       return ticker && String(ticker).trim() !== "" && typeof mv === "number" && mv > 0;
     })
     .map((r) => ({
-    ticker: String(r["TICKER"] ?? ""),
-    name: String(r["NAME"] ?? ""),
-    layer: String(r["LAYER"] ?? ""),
-    mv: parseMv(r["MV (£)"]),
-    gl: parseGl(r["G/L %"]),
-    day: parseDay(r["DAY %"] ?? r["Day %"]),
-    notes: String(r["NOTES"] ?? ""),
-    action: String(r["ACTION"] ?? "HOLD"),
+    ticker: String(findCol(r, "TICKER", "ticker") ?? ""),
+    name: String(findCol(r, "NAME", "name") ?? ""),
+    layer: String(findCol(r, "LAYER", "layer") ?? ""),
+    mv: parseMv(findCol(r, "MV (£)", "MV", "mv", "(£)")),
+    gl: parseGl(findCol(r, "G/L %", "G/L%", "gl", "G/L")),
+    day: parseDay(findCol(r, "DAY %", "Day %", "day", "DAY")),
+    notes: String(findCol(r, "NOTES", "notes") ?? ""),
+    action: String(findCol(r, "ACTION", "action") ?? "HOLD"),
     price: parseNum(findCol(r, "PRICE_LOCAL", "price_local", "Price_Local")),
     prevClose: parseNum(findCol(r, "PREV_CLOSE_LOCAL", "prev_close_local")),
-    currency: String(r["CURRENCY"] ?? "USD"),
-    costGbp: typeof r["COST_GBP"] === "number" ? r["COST_GBP"] : null,
-    shares: typeof r["SHARES"] === "number" ? r["SHARES"] : null,
+    currency: String(findCol(r, "CURRENCY", "currency") ?? "USD"),
+    costGbp: parseNum(findCol(r, "COST_GBP", "cost_gbp", "Cost_GBP")),
+    shares: parseNum(findCol(r, "SHARES", "shares", "Shares")),
     add_trigger: String(findCol(r, "add_trigger", "ADD_TRIGGER") ?? ""),
     exit_trigger: String(findCol(r, "exit_trigger", "EXIT_TRIGGER") ?? ""),
     ma60: parseNum(findCol(r, "MA60", "ma60", "Ma60")),
