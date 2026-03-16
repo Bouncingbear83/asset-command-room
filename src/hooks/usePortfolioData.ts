@@ -39,7 +39,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   const json = JSON.parse(text.substring(47, text.length - 2));
   const cols: string[] = json.table.cols.map((c: any) => {
     const label = (c.label as string).trim();
-    if (label.length <= 20) return label;
+    if (!label.includes(" ")) return label;
     // Scan for a known column name within the long label (case-insensitive)
     const labelLower = label.toLowerCase();
     // Sort by length descending so longer matches win (e.g. "mv (£)" before "mv")
@@ -60,10 +60,12 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
     })
     .filter((row: any) => {
       const vals = Object.values(row);
-      // Keep rows with at least one non-null value and some recognizable content
       const hasContent = vals.some((v) => v !== null && v !== undefined && String(v).trim() !== "");
       if (!hasContent) return false;
-      // Check known identifier columns (flexible)
+      // If row_type column exists, let the parser handle filtering
+      const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
+      if (rowType !== null && rowType !== undefined) return true;
+      // Original generic filter for sheets without Row_Type
       const keys = Object.keys(row);
       const hasId = keys.some((k) => {
         const kl = k.toLowerCase();
@@ -197,16 +199,14 @@ function parseLayers(rows: Record<string, any>[]) {
 function parseScores(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
-      const ticker = String(r["ticker"] ?? r["TICKER"] ?? "").trim();
-      // Filter out section header rows (e.g. "COMPUTE LAYER", "ENERGY LAYER", "WATCHLIST — PRICE-TRIGGERED")
-      if (!ticker) return false;
-      if (/\bLAYER\b/i.test(ticker)) return false;
-      if (/^MACRO\s+HEDGE/i.test(ticker)) return false;
-      if (/^WATCHLIST/i.test(ticker)) return false;
-      // Skip rows with no score AND ticker contains a space (likely a header)
-      const score = r["score"] ?? r["SCORE"];
-      if (score == null && ticker.includes(" ")) return false;
-      return true;
+      const rowType = findCol(r, "row_type", "Row_Type", "ROW_TYPE");
+      if (rowType) {
+        const rt = String(rowType).trim().toLowerCase();
+        return rt === "data" || rt === "watchlist";
+      }
+      // Fallback: original ticker-based filter
+      const ticker = String(findCol(r, "ticker", "TICKER") ?? "").trim();
+      return ticker !== "" && !ticker.includes(" ");
     })
     .map((r) => ({
       ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
