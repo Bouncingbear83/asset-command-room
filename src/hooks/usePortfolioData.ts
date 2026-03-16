@@ -74,14 +74,21 @@ function parseDay(val: any): number {
 }
 
 function findCol(r: Record<string, any>, ...candidates: string[]): any {
+  // Exact match
   for (const c of candidates) {
     if (r[c] !== undefined && r[c] !== null) return r[c];
   }
-  // Case-insensitive fallback
+  // Case-insensitive match
   const keys = Object.keys(r);
   for (const c of candidates) {
     const lower = c.toLowerCase();
     const match = keys.find((k) => k.toLowerCase() === lower);
+    if (match && r[match] !== undefined && r[match] !== null) return r[match];
+  }
+  // Partial/contains match (for mangled headers)
+  for (const c of candidates) {
+    const lower = c.toLowerCase();
+    const match = keys.find((k) => k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase()));
     if (match && r[match] !== undefined && r[match] !== null) return r[match];
   }
   return null;
