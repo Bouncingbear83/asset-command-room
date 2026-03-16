@@ -227,6 +227,7 @@ function parseScores(rows: Record<string, any>[]) {
       fullThesis: String(r["full_thesis"] ?? ""),
       currency: String(r["currency"] ?? "USD"),
       changeNote: String(r["change_note"] ?? ""),
+      rowType: String(findCol(r, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 }
 
