@@ -39,7 +39,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   const json = JSON.parse(text.substring(47, text.length - 2));
   const cols: string[] = json.table.cols.map((c: any) => {
     const label = (c.label as string).trim();
-    if (label.length <= 20) return label;
+    if (!label.includes(" ")) return label;
     // Scan for a known column name within the long label (case-insensitive)
     const labelLower = label.toLowerCase();
     // Sort by length descending so longer matches win (e.g. "mv (£)" before "mv")
