@@ -504,9 +504,9 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
 
               let statusColor: string;
               let statusLabel: string;
-              if (price > ma60 * 1.10) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
-              else if (price < ma60 * 0.90) { statusColor = "var(--red)"; statusLabel = "Under pressure"; }
-              else { statusColor = "var(--green)"; statusLabel = "On trend"; }
+              if (price < ma60) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
+              else if (pricePct >= 80) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
+              else { statusColor = "var(--green)"; statusLabel = "Healthy"; }
 
               return (
                 <div key={h.ticker || h.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
