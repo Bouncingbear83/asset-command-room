@@ -1,12 +1,44 @@
 import { LAYER_TARGETS } from "@/data/portfolio";
 import { LiveLayer } from "@/hooks/usePortfolioData";
+import { useIntelligence } from "@/data/intelligenceState";
 
 interface Props {
   liveData: LiveLayer[];
 }
 
+const priorityBadge = (priority: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string }> = {
+    URGENT: { bg: '#e74c3c', color: '#fff' },
+    HIGH: { bg: '#e67e22', color: '#fff' },
+    MEDIUM: { bg: 'rgba(201,168,76,0.15)', color: '#c9a84c' },
+    LOW: { bg: 'rgba(85,85,85,0.2)', color: '#555' },
+  };
+  const c = map[priority] ?? map.LOW;
+  return {
+    background: c.bg, color: c.color, fontFamily: "var(--font-ui)", fontSize: 10,
+    letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 10px",
+    borderRadius: 2, whiteSpace: "nowrap",
+  };
+};
+
+const ipoStatusBadge = (status: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string; border: string }> = {
+    'PRE-IPO': { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    'IPO-WATCH': { bg: 'rgba(201,168,76,0.2)', color: '#c9a84c', border: 'transparent' },
+    FILED: { bg: '#e67e22', color: '#fff', border: 'transparent' },
+    LISTED: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+  };
+  const c = map[status] ?? map['PRE-IPO'];
+  return {
+    background: c.bg, color: c.color, border: `1px solid ${c.border}`,
+    fontFamily: "var(--font-ui)", fontSize: 10, letterSpacing: "0.1em",
+    textTransform: "uppercase", padding: "2px 10px", borderRadius: 2, whiteSpace: "nowrap",
+  };
+};
+
 export default function LayersTab({ liveData }: Props) {
-  // Use live data if available, else static
+  const { state } = useIntelligence();
+
   const layers =
     liveData.length > 0
       ? liveData
@@ -28,6 +60,30 @@ export default function LayersTab({ liveData }: Props) {
     textTransform: "uppercase" as const,
     color: "var(--text-mid)",
   };
+
+  // Layer gaps — from intelligence state or fallback
+  const hasLayerGaps = Object.keys(state.layerGaps).length > 0;
+  const layerGapEntries = hasLayerGaps
+    ? Object.entries(state.layerGaps)
+    : [
+        ['Robotics', { priority: 'URGENT' as const, note: 'Zero position — new layer. Renishaw T1 NOW · Hexagon T1 NOW · ROBG ETF £15k', filled: [] as string[], pending: ['RSW', 'HEXA-B', 'ROBG'] }],
+        ['Biological', { priority: 'HIGH' as const, note: '~5% below 20.1% target. DHR at ~$200 · RGEN at $110–120', filled: [] as string[], pending: ['DHR', 'RGEN'] }],
+        ['Compute', { priority: 'MEDIUM' as const, note: 'NVDA undersized at ~3% AUM. Size NVDA to £60k target. MU on watchlist.', filled: [] as string[], pending: ['NVDA'] }],
+        ['Energy', { priority: 'MEDIUM' as const, note: 'HVDC/cable infra uncovered. Prysmian or NKT — deep research pending', filled: [] as string[], pending: ['PRS', 'NKT'] }],
+        ['Sovereignty', { priority: 'LOW' as const, note: 'KTOS pending at $60–70', filled: [] as string[], pending: ['KTOS'] }],
+      ] as [string, { priority: string; note: string; filled: string[]; pending: string[] }][];
+
+  // IPO watch — from intelligence state or fallback
+  const hasIpo = Object.keys(state.ipoWatch).length > 0;
+  const ipoEntries = hasIpo
+    ? Object.entries(state.ipoWatch)
+    : [
+        ['Anduril Industries', { status: 'PRE-IPO', layer: 'Sovereignty', note: 'Defence AI hardware. HIGH alignment.' }],
+        ['Shield AI', { status: 'PRE-IPO', layer: 'Sovereignty', note: 'Autonomous military systems.' }],
+        ['SpaceX / Starlink', { status: 'PRE-IPO', layer: 'Sovereignty', note: 'Orbital substrate — re-rates RKLB on filing.' }],
+        ['Figure AI', { status: 'PRE-IPO', layer: 'Robotics', note: '$39B private. Wait for post-IPO price discovery.' }],
+        ['PsiQuantum', { status: 'PRE-IPO', layer: 'Compute', note: 'Wait for hardware milestone proof.' }],
+      ] as [string, { status: string; layer: string; note: string }][];
 
   return (
     <div>
@@ -119,71 +175,31 @@ export default function LayersTab({ liveData }: Props) {
             <span style={cardTitle}>Layer Gap Actions</span>
           </div>
           <div style={{ padding: "0 20px 12px" }}>
-            {[
-              {
-                layer: "Robotics",
-                gap: "Zero position — new layer",
-                priority: "URGENT",
-                action: "Renishaw T1 NOW · Hexagon T1 NOW · ROBG ETF £15k",
-              },
-              {
-                layer: "Biological",
-                gap: "~5% below 20.1% target",
-                priority: "HIGH",
-                action: "DHR at ~$200 · RGEN at $110–120",
-              },
-              {
-                layer: "Compute",
-                gap: "NVDA undersized at ~3% AUM",
-                priority: "MEDIUM",
-                action: "Size NVDA to £60k target. MU on watchlist.",
-              },
-              {
-                layer: "Energy",
-                gap: "HVDC/cable infra uncovered",
-                priority: "MEDIUM",
-                action: "Prysmian or NKT — deep research pending",
-              },
-              { layer: "Sovereignty", gap: "KTOS pending", priority: "LOW", action: "KTOS at $60–70" },
-            ].map((g) => (
-              <div key={g.layer} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+            {layerGapEntries.map(([name, g]) => (
+              <div key={name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                 <div
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}
                 >
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
-                    {g.layer}
+                    {name}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      padding: "2px 8px",
-                      borderRadius: 2,
-                      background:
-                        g.priority === "URGENT"
-                          ? "var(--red-dim)"
-                          : g.priority === "HIGH"
-                            ? "var(--amber-dim)"
-                            : "rgba(28,28,48,0.5)",
-                      color:
-                        g.priority === "URGENT"
-                          ? "var(--red)"
-                          : g.priority === "HIGH"
-                            ? "var(--amber)"
-                            : "var(--text-dim)",
-                      border: `1px solid ${g.priority === "URGENT" ? "rgba(200,90,90,0.2)" : g.priority === "HIGH" ? "rgba(200,146,90,0.2)" : "var(--rim)"}`,
-                    }}
-                  >
-                    {g.priority}
-                  </span>
+                  <span style={priorityBadge(g.priority)}>{g.priority}</span>
                 </div>
                 <div
-                  style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 2 }}
+                  style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 4 }}
                 >
-                  {g.gap}
+                  {g.note}
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--accent)" }}>{g.action}</div>
+                {g.filled && g.filled.length > 0 && (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#00aa66", marginBottom: 2 }}>
+                    ✓ {g.filled.join(', ')}
+                  </div>
+                )}
+                {g.pending && g.pending.length > 0 && (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#c9a84c" }}>
+                    ◆ {g.pending.join(', ')}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -194,32 +210,13 @@ export default function LayersTab({ liveData }: Props) {
             <span style={cardTitle}>Pre-IPO Watch</span>
           </div>
           <div style={{ padding: "0 20px 12px" }}>
-            {[
-              { name: "Anduril Industries", layer: "Sovereignty", note: "Defence AI hardware. HIGH alignment." },
-              { name: "Shield AI", layer: "Sovereignty", note: "Autonomous military systems." },
-              { name: "SpaceX / Starlink", layer: "Sovereignty", note: "Orbital substrate — re-rates RKLB on filing." },
-              { name: "Figure AI", layer: "Robotics", note: "$39B private. Wait for post-IPO price discovery." },
-              { name: "PsiQuantum", layer: "Compute", note: "Wait for hardware milestone proof." },
-            ].map((p) => (
-              <div key={p.name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+            {ipoEntries.map(([name, p]) => (
+              <div key={name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)" }}>
-                    {p.name}
+                    {name}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 9,
-                      color: "var(--accent)",
-                      background: "var(--accent-dim)",
-                      border: "1px solid rgba(110,142,200,0.2)",
-                      padding: "2px 8px",
-                      borderRadius: 2,
-                      letterSpacing: "0.12em",
-                    }}
-                  >
-                    PRE-IPO
-                  </span>
+                  <span style={ipoStatusBadge(p.status)}>{p.status}</span>
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
                   {p.layer} · {p.note}

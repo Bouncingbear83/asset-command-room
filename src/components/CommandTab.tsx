@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RISK_CONTROLS, BUBBLE_FLAGS, GOLDEN_RULES } from "@/data/portfolio";
+import { useIntelligence } from "@/data/intelligenceState";
 
-const PROJECT_ID = "PROJECT_ID"; // User to substitute their actual project ID
+const PROJECT_ID = "PROJECT_ID";
 
 const QUICK_COMMANDS = [
   {
@@ -42,23 +43,100 @@ function launchClaude(prompt: string) {
   window.open(url, "_blank");
 }
 
-const RAG: Record<string, React.CSSProperties> = {
-  PASS: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
-  WATCH: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  FAIL: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
-  TRIGGERED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
-  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+const statusChip = (status: string): React.CSSProperties => {
+  const colors: Record<string, { bg: string; color: string; border: string; pulse?: boolean }> = {
+    PASS: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+    CLEAR: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+    WATCH: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    MONITOR: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    TRIGGERED: { bg: '#e74c3c', color: '#fff', border: 'transparent', pulse: true },
+    FIRED: { bg: '#e74c3c', color: '#fff', border: 'transparent', pulse: true },
+    AMBER: { bg: '#e67e22', color: '#fff', border: 'transparent' },
+  };
+  const c = colors[status.toUpperCase()] ?? colors.WATCH;
+  return {
+    background: c.bg,
+    color: c.color,
+    border: `1px solid ${c.border}`,
+    fontFamily: "var(--font-ui)",
+    fontSize: 10,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "2px 10px",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+    ...(c.pulse ? { animation: 'pulse-alert 2s ease-in-out infinite' } : {}),
+  };
 };
-const chip = (status: string): React.CSSProperties => ({
-  ...(RAG[status] ?? RAG.WATCH),
-  fontFamily: "var(--font-mono)",
-  fontSize: 9,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-  padding: "3px 10px",
-  borderRadius: 2,
-  whiteSpace: "nowrap",
-});
+
+const actionBadge = (action: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string; border: string }> = {
+    BUY: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+    PENDING_BUY: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    SELL: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
+    EXIT: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
+    TRIM: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
+    MONITOR: { bg: 'transparent', color: '#8a8a9a', border: '#8a8a9a' },
+    REVIEW: { bg: 'transparent', color: '#e67e22', border: '#e67e22' },
+    WATCHLIST: { bg: 'transparent', color: '#555', border: '#555' },
+  };
+  const c = map[action.toUpperCase()] ?? map.MONITOR;
+  return {
+    background: c.bg,
+    color: c.color,
+    border: `1px solid ${c.border}`,
+    fontFamily: "var(--font-ui)",
+    fontSize: 10,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "2px 10px",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+  };
+};
+
+const priorityBadge = (priority: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string }> = {
+    URGENT: { bg: '#e74c3c', color: '#fff' },
+    HIGH: { bg: '#e67e22', color: '#fff' },
+    MEDIUM: { bg: 'rgba(201,168,76,0.15)', color: '#c9a84c' },
+    LOW: { bg: 'rgba(85,85,85,0.2)', color: '#555' },
+  };
+  const c = map[priority] ?? map.LOW;
+  return {
+    background: c.bg,
+    color: c.color,
+    fontFamily: "var(--font-ui)",
+    fontSize: 10,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "2px 10px",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+  };
+};
+
+const ipoStatusBadge = (status: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string; border: string }> = {
+    'PRE-IPO': { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    'IPO-WATCH': { bg: 'rgba(201,168,76,0.2)', color: '#c9a84c', border: 'transparent' },
+    FILED: { bg: '#e67e22', color: '#fff', border: 'transparent' },
+    LISTED: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+  };
+  const c = map[status] ?? map['PRE-IPO'];
+  return {
+    background: c.bg,
+    color: c.color,
+    border: `1px solid ${c.border}`,
+    fontFamily: "var(--font-ui)",
+    fontSize: 10,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "2px 10px",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+  };
+};
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
 const cardHeader: React.CSSProperties = {
@@ -87,289 +165,293 @@ const divRow: React.CSSProperties = {
 
 export default function CommandTab() {
   const [customPrompt, setCustomPrompt] = useState("");
+  const [jsonInput, setJsonInput] = useState("");
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; message: string } | null>(null);
+  const [toast, setToast] = useState(false);
+  const { state, applyUpdate, validate } = useIntelligence();
+
+  // Last applied info
+  const lastApplied = state.lastUpdated
+    ? `Last applied: ${state.lastUpdated} · ${state.reviewType || 'update'}`
+    : "No update applied";
 
   const handleGo = () => {
-    if (customPrompt.trim()) {
-      launchClaude(customPrompt.trim());
+    if (customPrompt.trim()) launchClaude(customPrompt.trim());
+  };
+
+  const handleValidate = () => {
+    if (!jsonInput.trim()) {
+      setValidationResult({ valid: false, message: "Paste JSON first" });
+      return;
+    }
+    const result = validate(jsonInput);
+    setValidationResult({
+      valid: result.valid,
+      message: result.valid ? `✅ ${result.summary}` : `❌ ${result.error}`,
+    });
+  };
+
+  const handleApply = () => {
+    const result = applyUpdate(jsonInput);
+    if (result.valid) {
+      setJsonInput("");
+      setValidationResult(null);
+      setToast(true);
     }
   };
 
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
+  // Determine data sources with fallbacks
+  const riskControls = Object.keys(state.riskControls).length > 0
+    ? Object.entries(state.riskControls).map(([key, v]) => ({ label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), ...v }))
+    : RISK_CONTROLS.map(r => ({ label: r.label, threshold: r.threshold, status: r.status, detail: '' }));
+
+  const bubbleFlags = Object.keys(state.bubbleFlags).length > 0
+    ? Object.entries(state.bubbleFlags).map(([key, v]) => ({ name: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), ...v }))
+    : BUBBLE_FLAGS;
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-      {/* Left: launch + quick commands */}
-      <div style={card}>
-        <div style={{ padding: 32, textAlign: "center", borderBottom: "1px solid var(--rim)" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "var(--gold)",
-              marginBottom: 12,
-            }}
-          >
-            Stellar Intelligence
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 40,
-              fontWeight: 300,
-              color: "var(--text)",
-              lineHeight: 1.1,
-              marginBottom: 12,
-            }}
-          >
-            One layer <em>deeper</em>.
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 24 }}>
-            Launch Claude with pre-filled Stellar prompts.
-          </div>
-          <button
-            onClick={() => launchClaude("")}
-            style={{
-              background: "var(--gold)",
-              color: "var(--void)",
-              border: "none",
-              padding: "12px 32px",
-              fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
-            Open Stellar Intelligence
-          </button>
+    <>
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 9999,
+          background: '#c9a84c', color: '#04040a', padding: '12px 24px',
+          fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
+          letterSpacing: '0.05em',
+        }}>
+          ✅ Intelligence update applied
         </div>
+      )}
 
-        <div style={{ padding: "20px" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "var(--text-dim)",
-              marginBottom: 12,
-            }}
-          >
-            Quick Commands
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+        {/* Left column */}
+        <div>
+          {/* Stellar Intelligence header card */}
+          <div style={card}>
+            <div style={{ padding: 32, textAlign: "center", borderBottom: "1px solid var(--rim)" }}>
+              <div style={{
+                fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em",
+                textTransform: "uppercase", color: "var(--gold)", marginBottom: 12,
+              }}>Stellar Intelligence</div>
+              <div style={{
+                fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300,
+                color: "var(--text)", lineHeight: 1.1, marginBottom: 12,
+              }}>One layer <em>deeper</em>.</div>
+              <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 24 }}>
+                Launch Claude with pre-filled Stellar prompts.
+              </div>
+              <button onClick={() => launchClaude("")} style={{
+                background: "var(--gold)", color: "var(--void)", border: "none",
+                padding: "12px 32px", fontFamily: "var(--font-mono)", fontSize: 10,
+                letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer",
+              }}>Open Stellar Intelligence</button>
+            </div>
+
+            <div style={{ padding: "20px" }}>
+              <div style={{
+                fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em",
+                textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 12,
+              }}>Quick Commands</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+                {QUICK_COMMANDS.map((cmd) => (
+                  <button key={cmd.label} onClick={() => launchClaude(cmd.prompt)} style={{
+                    background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-mid)",
+                    padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10,
+                    letterSpacing: "0.1em", cursor: "pointer", textAlign: "left",
+                    textTransform: "uppercase", transition: "all 0.2s",
+                  }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--text)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-mid)"; }}
+                  >{cmd.label}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="Enter custom prompt..."
+                  style={{
+                    flex: 1, background: "var(--surface)", border: "1px solid var(--rim)",
+                    color: "var(--text)", padding: "10px 12px", fontFamily: "var(--font-mono)",
+                    fontSize: 11, resize: "none", minHeight: 44, outline: "none",
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGo(); } }}
+                />
+                <button onClick={handleGo} style={{
+                  background: "var(--gold)", color: "var(--void)", border: "none",
+                  padding: "10px 24px", fontFamily: "var(--font-mono)", fontSize: 10,
+                  letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap",
+                }}>GO →</button>
+              </div>
+            </div>
           </div>
 
-          {/* 2x3 Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-              marginBottom: 20,
-            }}
-          >
-            {QUICK_COMMANDS.map((cmd) => (
-              <button
-                key={cmd.label}
-                onClick={() => launchClaude(cmd.prompt)}
+          {/* Ticker Actions */}
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>This Week's Actions</span>
+              {state.tickerActions.length > 0 && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--gold)',
+                  letterSpacing: '0.15em',
+                }}>{state.tickerActions.length} ACTION{state.tickerActions.length !== 1 ? 'S' : ''}</span>
+              )}
+            </div>
+            <div style={{ padding: "0 20px 12px" }}>
+              {state.tickerActions.length === 0 ? (
+                <div style={{ padding: '16px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+                  No actions this week
+                </div>
+              ) : (
+                state.tickerActions.map((ta, i) => (
+                  <div key={`${ta.ticker}-${i}`} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+                    borderBottom: '1px solid rgba(28,28,48,0.4)',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 50 }}>
+                      {ta.ticker}
+                    </span>
+                    <span style={actionBadge(ta.action)}>{ta.action.replace('_', ' ')}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-mid)', minWidth: 50 }}>
+                      {ta.amount || '—'}
+                    </span>
+                    <span style={{
+                      fontSize: 11, color: 'var(--text-dim)', flex: 1,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{ta.reason}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Intelligence Update */}
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Intelligence Update</span>
+            </div>
+            <div style={{ padding: "20px" }}>
+              <textarea
+                value={jsonInput}
+                onChange={(e) => { setJsonInput(e.target.value); setValidationResult(null); }}
+                placeholder="Paste weekly intelligence update JSON here..."
                 style={{
-                  background: "var(--surface, #0D0D1A)",
-                  border: "1px solid var(--rim)",
-                  color: "var(--text-mid)",
-                  padding: "12px 14px",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 10,
-                  letterSpacing: "0.1em",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  textTransform: "uppercase",
-                  transition: "all 0.2s",
+                  width: "100%", background: "#0d0d1f", border: "1px solid var(--rim)",
+                  color: "var(--text)", padding: 12, fontFamily: "var(--font-mono)",
+                  fontSize: 10, lineHeight: 1.6, resize: "vertical", minHeight: 300,
+                  boxSizing: "border-box", outline: "none",
+                  transition: 'border-color 0.2s',
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--gold)";
-                  e.currentTarget.style.color = "var(--text)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--rim)";
-                  e.currentTarget.style.color = "var(--text-mid)";
-                }}
-              >
-                {cmd.label}
-              </button>
-            ))}
-          </div>
+                onFocus={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--rim)'; }}
+              />
 
-          {/* Free text input */}
-          <div style={{ display: "flex", gap: 10 }}>
-            <textarea
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="Enter custom prompt..."
-              style={{
-                flex: 1,
-                background: "var(--surface, #0D0D1A)",
-                border: "1px solid var(--rim)",
-                color: "var(--text)",
-                padding: "10px 12px",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                resize: "none",
-                minHeight: 44,
-                outline: "none",
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleGo();
-                }
-              }}
-            />
-            <button
-              onClick={handleGo}
-              style={{
-                background: "var(--gold)",
-                color: "var(--void)",
-                border: "none",
-                padding: "10px 24px",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              GO →
-            </button>
-          </div>
-        </div>
+              {validationResult && (
+                <div style={{
+                  marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 10,
+                  color: validationResult.valid ? '#00aa66' : '#e74c3c',
+                  lineHeight: 1.5,
+                }}>{validationResult.message}</div>
+              )}
 
-        {/* Sheet Update Pack */}
-        <div style={{ padding: "0 20px 20px" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "var(--text-dim)",
-              marginBottom: 8,
-            }}
-          >
-            Sheet Update Pack
-          </div>
-          <textarea
-            readOnly
-            value={`── WEEKLY SHEET UPDATE ──────────────────────\n\nDate: ${new Date().toISOString().slice(0, 10)}\n\nTICKER | NEW ACTION | REASON\n\n[run weekly check and paste changes here]\n\n─────────────────────────────────────────────`}
-            style={{
-              width: "100%",
-              background: "var(--surface, #0D0D1A)",
-              border: "1px solid var(--rim)",
-              color: "var(--text-mid)",
-              padding: 12,
-              fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              lineHeight: 1.6,
-              resize: "none",
-              minHeight: 140,
-              boxSizing: "border-box",
-            }}
-          />
-          <button
-            onClick={() => {
-              const tmpl = `── WEEKLY SHEET UPDATE ──────────────────────\n\nDate: ${new Date().toISOString().slice(0, 10)}\n\nTICKER | NEW ACTION | REASON\n\n[run weekly check and paste changes here]\n\n─────────────────────────────────────────────`;
-              navigator.clipboard.writeText(tmpl).catch(() => {});
-            }}
-            style={{
-              marginTop: 8,
-              background: "var(--surface, #0D0D1A)",
-              border: "1px solid var(--rim)",
-              color: "var(--text-mid)",
-              padding: "8px 16px",
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-
-      {/* Right: risk + bubble flags + golden rules */}
-      <div>
-        <div style={card}>
-          <div style={cardHeader}>
-            <span style={cardTitle}>Risk Controls</span>
-          </div>
-          <div style={{ padding: "0 20px 8px" }}>
-            {RISK_CONTROLS.map((r) => (
-              <div key={r.label} style={divRow}>
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                    {r.threshold}
-                  </div>
-                </div>
-                <span style={chip(r.status)}>{r.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={card}>
-          <div style={cardHeader}>
-            <span style={cardTitle}>Bubble Flags</span>
-          </div>
-          <div style={{ padding: "0 20px 8px" }}>
-            {BUBBLE_FLAGS.map((b) => (
-              <div key={b.name} style={divRow}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{b.name}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                    {b.detail}
-                  </div>
-                </div>
-                <span style={chip(b.status)}>{b.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={card}>
-          <div style={cardHeader}>
-            <span style={cardTitle}>Golden Rules</span>
-          </div>
-          <div style={{ padding: "0 20px 8px" }}>
-            {GOLDEN_RULES.map((r) => (
-              <div key={r.n} style={{ ...divRow, alignItems: "flex-start", gap: 16 }}>
-                <span
+              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                <button onClick={handleValidate} style={{
+                  background: 'transparent', border: '1px solid #c9a84c', color: '#c9a84c',
+                  padding: '8px 20px', fontFamily: 'var(--font-ui)', fontSize: 10,
+                  letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+                }}>Validate</button>
+                <button onClick={handleApply} disabled={!validationResult?.valid}
                   style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 10,
-                    color: "var(--gold)",
-                    flexShrink: 0,
-                    width: 20,
-                  }}
-                >
-                  {r.n}.
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 15,
-                    fontStyle: "italic",
+                    background: validationResult?.valid ? '#c9a84c' : 'rgba(201,168,76,0.2)',
+                    color: validationResult?.valid ? '#04040a' : 'rgba(201,168,76,0.4)',
+                    border: 'none', padding: '8px 20px', fontFamily: 'var(--font-ui)',
+                    fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    cursor: validationResult?.valid ? 'pointer' : 'not-allowed',
+                  }}>Apply Update</button>
+              </div>
+
+              <div style={{
+                marginTop: 10, fontFamily: 'var(--font-mono)', fontSize: 9,
+                color: 'var(--text-dim)', letterSpacing: '0.1em',
+              }}>{lastApplied}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div>
+          {/* Risk Controls */}
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Risk Controls</span>
+            </div>
+            <div style={{ padding: "0 20px 8px" }}>
+              {riskControls.map((r) => (
+                <div key={r.label} style={divRow}>
+                  <div>
+                    <div style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      {r.threshold}
+                    </div>
+                    {r.detail && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
+                        → {r.detail}
+                      </div>
+                    )}
+                  </div>
+                  <span style={statusChip(r.status)}>{r.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bubble Flags */}
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Bubble Flags</span>
+            </div>
+            <div style={{ padding: "0 20px 8px" }}>
+              {bubbleFlags.map((b) => (
+                <div key={b.name} style={divRow}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{b.name}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      {b.detail}
+                    </div>
+                  </div>
+                  <span style={statusChip(b.status)}>{b.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Golden Rules */}
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Golden Rules</span>
+            </div>
+            <div style={{ padding: "0 20px 8px" }}>
+              {GOLDEN_RULES.map((r) => (
+                <div key={r.n} style={{ ...divRow, alignItems: "flex-start", gap: 16 }}>
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)",
+                    flexShrink: 0, width: 20,
+                  }}>{r.n}.</span>
+                  <span style={{
+                    fontFamily: "var(--font-display)", fontSize: 15, fontStyle: "italic",
                     color: "var(--text-mid)",
-                  }}
-                >
-                  {r.text}
-                </span>
-              </div>
-            ))}
+                  }}>{r.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
