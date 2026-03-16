@@ -97,7 +97,13 @@ function parseNum(val: any): number | null {
 }
 
 function parseHoldings(rows: Record<string, any>[]) {
-  return rows.map((r) => ({
+  return rows
+    .filter((r) => {
+      const ticker = r["TICKER"];
+      const mv = r["MV (£)"];
+      return ticker && String(ticker).trim() !== "" && typeof mv === "number" && mv > 0;
+    })
+    .map((r) => ({
     ticker: String(r["TICKER"] ?? ""),
     name: String(r["NAME"] ?? ""),
     layer: String(r["LAYER"] ?? ""),
