@@ -199,16 +199,14 @@ function parseLayers(rows: Record<string, any>[]) {
 function parseScores(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
-      const ticker = String(r["ticker"] ?? r["TICKER"] ?? "").trim();
-      // Filter out section header rows (e.g. "COMPUTE LAYER", "ENERGY LAYER", "WATCHLIST — PRICE-TRIGGERED")
-      if (!ticker) return false;
-      if (/\bLAYER\b/i.test(ticker)) return false;
-      if (/^MACRO\s+HEDGE/i.test(ticker)) return false;
-      if (/^WATCHLIST/i.test(ticker)) return false;
-      // Skip rows with no score AND ticker contains a space (likely a header)
-      const score = r["score"] ?? r["SCORE"];
-      if (score == null && ticker.includes(" ")) return false;
-      return true;
+      const rowType = findCol(r, "row_type", "Row_Type", "ROW_TYPE");
+      if (rowType) {
+        const rt = String(rowType).trim().toLowerCase();
+        return rt === "data" || rt === "watchlist";
+      }
+      // Fallback: original ticker-based filter
+      const ticker = String(findCol(r, "ticker", "TICKER") ?? "").trim();
+      return ticker !== "" && !ticker.includes(" ");
     })
     .map((r) => ({
       ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
