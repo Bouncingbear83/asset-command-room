@@ -632,8 +632,14 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   );
 }
 
-export default function HoldingsTab({ sipp, isa }: Props) {
+export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
   const [view, setView] = useState<ViewMode>("layer");
+
+  // Build disruption lookup map by ticker
+  const disruptionMap = new Map<string, LiveDisruption>();
+  for (const d of disruption) {
+    if (d.ticker) disruptionMap.set(d.ticker, d);
+  }
 
   const sippData: LiveHolding[] =
     sipp.length > 0
@@ -676,7 +682,7 @@ export default function HoldingsTab({ sipp, isa }: Props) {
                 <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span>
               </span>
             </div>
-            <HoldingsTable holdings={sippData} />
+            <HoldingsTable holdings={sippData} disruptionMap={disruptionMap} />
           </div>
           <div style={card}>
             <div style={cardHeader}>
@@ -686,7 +692,7 @@ export default function HoldingsTab({ sipp, isa }: Props) {
                 <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span>
               </span>
             </div>
-            <HoldingsTable holdings={isaData} />
+            <HoldingsTable holdings={isaData} disruptionMap={disruptionMap} />
           </div>
         </>
       )}
