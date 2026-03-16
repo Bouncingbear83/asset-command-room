@@ -107,8 +107,9 @@ function parseHoldings(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
       const ticker = findCol(r, "TICKER", "ticker");
-      const mv = findCol(r, "MV (£)", "MV", "mv", "(£)");
-      return ticker && String(ticker).trim() !== "" && typeof mv === "number" && mv > 0;
+      const mvRaw = findCol(r, "MV (£)", "MV", "mv", "(£)");
+      const mv = parseMv(mvRaw);
+      return ticker && String(ticker).trim() !== "" && mv > 0;
     })
     .map((r) => ({
     ticker: String(findCol(r, "TICKER", "ticker") ?? ""),
