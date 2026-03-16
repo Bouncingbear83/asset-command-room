@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { useIntelligence } from "@/data/intelligenceState";
 import CommandTab from "@/components/CommandTab";
 import MonitorTab from "@/components/MonitorTab";
 import WatchlistTab from "@/components/WatchlistTab";
@@ -13,8 +14,9 @@ type Tab = (typeof TABS)[number];
 
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
+  const [macroBannerOpen, setMacroBannerOpen] = useState(true);
   const portfolio = usePortfolioData();
-
+  const { state: intel } = useIntelligence();
   const sippTotal = portfolio.sipp.length > 0 ? portfolio.sipp.reduce((s, h) => s + (h.mv || 0), 0) : 575000;
   const isaTotal = portfolio.isa.length > 0 ? portfolio.isa.reduce((s, h) => s + (h.mv || 0), 0) : 424000;
   const total = sippTotal + isaTotal;
@@ -162,6 +164,54 @@ export default function Index() {
           </button>
         ))}
       </nav>
+
+      {/* Macro Context Banner */}
+      {intel.macroContext && (
+        <div style={{
+          background: '#0f0f22', borderBottom: '1px solid var(--rim)',
+          padding: '0 40px',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 0', cursor: 'pointer',
+          }} onClick={() => setMacroBannerOpen(!macroBannerOpen)}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)',
+              display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
+            }}>
+              <span>S&P {intel.macroContext.sp500.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>VIX {intel.macroContext.vix}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>Gold ${intel.macroContext.gold.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>U₃O₈ ${intel.macroContext.uraniumSpot}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>Cu ${intel.macroContext.copper}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>Oil {intel.macroContext.oilBrent}</span>
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)',
+              transform: macroBannerOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+            }}>▾</span>
+          </div>
+          {macroBannerOpen && (
+            <div style={{
+              paddingBottom: 10, fontFamily: 'var(--font-ui)', fontSize: 11,
+              color: 'var(--text-dim)', letterSpacing: '0.03em',
+            }}>
+              POSTURE: {intel.macroContext.posture}
+              {intel.macroContext.headline && (
+                <span style={{ display: 'block', marginTop: 2, fontSize: 10, opacity: 0.7 }}>
+                  {intel.macroContext.headline}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={s.page}>
         {active === "Command" && <CommandTab />}
