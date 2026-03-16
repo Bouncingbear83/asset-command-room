@@ -316,7 +316,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                     {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </td>
                 </tr>
-                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} />}
+                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} />}
               </>
             );
           })}
