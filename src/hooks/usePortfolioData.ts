@@ -262,6 +262,13 @@ function parseMonitor(rows: Record<string, any>[]) {
 function parseDisruption(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
+      // Use Row_Type column if available
+      const rowType = findCol(r, "row_type", "Row_Type", "ROW_TYPE");
+      if (rowType) {
+        const rt = String(rowType).trim().toLowerCase();
+        return rt === "data" || rt === "watchlist";
+      }
+      // Fallback: filter out headers
       const ticker = findCol(r, "ticker", "TICKER");
       return ticker && String(ticker).trim() !== "" && !String(ticker).includes("LAYER") && !String(ticker).includes("HOLDINGS") && !String(ticker).includes("WATCHLIST") && !String(ticker).includes("HEDGE");
     })
