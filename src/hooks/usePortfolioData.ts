@@ -154,22 +154,39 @@ function parseLayers(rows: Record<string, any>[]) {
 }
 
 function parseScores(rows: Record<string, any>[]) {
-  return rows.map((r) => ({
-    ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
-    score: typeof r["score"] === "number" ? r["score"] : null,
-    scoreDate: r["score_date"] ?? null,
-    substrate: typeof r["substrate"] === "number" ? r["substrate"] : null,
-    demand: typeof r["demand"] === "number" ? r["demand"] : null,
-    moat: typeof r["moat"] === "number" ? r["moat"] : null,
-    valuation: typeof r["valuation"] === "number" ? r["valuation"] : null,
-    mgmt: typeof r["mgmt"] === "number" ? r["mgmt"] : null,
-    disruption: typeof r["disruption"] === "number" ? r["disruption"] : null,
-    buyLow: typeof r["buy_low"] === "number" ? r["buy_low"] : null,
-    buyHigh: typeof r["buy_high"] === "number" ? r["buy_high"] : null,
-    fullThesis: String(r["full_thesis"] ?? ""),
-    currency: String(r["currency"] ?? "USD"),
-    changeNote: String(r["change_note"] ?? ""),
-  }));
+  return rows
+    .filter((r) => {
+      const ticker = String(r["ticker"] ?? r["TICKER"] ?? "").trim();
+      // Filter out section header rows (e.g. "COMPUTE LAYER", "ENERGY LAYER", "WATCHLIST — PRICE-TRIGGERED")
+      if (!ticker) return false;
+      if (/\bLAYER\b/i.test(ticker)) return false;
+      if (/^MACRO\s+HEDGE/i.test(ticker)) return false;
+      if (/^WATCHLIST/i.test(ticker)) return false;
+      // Skip rows with no score AND ticker contains a space (likely a header)
+      const score = r["score"] ?? r["SCORE"];
+      if (score == null && ticker.includes(" ")) return false;
+      return true;
+    })
+    .map((r) => ({
+      ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
+      name: String(findCol(r, "tickerName", "TICKERNAME", "name", "NAME") ?? ""),
+      layer: String(findCol(r, "Layer", "layer", "LAYER") ?? ""),
+      tier: String(findCol(r, "tier", "TIER") ?? ""),
+      action: String(findCol(r, "action", "ACTION") ?? ""),
+      score: typeof r["score"] === "number" ? r["score"] : null,
+      scoreDate: r["score_date"] ?? null,
+      substrate: typeof r["substrate"] === "number" ? r["substrate"] : null,
+      demand: typeof r["demand"] === "number" ? r["demand"] : null,
+      moat: typeof r["moat"] === "number" ? r["moat"] : null,
+      valuation: typeof r["valuation"] === "number" ? r["valuation"] : null,
+      mgmt: typeof r["mgmt"] === "number" ? r["mgmt"] : null,
+      disruption: typeof r["disruption"] === "number" ? r["disruption"] : null,
+      buyLow: typeof r["buy_low"] === "number" ? r["buy_low"] : null,
+      buyHigh: typeof r["buy_high"] === "number" ? r["buy_high"] : null,
+      fullThesis: String(r["full_thesis"] ?? ""),
+      currency: String(r["currency"] ?? "USD"),
+      changeNote: String(r["change_note"] ?? ""),
+    }));
 }
 
 function parseScoreLog(rows: Record<string, any>[]) {
