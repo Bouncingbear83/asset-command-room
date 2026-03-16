@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Shield } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption } from "@/hooks/usePortfolioData";
 
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  disruption?: LiveDisruption[];
 }
 
 type ViewMode = "layer" | "account" | "pricemap";
