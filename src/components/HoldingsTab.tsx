@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Shield } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption } from "@/hooks/usePortfolioData";
 
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  disruption?: LiveDisruption[];
 }
 
 type ViewMode = "layer" | "account" | "pricemap";
@@ -120,7 +121,70 @@ function InlineRangeBar({ h }: { h: LiveHolding }) {
   );
 }
 
-function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
+const DISRUPTION_STATUS_STYLE: Record<string, React.CSSProperties> = {
+  GREEN: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
+  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  AMBER: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  RED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+};
+
+function DisruptionPanel({ d }: { d: LiveDisruption }) {
+  const subScores = [
+    { label: "SUB_AVAIL", val: d.subAvail },
+    { label: "ECONOMICS", val: d.economics },
+    { label: "GOVT", val: d.govtSupport },
+    { label: "DEMAND", val: d.demandVuln },
+    { label: "TIME", val: d.timeViability },
+  ];
+  return (
+    <div style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <Shield size={12} style={{ color: "var(--accent)" }} />
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: "var(--accent)" }}>DISRUPTION</span>
+        {d.disruptionScore != null && (
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: d.disruptionScore >= 70 ? "var(--green)" : d.disruptionScore >= 50 ? "var(--amber)" : "var(--red)" }}>
+            {d.disruptionScore}/100
+          </span>
+        )}
+        <span style={{ ...(DISRUPTION_STATUS_STYLE[d.status] ?? DISRUPTION_STATUS_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em", padding: "1px 6px", borderRadius: 2 }}>
+          {d.status}
+        </span>
+      </div>
+      {/* Sub-scores bar */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
+        {subScores.map((s) => s.val != null && (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em" }}>{s.label}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: "var(--text-mid)" }}>{s.val}</span>
+          </div>
+        ))}
+      </div>
+      {/* Evidence */}
+      {d.evidence && (
+        <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5, marginBottom: 4 }}>
+          {d.evidence}
+        </div>
+      )}
+      {/* Triggers */}
+      <div style={{ display: "flex", gap: 20, marginTop: 4 }}>
+        {d.amberTrigger && (
+          <div style={{ flex: 1 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--amber)", fontWeight: 700, letterSpacing: "0.1em" }}>⚠ AMBER</span>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2 }}>{d.amberTrigger}</div>
+          </div>
+        )}
+        {d.redTrigger && (
+          <div style={{ flex: 1 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--red)", fontWeight: 700, letterSpacing: "0.1em" }}>🔴 RED</span>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2 }}>{d.redTrigger}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption }) {
   const addVal = h.add_trigger || "—";
   const exitVal = h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
@@ -148,11 +212,18 @@ function TriggerRows({ h, colSpan }: { h: LiveHolding; colSpan: number }) {
           </td>
         </tr>
       )}
+      {disruption && (
+        <tr>
+          <td colSpan={colSpan} style={{ padding: 0 }}>
+            <DisruptionPanel d={disruption} />
+          </td>
+        </tr>
+      )}
     </>
   );
 }
 
-function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
+function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; disruptionMap: Map<string, LiveDisruption> }) {
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -245,7 +316,7 @@ function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
                     {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </td>
                 </tr>
-                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} />}
+                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} />}
               </>
             );
           })}
@@ -561,8 +632,14 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   );
 }
 
-export default function HoldingsTab({ sipp, isa }: Props) {
+export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
   const [view, setView] = useState<ViewMode>("layer");
+
+  // Build disruption lookup map by ticker
+  const disruptionMap = new Map<string, LiveDisruption>();
+  for (const d of disruption) {
+    if (d.ticker) disruptionMap.set(d.ticker, d);
+  }
 
   const sippData: LiveHolding[] =
     sipp.length > 0
@@ -605,7 +682,7 @@ export default function HoldingsTab({ sipp, isa }: Props) {
                 <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span>
               </span>
             </div>
-            <HoldingsTable holdings={sippData} />
+            <HoldingsTable holdings={sippData} disruptionMap={disruptionMap} />
           </div>
           <div style={card}>
             <div style={cardHeader}>
@@ -615,7 +692,7 @@ export default function HoldingsTab({ sipp, isa }: Props) {
                 <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span>
               </span>
             </div>
-            <HoldingsTable holdings={isaData} />
+            <HoldingsTable holdings={isaData} disruptionMap={disruptionMap} />
           </div>
         </>
       )}

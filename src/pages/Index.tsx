@@ -220,7 +220,7 @@ export default function Index() {
         {active === "Layers" && <LayersTab liveData={portfolio.layers} />}
         {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} />}
-        {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} />}
+        {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} />}
       </div>
     </div>
   );
