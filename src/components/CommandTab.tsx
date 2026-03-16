@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { RISK_CONTROLS, BUBBLE_FLAGS, GOLDEN_RULES } from "@/data/portfolio";
 import { useIntelligence } from "@/data/intelligenceState";
 
-const PROJECT_ID = "PROJECT_ID";
+const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
 const QUICK_COMMANDS = [
   {
