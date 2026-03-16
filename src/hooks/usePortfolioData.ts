@@ -3,8 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 const SHEET_ID = "1T2afEG3mLjxmonduDugHA5SlJ44-RBJmv0bxISfalNo";
 
 export const GIDS = {
-  sipp: "2109415850",
-  isa: "408093485",
+  holdings: "408093485",
   watchlist: "496665408",
   layers: "547494965",
   scores: "1674996535",
@@ -16,6 +15,22 @@ export const GIDS = {
   disruption: "1166534580",
 };
 
+const KNOWN_COLS = [
+  "ticker","name","layer","score","score_date","substrate","demand","moat",
+  "valuation","mgmt","disruption","buy_low","buy_high","full_thesis",
+  "currency","tier","action","change_note","mv","account","aum_pct",
+  "g/l","day","shares","price_local","prev_close_local","cost_gbp",
+  "cost_local","ccy_val","code_gf","code_ft","prefix","ma60","high_52w",
+  "low_52w","add_trigger","exit_trigger","notes","disruption_score",
+  "sub_avail","economics","govt_support","demand_vuln","time_viability",
+  "status","last_checked","amber_trigger","red_trigger","evidence",
+  "row_type","type","current","unit","amber_threshold","red_threshold",
+  "last_updated","target","entry target","current price","trigger condition",
+  "thesis / rationale","hex color","key holdings","gap / notes","priority",
+  "target %","current %","%_below_52w_high","%_above_52w_low",
+  "tickername","mv (£)","g/l %","day %",
+];
+
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
   const res = await fetch(url);
@@ -24,11 +39,16 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   const json = JSON.parse(text.substring(47, text.length - 2));
   const cols: string[] = json.table.cols.map((c: any) => {
     const label = (c.label as string).trim();
-    if (label.length > 20) {
-      const parts = label.split(/\s+/);
-      return parts[parts.length - 1];
+    if (label.length <= 20) return label;
+    // Scan for a known column name within the long label (case-insensitive)
+    const labelLower = label.toLowerCase();
+    // Sort by length descending so longer matches win (e.g. "mv (£)" before "mv")
+    for (const known of [...KNOWN_COLS].sort((a, b) => b.length - a.length)) {
+      if (labelLower.includes(known.toLowerCase())) return known;
     }
-    return label;
+    // Fallback: last word
+    const parts = label.split(/\s+/);
+    return parts[parts.length - 1];
   });
   return json.table.rows
     .map((r: any) => {
@@ -127,9 +147,10 @@ function parseHoldings(rows: Record<string, any>[]) {
     ticker: String(findCol(r, "TICKER", "ticker") ?? ""),
     name: String(findCol(r, "NAME", "name") ?? ""),
     layer: String(findCol(r, "LAYER", "layer") ?? ""),
-    mv: parseMv(findCol(r, "MV (£)", "MV", "mv", "(£)")),
-    gl: parseGl(findCol(r, "G/L %", "G/L%", "gl", "G/L")),
-    day: parseDay(findCol(r, "DAY %", "Day %", "day", "DAY")),
+    account: String(findCol(r, "Account", "account", "ACCOUNT") ?? ""),
+    mv: parseMv(findCol(r, "MV (£)", "mv (£)", "MV", "mv", "(£)")),
+    gl: parseGl(findCol(r, "G/L %", "g/l %", "G/L%", "gl", "G/L")),
+    day: parseDay(findCol(r, "DAY %", "day %", "Day %", "day", "DAY")),
     notes: String(findCol(r, "NOTES", "notes") ?? ""),
     action: String(findCol(r, "ACTION", "action") ?? "HOLD"),
     price: parseNum(findCol(r, "PRICE_LOCAL", "price_local", "Price_Local")),
@@ -241,6 +262,13 @@ function parseMonitor(rows: Record<string, any>[]) {
 function parseDisruption(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
+      // Use Row_Type column if available
+      const rowType = findCol(r, "row_type", "Row_Type", "ROW_TYPE");
+      if (rowType) {
+        const rt = String(rowType).trim().toLowerCase();
+        return rt === "data" || rt === "watchlist";
+      }
+      // Fallback: filter out headers
       const ticker = findCol(r, "ticker", "TICKER");
       return ticker && String(ticker).trim() !== "" && !String(ticker).includes("LAYER") && !String(ticker).includes("HOLDINGS") && !String(ticker).includes("WATCHLIST") && !String(ticker).includes("HEDGE");
     })
@@ -307,9 +335,8 @@ export function usePortfolioData(): PortfolioData {
   const load = useCallback(async () => {
     setState((p) => ({ ...p, loading: true, error: null }));
     try {
-      const [sippRaw, isaRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw] = await Promise.all([
-        fetchSheet(GIDS.sipp),
-        fetchSheet(GIDS.isa),
+      const [holdingsRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw] = await Promise.all([
+        fetchSheet(GIDS.holdings),
         fetchSheet(GIDS.watchlist),
         fetchSheet(GIDS.layers).catch(() => []),
         fetchSheet(GIDS.scores).catch(() => []),
@@ -317,9 +344,12 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet(GIDS.monitor).catch(() => []),
         fetchSheet(GIDS.disruption).catch(() => []),
       ]);
+      const allHoldings = parseHoldings(holdingsRaw);
+      const sipp = allHoldings.filter(h => h.account.toUpperCase() === "SIPP");
+      const isa = allHoldings.filter(h => h.account.toUpperCase() === "ISA");
       setState({
-        sipp: parseHoldings(sippRaw),
-        isa: parseHoldings(isaRaw),
+        sipp,
+        isa,
         watchlist: parseWatchlist(watchRaw),
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
