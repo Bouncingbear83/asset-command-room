@@ -60,10 +60,12 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
     })
     .filter((row: any) => {
       const vals = Object.values(row);
-      // Keep rows with at least one non-null value and some recognizable content
       const hasContent = vals.some((v) => v !== null && v !== undefined && String(v).trim() !== "");
       if (!hasContent) return false;
-      // Check known identifier columns (flexible)
+      // If row_type column exists, let the parser handle filtering
+      const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
+      if (rowType !== null && rowType !== undefined) return true;
+      // Original generic filter for sheets without Row_Type
       const keys = Object.keys(row);
       const hasId = keys.some((k) => {
         const kl = k.toLowerCase();
