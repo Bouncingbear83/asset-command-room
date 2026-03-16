@@ -14,8 +14,9 @@ type Tab = (typeof TABS)[number];
 
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
+  const [macroBannerOpen, setMacroBannerOpen] = useState(true);
   const portfolio = usePortfolioData();
-
+  const { state: intel } = useIntelligence();
   const sippTotal = portfolio.sipp.length > 0 ? portfolio.sipp.reduce((s, h) => s + (h.mv || 0), 0) : 575000;
   const isaTotal = portfolio.isa.length > 0 ? portfolio.isa.reduce((s, h) => s + (h.mv || 0), 0) : 424000;
   const total = sippTotal + isaTotal;
