@@ -165,6 +165,54 @@ export default function Index() {
         ))}
       </nav>
 
+      {/* Macro Context Banner */}
+      {intel.macroContext && (
+        <div style={{
+          background: '#0f0f22', borderBottom: '1px solid var(--rim)',
+          padding: '0 40px',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 0', cursor: 'pointer',
+          }} onClick={() => setMacroBannerOpen(!macroBannerOpen)}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)',
+              display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
+            }}>
+              <span>S&P {intel.macroContext.sp500.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>VIX {intel.macroContext.vix}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>Gold ${intel.macroContext.gold.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>U₃O₈ ${intel.macroContext.uraniumSpot}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>Cu ${intel.macroContext.copper}</span>
+              <span style={{ color: 'var(--text-dim)' }}>·</span>
+              <span>Oil {intel.macroContext.oilBrent}</span>
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)',
+              transform: macroBannerOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+            }}>▾</span>
+          </div>
+          {macroBannerOpen && (
+            <div style={{
+              paddingBottom: 10, fontFamily: 'var(--font-ui)', fontSize: 11,
+              color: 'var(--text-dim)', letterSpacing: '0.03em',
+            }}>
+              POSTURE: {intel.macroContext.posture}
+              {intel.macroContext.headline && (
+                <span style={{ display: 'block', marginTop: 2, fontSize: 10, opacity: 0.7 }}>
+                  {intel.macroContext.headline}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={s.page}>
         {active === "Command" && <CommandTab />}
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} />}
