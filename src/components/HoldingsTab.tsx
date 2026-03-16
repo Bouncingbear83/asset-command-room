@@ -223,7 +223,7 @@ function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: numb
   );
 }
 
-function HoldingsTable({ holdings }: { holdings: LiveHolding[] }) {
+function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; disruptionMap: Map<string, LiveDisruption> }) {
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
