@@ -335,9 +335,8 @@ export function usePortfolioData(): PortfolioData {
   const load = useCallback(async () => {
     setState((p) => ({ ...p, loading: true, error: null }));
     try {
-      const [sippRaw, isaRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw] = await Promise.all([
-        fetchSheet(GIDS.sipp),
-        fetchSheet(GIDS.isa),
+      const [holdingsRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw] = await Promise.all([
+        fetchSheet(GIDS.holdings),
         fetchSheet(GIDS.watchlist),
         fetchSheet(GIDS.layers).catch(() => []),
         fetchSheet(GIDS.scores).catch(() => []),
@@ -345,9 +344,12 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet(GIDS.monitor).catch(() => []),
         fetchSheet(GIDS.disruption).catch(() => []),
       ]);
+      const allHoldings = parseHoldings(holdingsRaw);
+      const sipp = allHoldings.filter(h => h.account.toUpperCase() === "SIPP");
+      const isa = allHoldings.filter(h => h.account.toUpperCase() === "ISA");
       setState({
-        sipp: parseHoldings(sippRaw),
-        isa: parseHoldings(isaRaw),
+        sipp,
+        isa,
         watchlist: parseWatchlist(watchRaw),
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
