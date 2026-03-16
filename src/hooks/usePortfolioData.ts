@@ -239,15 +239,27 @@ function parseMonitor(rows: Record<string, any>[]) {
 
 
 function parseDisruption(rows: Record<string, any>[]) {
-  return rows.map((r) => ({
-    ticker: String(r["ticker"] ?? r["TICKER"] ?? ""),
-    disruptionScore: typeof r["disruption_score"] === "number" ? r["disruption_score"] : null,
-    status: String(r["status"] ?? r["STATUS"] ?? ""),
-    lastChecked: r["last_checked"] ?? r["LAST_CHECKED"] ?? null,
-    amberTrigger: String(r["amber_trigger"] ?? r["AMBER_TRIGGER"] ?? ""),
-    redTrigger: String(r["red_trigger"] ?? r["RED_TRIGGER"] ?? ""),
-    evidence: String(r["evidence"] ?? r["EVIDENCE"] ?? ""),
-  }));
+  return rows
+    .filter((r) => {
+      const ticker = findCol(r, "ticker", "TICKER");
+      return ticker && String(ticker).trim() !== "" && !String(ticker).includes("LAYER") && !String(ticker).includes("HOLDINGS") && !String(ticker).includes("WATCHLIST") && !String(ticker).includes("HEDGE");
+    })
+    .map((r) => ({
+      ticker: String(findCol(r, "ticker", "TICKER") ?? ""),
+      name: String(findCol(r, "name", "NAME") ?? ""),
+      layer: String(findCol(r, "layer", "LAYER") ?? ""),
+      disruptionScore: parseNum(findCol(r, "disruption_score", "DISRUPTION_SCORE")),
+      subAvail: parseNum(findCol(r, "sub_avail", "SUB_AVAIL")),
+      economics: parseNum(findCol(r, "economics", "ECONOMICS")),
+      govtSupport: parseNum(findCol(r, "govt_support", "GOVT_SUPPORT")),
+      demandVuln: parseNum(findCol(r, "demand_vuln", "DEMAND_VULN")),
+      timeViability: parseNum(findCol(r, "time_viability", "TIME_VIABILITY")),
+      status: String(findCol(r, "status", "STATUS") ?? ""),
+      lastChecked: findCol(r, "last_checked", "LAST_CHECKED"),
+      amberTrigger: String(findCol(r, "amber_trigger", "AMBER_TRIGGER") ?? ""),
+      redTrigger: String(findCol(r, "red_trigger", "RED_TRIGGER") ?? ""),
+      evidence: String(findCol(r, "evidence", "EVIDENCE") ?? ""),
+    }));
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
