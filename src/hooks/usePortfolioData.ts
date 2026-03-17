@@ -14,6 +14,7 @@ export const GIDS = {
   monitor: "1097453724",
   disruption: "1166534580",
   performance: "7099973",
+  narrative: "457911094",
 };
 
 const KNOWN_COLS = [
@@ -35,6 +36,7 @@ const KNOWN_COLS = [
   "deposits_in_period_isa","deposits_in_period_total","sub_period_rtn_sipp",
   "sub_period_rtn_isa","sub_period_rtn_total","cumulative_twr_sipp",
   "cumulative_twr_isa","cumulative_twr_total","note",
+  "trigger_price_add","trigger_price_exit","alert_status","alert_fired_date","key","value",
 ];
 
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
@@ -46,18 +48,16 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   const cols: string[] = json.table.cols.map((c: any) => {
     const label = (c.label as string).trim();
     if (!label.includes(" ")) return label;
-    // Scan for a known column name within the long label (case-insensitive)
     const labelLower = label.toLowerCase();
-    // Find all matching known cols, pick earliest position, break ties with longest
     const matches = KNOWN_COLS
       .map(k => ({ k, pos: labelLower.indexOf(k.toLowerCase()) }))
       .filter(m => m.pos >= 0)
       .sort((a, b) => a.pos - b.pos || b.k.length - a.k.length);
     if (matches.length > 0) return matches[0].k;
-    // Fallback: last word
     const parts = label.split(/\s+/);
     return parts[parts.length - 1];
   });
+
   return json.table.rows
     .map((r: any) => {
       const obj: Record<string, any> = {};
@@ -70,20 +70,20 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
       const vals = Object.values(row);
       const hasContent = vals.some((v) => v !== null && v !== undefined && String(v).trim() !== "");
       if (!hasContent) return false;
-      // If row_type column exists, let the parser handle filtering
       const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
       if (rowType !== null && rowType !== undefined) return true;
-      // Original generic filter for sheets without Row_Type
       const keys = Object.keys(row);
       const hasId = keys.some((k) => {
         const kl = k.toLowerCase();
-        return (kl.includes("ticker") || kl === "name" || kl === "type" || kl === "date" || kl === "layer") && row[k] !== null && String(row[k]).trim() !== "";
+        return (
+          (kl.includes("ticker") || kl === "name" || kl === "type" || kl === "date" || kl === "layer" || kl === "key") &&
+          row[k] !== null &&
+          String(row[k]).trim() !== ""
+        );
       });
       return hasId;
     });
 }
-
-// ── Parsers ────────────────────────────────────────────────────────────────
 
 function parseMv(val: any): number {
   if (typeof val === "number") return val;
@@ -116,18 +116,15 @@ function parseDay(val: any): number {
 }
 
 function findCol(r: Record<string, any>, ...candidates: string[]): any {
-  // Exact match
   for (const c of candidates) {
     if (r[c] !== undefined && r[c] !== null) return r[c];
   }
-  // Case-insensitive match
   const keys = Object.keys(r);
   for (const c of candidates) {
     const lower = c.toLowerCase();
     const match = keys.find((k) => k.toLowerCase() === lower);
     if (match && r[match] !== undefined && r[match] !== null) return r[match];
   }
-  // Partial/contains match (for mangled headers)
   for (const c of candidates) {
     const lower = c.toLowerCase();
     const match = keys.find((k) => k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase()));
@@ -154,26 +151,28 @@ function parseHoldings(rows: Record<string, any>[]) {
       return ticker && String(ticker).trim() !== "" && mv > 0;
     })
     .map((r) => ({
-    ticker: String(findCol(r, "TICKER", "ticker") ?? ""),
-    name: String(findCol(r, "NAME", "name") ?? ""),
-    layer: String(findCol(r, "LAYER", "layer") ?? ""),
-    account: String(findCol(r, "Account", "account", "ACCOUNT") ?? ""),
-    mv: parseMv(findCol(r, "MV (£)", "mv (£)", "MV", "mv", "(£)")),
-    gl: parseGl(findCol(r, "G/L %", "g/l %", "G/L%", "gl", "G/L")),
-    day: parseDay(findCol(r, "DAY %", "day %", "Day %", "day", "DAY")),
-    notes: String(findCol(r, "NOTES", "notes") ?? ""),
-    action: String(findCol(r, "ACTION", "action") ?? "HOLD"),
-    price: parseNum(findCol(r, "PRICE_LOCAL", "price_local", "Price_Local")),
-    prevClose: parseNum(findCol(r, "PREV_CLOSE_LOCAL", "prev_close_local")),
-    currency: String(findCol(r, "CURRENCY", "currency") ?? "USD"),
-    costGbp: parseNum(findCol(r, "COST_GBP", "cost_gbp", "Cost_GBP")),
-    shares: parseNum(findCol(r, "SHARES", "shares", "Shares")),
-    add_trigger: String(findCol(r, "add_trigger", "ADD_TRIGGER") ?? ""),
-    exit_trigger: String(findCol(r, "exit_trigger", "EXIT_TRIGGER") ?? ""),
-    ma60: parseNum(findCol(r, "MA60", "ma60", "Ma60")),
-    high_52w: parseNum(findCol(r, "HIGH_52w", "HIGH_52W", "high_52w", "High_52w")),
-    low_52w: parseNum(findCol(r, "LOW_52w", "LOW_52W", "low_52w", "Low_52w")),
-  }));
+      ticker: String(findCol(r, "TICKER", "ticker") ?? ""),
+      name: String(findCol(r, "NAME", "name") ?? ""),
+      layer: String(findCol(r, "LAYER", "layer") ?? ""),
+      account: String(findCol(r, "Account", "account", "ACCOUNT") ?? ""),
+      mv: parseMv(findCol(r, "MV (£)", "mv (£)", "MV", "mv", "(£)")),
+      gl: parseGl(findCol(r, "G/L %", "g/l %", "G/L%", "gl", "G/L")),
+      day: parseDay(findCol(r, "DAY %", "day %", "Day %", "day", "DAY")),
+      notes: String(findCol(r, "NOTES", "notes") ?? ""),
+      action: String(findCol(r, "ACTION", "action") ?? "HOLD"),
+      price: parseNum(findCol(r, "PRICE_LOCAL", "price_local", "Price_Local")),
+      prevClose: parseNum(findCol(r, "PREV_CLOSE_LOCAL", "prev_close_local")),
+      currency: String(findCol(r, "CURRENCY", "currency") ?? "USD"),
+      costGbp: parseNum(findCol(r, "COST_GBP", "cost_gbp", "Cost_GBP")),
+      shares: parseNum(findCol(r, "SHARES", "shares", "Shares")),
+      add_trigger: String(findCol(r, "add_trigger", "ADD_TRIGGER") ?? ""),
+      exit_trigger: String(findCol(r, "exit_trigger", "EXIT_TRIGGER") ?? ""),
+      trigger_price_add: String(findCol(r, "trigger_price_add", "TRIGGER_PRICE_ADD") ?? ""),
+      alert_status: String(findCol(r, "alert_status", "ALERT_STATUS") ?? ""),
+      ma60: parseNum(findCol(r, "MA60", "ma60", "Ma60")),
+      high_52w: parseNum(findCol(r, "HIGH_52w", "HIGH_52W", "high_52w", "High_52w")),
+      low_52w: parseNum(findCol(r, "LOW_52w", "LOW_52W", "low_52w", "Low_52w")),
+    }));
 }
 
 function parseWatchlist(rows: Record<string, any>[]) {
@@ -214,7 +213,6 @@ function parseScores(rows: Record<string, any>[]) {
         const rt = String(rowType).trim().toLowerCase();
         return rt === "data" || rt === "watchlist";
       }
-      // Fallback: original ticker-based filter
       const ticker = String(findCol(r, "ticker", "TICKER") ?? "").trim();
       return ticker !== "" && !ticker.includes(" ");
     })
@@ -268,7 +266,6 @@ function parseMonitor(rows: Record<string, any>[]) {
     notes: String(r["notes"] ?? r["NOTES"] ?? ""),
   }));
 }
-
 
 function parseDisruption(rows: Record<string, any>[]) {
   return rows
@@ -347,7 +344,21 @@ function parsePerformance(rows: Record<string, any>[]) {
     }));
 }
 
-// ── Types ──────────────────────────────────────────────────────────────────
+function parseNarrative(rows: Record<string, any>[]) {
+  return rows.reduce<Record<string, string>>((acc, row) => {
+    const keys = Object.keys(row);
+    const rawKey = findCol(row, "key", "KEY") ?? (keys[0] ? row[keys[0]] : null);
+    const rawValue = findCol(row, "value", "VALUE") ?? (keys[1] ? row[keys[1]] : null);
+    const key = String(rawKey ?? "").trim();
+    const value = String(rawValue ?? "").trim();
+
+    if (key && value) {
+      acc[key] = value;
+    }
+
+    return acc;
+  }, {});
+}
 
 export type LiveHolding = ReturnType<typeof parseHoldings>[number];
 export type LiveWatchItem = ReturnType<typeof parseWatchlist>[number];
@@ -357,8 +368,10 @@ export type LiveScoreLog = ReturnType<typeof parseScoreLog>[number];
 export type LiveMonitor = ReturnType<typeof parseMonitor>[number];
 export type LiveDisruption = ReturnType<typeof parseDisruption>[number];
 export type LivePerformance = ReturnType<typeof parsePerformance>[number];
+export type LiveNarrative = ReturnType<typeof parseNarrative>;
 
 export interface PortfolioData {
+  holdings: LiveHolding[];
   sipp: LiveHolding[];
   isa: LiveHolding[];
   watchlist: LiveWatchItem[];
@@ -368,16 +381,16 @@ export interface PortfolioData {
   monitor: LiveMonitor[];
   disruption: LiveDisruption[];
   performance: LivePerformance[];
+  narrative: LiveNarrative;
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
   refresh: () => void;
 }
 
-// ── Hook ───────────────────────────────────────────────────────────────────
-
 export function usePortfolioData(): PortfolioData {
   const [state, setState] = useState<Omit<PortfolioData, "refresh">>({
+    holdings: [],
     sipp: [],
     isa: [],
     watchlist: [],
@@ -387,6 +400,7 @@ export function usePortfolioData(): PortfolioData {
     monitor: [],
     disruption: [],
     performance: [],
+    narrative: {},
     lastUpdated: null,
     loading: true,
     error: null,
@@ -395,7 +409,7 @@ export function usePortfolioData(): PortfolioData {
   const load = useCallback(async () => {
     setState((p) => ({ ...p, loading: true, error: null }));
     try {
-      const [holdingsRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw, performanceRaw] = await Promise.all([
+      const [holdingsRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw, performanceRaw, narrativeRaw] = await Promise.all([
         fetchSheet(GIDS.holdings),
         fetchSheet(GIDS.watchlist),
         fetchSheet(GIDS.layers).catch(() => []),
@@ -404,11 +418,13 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet(GIDS.monitor).catch(() => []),
         fetchSheet(GIDS.disruption).catch(() => []),
         fetchSheet(GIDS.performance).catch(() => []),
+        fetchSheet(GIDS.narrative).catch(() => []),
       ]);
       const allHoldings = parseHoldings(holdingsRaw);
-      const sipp = allHoldings.filter(h => h.account.toUpperCase() === "SIPP");
-      const isa = allHoldings.filter(h => h.account.toUpperCase() === "ISA");
+      const sipp = allHoldings.filter((h) => h.account.toUpperCase() === "SIPP");
+      const isa = allHoldings.filter((h) => h.account.toUpperCase() === "ISA");
       setState({
+        holdings: allHoldings,
         sipp,
         isa,
         watchlist: parseWatchlist(watchRaw),
@@ -418,6 +434,7 @@ export function usePortfolioData(): PortfolioData {
         monitor: parseMonitor(monitorRaw),
         disruption: parseDisruption(disruptionRaw),
         performance: parsePerformance(performanceRaw),
+        narrative: parseNarrative(narrativeRaw),
         lastUpdated: new Date().toLocaleTimeString("en-GB"),
         loading: false,
         error: null,
