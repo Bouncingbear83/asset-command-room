@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { RISK_CONTROLS, BUBBLE_FLAGS, GOLDEN_RULES } from "@/data/portfolio";
-import { useIntelligence } from "@/data/intelligenceState";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -72,58 +72,22 @@ const statusChip = (status: string): React.CSSProperties => {
 const actionBadge = (action: string): React.CSSProperties => {
   const map: Record<string, { bg: string; color: string; border: string }> = {
     BUY: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+    BOUGHT: { bg: '#00aa66', color: '#fff', border: 'transparent' },
+    'TOP-UP': { bg: '#00aa66', color: '#fff', border: 'transparent' },
+    'SIZE UP': { bg: '#00aa66', color: '#fff', border: 'transparent' },
     PENDING_BUY: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    PENDING: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
+    HOLD: { bg: 'transparent', color: '#8a8a9a', border: '#8a8a9a' },
     SELL: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
     EXIT: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
     TRIM: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
+    TRIMMED: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
+    CAP: { bg: '#e67e22', color: '#fff', border: 'transparent' },
     MONITOR: { bg: 'transparent', color: '#8a8a9a', border: '#8a8a9a' },
     REVIEW: { bg: 'transparent', color: '#e67e22', border: '#e67e22' },
     WATCHLIST: { bg: 'transparent', color: '#555', border: '#555' },
   };
   const c = map[action.toUpperCase()] ?? map.MONITOR;
-  return {
-    background: c.bg,
-    color: c.color,
-    border: `1px solid ${c.border}`,
-    fontFamily: "var(--font-ui)",
-    fontSize: 10,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    padding: "2px 10px",
-    borderRadius: 2,
-    whiteSpace: "nowrap",
-  };
-};
-
-const priorityBadge = (priority: string): React.CSSProperties => {
-  const map: Record<string, { bg: string; color: string }> = {
-    URGENT: { bg: '#e74c3c', color: '#fff' },
-    HIGH: { bg: '#e67e22', color: '#fff' },
-    MEDIUM: { bg: 'rgba(201,168,76,0.15)', color: '#c9a84c' },
-    LOW: { bg: 'rgba(85,85,85,0.2)', color: '#555' },
-  };
-  const c = map[priority] ?? map.LOW;
-  return {
-    background: c.bg,
-    color: c.color,
-    fontFamily: "var(--font-ui)",
-    fontSize: 10,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    padding: "2px 10px",
-    borderRadius: 2,
-    whiteSpace: "nowrap",
-  };
-};
-
-const ipoStatusBadge = (status: string): React.CSSProperties => {
-  const map: Record<string, { bg: string; color: string; border: string }> = {
-    'PRE-IPO': { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
-    'IPO-WATCH': { bg: 'rgba(201,168,76,0.2)', color: '#c9a84c', border: 'transparent' },
-    FILED: { bg: '#e67e22', color: '#fff', border: 'transparent' },
-    LISTED: { bg: '#00aa66', color: '#fff', border: 'transparent' },
-  };
-  const c = map[status] ?? map['PRE-IPO'];
   return {
     background: c.bg,
     color: c.color,
@@ -163,77 +127,70 @@ const divRow: React.CSSProperties = {
   gap: 16,
 };
 
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+function truncateText(text: string, maxLength = 80) {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function normalizeForMatch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export default function CommandTab() {
   const [customPrompt, setCustomPrompt] = useState("");
-  const [jsonInput, setJsonInput] = useState("");
-  const [validationResult, setValidationResult] = useState<{ valid: boolean; message: string } | null>(null);
-  const [toast, setToast] = useState(false);
-  const { state, applyUpdate, validate } = useIntelligence();
-
-  // Last applied info
-  const lastApplied = state.lastUpdated
-    ? `Last applied: ${state.lastUpdated} · ${state.reviewType || 'update'}`
-    : "No update applied";
+  const { holdings, narrative, loading, error } = usePortfolioData();
 
   const handleGo = () => {
     if (customPrompt.trim()) launchClaude(customPrompt.trim());
   };
 
-  const handleValidate = () => {
-    if (!jsonInput.trim()) {
-      setValidationResult({ valid: false, message: "Paste JSON first" });
-      return;
-    }
-    const result = validate(jsonInput);
-    setValidationResult({
-      valid: result.valid,
-      message: result.valid ? `✅ ${result.summary}` : `❌ ${result.error}`,
+  const priorityNarratives = [
+    narrative.week_priority_1,
+    narrative.week_priority_2,
+    narrative.week_priority_3,
+  ].map((item) => item?.trim() ?? "").filter(Boolean);
+
+  const weeklyActions = holdings
+    .filter((holding) => holding.alert_status.trim().toUpperCase() !== "CLEAR")
+    .map((holding) => {
+      const normalizedTicker = normalizeForMatch(holding.ticker);
+      const matchedPriority = priorityNarratives.find((item) => normalizeForMatch(item).includes(normalizedTicker));
+
+      return {
+        ticker: holding.ticker,
+        action: holding.action || "MONITOR",
+        sizeContext: `${formatCurrency(holding.mv)} · Add @ ${holding.trigger_price_add || "—"}`,
+        rationale: matchedPriority || truncateText(holding.add_trigger || "—"),
+      };
     });
-  };
 
-  const handleApply = () => {
-    const result = applyUpdate(jsonInput);
-    if (result.valid) {
-      setJsonInput("");
-      setValidationResult(null);
-      setToast(true);
-    }
-  };
+  const weeklyWatch = [
+    narrative.week_watch_1,
+    narrative.week_watch_2,
+    narrative.week_watch_3,
+  ].map((item) => item?.trim() ?? "").filter(Boolean);
 
-  useEffect(() => {
-    if (toast) {
-      const t = setTimeout(() => setToast(false), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [toast]);
+  const riskControls = RISK_CONTROLS.map((r) => ({
+    label: r.label,
+    threshold: r.threshold,
+    status: r.status,
+    detail: "",
+  }));
 
-  // Determine data sources with fallbacks
-  const riskControls = Object.keys(state.riskControls).length > 0
-    ? Object.entries(state.riskControls).map(([key, v]) => ({ label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), ...v }))
-    : RISK_CONTROLS.map(r => ({ label: r.label, threshold: r.threshold, status: r.status, detail: '' }));
-
-  const bubbleFlags = Object.keys(state.bubbleFlags).length > 0
-    ? Object.entries(state.bubbleFlags).map(([key, v]) => ({ name: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), ...v }))
-    : BUBBLE_FLAGS;
+  const bubbleFlags = BUBBLE_FLAGS;
 
   return (
     <>
-      {/* Toast notification */}
-      {toast && (
-        <div style={{
-          position: 'fixed', top: 24, right: 24, zIndex: 9999,
-          background: '#c9a84c', color: '#04040a', padding: '12px 24px',
-          fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
-          letterSpacing: '0.05em',
-        }}>
-          ✅ Intelligence update applied
-        </div>
-      )}
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-        {/* Left column */}
         <div>
-          {/* Stellar Intelligence header card */}
           <div style={card}>
             <div style={{ padding: 32, textAlign: "center", borderBottom: "1px solid var(--rim)" }}>
               <div style={{
@@ -291,101 +248,75 @@ export default function CommandTab() {
             </div>
           </div>
 
-          {/* Ticker Actions */}
           <div style={card}>
             <div style={cardHeader}>
-              <span style={cardTitle}>This Week's Actions</span>
-              {state.tickerActions.length > 0 && (
+              <span style={cardTitle}>This Week&apos;s Actions</span>
+              {weeklyActions.length > 0 && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--gold)',
                   letterSpacing: '0.15em',
-                }}>{state.tickerActions.length} ACTION{state.tickerActions.length !== 1 ? 'S' : ''}</span>
+                }}>{weeklyActions.length} ACTION{weeklyActions.length !== 1 ? 'S' : ''}</span>
               )}
             </div>
             <div style={{ padding: "0 20px 12px" }}>
-              {state.tickerActions.length === 0 ? (
+              {loading && weeklyActions.length === 0 && weeklyWatch.length === 0 ? (
                 <div style={{ padding: '16px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
-                  No actions this week
+                  Loading weekly actions…
                 </div>
               ) : (
-                state.tickerActions.map((ta, i) => (
-                  <div key={`${ta.ticker}-${i}`} style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-                    borderBottom: '1px solid rgba(28,28,48,0.4)',
-                  }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 50 }}>
-                      {ta.ticker}
-                    </span>
-                    <span style={actionBadge(ta.action)}>{ta.action.replace('_', ' ')}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-mid)', minWidth: 50 }}>
-                      {ta.amount || '—'}
-                    </span>
-                    <span style={{
-                      fontSize: 11, color: 'var(--text-dim)', flex: 1,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{ta.reason}</span>
-                  </div>
-                ))
+                <>
+                  {weeklyActions.map((item, i) => (
+                    <div key={`${item.ticker}-${i}`} style={{ padding: '12px 0', borderBottom: '1px solid rgba(28,28,48,0.4)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
+                          {item.ticker}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <span style={actionBadge(item.action)}>{item.action.replace('_', ' ')}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-mid)' }}>
+                            {item.sizeContext}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.55 }}>
+                        {item.rationale}
+                      </div>
+                    </div>
+                  ))}
+
+                  {weeklyWatch.length > 0 && (
+                    <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
+                      <div style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 9,
+                        letterSpacing: '0.16em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-dim)',
+                        marginBottom: 10,
+                      }}>
+                        Watch this week
+                      </div>
+                      {weeklyWatch.map((item, i) => (
+                        <div key={`watch-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderTop: '1px solid rgba(28,28,48,0.4)' }}>
+                          <span style={statusChip('MONITOR')}>MONITOR</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.55 }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!loading && weeklyActions.length === 0 && weeklyWatch.length === 0 && (
+                    <div style={{ padding: '16px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+                      {error ? 'Weekly actions unavailable' : 'No actions this week'}
+                    </div>
+                  )}
+                </>
               )}
-            </div>
-          </div>
-
-          {/* Intelligence Update */}
-          <div style={card}>
-            <div style={cardHeader}>
-              <span style={cardTitle}>Intelligence Update</span>
-            </div>
-            <div style={{ padding: "20px" }}>
-              <textarea
-                value={jsonInput}
-                onChange={(e) => { setJsonInput(e.target.value); setValidationResult(null); }}
-                placeholder="Paste weekly intelligence update JSON here..."
-                style={{
-                  width: "100%", background: "#0d0d1f", border: "1px solid var(--rim)",
-                  color: "var(--text)", padding: 12, fontFamily: "var(--font-mono)",
-                  fontSize: 10, lineHeight: 1.6, resize: "vertical", minHeight: 300,
-                  boxSizing: "border-box", outline: "none",
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--rim)'; }}
-              />
-
-              {validationResult && (
-                <div style={{
-                  marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 10,
-                  color: validationResult.valid ? '#00aa66' : '#e74c3c',
-                  lineHeight: 1.5,
-                }}>{validationResult.message}</div>
-              )}
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                <button onClick={handleValidate} style={{
-                  background: 'transparent', border: '1px solid #c9a84c', color: '#c9a84c',
-                  padding: '8px 20px', fontFamily: 'var(--font-ui)', fontSize: 10,
-                  letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
-                }}>Validate</button>
-                <button onClick={handleApply} disabled={!validationResult?.valid}
-                  style={{
-                    background: validationResult?.valid ? '#c9a84c' : 'rgba(201,168,76,0.2)',
-                    color: validationResult?.valid ? '#04040a' : 'rgba(201,168,76,0.4)',
-                    border: 'none', padding: '8px 20px', fontFamily: 'var(--font-ui)',
-                    fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    cursor: validationResult?.valid ? 'pointer' : 'not-allowed',
-                  }}>Apply Update</button>
-              </div>
-
-              <div style={{
-                marginTop: 10, fontFamily: 'var(--font-mono)', fontSize: 9,
-                color: 'var(--text-dim)', letterSpacing: '0.1em',
-              }}>{lastApplied}</div>
             </div>
           </div>
         </div>
 
-        {/* Right column */}
         <div>
-          {/* Risk Controls */}
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>Risk Controls</span>
@@ -410,7 +341,6 @@ export default function CommandTab() {
             </div>
           </div>
 
-          {/* Bubble Flags */}
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>Bubble Flags</span>
@@ -430,7 +360,6 @@ export default function CommandTab() {
             </div>
           </div>
 
-          {/* Golden Rules */}
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>Golden Rules</span>
