@@ -1,12 +1,13 @@
-import { SIPP_HOLDINGS, ISA_HOLDINGS, SIPP_AUM, ISA_AUM } from "@/data/portfolio";
-import { LiveHolding } from "@/hooks/usePortfolioData";
+import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
+import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
 
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  performance: LivePerformance[];
 }
 
-export default function ReturnsTab({ sipp, isa }: Props) {
+export default function ReturnsTab({ sipp, isa, performance }: Props) {
   const sippData =
     sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
   const isaData =
@@ -16,6 +17,14 @@ export default function ReturnsTab({ sipp, isa }: Props) {
   const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0);
   const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0);
   const total = sippTotal + isaTotal;
+
+  // Latest performance row for summary cards
+  const sortedPerf = [...performance].sort((a, b) => {
+    const da = new Date(a.date).getTime();
+    const db = new Date(b.date).getTime();
+    return db - da;
+  });
+  const latest = sortedPerf[0];
 
   const winners = [...all]
     .filter((h) => h.gl > 0)
@@ -47,17 +56,22 @@ export default function ReturnsTab({ sipp, isa }: Props) {
     color: "var(--text-mid)",
   };
 
+  const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+  const pctColor = (v: number) => (v >= 0 ? "var(--green)" : "var(--red)");
+  const fmtGbp = (v: number) => `£${(v / 1000).toFixed(0)}k`;
+
   return (
     <div>
+      {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
-          { label: "Total AUM", value: `£${(total / 1000).toFixed(0)}k` },
-          { label: "SIPP", value: `£${(sippTotal / 1000).toFixed(0)}k` },
-          { label: "ISA", value: `£${(isaTotal / 1000).toFixed(0)}k` },
-          { label: "Target CAGR", value: "15–20%" },
+          { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
+          { label: "Cumulative TWR", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
+          { label: "SIPP TWR", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
+          { label: "ISA TWR", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
         ].map((m) => (
           <div key={m.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: "var(--text)", fontWeight: 300 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: (m as any).color ?? "var(--text)", fontWeight: 300 }}>
               {m.value}
             </div>
             <div
@@ -76,6 +90,63 @@ export default function ReturnsTab({ sipp, isa }: Props) {
         ))}
       </div>
 
+      {/* Performance history table */}
+      {sortedPerf.length > 0 && (
+        <div style={{ ...card, marginBottom: 20 }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Performance History (TWR)</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--rim)" }}>
+                  {["Date", "SIPP", "ISA", "Total", "Deposits", "Period Rtn", "Cumul. TWR", "Note"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: h === "Date" || h === "Note" ? "left" : "right",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.15em",
+                        textTransform: "uppercase",
+                        color: "var(--text-dim)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPerf.map((p, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{p.date}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(p.totalSipp)}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(p.totalIsa)}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{fmtGbp(p.totalValue)}</td>
+                    <td style={{ padding: "10px 14px", color: p.depositsTotal > 0 ? "var(--accent)" : "var(--text-dim)", textAlign: "right" }}>
+                      {p.depositsTotal > 0 ? fmtGbp(p.depositsTotal) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 14px", color: pctColor(p.subPeriodRtnTotal), textAlign: "right", fontWeight: 700 }}>
+                      {fmtPct(p.subPeriodRtnTotal)}
+                    </td>
+                    <td style={{ padding: "10px 14px", color: pctColor(p.cumulativeTwrTotal), textAlign: "right", fontWeight: 700 }}>
+                      {fmtPct(p.cumulativeTwrTotal)}
+                    </td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-dim)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.note || ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Winners / Losers / Movers */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
         {[
           { title: "Top Winners (All Time)", rows: winners, key: "gl" as const },
