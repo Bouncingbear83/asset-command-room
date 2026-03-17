@@ -30,6 +30,11 @@ const KNOWN_COLS = [
   "thesis / rationale","hex color","key holdings","gap / notes","priority",
   "target %","current %","%_below_52w_high","%_above_52w_low",
   "tickername","mv (£)","g/l %","day %",
+  "date","sipp_mv","isa_mv","total_mv","cash_sipp","cash_isa","total_cash",
+  "total_sipp","total_isa","total_value","deposits_in_period_sipp",
+  "deposits_in_period_isa","deposits_in_period_total","sub_period_rtn_sipp",
+  "sub_period_rtn_isa","sub_period_rtn_total","cumulative_twr_sipp",
+  "cumulative_twr_isa","cumulative_twr_total","note",
 ];
 
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
