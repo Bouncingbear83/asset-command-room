@@ -182,18 +182,20 @@ function parseWatchlist(rows: Record<string, any>[]) {
 }
 
 function parseLayers(rows: Record<string, any>[]) {
-  return rows.map((r) => ({
-    name: String(r["LAYER"] ?? r["NAME"] ?? r["layer"] ?? r["name"] ?? ""),
-    target:
-      typeof r["TARGET %"] === "number" ? r["TARGET %"] * 100 : typeof r["target"] === "number" ? r["target"] * 100 : 0,
-    current:
-      typeof r["CURRENT %"] === "number"
-        ? r["CURRENT %"] * 100
-        : typeof r["current"] === "number"
-          ? r["current"] * 100
-          : 0,
-    mv: typeof r["MV (£)"] === "number" ? r["MV (£)"] : 0,
-  }));
+  return rows.map((r) => {
+    const targetRaw = findCol(r, "target %", "TARGET %", "target");
+    const currentRaw = findCol(r, "current %", "CURRENT %", "current");
+    return {
+      name: String(findCol(r, "layer", "LAYER", "name", "NAME") ?? ""),
+      target: typeof targetRaw === "number" ? targetRaw * 100 : 0,
+      current: typeof currentRaw === "number" ? currentRaw * 100 : 0,
+      mv: parseMv(findCol(r, "mv (£)", "MV (£)", "mv", "MV")),
+      hexColor: String(findCol(r, "hex color", "Hex Color", "hex_color") ?? ""),
+      keyHoldings: String(findCol(r, "key holdings", "Key Holdings", "key_holdings") ?? ""),
+      gapNotes: String(findCol(r, "gap / notes", "Gap / Notes", "gap_notes") ?? ""),
+      priority: String(findCol(r, "priority", "Priority", "PRIORITY") ?? ""),
+    };
+  });
 }
 
 function parseScores(rows: Record<string, any>[]) {
