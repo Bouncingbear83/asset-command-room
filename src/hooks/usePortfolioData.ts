@@ -346,6 +346,7 @@ export type LiveScore = ReturnType<typeof parseScores>[number];
 export type LiveScoreLog = ReturnType<typeof parseScoreLog>[number];
 export type LiveMonitor = ReturnType<typeof parseMonitor>[number];
 export type LiveDisruption = ReturnType<typeof parseDisruption>[number];
+export type LivePerformance = ReturnType<typeof parsePerformance>[number];
 
 export interface PortfolioData {
   sipp: LiveHolding[];
