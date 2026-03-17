@@ -271,13 +271,11 @@ function parseMonitor(rows: Record<string, any>[]) {
 function parseDisruption(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
-      // Use Row_Type column if available
       const rowType = findCol(r, "row_type", "Row_Type", "ROW_TYPE");
       if (rowType) {
         const rt = String(rowType).trim().toLowerCase();
         return rt === "data" || rt === "watchlist";
       }
-      // Fallback: filter out headers
       const ticker = findCol(r, "ticker", "TICKER");
       return ticker && String(ticker).trim() !== "" && !String(ticker).includes("LAYER") && !String(ticker).includes("HOLDINGS") && !String(ticker).includes("WATCHLIST") && !String(ticker).includes("HEDGE");
     })
@@ -296,6 +294,46 @@ function parseDisruption(rows: Record<string, any>[]) {
       amberTrigger: String(findCol(r, "amber_trigger", "AMBER_TRIGGER") ?? ""),
       redTrigger: String(findCol(r, "red_trigger", "RED_TRIGGER") ?? ""),
       evidence: String(findCol(r, "evidence", "EVIDENCE") ?? ""),
+    }));
+}
+
+function parsePct(val: any): number {
+  if (typeof val === "number") return val * 100;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[%+,\s]/g, "");
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) return num;
+  }
+  return 0;
+}
+
+function parsePerformance(rows: Record<string, any>[]) {
+  return rows
+    .filter((r) => {
+      const d = findCol(r, "date", "Date", "DATE");
+      return d !== null && d !== undefined;
+    })
+    .map((r) => ({
+      date: String(findCol(r, "date", "Date", "DATE") ?? ""),
+      sippMv: parseMv(findCol(r, "sipp_mv", "SIPP_MV", "SIPP MV")),
+      isaMv: parseMv(findCol(r, "isa_mv", "ISA_MV", "ISA MV")),
+      totalMv: parseMv(findCol(r, "total_mv", "TOTAL_MV", "Total MV")),
+      cashSipp: parseMv(findCol(r, "cash_sipp", "CASH_SIPP", "Cash SIPP")),
+      cashIsa: parseMv(findCol(r, "cash_isa", "CASH_ISA", "Cash ISA")),
+      totalCash: parseMv(findCol(r, "total_cash", "TOTAL_CASH", "Total Cash")),
+      totalSipp: parseMv(findCol(r, "total_sipp", "TOTAL_SIPP", "Total SIPP")),
+      totalIsa: parseMv(findCol(r, "total_isa", "TOTAL_ISA", "Total ISA")),
+      totalValue: parseMv(findCol(r, "total_value", "TOTAL_VALUE", "Total Value")),
+      depositsSipp: parseMv(findCol(r, "deposits_in_period_sipp", "DEPOSITS_IN_PERIOD_SIPP")),
+      depositsIsa: parseMv(findCol(r, "deposits_in_period_isa", "DEPOSITS_IN_PERIOD_ISA")),
+      depositsTotal: parseMv(findCol(r, "deposits_in_period_total", "DEPOSITS_IN_PERIOD_TOTAL")),
+      subPeriodRtnSipp: parsePct(findCol(r, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
+      subPeriodRtnIsa: parsePct(findCol(r, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
+      subPeriodRtnTotal: parsePct(findCol(r, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
+      cumulativeTwrSipp: parsePct(findCol(r, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
+      cumulativeTwrIsa: parsePct(findCol(r, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
+      cumulativeTwrTotal: parsePct(findCol(r, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      note: String(findCol(r, "note", "Note", "NOTE") ?? ""),
     }));
 }
 
