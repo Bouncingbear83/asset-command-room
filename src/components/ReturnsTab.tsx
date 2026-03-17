@@ -151,7 +151,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
   const latest = sortedPerf[0];
 
   const chartRows = [...performance].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const chartGeometry = chartRows.length > 0 ? buildChartGeometry(chartRows) : null;
+  const periodReturns = computePeriodReturns(sortedPerf);
 
   const winners = [...all]
     .filter((h) => h.gl > 0)
