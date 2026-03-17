@@ -357,6 +357,7 @@ export interface PortfolioData {
   scoreLog: LiveScoreLog[];
   monitor: LiveMonitor[];
   disruption: LiveDisruption[];
+  performance: LivePerformance[];
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
