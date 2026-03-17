@@ -307,6 +307,14 @@ function parsePct(val: any): number {
   return 0;
 }
 
+function parseSheetDate(val: any): string {
+  if (typeof val === "string") {
+    const m = val.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+    if (m) return `${m[1]}-${String(+m[2] + 1).padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  }
+  return String(val ?? "");
+}
+
 function parsePerformance(rows: Record<string, any>[]) {
   return rows
     .filter((r) => {
@@ -314,7 +322,7 @@ function parsePerformance(rows: Record<string, any>[]) {
       return d !== null && d !== undefined;
     })
     .map((r) => ({
-      date: String(findCol(r, "date", "Date", "DATE") ?? ""),
+      date: parseSheetDate(findCol(r, "date", "Date", "DATE")),
       sippMv: parseMv(findCol(r, "sipp_mv", "SIPP_MV", "SIPP MV")),
       isaMv: parseMv(findCol(r, "isa_mv", "ISA_MV", "ISA MV")),
       totalMv: parseMv(findCol(r, "total_mv", "TOTAL_MV", "Total MV")),
