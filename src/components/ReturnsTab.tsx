@@ -62,6 +62,72 @@ function buildChartGeometry(rows: LivePerformance[]) {
   return { points, yTicks, xTicks };
 }
 
+interface PeriodReturn {
+  label: string;
+  total: number | null;
+  sipp: number | null;
+  isa: number | null;
+}
+
+function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodReturn[] {
+  if (sortedNewestFirst.length < 2) return [];
+  const latest = sortedNewestFirst[0];
+  const latestDate = new Date(latest.date);
+
+  // Helper: find nearest row to a target date
+  const nearest = (target: Date) => {
+    const t = target.getTime();
+    let best = sortedNewestFirst[sortedNewestFirst.length - 1];
+    let bestDiff = Math.abs(new Date(best.date).getTime() - t);
+    for (const row of sortedNewestFirst) {
+      const diff = Math.abs(new Date(row.date).getTime() - t);
+      if (diff < bestDiff) { best = row; bestDiff = diff; }
+    }
+    return best;
+  };
+
+  const calcReturn = (endTwr: number, startTwr: number) =>
+    ((1 + endTwr / 100) / (1 + startTwr / 100) - 1) * 100;
+
+  // Quarter boundaries
+  const qMonth = Math.floor(latestDate.getMonth() / 3) * 3;
+  const currentQtrStart = new Date(latestDate.getFullYear(), qMonth, 1);
+  const prevQtrStart = new Date(latestDate.getFullYear(), qMonth - 3, 1);
+
+  // Rolling lookbacks
+  const ago = (months: number) => {
+    const d = new Date(latestDate);
+    d.setMonth(d.getMonth() - months);
+    return d;
+  };
+
+  const periods: { label: string; start: Date; end?: Date }[] = [
+    { label: "Current QTR", start: currentQtrStart },
+    { label: "Previous QTR", start: prevQtrStart, end: currentQtrStart },
+    { label: "Last 6M", start: ago(6) },
+    { label: "Last 1Y", start: ago(12) },
+    { label: "Last 3Y", start: ago(36) },
+    { label: "Last 5Y", start: ago(60) },
+  ];
+
+  const oldest = new Date(sortedNewestFirst[sortedNewestFirst.length - 1].date);
+
+  return periods.map(({ label, start, end }) => {
+    // Skip if we don't have data going back far enough (within 45 days tolerance)
+    if (start.getTime() < oldest.getTime() - 45 * 86400000) {
+      return { label, total: null, sipp: null, isa: null };
+    }
+    const startRow = nearest(start);
+    const endRow = end ? nearest(end) : latest;
+    return {
+      label,
+      total: calcReturn(endRow.cumulativeTwrTotal, startRow.cumulativeTwrTotal),
+      sipp: calcReturn(endRow.cumulativeTwrSipp, startRow.cumulativeTwrSipp),
+      isa: calcReturn(endRow.cumulativeTwrIsa, startRow.cumulativeTwrIsa),
+    };
+  });
+}
+
 function toPolyline(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
@@ -86,6 +152,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
   const chartRows = [...performance].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const chartGeometry = chartRows.length > 0 ? buildChartGeometry(chartRows) : null;
+  const periodReturns = computePeriodReturns(sortedPerf);
 
   const winners = [...all]
     .filter((h) => h.gl > 0)
@@ -149,6 +216,59 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
           </div>
         ))}
       </div>
+
+      {periodReturns.length > 0 && (
+        <div style={{ ...card, marginBottom: 20 }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Period Returns (TWR)</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--rim)" }}>
+                  {["Period", "SIPP", "ISA", "Portfolio"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: h === "Period" ? "left" : "right",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.15em",
+                        textTransform: "uppercase",
+                        color: "var(--text-dim)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {periodReturns.map((pr) => (
+                  <tr key={pr.label} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{pr.label}</td>
+                    {[pr.sipp, pr.isa, pr.total].map((val, i) => (
+                      <td
+                        key={i}
+                        style={{
+                          padding: "10px 14px",
+                          textAlign: "right",
+                          fontWeight: 700,
+                          color: val == null ? "var(--text-dim)" : pctColor(val),
+                        }}
+                      >
+                        {val == null ? "—" : fmtPct(val)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {chartGeometry && (
         <div style={{ ...card, marginBottom: 20 }}>
