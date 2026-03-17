@@ -75,7 +75,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
       const keys = Object.keys(row);
       const hasId = keys.some((k) => {
         const kl = k.toLowerCase();
-        return (kl.includes("ticker") || kl === "name" || kl === "type" || kl === "date") && row[k] !== null && String(row[k]).trim() !== "";
+        return (kl.includes("ticker") || kl === "name" || kl === "type" || kl === "date" || kl === "layer") && row[k] !== null && String(row[k]).trim() !== "";
       });
       return hasId;
     });
