@@ -48,10 +48,12 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
     if (!label.includes(" ")) return label;
     // Scan for a known column name within the long label (case-insensitive)
     const labelLower = label.toLowerCase();
-    // Sort by length descending so longer matches win (e.g. "mv (£)" before "mv")
-    for (const known of [...KNOWN_COLS].sort((a, b) => b.length - a.length)) {
-      if (labelLower.includes(known.toLowerCase())) return known;
-    }
+    // Find all matching known cols, pick earliest position, break ties with longest
+    const matches = KNOWN_COLS
+      .map(k => ({ k, pos: labelLower.indexOf(k.toLowerCase()) }))
+      .filter(m => m.pos >= 0)
+      .sort((a, b) => a.pos - b.pos || b.k.length - a.k.length);
+    if (matches.length > 0) return matches[0].k;
     // Fallback: last word
     const parts = label.split(/\s+/);
     return parts[parts.length - 1];
