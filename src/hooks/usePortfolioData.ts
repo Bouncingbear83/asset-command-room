@@ -13,6 +13,7 @@ export const GIDS = {
   scoreLog: "1353977523",
   monitor: "1097453724",
   disruption: "1166534580",
+  performance: "7099973",
 };
 
 const KNOWN_COLS = [
