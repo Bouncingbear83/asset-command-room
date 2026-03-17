@@ -75,7 +75,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
       const keys = Object.keys(row);
       const hasId = keys.some((k) => {
         const kl = k.toLowerCase();
-        return (kl.includes("ticker") || kl === "name" || kl === "type" || kl === "date") && row[k] !== null && String(row[k]).trim() !== "";
+        return (kl.includes("ticker") || kl === "name" || kl === "type" || kl === "date" || kl === "layer") && row[k] !== null && String(row[k]).trim() !== "";
       });
       return hasId;
     });
@@ -176,14 +176,14 @@ function parseHoldings(rows: Record<string, any>[]) {
 
 function parseWatchlist(rows: Record<string, any>[]) {
   return rows.map((r) => ({
-    name: String(r["NAME"] ?? ""),
-    ticker: String(r["TICKER"] ?? ""),
-    layer: String(r["LAYER"] ?? ""),
-    entry: String(r["ENTRY TARGET"] ?? ""),
-    current: r["CURRENT PRICE"] ?? null,
-    trigger: String(r["TRIGGER CONDITION"] ?? ""),
-    rationale: String(r["THESIS / RATIONALE"] ?? ""),
-    status: String(r["STATUS"] ?? "WATCH"),
+    name: String(findCol(r, "name", "NAME", "Name") ?? ""),
+    ticker: String(findCol(r, "ticker", "TICKER", "Ticker") ?? ""),
+    layer: String(findCol(r, "layer", "LAYER", "Layer") ?? ""),
+    entry: String(findCol(r, "entry target", "ENTRY TARGET", "Entry Target") ?? ""),
+    current: findCol(r, "current price", "CURRENT PRICE", "Current Price") ?? null,
+    trigger: String(findCol(r, "trigger condition", "TRIGGER CONDITION", "Trigger Condition") ?? ""),
+    rationale: String(findCol(r, "thesis / rationale", "THESIS / RATIONALE", "Thesis / Rationale") ?? ""),
+    status: String(findCol(r, "status", "STATUS", "Status") ?? "WATCH"),
   }));
 }
 
