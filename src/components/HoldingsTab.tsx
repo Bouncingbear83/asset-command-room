@@ -644,11 +644,11 @@ export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
   const sippData: LiveHolding[] =
     sipp.length > 0
       ? sipp
-      : SIPP_HOLDINGS.map((h) => ({ ...h, account: "SIPP", day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", ma60: null, high_52w: null, low_52w: null }));
+      : SIPP_HOLDINGS.map((h) => ({ ...h, account: "SIPP", day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", trigger_price_add: "", alert_status: "CLEAR", ma60: null, high_52w: null, low_52w: null }));
   const isaData: LiveHolding[] =
     isa.length > 0
       ? isa
-      : ISA_HOLDINGS.map((h) => ({ ...h, account: "ISA", day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", ma60: null, high_52w: null, low_52w: null }));
+      : ISA_HOLDINGS.map((h) => ({ ...h, account: "ISA", day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", trigger_price_add: "", alert_status: "CLEAR", ma60: null, high_52w: null, low_52w: null }));
 
   const allHoldings = [...sippData, ...isaData];
   const totalAum = allHoldings.reduce((s, h) => s + (h.mv || 0), 0);
