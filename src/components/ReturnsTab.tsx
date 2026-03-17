@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
 
@@ -74,13 +75,17 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
   const latest = sortedNewestFirst[0];
   const latestDate = new Date(latest.date);
 
-  // Helper: find nearest row to a target date
+  // Guard against invalid dates
+  if (isNaN(latestDate.getTime())) return [];
+
   const nearest = (target: Date) => {
     const t = target.getTime();
     let best = sortedNewestFirst[sortedNewestFirst.length - 1];
     let bestDiff = Math.abs(new Date(best.date).getTime() - t);
     for (const row of sortedNewestFirst) {
-      const diff = Math.abs(new Date(row.date).getTime() - t);
+      const d = new Date(row.date).getTime();
+      if (isNaN(d)) continue;
+      const diff = Math.abs(d - t);
       if (diff < bestDiff) { best = row; bestDiff = diff; }
     }
     return best;
@@ -89,12 +94,10 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
   const calcReturn = (endTwr: number, startTwr: number) =>
     ((1 + endTwr / 100) / (1 + startTwr / 100) - 1) * 100;
 
-  // Quarter boundaries
   const qMonth = Math.floor(latestDate.getMonth() / 3) * 3;
   const currentQtrStart = new Date(latestDate.getFullYear(), qMonth, 1);
   const prevQtrStart = new Date(latestDate.getFullYear(), qMonth - 3, 1);
 
-  // Rolling lookbacks
   const ago = (months: number) => {
     const d = new Date(latestDate);
     d.setMonth(d.getMonth() - months);
@@ -113,7 +116,6 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
   const oldest = new Date(sortedNewestFirst[sortedNewestFirst.length - 1].date);
 
   return periods.map(({ label, start, end }) => {
-    // Skip if we don't have data going back far enough (within 45 days tolerance)
     if (start.getTime() < oldest.getTime() - 45 * 86400000) {
       return { label, total: null, sipp: null, isa: null };
     }
@@ -133,6 +135,9 @@ function toPolyline(points: Array<{ x: number; y: number }>) {
 }
 
 export default function ReturnsTab({ sipp, isa, performance }: Props) {
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [showAllRows, setShowAllRows] = useState(false);
+
   const sippData =
     sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
   const isaData =
@@ -186,16 +191,20 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
   const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
   const pctColor = (v: number) => (v >= 0 ? "var(--green)" : "var(--red)");
-  const fmtGbp = (v: number) => `£${(v / 1000).toFixed(0)}k`;
+  const fmtGbp = (v: number) => `£${Math.round(v).toLocaleString("en-GB")}`;
+
+  const visiblePerf = historyExpanded
+    ? (showAllRows ? sortedPerf : sortedPerf.slice(0, 5))
+    : [];
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
           { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
-          { label: "Cumulative TWR", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
-          { label: "SIPP TWR", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
-          { label: "ISA TWR", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
+          { label: "Cumulative TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
+          { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
+          { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
         ].map((metric) => (
           <div key={metric.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: metric.color ?? "var(--text)", fontWeight: 300 }}>
@@ -335,62 +344,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         </div>
       )}
 
-      {sortedPerf.length > 0 && (
-        <div style={{ ...card, marginBottom: 20 }}>
-          <div style={cardHeader}>
-            <span style={cardTitle}>Performance History (TWR)</span>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--rim)" }}>
-                  {["Date", "SIPP", "ISA", "Total", "Deposits", "Period Rtn", "Cumul. TWR", "Note"].map((header) => (
-                    <th
-                      key={header}
-                      style={{
-                        padding: "10px 14px",
-                        textAlign: header === "Date" || header === "Note" ? "left" : "right",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 9,
-                        letterSpacing: "0.15em",
-                        textTransform: "uppercase",
-                        color: "var(--text-dim)",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedPerf.map((row, index) => (
-                  <tr key={`${row.date}-${index}`} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                    <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{row.date}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(row.totalSipp)}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(row.totalIsa)}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{fmtGbp(row.totalValue)}</td>
-                    <td style={{ padding: "10px 14px", color: row.depositsTotal > 0 ? "var(--accent)" : "var(--text-dim)", textAlign: "right" }}>
-                      {row.depositsTotal > 0 ? fmtGbp(row.depositsTotal) : "—"}
-                    </td>
-                    <td style={{ padding: "10px 14px", color: pctColor(row.subPeriodRtnTotal), textAlign: "right", fontWeight: 700 }}>
-                      {fmtPct(row.subPeriodRtnTotal)}
-                    </td>
-                    <td style={{ padding: "10px 14px", color: pctColor(row.cumulativeTwrTotal), textAlign: "right", fontWeight: 700 }}>
-                      {fmtPct(row.cumulativeTwrTotal)}
-                    </td>
-                    <td style={{ padding: "10px 14px", color: "var(--text-dim)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {row.note || ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
         {[
           { title: "Top Winners (All Time)", rows: winners, key: "gl" as const },
           { title: "Under Pressure", rows: losers, key: "gl" as const },
@@ -427,6 +381,87 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
           </div>
         ))}
       </div>
+
+      {sortedPerf.length > 0 && (
+        <div style={card}>
+          <div
+            style={{ ...cardHeader, cursor: "pointer", userSelect: "none" }}
+            onClick={() => { setHistoryExpanded(!historyExpanded); setShowAllRows(false); }}
+          >
+            <span style={cardTitle}>Performance History (TWR)</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+              {historyExpanded ? "▲ Collapse" : `▼ Expand (${sortedPerf.length} rows)`}
+            </span>
+          </div>
+          {historyExpanded && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--rim)" }}>
+                    {["Date", "SIPP", "ISA", "Total", "Deposits", "Period Rtn", "Cumul. TWR", "Note"].map((header) => (
+                      <th
+                        key={header}
+                        style={{
+                          padding: "10px 14px",
+                          textAlign: header === "Date" || header === "Note" ? "left" : "right",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 9,
+                          letterSpacing: "0.15em",
+                          textTransform: "uppercase",
+                          color: "var(--text-dim)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visiblePerf.map((row, index) => (
+                    <tr key={`${row.date}-${index}`} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                      <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{row.date}</td>
+                      <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(row.totalSipp)}</td>
+                      <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(row.totalIsa)}</td>
+                      <td style={{ padding: "10px 14px", color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{fmtGbp(row.totalValue)}</td>
+                      <td style={{ padding: "10px 14px", color: row.depositsTotal > 0 ? "var(--accent)" : "var(--text-dim)", textAlign: "right" }}>
+                        {row.depositsTotal > 0 ? fmtGbp(row.depositsTotal) : "—"}
+                      </td>
+                      <td style={{ padding: "10px 14px", color: pctColor(row.subPeriodRtnTotal), textAlign: "right", fontWeight: 700 }}>
+                        {fmtPct(row.subPeriodRtnTotal)}
+                      </td>
+                      <td style={{ padding: "10px 14px", color: pctColor(row.cumulativeTwrTotal), textAlign: "right", fontWeight: 700 }}>
+                        {fmtPct(row.cumulativeTwrTotal)}
+                      </td>
+                      <td style={{ padding: "10px 14px", color: "var(--text-dim)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {row.note || ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!showAllRows && sortedPerf.length > 5 && (
+                <div
+                  onClick={() => setShowAllRows(true)}
+                  style={{
+                    padding: "10px 20px",
+                    textAlign: "center",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10,
+                    color: "var(--accent)",
+                    cursor: "pointer",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    borderTop: "1px solid var(--rim)",
+                  }}
+                >
+                  Show all {sortedPerf.length} rows ▼
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
