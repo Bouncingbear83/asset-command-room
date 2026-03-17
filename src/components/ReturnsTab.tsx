@@ -217,6 +217,59 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         ))}
       </div>
 
+      {periodReturns.length > 0 && (
+        <div style={{ ...card, marginBottom: 20 }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Period Returns (TWR)</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--rim)" }}>
+                  {["Period", "SIPP", "ISA", "Portfolio"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: h === "Period" ? "left" : "right",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.15em",
+                        textTransform: "uppercase",
+                        color: "var(--text-dim)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {periodReturns.map((pr) => (
+                  <tr key={pr.label} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{pr.label}</td>
+                    {[pr.sipp, pr.isa, pr.total].map((val, i) => (
+                      <td
+                        key={i}
+                        style={{
+                          padding: "10px 14px",
+                          textAlign: "right",
+                          fontWeight: 700,
+                          color: val == null ? "var(--text-dim)" : pctColor(val),
+                        }}
+                      >
+                        {val == null ? "—" : fmtPct(val)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {chartGeometry && (
         <div style={{ ...card, marginBottom: 20 }}>
           <div style={cardHeader}>
