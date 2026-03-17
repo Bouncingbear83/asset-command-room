@@ -1,11 +1,69 @@
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
   performance: LivePerformance[];
+}
+
+const CHART_WIDTH = 960;
+const CHART_HEIGHT = 320;
+const CHART_PADDING = { top: 16, right: 20, bottom: 36, left: 56 };
+
+function formatChartDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-GB", {
+    month: "short",
+    year: "2-digit",
+  });
+}
+
+function buildChartGeometry(rows: LivePerformance[]) {
+  const innerWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
+  const innerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+  const values = rows.flatMap((row) => [row.cumulativeTwrTotal, row.cumulativeTwrSipp, row.cumulativeTwrIsa]);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const range = max - min || 1;
+
+  const mapY = (value: number) => CHART_PADDING.top + ((max - value) / range) * innerHeight;
+
+  const points = rows.map((row, index) => {
+    const ratio = rows.length === 1 ? 0.5 : index / (rows.length - 1);
+    const x = CHART_PADDING.left + innerWidth * ratio;
+
+    return {
+      label: formatChartDate(row.date),
+      x,
+      totalY: mapY(row.cumulativeTwrTotal),
+      sippY: mapY(row.cumulativeTwrSipp),
+      isaY: mapY(row.cumulativeTwrIsa),
+      total: row.cumulativeTwrTotal,
+      sipp: row.cumulativeTwrSipp,
+      isa: row.cumulativeTwrIsa,
+    };
+  });
+
+  const tickCount = 5;
+  const yTicks = Array.from({ length: tickCount }, (_, index) => {
+    const value = max - (range / (tickCount - 1)) * index;
+    return {
+      value,
+      y: mapY(value),
+    };
+  });
+
+  const xStep = Math.max(1, Math.ceil(rows.length / 6));
+  const xTicks = points.filter((_, index) => index % xStep === 0 || index === points.length - 1);
+
+  return { points, yTicks, xTicks };
+}
+
+function toPolyline(points: Array<{ x: number; y: number }>) {
+  return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
 export default function ReturnsTab({ sipp, isa, performance }: Props) {
@@ -19,13 +77,15 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
   const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0);
   const total = sippTotal + isaTotal;
 
-  // Latest performance row for summary cards
   const sortedPerf = [...performance].sort((a, b) => {
     const da = new Date(a.date).getTime();
     const db = new Date(b.date).getTime();
     return db - da;
   });
   const latest = sortedPerf[0];
+
+  const chartRows = [...performance].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const chartGeometry = chartRows.length > 0 ? buildChartGeometry(chartRows) : null;
 
   const winners = [...all]
     .filter((h) => h.gl > 0)
@@ -63,17 +123,16 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
   return (
     <div>
-      {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
           { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
           { label: "Cumulative TWR", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
           { label: "SIPP TWR", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
           { label: "ISA TWR", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
-        ].map((m) => (
-          <div key={m.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: (m as any).color ?? "var(--text)", fontWeight: 300 }}>
-              {m.value}
+        ].map((metric) => (
+          <div key={metric.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: metric.color ?? "var(--text)", fontWeight: 300 }}>
+              {metric.value}
             </div>
             <div
               style={{
@@ -85,59 +144,77 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
                 marginTop: 6,
               }}
             >
-              {m.label}
+              {metric.label}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Cumulative TWR Chart */}
-      {sortedPerf.length > 0 && (() => {
-        const chartData = [...performance].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        return (
-          <div style={{ ...card, marginBottom: 20 }}>
-            <div style={cardHeader}>
-              <span style={cardTitle}>Portfolio Growth (Cumulative TWR)</span>
-            </div>
-            <div style={{ padding: "20px 10px 10px 0" }}>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--rim)" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fill: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9 }}
-                    stroke="var(--rim)"
-                    tickFormatter={(v) => {
-                      const d = new Date(v);
-                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                    }}
-                  />
-                  <YAxis
-                    tick={{ fill: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9 }}
-                    stroke="var(--rim)"
-                    tickFormatter={(v) => `${v.toFixed(0)}%`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--panel)",
-                      border: "1px solid var(--rim)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                      color: "var(--text)",
-                    }}
-                    formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-                  />
-                  <Line type="monotone" dataKey="cumulativeTwrTotal" name="Total" stroke="var(--gold)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="cumulativeTwrSipp" name="SIPP" stroke="var(--accent)" strokeWidth={1.5} dot={false} opacity={0.7} />
-                  <Line type="monotone" dataKey="cumulativeTwrIsa" name="ISA" stroke="var(--green)" strokeWidth={1.5} dot={false} opacity={0.7} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+      {chartGeometry && (
+        <div style={{ ...card, marginBottom: 20 }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Portfolio Growth (Cumulative TWR)</span>
           </div>
-        );
-      })()}
+          <div style={{ padding: "18px 20px 16px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 14 }}>
+              {[
+                { label: "Total", color: "var(--gold)" },
+                { label: "SIPP", color: "var(--accent)" },
+                { label: "ISA", color: "var(--green)" },
+              ].map((item) => (
+                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 999, background: item.color, display: "inline-block" }} />
+                  {item.label}
+                </div>
+              ))}
+            </div>
 
-      {/* Performance history table */}
+            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} style={{ width: "100%", height: 320, display: "block" }} role="img" aria-label="Portfolio cumulative time weighted return chart">
+              {chartGeometry.yTicks.map((tick) => (
+                <g key={`y-${tick.value}`}>
+                  <line x1={CHART_PADDING.left} y1={tick.y} x2={CHART_WIDTH - CHART_PADDING.right} y2={tick.y} stroke="var(--rim)" strokeDasharray="4 4" />
+                  <text x={CHART_PADDING.left - 10} y={tick.y + 4} fill="var(--text-dim)" fontFamily="var(--font-mono)" fontSize="10" textAnchor="end">
+                    {tick.value.toFixed(0)}%
+                  </text>
+                </g>
+              ))}
+
+              {chartGeometry.xTicks.map((tick, index) => (
+                <g key={`x-${tick.label}-${index}`}>
+                  <line x1={tick.x} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={tick.x} y2={CHART_HEIGHT - CHART_PADDING.bottom + 6} stroke="var(--rim)" />
+                  <text x={tick.x} y={CHART_HEIGHT - 10} fill="var(--text-dim)" fontFamily="var(--font-mono)" fontSize="10" textAnchor="middle">
+                    {tick.label}
+                  </text>
+                </g>
+              ))}
+
+              <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
+
+              <polyline
+                fill="none"
+                stroke="var(--gold)"
+                strokeWidth="3"
+                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.totalY })))}
+              />
+              <polyline
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth="2"
+                opacity="0.8"
+                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.sippY })))}
+              />
+              <polyline
+                fill="none"
+                stroke="var(--green)"
+                strokeWidth="2"
+                opacity="0.8"
+                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.isaY })))}
+              />
+            </svg>
+          </div>
+        </div>
+      )}
+
       {sortedPerf.length > 0 && (
         <div style={{ ...card, marginBottom: 20 }}>
           <div style={cardHeader}>
@@ -147,12 +224,12 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--rim)" }}>
-                  {["Date", "SIPP", "ISA", "Total", "Deposits", "Period Rtn", "Cumul. TWR", "Note"].map((h) => (
+                  {["Date", "SIPP", "ISA", "Total", "Deposits", "Period Rtn", "Cumul. TWR", "Note"].map((header) => (
                     <th
-                      key={h}
+                      key={header}
                       style={{
                         padding: "10px 14px",
-                        textAlign: h === "Date" || h === "Note" ? "left" : "right",
+                        textAlign: header === "Date" || header === "Note" ? "left" : "right",
                         fontFamily: "var(--font-mono)",
                         fontSize: 9,
                         letterSpacing: "0.15em",
@@ -161,29 +238,29 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
                         fontWeight: 700,
                       }}
                     >
-                      {h}
+                      {header}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {sortedPerf.map((p, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                    <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{p.date}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(p.totalSipp)}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(p.totalIsa)}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{fmtGbp(p.totalValue)}</td>
-                    <td style={{ padding: "10px 14px", color: p.depositsTotal > 0 ? "var(--accent)" : "var(--text-dim)", textAlign: "right" }}>
-                      {p.depositsTotal > 0 ? fmtGbp(p.depositsTotal) : "—"}
+                {sortedPerf.map((row, index) => (
+                  <tr key={`${row.date}-${index}`} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{row.date}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(row.totalSipp)}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text)", textAlign: "right" }}>{fmtGbp(row.totalIsa)}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{fmtGbp(row.totalValue)}</td>
+                    <td style={{ padding: "10px 14px", color: row.depositsTotal > 0 ? "var(--accent)" : "var(--text-dim)", textAlign: "right" }}>
+                      {row.depositsTotal > 0 ? fmtGbp(row.depositsTotal) : "—"}
                     </td>
-                    <td style={{ padding: "10px 14px", color: pctColor(p.subPeriodRtnTotal), textAlign: "right", fontWeight: 700 }}>
-                      {fmtPct(p.subPeriodRtnTotal)}
+                    <td style={{ padding: "10px 14px", color: pctColor(row.subPeriodRtnTotal), textAlign: "right", fontWeight: 700 }}>
+                      {fmtPct(row.subPeriodRtnTotal)}
                     </td>
-                    <td style={{ padding: "10px 14px", color: pctColor(p.cumulativeTwrTotal), textAlign: "right", fontWeight: 700 }}>
-                      {fmtPct(p.cumulativeTwrTotal)}
+                    <td style={{ padding: "10px 14px", color: pctColor(row.cumulativeTwrTotal), textAlign: "right", fontWeight: 700 }}>
+                      {fmtPct(row.cumulativeTwrTotal)}
                     </td>
                     <td style={{ padding: "10px 14px", color: "var(--text-dim)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {p.note || ""}
+                      {row.note || ""}
                     </td>
                   </tr>
                 ))}
@@ -193,7 +270,6 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         </div>
       )}
 
-      {/* Winners / Losers / Movers */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
         {[
           { title: "Top Winners (All Time)", rows: winners, key: "gl" as const },
@@ -206,12 +282,12 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               <tbody>
-                {rows.map((h) => {
-                  const val = h[key] ?? 0;
+                {rows.map((holding) => {
+                  const val = holding[key] ?? 0;
                   return (
-                    <tr key={h.ticker + key} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                      <td style={{ padding: "10px 14px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
-                      <td style={{ padding: "10px 14px", color: "var(--text)", fontSize: 10 }}>{h.name}</td>
+                    <tr key={holding.ticker + key} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                      <td style={{ padding: "10px 14px", color: "var(--gold)", fontWeight: 700 }}>{holding.ticker}</td>
+                      <td style={{ padding: "10px 14px", color: "var(--text)", fontSize: 10 }}>{holding.name}</td>
                       <td
                         style={{
                           padding: "10px 14px",
