@@ -91,6 +91,52 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         ))}
       </div>
 
+      {/* Cumulative TWR Chart */}
+      {sortedPerf.length > 0 && (() => {
+        const chartData = [...performance].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        return (
+          <div style={{ ...card, marginBottom: 20 }}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Portfolio Growth (Cumulative TWR)</span>
+            </div>
+            <div style={{ padding: "20px 10px 10px 0" }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--rim)" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9 }}
+                    stroke="var(--rim)"
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                    }}
+                  />
+                  <YAxis
+                    tick={{ fill: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9 }}
+                    stroke="var(--rim)"
+                    tickFormatter={(v) => `${v.toFixed(0)}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--panel)",
+                      border: "1px solid var(--rim)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 11,
+                      color: "var(--text)",
+                    }}
+                    formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+                  />
+                  <Line type="monotone" dataKey="cumulativeTwrTotal" name="Total" stroke="var(--gold)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="cumulativeTwrSipp" name="SIPP" stroke="var(--accent)" strokeWidth={1.5} dot={false} opacity={0.7} />
+                  <Line type="monotone" dataKey="cumulativeTwrIsa" name="ISA" stroke="var(--green)" strokeWidth={1.5} dot={false} opacity={0.7} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Performance history table */}
       {sortedPerf.length > 0 && (
         <div style={{ ...card, marginBottom: 20 }}>
