@@ -1,5 +1,6 @@
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 interface Props {
   sipp: LiveHolding[];
