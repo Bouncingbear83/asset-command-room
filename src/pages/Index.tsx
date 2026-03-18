@@ -17,6 +17,10 @@ function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>[
   return Object.values(macroBanner).some((value) => value !== null && value !== "");
 }
 
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
   const [macroBannerOpen, setMacroBannerOpen] = useState(true);
@@ -126,7 +130,7 @@ export default function Index() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }} onClick={() => setMacroBannerOpen(!macroBannerOpen)}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
               {portfolio.macroBanner.vix !== null && <span>VIX {portfolio.macroBanner.vix}</span>}
-              {portfolio.macroBanner.sp500YtdPct !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>S&P YTD {portfolio.macroBanner.sp500YtdPct}%</span></>}
+              {portfolio.macroBanner.sp500YtdPct !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>S&P YTD {formatPercent(portfolio.macroBanner.sp500YtdPct)}</span></>}
               {portfolio.macroBanner.goldUsd !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Gold ${portfolio.macroBanner.goldUsd.toLocaleString()}</span></>}
               {portfolio.macroBanner.pauseActive && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Pause {portfolio.macroBanner.pauseActive}</span></>}
               {portfolio.macroBanner.earningsBlackout && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Earnings {portfolio.macroBanner.earningsBlackout}</span></>}
