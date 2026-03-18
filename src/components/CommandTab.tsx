@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { RISK_CONTROLS, BUBBLE_FLAGS, GOLDEN_RULES } from "@/data/portfolio";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { GOLDEN_RULES } from "@/data/portfolio";
+import { LiveMacroStateRow, usePortfolioData } from "@/hooks/usePortfolioData";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -37,6 +37,16 @@ const QUICK_COMMANDS = [
   },
 ];
 
+const SIGNAL_KEYS = ["VIX", "SP500_YTD_PCT", "GOLD_USD", "PAUSE_ACTIVE", "EARNINGS_BLACKOUT"] as const;
+
+const SIGNAL_LABELS: Record<(typeof SIGNAL_KEYS)[number], string> = {
+  VIX: "VIX",
+  SP500_YTD_PCT: "S&P 500 YTD",
+  GOLD_USD: "Gold USD",
+  PAUSE_ACTIVE: "Pause Active",
+  EARNINGS_BLACKOUT: "Earnings Blackout",
+};
+
 function launchClaude(prompt: string) {
   const encodedPrompt = encodeURIComponent(prompt);
   const url = `https://claude.ai/new?project=${PROJECT_ID}&q=${encodedPrompt}`;
@@ -45,13 +55,13 @@ function launchClaude(prompt: string) {
 
 const statusChip = (status: string): React.CSSProperties => {
   const colors: Record<string, { bg: string; color: string; border: string; pulse?: boolean }> = {
-    PASS: { bg: '#00aa66', color: '#fff', border: 'transparent' },
-    CLEAR: { bg: '#00aa66', color: '#fff', border: 'transparent' },
-    WATCH: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
-    MONITOR: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
-    TRIGGERED: { bg: '#e74c3c', color: '#fff', border: 'transparent', pulse: true },
-    FIRED: { bg: '#e74c3c', color: '#fff', border: 'transparent', pulse: true },
-    AMBER: { bg: '#e67e22', color: '#fff', border: 'transparent' },
+    PASS: { bg: "#00aa66", color: "#fff", border: "transparent" },
+    CLEAR: { bg: "#00aa66", color: "#fff", border: "transparent" },
+    WATCH: { bg: "transparent", color: "#c9a84c", border: "#c9a84c" },
+    MONITOR: { bg: "transparent", color: "#c9a84c", border: "#c9a84c" },
+    TRIGGERED: { bg: "#e74c3c", color: "#fff", border: "transparent", pulse: true },
+    FIRED: { bg: "#e74c3c", color: "#fff", border: "transparent", pulse: true },
+    AMBER: { bg: "#e67e22", color: "#fff", border: "transparent" },
   };
   const c = colors[status.toUpperCase()] ?? colors.WATCH;
   return {
@@ -65,27 +75,27 @@ const statusChip = (status: string): React.CSSProperties => {
     padding: "2px 10px",
     borderRadius: 2,
     whiteSpace: "nowrap",
-    ...(c.pulse ? { animation: 'pulse-alert 2s ease-in-out infinite' } : {}),
+    ...(c.pulse ? { animation: "pulse-alert 2s ease-in-out infinite" } : {}),
   };
 };
 
 const actionBadge = (action: string): React.CSSProperties => {
   const map: Record<string, { bg: string; color: string; border: string }> = {
-    BUY: { bg: '#00aa66', color: '#fff', border: 'transparent' },
-    BOUGHT: { bg: '#00aa66', color: '#fff', border: 'transparent' },
-    'TOP-UP': { bg: '#00aa66', color: '#fff', border: 'transparent' },
-    'SIZE UP': { bg: '#00aa66', color: '#fff', border: 'transparent' },
-    PENDING_BUY: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
-    PENDING: { bg: 'transparent', color: '#c9a84c', border: '#c9a84c' },
-    HOLD: { bg: 'transparent', color: '#8a8a9a', border: '#8a8a9a' },
-    SELL: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
-    EXIT: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
-    TRIM: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
-    TRIMMED: { bg: '#e74c3c', color: '#fff', border: 'transparent' },
-    CAP: { bg: '#e67e22', color: '#fff', border: 'transparent' },
-    MONITOR: { bg: 'transparent', color: '#8a8a9a', border: '#8a8a9a' },
-    REVIEW: { bg: 'transparent', color: '#e67e22', border: '#e67e22' },
-    WATCHLIST: { bg: 'transparent', color: '#555', border: '#555' },
+    BUY: { bg: "#00aa66", color: "#fff", border: "transparent" },
+    BOUGHT: { bg: "#00aa66", color: "#fff", border: "transparent" },
+    "TOP-UP": { bg: "#00aa66", color: "#fff", border: "transparent" },
+    "SIZE UP": { bg: "#00aa66", color: "#fff", border: "transparent" },
+    PENDING_BUY: { bg: "transparent", color: "#c9a84c", border: "#c9a84c" },
+    PENDING: { bg: "transparent", color: "#c9a84c", border: "#c9a84c" },
+    HOLD: { bg: "transparent", color: "#8a8a9a", border: "#8a8a9a" },
+    SELL: { bg: "#e74c3c", color: "#fff", border: "transparent" },
+    EXIT: { bg: "#e74c3c", color: "#fff", border: "transparent" },
+    TRIM: { bg: "#e74c3c", color: "#fff", border: "transparent" },
+    TRIMMED: { bg: "#e74c3c", color: "#fff", border: "transparent" },
+    CAP: { bg: "#e67e22", color: "#fff", border: "transparent" },
+    MONITOR: { bg: "transparent", color: "#8a8a9a", border: "#8a8a9a" },
+    REVIEW: { bg: "transparent", color: "#e67e22", border: "#e67e22" },
+    WATCHLIST: { bg: "transparent", color: "#555", border: "#555" },
   };
   const c = map[action.toUpperCase()] ?? map.MONITOR;
   return {
@@ -144,18 +154,26 @@ function normalizeForMatch(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function deriveSignalStatus(row?: LiveMacroStateRow) {
+  if (!row) return "MONITOR";
+  const current = row.currentValue.toUpperCase();
+  if (current === "YES" || current === "TRUE" || current === "ACTIVE") return "TRIGGERED";
+  if (current === "NO" || current === "FALSE" || current === "INACTIVE") return "CLEAR";
+  return row.status || "MONITOR";
+}
+
 export default function CommandTab() {
   const [customPrompt, setCustomPrompt] = useState("");
-  const { holdings, narrative, loading, error } = usePortfolioData();
+  const { holdings, narrativeData, macroState, riskControls, loading, error } = usePortfolioData();
 
   const handleGo = () => {
     if (customPrompt.trim()) launchClaude(customPrompt.trim());
   };
 
   const priorityNarratives = [
-    narrative.week_priority_1,
-    narrative.week_priority_2,
-    narrative.week_priority_3,
+    narrativeData.week_priority_1,
+    narrativeData.week_priority_2,
+    narrativeData.week_priority_3,
   ].map((item) => item?.trim() ?? "").filter(Boolean);
 
   const weeklyActions = holdings
@@ -163,7 +181,6 @@ export default function CommandTab() {
     .map((holding) => {
       const normalizedTicker = normalizeForMatch(holding.ticker);
       const matchedPriority = priorityNarratives.find((item) => normalizeForMatch(item).includes(normalizedTicker));
-
       return {
         ticker: holding.ticker,
         action: holding.action || "MONITOR",
@@ -173,19 +190,24 @@ export default function CommandTab() {
     });
 
   const weeklyWatch = [
-    narrative.week_watch_1,
-    narrative.week_watch_2,
-    narrative.week_watch_3,
+    narrativeData.week_watch_1,
+    narrativeData.week_watch_2,
+    narrativeData.week_watch_3,
   ].map((item) => item?.trim() ?? "").filter(Boolean);
 
-  const riskControls = RISK_CONTROLS.map((r) => ({
-    label: r.label,
-    threshold: r.threshold,
-    status: r.status,
-    detail: "",
-  }));
-
-  const bubbleFlags = BUBBLE_FLAGS;
+  const macroSignals = SIGNAL_KEYS
+    .map((key) => ({ key, row: macroState[key] }))
+    .filter((entry) => Boolean(entry.row))
+    .map(({ key, row }) => ({
+      name: SIGNAL_LABELS[key],
+      status: deriveSignalStatus(row),
+      detail: [
+        row?.currentValue ? `Current ${row.currentValue}` : "",
+        row?.thresholdAmber ? `Amber ${row.thresholdAmber}` : "",
+        row?.thresholdRed ? `Red ${row.thresholdRed}` : "",
+        row?.note || "",
+      ].filter(Boolean).join(" · "),
+    }));
 
   return (
     <>
@@ -193,57 +215,22 @@ export default function CommandTab() {
         <div>
           <div style={card}>
             <div style={{ padding: 32, textAlign: "center", borderBottom: "1px solid var(--rim)" }}>
-              <div style={{
-                fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em",
-                textTransform: "uppercase", color: "var(--gold)", marginBottom: 12,
-              }}>Stellar Intelligence</div>
-              <div style={{
-                fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300,
-                color: "var(--text)", lineHeight: 1.1, marginBottom: 12,
-              }}>One layer <em>deeper</em>.</div>
-              <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 24 }}>
-                Launch Claude with pre-filled Stellar prompts.
-              </div>
-              <button onClick={() => launchClaude("")} style={{
-                background: "var(--gold)", color: "var(--void)", border: "none",
-                padding: "12px 32px", fontFamily: "var(--font-mono)", fontSize: 10,
-                letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer",
-              }}>Open Stellar Intelligence</button>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 12 }}>Stellar Intelligence</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 300, color: "var(--text)", lineHeight: 1.1, marginBottom: 12 }}>One layer <em>deeper</em>.</div>
+              <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 24 }}>Launch Claude with pre-filled Stellar prompts.</div>
+              <button onClick={() => launchClaude("")} style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "12px 32px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer" }}>Open Stellar Intelligence</button>
             </div>
 
             <div style={{ padding: "20px" }}>
-              <div style={{
-                fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em",
-                textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 12,
-              }}>Quick Commands</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 12 }}>Quick Commands</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
                 {QUICK_COMMANDS.map((cmd) => (
-                  <button key={cmd.label} onClick={() => launchClaude(cmd.prompt)} style={{
-                    background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-mid)",
-                    padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10,
-                    letterSpacing: "0.1em", cursor: "pointer", textAlign: "left",
-                    textTransform: "uppercase", transition: "all 0.2s",
-                  }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--text)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-mid)"; }}
-                  >{cmd.label}</button>
+                  <button key={cmd.label} onClick={() => launchClaude(cmd.prompt)} style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-mid)", padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s" }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--text)"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-mid)"; }}>{cmd.label}</button>
                 ))}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
-                <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Enter custom prompt..."
-                  style={{
-                    flex: 1, background: "var(--surface)", border: "1px solid var(--rim)",
-                    color: "var(--text)", padding: "10px 12px", fontFamily: "var(--font-mono)",
-                    fontSize: 11, resize: "none", minHeight: 44, outline: "none",
-                  }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGo(); } }}
-                />
-                <button onClick={handleGo} style={{
-                  background: "var(--gold)", color: "var(--void)", border: "none",
-                  padding: "10px 24px", fontFamily: "var(--font-mono)", fontSize: 10,
-                  letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap",
-                }}>GO →</button>
+                <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)} placeholder="Enter custom prompt..." style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text)", padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, resize: "none", minHeight: 44, outline: "none" }} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGo(); } }} />
+                <button onClick={handleGo} style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "10px 24px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}>GO →</button>
               </div>
             </div>
           </div>
@@ -251,65 +238,39 @@ export default function CommandTab() {
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>This Week&apos;s Actions</span>
-              {weeklyActions.length > 0 && (
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--gold)',
-                  letterSpacing: '0.15em',
-                }}>{weeklyActions.length} ACTION{weeklyActions.length !== 1 ? 'S' : ''}</span>
-              )}
+              {weeklyActions.length > 0 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", letterSpacing: "0.15em" }}>{weeklyActions.length} ACTION{weeklyActions.length !== 1 ? "S" : ""}</span>}
             </div>
             <div style={{ padding: "0 20px 12px" }}>
               {loading && weeklyActions.length === 0 && weeklyWatch.length === 0 ? (
-                <div style={{ padding: '16px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
-                  Loading weekly actions…
-                </div>
+                <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Loading weekly actions…</div>
               ) : (
                 <>
                   {weeklyActions.map((item, i) => (
-                    <div key={`${item.ticker}-${i}`} style={{ padding: '12px 0', borderBottom: '1px solid rgba(28,28,48,0.4)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
-                          {item.ticker}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          <span style={actionBadge(item.action)}>{item.action.replace('_', ' ')}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-mid)' }}>
-                            {item.sizeContext}
-                          </span>
+                    <div key={`${item.ticker}-${i}`} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{item.ticker}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <span style={actionBadge(item.action)}>{item.action.replace("_", " ")}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{item.sizeContext}</span>
                         </div>
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.55 }}>
-                        {item.rationale}
-                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{item.rationale}</div>
                     </div>
                   ))}
 
                   {weeklyWatch.length > 0 && (
                     <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
-                      <div style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 9,
-                        letterSpacing: '0.16em',
-                        textTransform: 'uppercase',
-                        color: 'var(--text-dim)',
-                        marginBottom: 10,
-                      }}>
-                        Watch this week
-                      </div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 10 }}>Watch this week</div>
                       {weeklyWatch.map((item, i) => (
-                        <div key={`watch-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderTop: '1px solid rgba(28,28,48,0.4)' }}>
-                          <span style={statusChip('MONITOR')}>MONITOR</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.55 }}>{item}</span>
+                        <div key={`watch-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: "1px solid rgba(28,28,48,0.4)" }}>
+                          <span style={statusChip("MONITOR")}>MONITOR</span>
+                          <span style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{item}</span>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {!loading && weeklyActions.length === 0 && weeklyWatch.length === 0 && (
-                    <div style={{ padding: '16px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
-                      {error ? 'Weekly actions unavailable' : 'No actions this week'}
-                    </div>
-                  )}
+                  {!loading && weeklyActions.length === 0 && weeklyWatch.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>{error ? "Weekly actions unavailable" : "No actions this week"}</div>}
                 </>
               )}
             </div>
@@ -318,63 +279,45 @@ export default function CommandTab() {
 
         <div>
           <div style={card}>
-            <div style={cardHeader}>
-              <span style={cardTitle}>Risk Controls</span>
-            </div>
+            <div style={cardHeader}><span style={cardTitle}>Risk Controls</span></div>
             <div style={{ padding: "0 20px 8px" }}>
               {riskControls.map((r) => (
-                <div key={r.label} style={divRow}>
+                <div key={r.key} style={divRow}>
                   <div>
                     <div style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                      {r.threshold}
-                    </div>
-                    {r.detail && (
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
-                        → {r.detail}
-                      </div>
-                    )}
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{r.threshold || (r.current ? `Current ${r.current}` : "No threshold")}</div>
+                    {r.detail && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>→ {r.detail}</div>}
                   </div>
                   <span style={statusChip(r.status)}>{r.status}</span>
                 </div>
               ))}
+              {riskControls.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>}
             </div>
           </div>
 
           <div style={card}>
-            <div style={cardHeader}>
-              <span style={cardTitle}>Bubble Flags</span>
-            </div>
+            <div style={cardHeader}><span style={cardTitle}>Macro Signals</span></div>
             <div style={{ padding: "0 20px 8px" }}>
-              {bubbleFlags.map((b) => (
-                <div key={b.name} style={divRow}>
+              {macroSignals.map((signal) => (
+                <div key={signal.name} style={divRow}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{b.name}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                      {b.detail}
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{signal.name}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{signal.detail || "No note"}</div>
                   </div>
-                  <span style={statusChip(b.status)}>{b.status}</span>
+                  <span style={statusChip(signal.status)}>{signal.status}</span>
                 </div>
               ))}
+              {macroSignals.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Macro signals unavailable</div>}
             </div>
           </div>
 
           <div style={card}>
-            <div style={cardHeader}>
-              <span style={cardTitle}>Golden Rules</span>
-            </div>
+            <div style={cardHeader}><span style={cardTitle}>Golden Rules</span></div>
             <div style={{ padding: "0 20px 8px" }}>
               {GOLDEN_RULES.map((r) => (
                 <div key={r.n} style={{ ...divRow, alignItems: "flex-start", gap: 16 }}>
-                  <span style={{
-                    fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)",
-                    flexShrink: 0, width: 20,
-                  }}>{r.n}.</span>
-                  <span style={{
-                    fontFamily: "var(--font-display)", fontSize: 15, fontStyle: "italic",
-                    color: "var(--text-mid)",
-                  }}>{r.text}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)", flexShrink: 0, width: 20 }}>{r.n}.</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: 15, fontStyle: "italic", color: "var(--text-mid)" }}>{r.text}</span>
                 </div>
               ))}
             </div>

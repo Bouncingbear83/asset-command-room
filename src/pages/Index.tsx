@@ -101,116 +101,40 @@ export default function Index() {
           <span style={s.sub}>Portfolio Command</span>
         </div>
         <div style={s.mid}>
-          <div style={s.meta}>
-            AUM
-            <br />
-            <span style={s.val}>£{(total / 1000).toFixed(0)}k</span>
-          </div>
-          <div style={s.meta}>
-            SIPP
-            <br />
-            <span style={s.val}>£{(sippTotal / 1000).toFixed(0)}k</span>
-          </div>
-          <div style={s.meta}>
-            ISA
-            <br />
-            <span style={s.val}>£{(isaTotal / 1000).toFixed(0)}k</span>
-          </div>
-          <div style={s.meta}>
-            TARGET
-            <br />
-            <span style={s.val}>15–20% PA</span>
-          </div>
+          <div style={s.meta}>AUM<br /><span style={s.val}>£{(total / 1000).toFixed(0)}k</span></div>
+          <div style={s.meta}>SIPP<br /><span style={s.val}>£{(sippTotal / 1000).toFixed(0)}k</span></div>
+          <div style={s.meta}>ISA<br /><span style={s.val}>£{(isaTotal / 1000).toFixed(0)}k</span></div>
+          <div style={s.meta}>TARGET<br /><span style={s.val}>15–20% PA</span></div>
         </div>
       </header>
 
       <div style={s.status}>
-        {portfolio.loading && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--accent)" }}>
-            ● SYNCING...
-          </span>
-        )}
-        {portfolio.lastUpdated && !portfolio.loading && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--green)" }}>
-            ● LIVE · {portfolio.lastUpdated}
-          </span>
-        )}
-        {portfolio.error && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)" }}>
-            ⚠ {portfolio.error}
-          </span>
-        )}
-        {!portfolio.loading && (
-          <button
-            onClick={portfolio.refresh}
-            style={{
-              background: "none",
-              border: "1px solid var(--rim)",
-              color: "var(--text-dim)",
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              letterSpacing: "0.15em",
-              padding: "2px 10px",
-              cursor: "pointer",
-            }}
-          >
-            REFRESH
-          </button>
-        )}
+        {portfolio.loading && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--accent)" }}>● SYNCING...</span>}
+        {portfolio.lastUpdated && !portfolio.loading && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--green)" }}>● LIVE · {portfolio.lastUpdated}</span>}
+        {portfolio.error && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)" }}>⚠ {portfolio.error}</span>}
+        {!portfolio.loading && <button onClick={portfolio.refresh} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", padding: "2px 10px", cursor: "pointer" }}>REFRESH</button>}
       </div>
 
       <nav style={s.nav}>
-        {TABS.map((t) => (
-          <button key={t} style={active === t ? { ...s.tab, ...s.tabOn } : s.tab} onClick={() => setActive(t)}>
-            {t}
-          </button>
-        ))}
+        {TABS.map((t) => <button key={t} style={active === t ? { ...s.tab, ...s.tabOn } : s.tab} onClick={() => setActive(t)}>{t}</button>)}
       </nav>
 
       {showMacroBanner && portfolio.macroBanner && (
         <div style={{ background: "var(--panel)", borderBottom: "1px solid var(--rim)", padding: "0 40px" }}>
-          <div
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }}
-            onClick={() => setMacroBannerOpen(!macroBannerOpen)}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                color: "var(--gold)",
-                display: "flex",
-                gap: 16,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              {portfolio.macroBanner.sp500 !== null && <span>S&P {portfolio.macroBanner.sp500.toLocaleString()}</span>}
-              {portfolio.macroBanner.vix !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>VIX {portfolio.macroBanner.vix}</span></>}
-              {portfolio.macroBanner.gold !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Gold ${portfolio.macroBanner.gold.toLocaleString()}</span></>}
-              {portfolio.macroBanner.uraniumSpot !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>U₃O₈ ${portfolio.macroBanner.uraniumSpot}</span></>}
-              {portfolio.macroBanner.copper !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Cu ${portfolio.macroBanner.copper}</span></>}
-              {portfolio.macroBanner.oilBrent && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Oil {portfolio.macroBanner.oilBrent}</span></>}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }} onClick={() => setMacroBannerOpen(!macroBannerOpen)}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+              {portfolio.macroBanner.vix !== null && <span>VIX {portfolio.macroBanner.vix}</span>}
+              {portfolio.macroBanner.sp500YtdPct !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>S&P YTD {portfolio.macroBanner.sp500YtdPct}%</span></>}
+              {portfolio.macroBanner.goldUsd !== null && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Gold ${portfolio.macroBanner.goldUsd.toLocaleString()}</span></>}
+              {portfolio.macroBanner.pauseActive && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Pause {portfolio.macroBanner.pauseActive}</span></>}
+              {portfolio.macroBanner.earningsBlackout && <><span style={{ color: "var(--text-dim)" }}>·</span><span>Earnings {portfolio.macroBanner.earningsBlackout}</span></>}
             </div>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                color: "var(--text-dim)",
-                transform: macroBannerOpen ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s",
-              }}
-            >
-              ▾
-            </span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", transform: macroBannerOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▾</span>
           </div>
           {macroBannerOpen && (
             <div style={{ paddingBottom: 10, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-dim)", letterSpacing: "0.03em" }}>
-              {portfolio.macroBanner.posture && <>POSTURE: {portfolio.macroBanner.posture}</>}
-              {portfolio.macroBanner.headline && (
-                <span style={{ display: "block", marginTop: 2, fontSize: 10, opacity: 0.7 }}>
-                  {portfolio.macroBanner.headline}
-                </span>
-              )}
+              {portfolio.macroBanner.posture && <>REGIME: {portfolio.macroBanner.posture}</>}
+              {portfolio.macroBanner.headline && <span style={{ display: "block", marginTop: 2, fontSize: 10, opacity: 0.7 }}>{portfolio.macroBanner.headline}</span>}
             </div>
           )}
         </div>
@@ -220,7 +144,7 @@ export default function Index() {
         {active === "Command" && <CommandTab />}
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} />}
-        {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrative} />}
+        {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrativeData} />}
         {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} />}
