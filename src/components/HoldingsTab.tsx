@@ -11,6 +11,9 @@ interface Props {
 
 type ViewMode = "layer" | "account" | "pricemap";
 
+type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action";
+type SortDir = "asc" | "desc";
+
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
   HOLD: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
   ADD: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
@@ -22,6 +25,12 @@ const ACTION_STYLE: Record<string, React.CSSProperties> = {
   SELL: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
   CAP: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
   WATCH: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
+};
+
+const ALERT_STYLE: Record<string, React.CSSProperties> = {
+  ADD_ZONE: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
+  EXIT_ZONE: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+  REVIEW: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
 };
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 24 };
@@ -37,10 +46,9 @@ const cardTitle: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 700,
   letterSpacing: "0.18em",
-  textTransform: "uppercase" as const,
+  textTransform: "uppercase",
   color: "var(--text-mid)",
 };
-
 const detailRowS: React.CSSProperties = {
   padding: "6px 12px 6px 36px",
   fontFamily: "'DM Mono', var(--font-mono)",
@@ -48,9 +56,6 @@ const detailRowS: React.CSSProperties = {
   background: "color-mix(in srgb, var(--panel) 90%, white 10%)",
   borderBottom: "1px solid rgba(28,28,48,0.25)",
 };
-
-type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action";
-type SortDir = "asc" | "desc";
 
 const COLUMNS: { label: string; key: SortKey; align?: "right" }[] = [
   { label: "Ticker", key: "ticker" },
@@ -61,6 +66,32 @@ const COLUMNS: { label: string; key: SortKey; align?: "right" }[] = [
   { label: "Day %", key: "day", align: "right" },
   { label: "Price", key: "price", align: "right" },
 ];
+
+function normalizeAlertStatus(value: string) {
+  return value.trim().toUpperCase();
+}
+
+function AlertBadge({ status }: { status: string }) {
+  const normalized = normalizeAlertStatus(status);
+  const style = ALERT_STYLE[normalized];
+  if (!style || normalized === "CLEAR") return null;
+
+  return (
+    <span
+      style={{
+        ...style,
+        padding: "2px 8px",
+        borderRadius: 2,
+        fontFamily: "var(--font-mono)",
+        fontSize: 8,
+        letterSpacing: "0.12em",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {normalized.replace("_", " ")}
+    </span>
+  );
+}
 
 function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHolding[] {
   return [...data].sort((a, b) => {
@@ -86,13 +117,19 @@ function InlineRangeBar({ h }: { h: LiveHolding }) {
 
   let statusColor: string;
   let statusLabel: string;
-  if (price < ma60) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
-  else if (pricePct >= 80) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
-  else { statusColor = "var(--green)"; statusLabel = "Healthy"; }
+  if (price < ma60) {
+    statusColor = "var(--red)";
+    statusLabel = "Dislocation";
+  } else if (pricePct >= 80) {
+    statusColor = "var(--amber)";
+    statusLabel = "Extended";
+  } else {
+    statusColor = "var(--green)";
+    statusLabel = "Healthy";
+  }
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
-      {/* Range bar */}
       <div style={{ flex: 1, position: "relative", height: 22, display: "flex", alignItems: "center", minWidth: 120 }}>
         <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
         <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -103,18 +140,25 @@ function InlineRangeBar({ h }: { h: LiveHolding }) {
         <span style={{ position: "absolute", left: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
         <span style={{ position: "absolute", right: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
       </div>
-      {/* Status + distance */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <span style={{
-          background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
-          color: statusColor,
-          border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
-          padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
-        }}>
+        <span
+          style={{
+            background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
+            color: statusColor,
+            border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
+            padding: "1px 6px",
+            borderRadius: 2,
+            fontFamily: "var(--font-mono)",
+            fontSize: 8,
+            letterSpacing: "0.08em",
+            whiteSpace: "nowrap",
+          }}
+        >
           {statusLabel}
         </span>
         <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
-          {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
+          {distFromMa >= 0 ? "+" : ""}
+          {distFromMa.toFixed(1)}%
         </span>
       </div>
     </div>
@@ -150,22 +194,17 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
           {d.status}
         </span>
       </div>
-      {/* Sub-scores bar */}
       <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
-        {subScores.map((s) => s.val != null && (
-          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em" }}>{s.label}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: "var(--text-mid)" }}>{s.val}</span>
-          </div>
-        ))}
+        {subScores.map((s) =>
+          s.val != null ? (
+            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em" }}>{s.label}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: "var(--text-mid)" }}>{s.val}</span>
+            </div>
+          ) : null,
+        )}
       </div>
-      {/* Evidence */}
-      {d.evidence && (
-        <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5, marginBottom: 4 }}>
-          {d.evidence}
-        </div>
-      )}
-      {/* Triggers */}
+      {d.evidence && <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5, marginBottom: 4 }}>{d.evidence}</div>}
       <div style={{ display: "flex", gap: 20, marginTop: 4 }}>
         {d.amberTrigger && (
           <div style={{ flex: 1 }}>
@@ -185,8 +224,8 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
 }
 
 function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption }) {
-  const addVal = h.add_trigger || "—";
-  const exitVal = h.exit_trigger || "—";
+  const addVal = h.trigger_price_add || h.add_trigger || "—";
+  const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
   return (
     <>
@@ -202,6 +241,14 @@ function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: numb
           <span style={{ color: "var(--text-mid)" }}>{exitVal}</span>
         </td>
       </tr>
+      {h.trigger_type && (
+        <tr>
+          <td colSpan={colSpan} style={detailRowS}>
+            <span style={{ color: "var(--accent)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>TYPE</span>
+            <span style={{ color: "var(--text-mid)" }}>{h.trigger_type}</span>
+          </td>
+        </tr>
+      )}
       {has52w && (
         <tr>
           <td colSpan={colSpan} style={detailRowS}>
@@ -237,18 +284,17 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
   };
 
   const handleSort = (key: SortKey) => {
-    if (key === sortKey) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
+    if (key === sortKey) setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    else {
       setSortKey(key);
       setSortDir("desc");
     }
   };
 
   const sorted = sortHoldings(holdings, sortKey, sortDir);
-  const total = holdings.reduce((s, h) => s + (h.mv || 0), 0);
+  const total = holdings.reduce((sum, holding) => sum + (holding.mv || 0), 0);
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-  const totalCols = COLUMNS.length + 2; // +Notes +Action
+  const totalCols = COLUMNS.length + 2;
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -260,14 +306,21 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                 key={col.key}
                 onClick={() => handleSort(col.key)}
                 style={{
-                  fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase",
+                  fontSize: 9,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
                   color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)",
-                  padding: "8px 12px", borderBottom: "1px solid var(--rim)",
-                  textAlign: col.align ?? "left", fontWeight: 400, whiteSpace: "nowrap",
-                  cursor: "pointer", userSelect: "none",
+                  padding: "8px 12px",
+                  borderBottom: "1px solid var(--rim)",
+                  textAlign: col.align ?? "left",
+                  fontWeight: 400,
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  userSelect: "none",
                 }}
               >
-                {col.label}{arrow(col.key)}
+                {col.label}
+                {arrow(col.key)}
               </th>
             ))}
             <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Notes</th>
@@ -280,41 +333,24 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
             const isOpen = expanded.has(h.ticker);
             return (
               <>
-                <tr
-                  key={h.ticker}
-                  onClick={() => toggle(h.ticker)}
-                  style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}
-                >
-                  <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                <tr key={h.ticker} onClick={() => toggle(h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}>
+                  <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span>{h.ticker}</span>
+                      <AlertBadge status={h.alert_status} />
+                    </div>
+                  </td>
                   <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
                   <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>
-                  <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
-                    {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
-                  </td>
-                  <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
-                    {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
-                  </td>
-                  <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
-                    {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
-                  </td>
-                  <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
-                    {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
-                  </td>
-                  <td style={{
-                    padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260,
-                    overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis",
-                    whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5,
-                  }}>
-                    {h.notes}
-                  </td>
+                  <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
+                  <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
+                  <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>
                   <td style={{ padding: "10px 12px" }}>
-                    <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
-                      {h.action}
-                    </span>
+                    <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
                   </td>
-                  <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </td>
+                  <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                 </tr>
                 {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} />}
               </>
@@ -324,9 +360,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
         <tfoot>
           <tr>
             <td colSpan={3} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
-            <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
-              £{total.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-            </td>
+            <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{total.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
             <td colSpan={totalCols - 3} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
@@ -340,11 +374,16 @@ function ToggleButton({ active, label, onClick }: { active: boolean; label: stri
     <button
       onClick={onClick}
       style={{
-        fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase",
-        padding: "4px 12px", border: "1px solid var(--rim)",
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        padding: "4px 12px",
+        border: "1px solid var(--rim)",
         background: active ? "var(--accent-dim)" : "transparent",
         color: active ? "var(--accent)" : "var(--text-dim)",
-        cursor: "pointer", transition: "all 0.15s ease",
+        cursor: "pointer",
+        transition: "all 0.15s ease",
       }}
     >
       {label}
@@ -368,10 +407,12 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
   }
 
   const layers: LayerGroup[] = Array.from(grouped.entries())
-    .map(([layer, holdings]) => {
-      const totalMv = holdings.reduce((s, h) => s + (h.mv || 0), 0);
-      return { layer, holdings, totalMv, pctAum: totalAum > 0 ? (totalMv / totalAum) * 100 : 0 };
-    })
+    .map(([layer, holdings]) => ({
+      layer,
+      holdings,
+      totalMv: holdings.reduce((sum, holding) => sum + (holding.mv || 0), 0),
+      pctAum: totalAum > 0 ? (holdings.reduce((sum, holding) => sum + (holding.mv || 0), 0) / totalAum) * 100 : 0,
+    }))
     .sort((a, b) => b.totalMv - a.totalMv);
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -384,11 +425,18 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
   };
 
   const thS: React.CSSProperties = {
-    fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)",
-    padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400, whiteSpace: "nowrap",
+    fontSize: 9,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    color: "var(--text-dim)",
+    padding: "8px 12px",
+    borderBottom: "1px solid var(--rim)",
+    textAlign: "left",
+    fontWeight: 400,
+    whiteSpace: "nowrap",
   };
 
-  const totalCols = 9; // all columns including chevron
+  const totalCols = 9;
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -409,61 +457,36 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
         <tbody>
           {layers.map((lg) => (
             <>
-              {/* Layer header row */}
               <tr key={`layer-${lg.layer}`} style={{ background: "rgba(28,28,48,0.6)" }}>
                 <td colSpan={2} style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                   {lg.layer}
-                  <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>
-                    {lg.holdings.length} holding{lg.holdings.length !== 1 ? "s" : ""}
-                  </span>
+                  <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>{lg.holdings.length} holding{lg.holdings.length !== 1 ? "s" : ""}</span>
                 </td>
-                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>
-                  £{lg.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-                </td>
-                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>
-                  {lg.pctAum.toFixed(1)}% AUM
-                </td>
+                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{lg.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
+                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>{lg.pctAum.toFixed(1)}% AUM</td>
                 <td colSpan={5} />
               </tr>
-              {/* Holdings within layer */}
               {[...lg.holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
                 const isOpen = expanded.has(h.ticker);
                 return (
                   <>
-                    <tr
-                      key={h.ticker}
-                      onClick={() => toggleRow(h.ticker)}
-                      style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}
-                    >
-                      <td style={{ padding: "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>{h.ticker}</td>
+                    <tr key={h.ticker} onClick={() => toggleRow(h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
+                      <td style={{ padding: "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span>{h.ticker}</span>
+                          <AlertBadge status={h.alert_status} />
+                        </div>
+                      </td>
                       <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>
-                        {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
-                      </td>
-                      <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>
-                        {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}
-                      </td>
-                      <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>
-                        {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}
-                      </td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>
-                        {h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}
-                      </td>
-                      <td style={{
-                        padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260,
-                        overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis",
-                        whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5,
-                      }}>
-                        {h.notes}
-                      </td>
+                      <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
+                      <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
+                      <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>
                       <td style={{ padding: "10px 12px" }}>
-                        <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>
-                          {h.action}
-                        </span>
+                        <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
                       </td>
-                      <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>
-                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </td>
+                      <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                     </tr>
                     {isOpen && <TriggerRows h={h} colSpan={totalCols} />}
                   </>
@@ -475,9 +498,7 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
         <tfoot>
           <tr>
             <td colSpan={2} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
-            <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
-              £{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-            </td>
+            <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
             <td colSpan={totalCols - 2} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
@@ -494,30 +515,24 @@ function getPriceMapSortValue(h: LiveHolding, sort: PriceMapSort): number {
   const high = h.high_52w!;
   const ma60 = h.ma60!;
   switch (sort) {
-    case "pct_above_low": return ((price - low) / low) * 100;
-    case "pct_below_high": return ((high - price) / high) * 100;
-    case "ma_dist": return Math.abs(((price - ma60) / ma60) * 100);
+    case "pct_above_low":
+      return ((price - low) / low) * 100;
+    case "pct_below_high":
+      return ((high - price) / high) * 100;
+    case "ma_dist":
+      return Math.abs(((price - ma60) / ma60) * 100);
   }
 }
 
 function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   const [sortMode, setSortMode] = useState<PriceMapSort>("ma_dist");
-
-  // Deduplicate by ticker, prefer the one with more data
   const deduped = new Map<string, LiveHolding>();
   for (const h of allHoldings) {
     const key = h.ticker || h.name;
-    if (!deduped.has(key) || (h.ma60 && !deduped.get(key)!.ma60)) {
-      deduped.set(key, h);
-    }
+    if (!deduped.has(key) || (h.ma60 && !deduped.get(key)!.ma60)) deduped.set(key, h);
   }
 
-  // Filter valid rows
-  const valid = Array.from(deduped.values()).filter(
-    (h) => h.ma60 && h.high_52w && h.low_52w && h.price != null
-  );
-
-  // Group by layer
+  const valid = Array.from(deduped.values()).filter((h) => h.ma60 && h.high_52w && h.low_52w && h.price != null);
   const grouped = new Map<string, LiveHolding[]>();
   for (const h of valid) {
     const key = h.layer || "Uncategorised";
@@ -525,17 +540,13 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
     grouped.get(key)!.push(h);
   }
   const layers = Array.from(grouped.entries()).sort((a, b) => {
-    const mvA = a[1].reduce((s, h) => s + (h.mv || 0), 0);
-    const mvB = b[1].reduce((s, h) => s + (h.mv || 0), 0);
+    const mvA = a[1].reduce((sum, holding) => sum + (holding.mv || 0), 0);
+    const mvB = b[1].reduce((sum, holding) => sum + (holding.mv || 0), 0);
     return mvB - mvA;
   });
 
   if (valid.length === 0) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
-        No price map data — populate MA60, HIGH_52w, LOW_52w columns in holdings sheets.
-      </div>
-    );
+    return <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No price map data — populate MA60, HIGH_52w, LOW_52w columns in holdings sheets.</div>;
   }
 
   const SORT_OPTIONS: { key: PriceMapSort; label: string }[] = [
@@ -546,20 +557,15 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
 
   return (
     <div style={{ padding: "12px 20px" }}>
-      {/* Sort controls */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-dim)", marginRight: 4 }}>Sort</span>
-        {SORT_OPTIONS.map((opt) => (
-          <ToggleButton key={opt.key} active={sortMode === opt.key} label={opt.label} onClick={() => setSortMode(opt.key)} />
-        ))}
+        {SORT_OPTIONS.map((opt) => <ToggleButton key={opt.key} active={sortMode === opt.key} label={opt.label} onClick={() => setSortMode(opt.key)} />)}
       </div>
       {layers.map(([layer, holdings]) => {
         const sorted = [...holdings].sort((a, b) => getPriceMapSortValue(a, sortMode) - getPriceMapSortValue(b, sortMode));
         return (
           <div key={layer} style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>
-              {layer}
-            </div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>{layer}</div>
             {sorted.map((h) => {
               const low = h.low_52w!;
               const high = h.high_52w!;
@@ -575,19 +581,26 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
 
               let statusColor: string;
               let statusLabel: string;
-              if (price < ma60) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
-              else if (pricePct >= 80) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
-              else { statusColor = "var(--green)"; statusLabel = "Healthy"; }
+              if (price < ma60) {
+                statusColor = "var(--red)";
+                statusLabel = "Dislocation";
+              } else if (pricePct >= 80) {
+                statusColor = "var(--amber)";
+                statusLabel = "Extended";
+              } else {
+                statusColor = "var(--green)";
+                statusLabel = "Healthy";
+              }
 
               return (
                 <div key={h.ticker || h.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
-                  {/* Left: ticker + name */}
-                  <div style={{ width: 120, flexShrink: 0 }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                  <div style={{ width: 140, flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                      <AlertBadge status={h.alert_status} />
+                    </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
                   </div>
-
-                  {/* Centre: range bar */}
                   <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
                     <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
                     <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -598,29 +611,14 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
                     <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
                     <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
                   </div>
-
-                  {/* Right: price */}
                   <div style={{ width: 80, flexShrink: 0, textAlign: "right" }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{price.toFixed(2)}</span>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{h.currency}</div>
                   </div>
-
-                  {/* Status chip + distance */}
                   <div style={{ width: 140, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{
-                      background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
-                      color: statusColor,
-                      border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
-                      padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
-                    }}>
-                      {statusLabel}
-                    </span>
-                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
-                      {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
-                    </span>
-                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 8, color: "var(--text-dim)", whiteSpace: "nowrap" }}>
-                      ({sortVal.toFixed(1)}%)
-                    </span>
+                    <span style={{ background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)", color: statusColor, border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`, padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{statusLabel}</span>
+                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>{distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%</span>
+                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 8, color: "var(--text-dim)", whiteSpace: "nowrap" }}>({sortVal.toFixed(1)}%)</span>
                   </div>
                 </div>
               );
@@ -632,32 +630,47 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   );
 }
 
+function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" | "ISA"): LiveHolding {
+  return {
+    ...h,
+    account,
+    day: 0,
+    price: 0,
+    prevClose: 0,
+    currency: "USD",
+    costGbp: 0,
+    shares: 0,
+    add_trigger: "",
+    exit_trigger: "",
+    trigger_type: "",
+    trigger_price_add: "",
+    trigger_price_exit: "",
+    alert_status: "CLEAR",
+    alert_fired_date: "",
+    ma60: null,
+    high_52w: null,
+    low_52w: null,
+  };
+}
+
 export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
   const [view, setView] = useState<ViewMode>("layer");
 
-  // Build disruption lookup map by ticker
   const disruptionMap = new Map<string, LiveDisruption>();
   for (const d of disruption) {
     if (d.ticker) disruptionMap.set(d.ticker, d);
   }
 
-  const sippData: LiveHolding[] =
-    sipp.length > 0
-      ? sipp
-      : SIPP_HOLDINGS.map((h) => ({ ...h, account: "SIPP", day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", trigger_price_add: "", alert_status: "CLEAR", ma60: null, high_52w: null, low_52w: null }));
-  const isaData: LiveHolding[] =
-    isa.length > 0
-      ? isa
-      : ISA_HOLDINGS.map((h) => ({ ...h, account: "ISA", day: 0, price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0, add_trigger: "", exit_trigger: "", trigger_price_add: "", alert_status: "CLEAR", ma60: null, high_52w: null, low_52w: null }));
+  const sippData: LiveHolding[] = sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => withFallbackHolding(h, "SIPP"));
+  const isaData: LiveHolding[] = isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => withFallbackHolding(h, "ISA"));
 
   const allHoldings = [...sippData, ...isaData];
-  const totalAum = allHoldings.reduce((s, h) => s + (h.mv || 0), 0);
-  const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0);
-  const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0);
+  const totalAum = allHoldings.reduce((sum, holding) => sum + (holding.mv || 0), 0);
+  const sippTotal = sippData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
+  const isaTotal = isaData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
 
   return (
     <div>
-      {/* View toggle header */}
       <div style={{ ...card, marginBottom: 20 }}>
         <div style={cardHeader}>
           <span style={cardTitle}>Holdings</span>
@@ -677,20 +690,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>SIPP Holdings</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
-                £{sippTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-                <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span>
-              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>£{sippTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}<span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span></span>
             </div>
             <HoldingsTable holdings={sippData} disruptionMap={disruptionMap} />
           </div>
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>ISA Holdings</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
-                £{isaTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-                <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span>
-              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>£{isaTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}<span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span></span>
             </div>
             <HoldingsTable holdings={isaData} disruptionMap={disruptionMap} />
           </div>
