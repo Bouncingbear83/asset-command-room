@@ -71,7 +71,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
   const liveStructural = monitorData.filter((item) => item.type.includes("structural"));
   const liveDisruption = monitorData.filter((item) => item.type.includes("disruption"));
 
-  const firedCount = weeklyTriggers.filter((trigger) => trigger.status.toUpperCase() === "FIRED").length;
+  const firedCount = weeklyTriggers.filter((trigger) => trigger.status.toUpperCase() === "FIRED" || trigger.status.toUpperCase() === "TRIGGERED").length;
   const weeklyHeaderStatus = weeklyTriggers.length === 0 ? "NO LIVE DATA" : firedCount > 0 ? `${firedCount} FIRED` : "ALL CLEAR";
   const weeklyHeaderRag = weeklyTriggers.length === 0 ? "MONITOR" : firedCount > 0 ? "FIRED" : "CLEAR";
 
@@ -161,7 +161,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
         <div style={{ padding: "0 20px 16px" }}>
           {weeklyTriggers.length === 0 && <div style={emptyState}>No live weekly trigger rows found in MACRO_STATE.</div>}
           {weeklyTriggers.map((trigger) => (
-            <div key={trigger.name} style={row}>
+            <div key={trigger.key} style={row}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{trigger.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>→ {trigger.note}</div>
