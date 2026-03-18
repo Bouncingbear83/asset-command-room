@@ -18,7 +18,7 @@ function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>[
 }
 
 function formatPercent(value: number) {
-  return `${(value * 100).toFixed(2)}%`;
+  return `${value.toFixed(2)}%`;
 }
 
 export default function Index() {

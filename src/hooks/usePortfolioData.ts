@@ -198,24 +198,35 @@ function parseMv(val: any): number {
   return 0;
 }
 
-function parseGl(val: any): number {
-  if (typeof val === "number") return val * 100;
-  if (typeof val === "string") {
-    const cleaned = val.replace(/[%+,\s]/g, "");
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) return num;
+function parsePercentLike(val: any): number {
+  if (typeof val === "number") {
+    if (!Number.isFinite(val)) return 0;
+    return Math.abs(val) <= 1 ? val * 100 : val;
   }
+
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return 0;
+
+    const hasPercentSymbol = trimmed.includes("%");
+    const cleaned = trimmed.replace(/[,+\s%]/g, "");
+    const num = parseFloat(cleaned);
+
+    if (!Number.isFinite(num)) return 0;
+    if (hasPercentSymbol) return num;
+
+    return Math.abs(num) <= 1 ? num * 100 : num;
+  }
+
   return 0;
 }
 
+function parseGl(val: any): number {
+  return parsePercentLike(val);
+}
+
 function parseDay(val: any): number {
-  if (typeof val === "number") return val * 100;
-  if (typeof val === "string") {
-    const cleaned = val.replace(/[%+,\s]/g, "");
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) return num;
-  }
-  return 0;
+  return parsePercentLike(val);
 }
 
 function findCol(row: Record<string, any>, ...candidates: string[]): any {
@@ -246,13 +257,7 @@ function parseNum(val: any): number | null {
 }
 
 function parsePct(val: any): number {
-  if (typeof val === "number") return val * 100;
-  if (typeof val === "string") {
-    const cleaned = val.replace(/[%+,\s]/g, "");
-    const num = parseFloat(cleaned);
-    if (!isNaN(num)) return num;
-  }
-  return 0;
+  return parsePercentLike(val);
 }
 
 function parseSheetDate(val: any): string {
@@ -323,8 +328,8 @@ function parseLayers(rows: Record<string, any>[]) {
     const currentRaw = findCol(row, "current %", "CURRENT %", "current");
     return {
       name: String(findCol(row, "layer", "LAYER", "name", "NAME") ?? ""),
-      target: typeof targetRaw === "number" ? targetRaw * 100 : 0,
-      current: typeof currentRaw === "number" ? currentRaw * 100 : 0,
+      target: parsePct(targetRaw),
+      current: parsePct(currentRaw),
       mv: parseMv(findCol(row, "mv (£)", "MV (£)", "mv", "MV")),
       hexColor: String(findCol(row, "hex color", "Hex Color", "hex_color") ?? ""),
       keyHoldings: String(findCol(row, "key holdings", "Key Holdings", "key_holdings") ?? ""),
@@ -521,7 +526,7 @@ function readMacroString(macroState: LiveMacroState, key: string) {
 function parseMacroBanner(macroState: LiveMacroState, narrativeData: LiveNarrativeData) {
   const banner = {
     vix: readMacroNumber(macroState, "VIX"),
-    sp500YtdPct: readMacroNumber(macroState, "SP500_YTD_PCT"),
+    sp500YtdPct: parsePct(macroState["SP500_YTD_PCT"]?.currentValue),
     goldUsd: readMacroNumber(macroState, "GOLD_USD"),
     pauseActive: readMacroString(macroState, "PAUSE_ACTIVE"),
     earningsBlackout: readMacroString(macroState, "EARNINGS_BLACKOUT"),
