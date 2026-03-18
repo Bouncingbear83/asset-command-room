@@ -16,6 +16,7 @@ export const GIDS = {
   performance: "7099973",
   narrative: "457911094",
   macroState: "448795117",
+  earningsCalendar: "559427839",
 } as const;
 
 
