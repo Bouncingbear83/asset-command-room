@@ -15,6 +15,7 @@ export const GIDS = {
   disruption: "1166534580",
   performance: "7099973",
   narrative: "457911094",
+  macroState: "448795117",
 };
 
 const KNOWN_COLS = [
@@ -30,14 +31,31 @@ const KNOWN_COLS = [
   "last_updated","target","entry target","current price","trigger condition",
   "thesis / rationale","hex color","key holdings","gap / notes","priority",
   "target %","current %","%_below_52w_high","%_above_52w_low",
-  "tickername","mv (£)","g/l %","day %",
-  "date","sipp_mv","isa_mv","total_mv","cash_sipp","cash_isa","total_cash",
-  "total_sipp","total_isa","total_value","deposits_in_period_sipp",
-  "deposits_in_period_isa","deposits_in_period_total","sub_period_rtn_sipp",
-  "sub_period_rtn_isa","sub_period_rtn_total","cumulative_twr_sipp",
-  "cumulative_twr_isa","cumulative_twr_total","note",
-  "trigger_price_add","trigger_price_exit","alert_status","alert_fired_date","key","value",
+  "tickername","mv (£)","g/l %","day %","date","sipp_mv","isa_mv",
+  "total_mv","cash_sipp","cash_isa","total_cash","total_sipp","total_isa",
+  "total_value","deposits_in_period_sipp","deposits_in_period_isa",
+  "deposits_in_period_total","sub_period_rtn_sipp","sub_period_rtn_isa",
+  "sub_period_rtn_total","cumulative_twr_sipp","cumulative_twr_isa",
+  "cumulative_twr_total","note","trigger_price_add","trigger_price_exit",
+  "alert_status","alert_fired_date","key","value","section","category",
+  "detail","description","threshold","rule","label","metric",
 ];
+
+function normalizeToken(value: any): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function stringifyValue(value: any): string {
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+function populatedCount(row: Record<string, any>) {
+  return Object.values(row).filter((v) => v !== null && v !== undefined && String(v).trim() !== "").length;
+}
 
 async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
@@ -50,8 +68,8 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
     if (!label.includes(" ")) return label;
     const labelLower = label.toLowerCase();
     const matches = KNOWN_COLS
-      .map(k => ({ k, pos: labelLower.indexOf(k.toLowerCase()) }))
-      .filter(m => m.pos >= 0)
+      .map((k) => ({ k, pos: labelLower.indexOf(k.toLowerCase()) }))
+      .filter((m) => m.pos >= 0)
       .sort((a, b) => a.pos - b.pos || b.k.length - a.k.length);
     if (matches.length > 0) return matches[0].k;
     const parts = label.split(/\s+/);
@@ -67,8 +85,9 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
       return obj;
     })
     .filter((row: any) => {
-      const vals = Object.values(row);
-      const hasContent = vals.some((v) => v !== null && v !== undefined && String(v).trim() !== "");
+      const values = Object.values(row);
+      const count = populatedCount(row);
+      const hasContent = values.some((v) => v !== null && v !== undefined && String(v).trim() !== "");
       if (!hasContent) return false;
       const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
       if (rowType !== null && rowType !== undefined) return true;
@@ -81,7 +100,7 @@ async function fetchSheet(gid: string): Promise<Record<string, any>[]> {
           String(row[k]).trim() !== ""
         );
       });
-      return hasId;
+      return hasId || count >= 3;
     });
 }
 
@@ -255,15 +274,15 @@ function parseScoreLog(rows: Record<string, any>[]) {
 
 function parseMonitor(rows: Record<string, any>[]) {
   return rows.map((r) => ({
-    type: String(r["type"] ?? r["TYPE"] ?? ""),
-    name: String(r["name"] ?? r["NAME"] ?? ""),
-    current: r["current"] ?? r["CURRENT"] ?? null,
-    unit: String(r["unit"] ?? r["UNIT"] ?? ""),
-    amberThreshold: r["amber_threshold"] ?? r["AMBER_THRESHOLD"] ?? null,
-    redThreshold: r["red_threshold"] ?? r["RED_THRESHOLD"] ?? null,
-    status: String(r["status"] ?? r["STATUS"] ?? ""),
-    lastUpdated: r["last_updated"] ?? r["LAST_UPDATED"] ?? null,
-    notes: String(r["notes"] ?? r["NOTES"] ?? ""),
+    type: normalizeToken(findCol(r, "type", "TYPE", "category", "CATEGORY", "section", "SECTION") ?? ""),
+    name: String(findCol(r, "name", "NAME", "key", "KEY", "metric", "METRIC") ?? ""),
+    current: findCol(r, "current", "CURRENT", "value", "VALUE") ?? null,
+    unit: String(findCol(r, "unit", "UNIT") ?? ""),
+    amberThreshold: findCol(r, "amber_threshold", "AMBER_THRESHOLD") ?? null,
+    redThreshold: findCol(r, "red_threshold", "RED_THRESHOLD") ?? null,
+    status: String(findCol(r, "status", "STATUS") ?? ""),
+    lastUpdated: findCol(r, "last_updated", "LAST_UPDATED"),
+    notes: String(findCol(r, "notes", "NOTES", "detail", "DETAIL", "evidence", "EVIDENCE") ?? ""),
   }));
 }
 
@@ -345,19 +364,118 @@ function parsePerformance(rows: Record<string, any>[]) {
 }
 
 function parseNarrative(rows: Record<string, any>[]) {
-  return rows.reduce<Record<string, string>>((acc, row) => {
-    const keys = Object.keys(row);
-    const rawKey = findCol(row, "key", "KEY") ?? (keys[0] ? row[keys[0]] : null);
-    const rawValue = findCol(row, "value", "VALUE") ?? (keys[1] ? row[keys[1]] : null);
-    const key = String(rawKey ?? "").trim();
-    const value = String(rawValue ?? "").trim();
+  const firstRow = [...rows].sort((a, b) => populatedCount(b) - populatedCount(a))[0];
+  if (!firstRow) return {};
 
-    if (key && value) {
-      acc[key] = value;
+  return Object.entries(firstRow).reduce<Record<string, string>>((acc, [key, value]) => {
+    const normalizedKey = normalizeToken(key);
+    const normalizedValue = stringifyValue(value);
+    if (normalizedKey && normalizedValue) {
+      acc[normalizedKey] = normalizedValue;
     }
-
     return acc;
   }, {});
+}
+
+type MacroStateRow = {
+  section: string;
+  name: string;
+  current: string | number | null;
+  status: string;
+  note: string;
+  threshold: string;
+  search: string;
+};
+
+function parseMacroStateRows(rows: Record<string, any>[]): MacroStateRow[] {
+  return rows
+    .map((r) => {
+      const section = normalizeToken(findCol(r, "type", "TYPE", "section", "SECTION", "category", "CATEGORY", "row_type", "ROW_TYPE") ?? "");
+      const name = stringifyValue(findCol(r, "name", "NAME", "key", "KEY", "rule", "RULE", "metric", "METRIC", "label", "LABEL"));
+      const current = findCol(r, "current", "CURRENT", "value", "VALUE");
+      const status = stringifyValue(findCol(r, "status", "STATUS"));
+      const note = stringifyValue(findCol(r, "notes", "NOTES", "detail", "DETAIL", "description", "DESCRIPTION", "evidence", "EVIDENCE"));
+      const threshold = stringifyValue(findCol(r, "threshold", "THRESHOLD", "amber_threshold", "AMBER_THRESHOLD", "red_threshold", "RED_THRESHOLD"));
+      const search = [section, name, stringifyValue(current), status, note, threshold].map(normalizeToken).join(" ");
+      return { section, name, current, status, note, threshold, search };
+    })
+    .filter((entry) => entry.name || entry.section || stringifyValue(entry.current) || entry.status || entry.note);
+}
+
+function firstNarrativeValue(narrative: Record<string, string>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = narrative[normalizeToken(key)];
+    if (value) return value;
+  }
+  return "";
+}
+
+function parseMacroBanner(rows: MacroStateRow[], narrative: Record<string, string>) {
+  const findEntry = (...aliases: string[]) => {
+    const normalizedAliases = aliases.map(normalizeToken);
+    return rows.find((entry) => normalizedAliases.some((alias) => entry.search.includes(alias)));
+  };
+
+  const getNumber = (...aliases: string[]) => parseNum(findEntry(...aliases)?.current);
+  const getString = (...aliases: string[]) => stringifyValue(findEntry(...aliases)?.current);
+
+  const posture = firstNarrativeValue(narrative, "posture", "portfolio_posture", "macro_regime");
+  const headline = firstNarrativeValue(narrative, "headline", "posture_rationale", "week_priority_1");
+
+  const metrics = {
+    sp500: getNumber("s&p 500", "sp500", "s_p_500"),
+    nasdaq: getNumber("nasdaq"),
+    vix: getNumber("vix"),
+    gold: getNumber("gold"),
+    silver: getNumber("silver"),
+    uraniumSpot: getNumber("uranium", "u3o8", "u_3_o_8"),
+    copper: getNumber("copper"),
+    oilBrent: getString("oil", "brent"),
+    posture,
+    headline,
+  };
+
+  const hasContent = Object.values(metrics).some((value) => value !== null && value !== "");
+  return hasContent ? metrics : null;
+}
+
+function parseRiskControls(rows: MacroStateRow[]) {
+  const aliases = [
+    "risk", "single_name_cap", "top_5_concentration", "hedge_floor", "bio_twin",
+    "dry_powder", "spec_position_cap", "score_minimum", "layer_concentration", "pause_active",
+  ];
+
+  return rows
+    .filter((entry) => aliases.some((alias) => entry.search.includes(alias)))
+    .map((entry) => ({
+      name: entry.name,
+      threshold: entry.threshold,
+      status: entry.status || "MONITOR",
+      detail: entry.note,
+      current: stringifyValue(entry.current),
+    }));
+}
+
+function parseBubbleFlags(rows: MacroStateRow[]) {
+  return rows
+    .filter((entry) => entry.search.includes("bubble"))
+    .map((entry) => ({
+      name: entry.name,
+      status: entry.status || "MONITOR",
+      detail: entry.note,
+    }));
+}
+
+function parseWeeklyTriggers(rows: MacroStateRow[]) {
+  const aliases = ["weekly", "trigger", "market_trigger", "market", "intraday_drop", "rolling_5_day"];
+
+  return rows
+    .filter((entry) => aliases.some((alias) => entry.section.includes(alias) || entry.search.includes(alias)))
+    .map((entry) => ({
+      name: entry.name,
+      status: entry.status || "CLEAR",
+      note: entry.note || entry.threshold || stringifyValue(entry.current),
+    }));
 }
 
 export type LiveHolding = ReturnType<typeof parseHoldings>[number];
@@ -369,6 +487,10 @@ export type LiveMonitor = ReturnType<typeof parseMonitor>[number];
 export type LiveDisruption = ReturnType<typeof parseDisruption>[number];
 export type LivePerformance = ReturnType<typeof parsePerformance>[number];
 export type LiveNarrative = ReturnType<typeof parseNarrative>;
+export type LiveMacroBanner = NonNullable<ReturnType<typeof parseMacroBanner>>;
+export type LiveRiskControl = ReturnType<typeof parseRiskControls>[number];
+export type LiveBubbleFlag = ReturnType<typeof parseBubbleFlags>[number];
+export type LiveWeeklyTrigger = ReturnType<typeof parseWeeklyTriggers>[number];
 
 export interface PortfolioData {
   holdings: LiveHolding[];
@@ -382,6 +504,10 @@ export interface PortfolioData {
   disruption: LiveDisruption[];
   performance: LivePerformance[];
   narrative: LiveNarrative;
+  macroBanner: LiveMacroBanner | null;
+  riskControls: LiveRiskControl[];
+  bubbleFlags: LiveBubbleFlag[];
+  weeklyTriggers: LiveWeeklyTrigger[];
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
@@ -401,15 +527,19 @@ export function usePortfolioData(): PortfolioData {
     disruption: [],
     performance: [],
     narrative: {},
+    macroBanner: null,
+    riskControls: [],
+    bubbleFlags: [],
+    weeklyTriggers: [],
     lastUpdated: null,
     loading: true,
     error: null,
   });
 
   const load = useCallback(async () => {
-    setState((p) => ({ ...p, loading: true, error: null }));
+    setState((previous) => ({ ...previous, loading: true, error: null }));
     try {
-      const [holdingsRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw, performanceRaw, narrativeRaw] = await Promise.all([
+      const [holdingsRaw, watchRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw, performanceRaw, narrativeRaw, macroStateRaw] = await Promise.all([
         fetchSheet(GIDS.holdings),
         fetchSheet(GIDS.watchlist),
         fetchSheet(GIDS.layers).catch(() => []),
@@ -419,10 +549,15 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet(GIDS.disruption).catch(() => []),
         fetchSheet(GIDS.performance).catch(() => []),
         fetchSheet(GIDS.narrative).catch(() => []),
+        fetchSheet(GIDS.macroState).catch(() => []),
       ]);
+
       const allHoldings = parseHoldings(holdingsRaw);
-      const sipp = allHoldings.filter((h) => h.account.toUpperCase() === "SIPP");
-      const isa = allHoldings.filter((h) => h.account.toUpperCase() === "ISA");
+      const sipp = allHoldings.filter((holding) => holding.account.toUpperCase() === "SIPP");
+      const isa = allHoldings.filter((holding) => holding.account.toUpperCase() === "ISA");
+      const narrative = parseNarrative(narrativeRaw);
+      const macroStateRows = parseMacroStateRows(macroStateRaw);
+
       setState({
         holdings: allHoldings,
         sipp,
@@ -434,16 +569,20 @@ export function usePortfolioData(): PortfolioData {
         monitor: parseMonitor(monitorRaw),
         disruption: parseDisruption(disruptionRaw),
         performance: parsePerformance(performanceRaw),
-        narrative: parseNarrative(narrativeRaw),
+        narrative,
+        macroBanner: parseMacroBanner(macroStateRows, narrative),
+        riskControls: parseRiskControls(macroStateRows),
+        bubbleFlags: parseBubbleFlags(macroStateRows),
+        weeklyTriggers: parseWeeklyTriggers(macroStateRows),
         lastUpdated: new Date().toLocaleTimeString("en-GB"),
         loading: false,
         error: null,
       });
-    } catch (e: any) {
-      setState((p) => ({
-        ...p,
+    } catch (error: any) {
+      setState((previous) => ({
+        ...previous,
         loading: false,
-        error: `Sheet unreachable — static snapshot. (${e.message})`,
+        error: `Sheet unreachable — static snapshot. (${error.message})`,
       }));
     }
   }, []);
