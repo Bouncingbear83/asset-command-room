@@ -676,7 +676,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.performance }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
-        fetchSheet({ sheetName: SHEET_NAMES.earningsCalendar, range: "A1:F32" }).catch(() => []),
+        fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);
