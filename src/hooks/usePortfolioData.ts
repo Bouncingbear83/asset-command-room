@@ -16,11 +16,9 @@ export const GIDS = {
   performance: "7099973",
   narrative: "457911094",
   macroState: "448795117",
+  earningsCalendar: "559427839",
 } as const;
 
-const SHEET_NAMES = {
-  earningsCalendar: "EARNINGS_CALENDAR",
-} as const;
 
 const NARRATIVE_FIELDS = [
   "last_updated",
@@ -679,7 +677,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.performance }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
-        fetchSheet({ sheetName: SHEET_NAMES.earningsCalendar, range: "A1:F32" }).catch(() => []),
+        fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);
