@@ -17,6 +17,10 @@ function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>[
   return Object.values(macroBanner).some((value) => value !== null && value !== "");
 }
 
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
   const [macroBannerOpen, setMacroBannerOpen] = useState(true);
