@@ -18,8 +18,21 @@ export const GIDS = {
   macroState: "448795117",
 } as const;
 
-const SHEET_NAMES = {
-  earningsCalendar: "EARNINGS_CALENDAR",
+const GIDS = {
+  holdings: "408093485",
+  watchlist: "496665408",
+  layers: "547494965",
+  scores: "1674996535",
+  prices: "542365971",
+  cash: "356224071",
+  cashflow: "1642346013",
+  scoreLog: "1353977523",
+  monitor: "1097453724",
+  disruption: "1166534580",
+  performance: "7099973",
+  narrative: "457911094",
+  macroState: "448795117",
+  earningsCalendar: "559427839",
 } as const;
 
 const NARRATIVE_FIELDS = [
