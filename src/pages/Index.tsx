@@ -7,8 +7,9 @@ import LayersTab from "@/components/LayersTab";
 import ScoresTab from "@/components/ScoresTab";
 import ReturnsTab from "@/components/ReturnsTab";
 import HoldingsTab from "@/components/HoldingsTab";
+import EarningsCalendarTab from "@/components/EarningsCalendarTab";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>["macroBanner"]) {
@@ -53,7 +54,7 @@ export default function Index() {
       fontFamily: "var(--font-mono)",
       fontSize: 9,
       letterSpacing: "0.2em",
-      textTransform: "uppercase" as const,
+      textTransform: "uppercase",
       color: "var(--text-dim)",
       fontStyle: "normal",
     },
@@ -66,7 +67,7 @@ export default function Index() {
       lineHeight: 1.6,
     },
     val: { color: "var(--gold)", fontWeight: 700 },
-    nav: { display: "flex", borderBottom: "1px solid var(--rim)", padding: "0 40px" },
+    nav: { display: "flex", borderBottom: "1px solid var(--rim)", padding: "0 40px", overflowX: "auto" },
     tab: {
       background: "transparent",
       border: "none",
@@ -76,9 +77,10 @@ export default function Index() {
       fontFamily: "var(--font-mono)",
       fontSize: 10,
       letterSpacing: "0.18em",
-      textTransform: "uppercase" as const,
+      textTransform: "uppercase",
       padding: "20px 20px 18px",
       transition: "color 0.2s",
+      whiteSpace: "nowrap",
     },
     tabOn: { color: "var(--gold)", borderBottomColor: "var(--gold)" },
     status: {
@@ -148,6 +150,7 @@ export default function Index() {
         {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} />}
+        {active === "Earnings Calendar" && <EarningsCalendarTab items={portfolio.earningsCalendar} />}
       </div>
     </div>
   );
