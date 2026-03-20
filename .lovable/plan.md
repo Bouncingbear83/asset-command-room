@@ -1,50 +1,51 @@
 
 
-## Fix: Watchlist, Layers, Scores Disruption sub-tab, and Performance
+## Fix: Watchlist summary, Buy T2 highlighting, sorting, Returns scaling, AUM cash
 
-### Issues identified
+### Issues
 
-1. **Watchlist range too small** — fetching `A2:K20` but data goes to row 27+. No BUY highlight box at top. No macro-stop indicator. Not sorted by status.
-2. **Layers missing layer NAME** — the screenshot shows key holdings but not the layer name (e.g. "Compute", "Energy"). Looking at the code, `parseLayers` reads `layer` or `name` — this should work, but the name column in the sheet might be labelled differently. Also: the bottom blue TOTAL row is meaningless (shows a bar), and CASH total row is missing.
-3. **Scores — no Disruption sub-tab** — disruption data exists in the expand panel but there's no dedicated sortable view of disruption scores.
-4. **Performance numbers wrong** — `parsePercentLike` is corrupting TWR values. TWR cumulative values like `8.5` (meaning 8.5%) are being treated as "already whole" by the heuristic (`> 1 → leave as-is`), but sub-period returns like `0.03` are being multiplied by 100 to get `3%`. The issue is that `calcReturn` in ReturnsTab already multiplies by 100, so if the input TWR values are already in percent form (e.g. `8.5`), the period return calc double-scales. The root cause: sheet stores TWR as whole percentages (e.g. `8.5`), `parsePercentLike` leaves them as-is, but `calcReturn` formula `((1 + endTwr/100) / (1 + startTwr/100) - 1) * 100` expects them in percent — so that part is correct. The problem is likely that `subPeriodRtnTotal` etc. are small fractions like `0.02` being converted to `2` by `parsePercentLike`, then displayed as `+2.0%` when the real value should be `+0.02%` or `+2%`. Need to check: are TWR values stored as fractions or whole numbers in the sheet? The `parsePercentLike` heuristic `abs <= 1 → fraction` is wrong for small positive returns like `0.5%` stored as `0.5`.
+1. **Watchlist execute-ready count is 0** — `getSortPriority` checks `alertStatus` for EXECUTE, but the BUY T1 status items like HEXA-B aren't being counted. The "execute-ready" label actually needs to count items with status `BUY NOW` or `BUY T1` (i.e. actionable buy statuses), not just `alertStatus === "EXECUTE"`.
+
+2. **BUY T2 items not green, not in callout box** — `BuyHighlightBox` only includes `BUY NOW` and `BUY T1`. Need to add `BUY T2`. `STATUS_STYLE` also lacks a `BUY T2` entry so it renders with fallback styling instead of green.
+
+3. **No sorting visible / wrong sort order** — The status sort order is missing `BUY T2`, `MONITOR`. Need to update `STATUS_ORDER` to: `BUY NOW` → `BUY T1` → `BUY T2` → `WAIT` → `MONITOR` → `RESEARCH` → `PRE-IPO`.
+
+4. **Returns showing 1.4% instead of 140%** — The `calcReturn` formula `((1 + endTwr / 100) / (1 + startTwr / 100) - 1) * 100` is correct for whole-percent TWR inputs. But if the sheet stores cumulative TWR as fractions (e.g. `0.014` meaning 1.4%), then `parseRawPct` reads it as `0.014` and `calcReturn` divides by 100 again, producing tiny numbers. The actual issue: sheet TWR values are likely stored as fractions (0–1 scale), not whole percentages. `parseRawPct` should detect this — if cumulative TWR values are all < 2, they're fractions and need `* 100`. Alternatively, since these are cumulative TWR values that could legitimately be small whole percentages, the safest fix is: use `parsePercentLike` for cumulative TWR fields (which handles the fraction detection), and keep `parseRawPct` only for sub-period returns which are truly small.
+
+5. **AUM missing cash** — The header AUM calculation sums only holdings MV. CASH sheet is never fetched. Need to fetch CASH tab and add it to the total.
 
 ### Plan
 
-**1. Watchlist — expand range, add BUY highlight box, sort by status**
+**1. Fetch CASH sheet and add to AUM**
 
-- Change fetch range from `A2:K20` to `A2:K50` (accommodates growth).
-- Add a "Buy Targets" highlight box at the top of WatchlistTab showing only items with status `BUY NOW` or `BUY T1`.
-  - Each row: name, ticker, entry target price, current price, vs target %.
-  - Show macro-stop indicator: check if `PAUSE_ACTIVE` from macroState is `YES` — if so, show a red "MACRO PAUSE — no new buys" banner inside the box.
-  - Pass `macroState` to WatchlistTab from Index.
-- Sort order: EXECUTE alerts → BUY NOW → BUY T1 → IN_ZONE → WAIT → WATCH → RESEARCH → PRE-IPO.
+In `usePortfolioData.ts`:
+- Add CASH fetch: `fetchSheetGrid({ gid: GIDS.cash, range: "A1:C3" })`
+- Parse to extract `cash_sipp` and `cash_isa` values
+- Expose `cashSipp`, `cashIsa`, `cashTotal` on the hook return
 
-**2. Layers — show layer name, fix TOTAL row, add CASH**
+In `Index.tsx`:
+- Add cash to the AUM calculation: `sippTotal + cashSipp`, `isaTotal + cashIsa`
 
-- The layer name label on each row (line 105) already renders `layer.name`. The issue is likely that the sheet's first column is called "LAYER" not "name", and `parseLayers` tries `layer` first — this should work. Will verify the `findCol` logic handles this. The screenshot shows key holdings text where the layer name should be — looks like `name` is resolving to the holdings text. Will explicitly prioritize `layer` column.
-- Remove the bottom TOTAL bar row (it's meaningless with a progress bar). Keep it as a summary line with just current%, target%, and MV — no bar.
-- Ensure CASH row appears with current % but no target bar (already partially handled).
+**2. Fix Watchlist summary and Buy T2**
 
-**3. Scores — add Disruption sub-tab**
+In `WatchlistTab.tsx`:
+- Add `"BUY T2"` to `STATUS_STYLE` with green styling
+- Add `"BUY T2"` and `"MONITOR"` to `STATUS_ORDER` (BUY NOW=1, BUY T1=2, BUY T2=3, WAIT=4, MONITOR=5, RESEARCH=6, PRE-IPO=7)
+- Expand `buyItems` filter to include `BUY T2`
+- Change `executeCount` to count items with buy-actionable statuses (`BUY NOW`, `BUY T1`, `BUY T2`) — label it "buy-ready" instead of "execute-ready"
 
-- Add a tab switcher inside ScoresTab: "Scores" | "Disruption".
-- Disruption view: table of all disruption data, sortable by each sub-score column (disruptionScore, subAvail, economics, govtSupport, demandVuln, timeViability).
-- Show status badge, evidence, amber/red triggers.
+**3. Fix Returns TWR scaling**
 
-**4. Performance — fix TWR percentage parsing**
+In `usePortfolioData.ts`:
+- Change cumulative TWR parsing from `parseRawPct` to `parsePercentLike` so that fractional values like `0.014` get correctly scaled to `1.4`
+- Keep sub-period returns on `parseRawPct` since those are computed differently
 
-- The core problem: `parsePercentLike` uses `abs(val) <= 1` as the fraction heuristic. This breaks for:
-  - Small whole-percent values like `0.5` (meant to be 0.5%, gets converted to 50%)
-  - Sub-period returns that are small fractions
-- Fix: for PERFORMANCE fields specifically, do NOT use `parsePercentLike`. The sheet stores TWR values as whole percentages (e.g. `8.5` means 8.5%). Use raw `parseFloat` for performance fields and treat them as already-percent.
-- Update `parsePerformance` to use a dedicated `parsePerformancePct` that just parses the number without the fraction heuristic.
+In `ReturnsTab.tsx`:
+- Verify `calcReturn` formula works with correctly-scaled inputs — it should, since `(1 + 1.4/100) / (1 + 0/100) - 1) * 100 = 1.4` which is correct
 
 ### Files affected
 
-- `src/hooks/usePortfolioData.ts` — expand watchlist range, fix performance pct parsing
-- `src/components/WatchlistTab.tsx` — add BUY highlight box, macro-stop, accept macroState prop
-- `src/components/LayersTab.tsx` — fix layer name display, fix TOTAL row
-- `src/components/ScoresTab.tsx` — add Disruption sub-tab
-- `src/pages/Index.tsx` — pass macroState to WatchlistTab
+- `src/hooks/usePortfolioData.ts` — CASH fetch, TWR parsing fix, expose cash values
+- `src/components/WatchlistTab.tsx` — BUY T2 styling/sorting/callout, summary label fix
+- `src/pages/Index.tsx` — add cash to AUM display
 
