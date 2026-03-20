@@ -19,6 +19,16 @@ export const GIDS = {
   earningsCalendar: "559427839",
 } as const;
 
+/** Always treat numeric value as a fraction and scale by 100. For cumulative TWR fields where the sheet API always returns fractions (e.g. 1.294 = 129.4%). */
+function parseFractionToPercent(val: any): number {
+  if (typeof val === "number") return Number.isFinite(val) ? val * 100 : 0;
+  if (typeof val === "string") {
+    const cleaned = val.trim().replace(/[,+\s%]/g, "");
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num * 100 : 0;
+  }
+  return 0;
+}
 
 const NARRATIVE_FIELDS = [
   "last_updated",
