@@ -1,55 +1,21 @@
 
 
-## Watchlist Redesign + AUM Cash Fix + In-Zone Count Fix
+## Fix: Ibiden duplicating in Watchlist
 
-### Issues Found
+### Root Cause
 
-**1. "0 in-zone" bug** — The `alertStatus` field in `parseWatchlist` uses `findCol(row, "alert_status", "ALERT_STATUS")`. But `resolveColumnLabel` checks `labelLower.includes("alert_status")`. If the sheet header is "Alert Status" (with space), it normalizes to `"alert status"` which does NOT contain the underscore version `"alert_status"`. The column resolves to something else (likely just "Status" via the fallback logic), so `alertStatus` always defaults to `"WAITING"`.
+The watchlist is fetched with range `A2:K50`, which skips the header row (row 1). The Google Sheets visualization API auto-detects headers from the first row of the returned range. Since row 2 is actual data (Ibiden Co), the API either:
+- Treats the Ibiden row as column headers, losing that row and producing garbled column labels for all subsequent rows
+- Assigns generic column labels, causing `resolveColumnLabel` to mismap columns
 
-**Fix**: Add `"alert status"` (space version) to `resolveColumnLabel` for the watchlist alert_status column. Same issue likely affects `trigger_price_numeric` and `last_checked`.
+Either way, the column resolution breaks, and `findCol` with its fuzzy matching returns incorrect values, producing repeated "Ibiden Co" entries.
 
-**2. AUM missing cash** — The cash parsing uses `fetchSheetGrid` which returns raw strings. If the CASH sheet's row 1 contains labels like "SIPP Cash" / "ISA Cash" rather than just "SIPP" / "ISA", the `includes("sipp")` check should work. But there may be a structural issue (e.g., the sheet has rows like "Label | Value" instead of columnar layout). Add defensive logging and also try row-based parsing (check if column A contains "SIPP" / "ISA" labels with values in column B/C).
+### Fix
 
-**Fix**: Expand cash parsing to handle both columnar and row-based layouts. Add `console.log` for debugging the raw grid.
+**In `usePortfolioData.ts`**: Change the watchlist fetch range from `A2:K50` to `A1:K50` so the actual header row is included. The `fetchSheet` function already handles header-row parsing via the gviz API's auto-detection — it just needs to see the real headers.
 
-**3. Column sorting** — Table headers are static text with no click handlers.
+This is a one-line change on the fetch call (~line 705).
 
-**Fix**: Add sortable column headers with sort state, toggling asc/desc on click.
-
-**4. Column widths** — Currently no explicit widths; the Trigger column consumes too much space.
-
-**Fix**: Set explicit column widths via `gridTemplateColumns` or table `colgroup`.
-
-### Jony Ive UX Redesign for Watchlist
-
-The current page is functional but flat. Key improvements:
-
-**A. Hero summary strip** — Replace the small "3 buy-ready · 0 in-zone · 25 total" text with a bold, glanceable summary bar. Three large stat cards: Buy Ready (green glow), In Zone (amber pulse), Total Watching. Each card has the count as the hero number with a subtle label beneath.
-
-**B. Buy Targets box elevation** — Give the buy targets box more visual weight: subtle green left-border accent, slightly larger typography, each item as a distinct card-row with hover state. Add a pulsing green dot next to "BUY TARGETS" label.
-
-**C. Table refinement** — Sortable headers with a subtle arrow indicator. Fixed column widths so the layout stays stable. Status badges with more visual hierarchy. On hover, rows get a subtle glow. The Trigger column gets a max-width with text truncation and tooltip on hover.
-
-**D. Visual rhythm** — Add subtle section dividers between the summary, buy box, and table. Use spacing and opacity to create clear visual hierarchy.
-
-### Files to Change
-
-- `src/hooks/usePortfolioData.ts` — Fix `resolveColumnLabel` for space-separated alert/trigger column names; fix cash parsing with row-based fallback
-- `src/components/WatchlistTab.tsx` — Full redesign: summary stat cards, sortable columns, fixed widths, elevated buy box, hover states
-- `src/pages/Index.tsx` — Minor: add console.log for cash debug (temporary)
-
-### Technical Details
-
-**resolveColumnLabel fix** — Add these before the existing underscore checks:
-```
-if (labelLower.includes("alert status")) return "alert_status";
-if (labelLower.includes("trigger price numeric")) return "trigger_price_numeric"; 
-if (labelLower.includes("last checked")) return "last_checked";
-```
-
-**Cash parsing fallback** — Check if cashGrid rows have a label-value pattern (column A = label string, column B/C = numeric values). Try matching row labels like "SIPP", "ISA", "Total" and extracting adjacent numeric cells.
-
-**Sortable columns** — Add `sortCol` and `sortDir` state. Column headers become clickable with sort arrow indicator. Sort applies to the main table (after the status-priority pre-sort, user sort takes precedence).
-
-**Column widths** — Use `colgroup` with explicit widths: Name (160px), Ticker (90px), Layer (80px), Entry Target (110px), Current (80px), vs Target (80px), Trigger (flex), Status (90px), Alert (70px).
+### Files
+- `src/hooks/usePortfolioData.ts` — change watchlist range from `A2:K50` to `A1:K50`
 
