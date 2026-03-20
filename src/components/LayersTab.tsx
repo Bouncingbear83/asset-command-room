@@ -166,7 +166,7 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Target</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Gap</div>
             </div>
-            {coloredLayers.map((layer) => {
+            {coloredLayers.map((layer, i) => {
               const diff = layer.current - layer.target;
               const diffColor = Math.abs(diff) < 1 ? "var(--green)" : Math.abs(diff) < 3 ? "var(--amber)" : "var(--red)";
               return (
