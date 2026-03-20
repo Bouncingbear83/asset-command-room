@@ -170,7 +170,7 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
               const diff = layer.current - layer.target;
               const diffColor = Math.abs(diff) < 1 ? "var(--green)" : Math.abs(diff) < 3 ? "var(--amber)" : "var(--red)";
               return (
-                <div key={layer.name} style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "4px 0" }}>
+                <div key={`legend-${i}`} style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "4px 0" }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: layer.color }} />
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text)", textAlign: "right" }}>{layer.current.toFixed(1)}%</div>
