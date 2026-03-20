@@ -163,10 +163,10 @@ function BuyHighlightBox({ items, pauseActive }: { items: LiveWatchItem[]; pause
           Buy Targets ({items.length})
         </span>
       </div>
-      {items.map((item) => {
+      {items.map((item, idx) => {
         const { current, vsColor, vsLabel } = getPctInfo(item);
         return (
-          <div key={`${item.name}-${item.ticker}`} style={{
+          <div key={`buy-${idx}-${item.ticker}`} style={{
             display: "grid",
             gridTemplateColumns: "1.5fr 80px 80px 80px 80px",
             alignItems: "center",
