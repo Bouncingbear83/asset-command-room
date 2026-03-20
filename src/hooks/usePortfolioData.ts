@@ -120,14 +120,15 @@ function resolveColumnLabel(label: string) {
   if (/\bname\b/.test(labelLower)) return "name";
   if (labelLower.includes("next earnings") || labelLower.includes("next_earnings")) return "next_earnings_date";
   if (labelLower.includes("fiscal period") || labelLower.includes("fiscal_period")) return "fiscal_period";
-  if (labelLower.includes("trigger_price_numeric")) return "trigger_price_numeric";
-  if (labelLower.includes("trigger_price_add")) return "trigger_price_add";
-  if (labelLower.includes("trigger_price_exit")) return "trigger_price_exit";
-  if (labelLower.includes("trigger_type")) return "trigger_type";
-  if (labelLower.includes("alert_status")) return "alert_status";
-  if (labelLower.includes("alert_fired_date")) return "alert_fired_date";
-  if (labelLower.includes("last_checked")) return "last_checked";
-  if (labelLower.includes("last_updated")) return "last_updated";
+  // Space-separated variants for watchlist columns
+  if (labelLower.includes("trigger price numeric") || labelLower.includes("trigger_price_numeric")) return "trigger_price_numeric";
+  if (labelLower.includes("trigger price add") || labelLower.includes("trigger_price_add")) return "trigger_price_add";
+  if (labelLower.includes("trigger price exit") || labelLower.includes("trigger_price_exit")) return "trigger_price_exit";
+  if (labelLower.includes("trigger type") || labelLower.includes("trigger_type")) return "trigger_type";
+  if (labelLower.includes("alert status") || labelLower.includes("alert_status")) return "alert_status";
+  if (labelLower.includes("alert fired date") || labelLower.includes("alert_fired_date")) return "alert_fired_date";
+  if (labelLower.includes("last checked") || labelLower.includes("last_checked")) return "last_checked";
+  if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
   if (labelLower.includes("trigger condition")) return "trigger condition";
