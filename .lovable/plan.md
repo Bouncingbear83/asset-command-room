@@ -1,37 +1,38 @@
 
 
-## Fix: "In Zone" count should reflect items trading below entry target
+## Layers: Fix Missing Layer Names + Better Visualization
 
-### Root cause
+### Problem 1: Missing Layer Names
 
-The "In Zone" count currently checks `alertStatus === "IN_ZONE"` — this reads from the sheet's Alert Status column (col J/K). That column appears to be empty/WAITING for MP, DHR, and NKT, even though these stocks are clearly trading below their entry targets (negative "vs Target" values: -14.4%, -4.9%, -3.8%).
+The layer name column in the sheet is likely "Layer" or "Layer Name". In `resolveColumnLabel`, the regex `/\bname\b/` at line 120 fires before any "layer" check, so a header like "Layer Name" resolves to `"name"` — colliding with other name columns. Meanwhile, `parseLayers` calls `findCol(row, "layer", "LAYER", "name", "NAME")` which tries "layer" first, but the column was already mapped to "name" by the resolver.
 
-"In Zone" should mean "currently trading at or below entry target" — i.e., the stock is in the buy zone based on price, regardless of whether the alert system has flagged it.
-
-### Fix
-
-**`src/components/WatchlistTab.tsx`**:
-
-1. Change `inZoneCount` calculation from checking `alertStatus === "IN_ZONE"` to checking `item.vsTarget < 0` (price is below entry target) AND the item is NOT already in a BUY status (to avoid double-counting buy-ready items).
-
-2. Alternatively, count items where `vsTarget <= 0` that aren't already in the BUY_STATUSES set — these are stocks trading below entry target but not yet flagged as buy-ready.
-
-The simplest correct logic: **In Zone = items where current price ≤ entry target** (i.e., `vsTarget <= 0`). This would include the 3 buys + MP/DHR/NKT. If we want "In Zone" to be distinct from "Buy Ready", then: `In Zone = vsTarget <= 0 AND status NOT in BUY_STATUSES`.
-
-Given the screenshot shows 3 buys and 3 separate in-zone items, the distinct count makes more sense:
-- Buy Ready: Hexagon (BUY T1), MP Materials (BUY T2), Siemens Energy (BUY T2) = 3
-- In Zone: MP (-14.4%), DHR (-4.9%), NKT (-3.8%) = 3 items below target that aren't buys... but MP IS a buy (BUY T2). So actually In Zone should just be items with negative vsTarget regardless of buy status.
-
-Simplest: **In Zone = count of items where `vsTarget < 0`** = MP, DHR, NKT = 3 (Hexagon is +5.4% so not in zone). This matches what the user expects.
-
-### Implementation
-
-```typescript
-const inZoneCount = statusSorted.filter((item) => item.vsTarget < 0).length;
+**Fix**: Add a specific check in `resolveColumnLabel` before the generic `name` regex:
+```
+if (labelLower === "layer" || labelLower === "layer name") return "layer";
 ```
 
-One line change replacing the `alertStatus === "IN_ZONE"` check.
+### Problem 2: Visualization Alternatives
+
+The current horizontal progress bars are hard to read for comparing weights — it's difficult to judge relative sizes and gaps at a glance. Three strong alternatives:
+
+**Option A: Stacked bar / donut chart** — A single donut (or two concentric rings: current vs target) gives an immediate portfolio-level view. Each segment is colored by layer. Hovering shows the detail. Clean and Ive-like.
+
+**Option B: Side-by-side horizontal bars** — For each layer, show TWO thin bars: one for current (filled), one for target (outline/dotted). This makes the gap visually obvious per-layer. Add a small "gap" label inline.
+
+**Option C: Grouped vertical bar chart** — Vertical bars, grouped by layer. Each group has a "current" bar and a "target" bar side by side. The gap is immediately visible as the height difference. Numbers above each bar.
+
+**Recommendation**: **Option A (donut) + detail table below**. A donut chart for the portfolio-level overview (current allocation) with a second faint ring for targets, plus a clean tabular breakdown below showing Layer Name, Current %, Target %, Gap, and MV. This separates "at a glance" from "detail" — better information hierarchy.
+
+### Plan
+
+**1. Fix layer name resolution** (`usePortfolioData.ts`)
+- Add `if (labelLower === "layer" || labelLower === "layer name") return "layer";` before the generic name regex in `resolveColumnLabel`
+
+**2. Redesign Layers visualization** (`LayersTab.tsx`)
+- **Top section**: Dual-ring donut chart (inner = target allocation, outer = current allocation). Each layer colored by its `hexColor`. Centered text shows total invested %. Built with SVG arcs (no library needed).
+- **Below donut**: Clean detail table with columns: Layer Name (colored), Key Holdings, Current %, Target %, Gap (colored ±), MV. CASH row at bottom. TOTAL summary row with border-top.
+- **Keep**: Gap Actions and Pre-IPO Watch cards below in the 2-column grid.
 
 ### Files
-- `src/components/WatchlistTab.tsx` — line 222, change inZoneCount logic
-
+- `src/hooks/usePortfolioData.ts` — fix `resolveColumnLabel` for "layer" column
+- `src/components/LayersTab.tsx` — donut chart + detail table redesign
