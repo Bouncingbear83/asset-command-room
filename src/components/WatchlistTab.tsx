@@ -195,11 +195,12 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
 
 export default function WatchlistTab({ liveData, macroState }: Props) {
   const items = [...liveData].sort((a, b) => getSortPriority(a) - getSortPriority(b));
+  const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
   const buyItems = items.filter((item) => {
     const s = item.status.trim().toUpperCase();
-    return s === "BUY NOW" || s === "BUY T1";
+    return BUY_STATUSES.includes(s);
   });
-  const executeCount = items.filter((item) => normalizeAlertStatus(item.alertStatus) === "EXECUTE").length;
+  const buyReadyCount = buyItems.length;
   const inZoneCount = items.filter((item) => normalizeAlertStatus(item.alertStatus) === "IN_ZONE").length;
   const pauseActive = (macroState["PAUSE_ACTIVE"]?.currentValue || "").trim().toUpperCase() === "YES";
 
@@ -208,12 +209,12 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       <div style={cardHeader}>
         <span style={cardTitle}>Watchlist — Do Not Buy Above Entry Target</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {executeCount > 0 && <AlertBadge status="EXECUTE" />}
+          {buyReadyCount > 0 && <span style={{ ...ALERT_STYLE.EXECUTE, padding: "3px 10px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em" }}>{buyReadyCount} BUY READY</span>}
           {inZoneCount > 0 && <AlertBadge status="IN_ZONE" />}
         </div>
       </div>
       <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", letterSpacing: "0.08em" }}>
-        {executeCount} execute-ready · {inZoneCount} in-zone · {items.length} total
+        {buyReadyCount} buy-ready · {inZoneCount} in-zone · {items.length} total
       </div>
       <BuyHighlightBox items={buyItems} pauseActive={pauseActive} />
       <WatchTable items={items} />
