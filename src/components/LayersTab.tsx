@@ -74,8 +74,12 @@ const emptyState: React.CSSProperties = {
 
 export default function LayersTab({ liveData, watchlist, narrative }: Props) {
   const allLayers = liveData;
-  const chartLayers = allLayers.filter((layer) => layer.name.toUpperCase() !== "TOTAL");
   const totalRow = allLayers.find((layer) => layer.name.toUpperCase() === "TOTAL");
+  const cashRow = allLayers.find((layer) => layer.name.toUpperCase() === "CASH");
+  const chartLayers = allLayers.filter((layer) => {
+    const n = layer.name.toUpperCase();
+    return n !== "TOTAL";
+  });
   const liveGapLayers = allLayers.filter((layer) => layer.gapNotes && layer.gapNotes.trim() !== "" && layer.name.toUpperCase() !== "TOTAL" && layer.name.toUpperCase() !== "CASH");
   const preIpoEntries = watchlist.filter((item) => {
     const status = item.status.toUpperCase();
@@ -110,12 +114,21 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
                   {isCash && <div style={{ position: "absolute", top: 0, left: 0, height: 2, background: "var(--text-dim)", width: `${Math.min(layer.current * 5, 100)}%`, maxWidth: "100%", opacity: 0.4, transition: "width 0.8s ease" }} />}
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text)", textAlign: "right" }}>{layer.current.toFixed(1)}%</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{isCash ? "" : `/${layer.target}%`}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{isCash ? "" : layer.target > 0 ? `/${layer.target}%` : ""}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: diffColor, textAlign: "right", fontWeight: 600 }}>{isCash ? "—" : `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%`}</div>
               </div>
             );
           })}
-          {totalRow && <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 48px 44px 52px", alignItems: "center", gap: 12, padding: "12px 0", marginTop: 4, borderTop: "1px solid var(--rim)" }}><div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text)" }}>TOTAL</div><div /><div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{totalRow.current.toFixed(1)}%</div><div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>/{totalRow.target > 0 ? `${totalRow.target}%` : "100%"}</div><div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>£{totalRow.mv > 0 ? `${(totalRow.mv / 1000).toFixed(0)}k` : "—"}</div></div>}
+          {/* TOTAL summary row — no bar */}
+          {totalRow && (
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 48px 44px 52px", alignItems: "center", gap: 12, padding: "12px 0", marginTop: 4, borderTop: "2px solid var(--rim)" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text)" }}>TOTAL</div>
+              <div />
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{totalRow.current.toFixed(1)}%</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>/{totalRow.target > 0 ? `${totalRow.target}%` : "100%"}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{totalRow.mv > 0 ? `£${(totalRow.mv / 1000).toFixed(0)}k` : "—"}</div>
+            </div>
+          )}
         </div>
       </div>
 
