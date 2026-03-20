@@ -711,6 +711,28 @@ export function usePortfolioData(): PortfolioData {
       const macroState = parseMacroState(macroStateGrid);
       const macroStateRows = parseMacroStateRows(macroState);
 
+      // Parse cash balances from CASH sheet
+      let cashSipp = 0, cashIsa = 0, cashTotal = 0;
+      if (cashGrid.length >= 2) {
+        // Try header-based parsing: find columns by header row
+        const headers = cashGrid[0].map((h) => normalizeToken(h));
+        const sippIdx = headers.findIndex((h) => h.includes("sipp"));
+        const isaIdx = headers.findIndex((h) => h.includes("isa"));
+        const totalIdx = headers.findIndex((h) => h.includes("total"));
+        const dataRow = cashGrid[1];
+        if (sippIdx >= 0) cashSipp = parseMv(dataRow[sippIdx]);
+        if (isaIdx >= 0) cashIsa = parseMv(dataRow[isaIdx]);
+        if (totalIdx >= 0) cashTotal = parseMv(dataRow[totalIdx]);
+        // Fallback: if no total but have both, sum them
+        if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
+        // Fallback: positional A=SIPP, B=ISA, C=Total
+        if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0 && dataRow.length >= 2) {
+          cashSipp = parseMv(dataRow[0]);
+          cashIsa = parseMv(dataRow[1]);
+          cashTotal = dataRow.length >= 3 ? parseMv(dataRow[2]) : cashSipp + cashIsa;
+        }
+      }
+
       setState({
         holdings: allHoldings,
         sipp,
@@ -729,6 +751,9 @@ export function usePortfolioData(): PortfolioData {
         riskControls: parseRiskControls(macroState),
         weeklyTriggers: parseWeeklyTriggers(macroStateRows),
         earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
+        cashSipp,
+        cashIsa,
+        cashTotal,
         lastUpdated: new Date().toLocaleTimeString("en-GB"),
         loading: false,
         error: null,
