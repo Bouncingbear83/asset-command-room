@@ -19,6 +19,16 @@ export const GIDS = {
   earningsCalendar: "559427839",
 } as const;
 
+/** Always treat numeric value as a fraction and scale by 100. For cumulative TWR fields where the sheet API always returns fractions (e.g. 1.294 = 129.4%). */
+function parseFractionToPercent(val: any): number {
+  if (typeof val === "number") return Number.isFinite(val) ? val * 100 : 0;
+  if (typeof val === "string") {
+    const cleaned = val.trim().replace(/[,+\s%]/g, "");
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num * 100 : 0;
+  }
+  return 0;
+}
 
 const NARRATIVE_FIELDS = [
   "last_updated",
@@ -464,9 +474,9 @@ function parsePerformance(rows: Record<string, any>[]) {
       subPeriodRtnSipp: parsePercentLike(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
       subPeriodRtnIsa: parsePercentLike(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
       subPeriodRtnTotal: parsePercentLike(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
-      cumulativeTwrSipp: parsePercentLike(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
-      cumulativeTwrIsa: parsePercentLike(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
-      cumulativeTwrTotal: parsePercentLike(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      cumulativeTwrSipp: parseFractionToPercent(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
+      cumulativeTwrIsa: parseFractionToPercent(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
+      cumulativeTwrTotal: parseFractionToPercent(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
       note: String(findCol(row, "note", "Note", "NOTE") ?? ""),
     }));
 }
