@@ -450,12 +450,12 @@ function parsePerformance(rows: Record<string, any>[]) {
       depositsSipp: parseMv(findCol(row, "deposits_in_period_sipp", "DEPOSITS_IN_PERIOD_SIPP")),
       depositsIsa: parseMv(findCol(row, "deposits_in_period_isa", "DEPOSITS_IN_PERIOD_ISA")),
       depositsTotal: parseMv(findCol(row, "deposits_in_period_total", "DEPOSITS_IN_PERIOD_TOTAL")),
-      subPeriodRtnSipp: parsePct(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
-      subPeriodRtnIsa: parsePct(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
-      subPeriodRtnTotal: parsePct(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
-      cumulativeTwrSipp: parsePct(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
-      cumulativeTwrIsa: parsePct(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
-      cumulativeTwrTotal: parsePct(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      subPeriodRtnSipp: parseRawPct(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
+      subPeriodRtnIsa: parseRawPct(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
+      subPeriodRtnTotal: parseRawPct(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
+      cumulativeTwrSipp: parseRawPct(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
+      cumulativeTwrIsa: parseRawPct(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
+      cumulativeTwrTotal: parseRawPct(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
       note: String(findCol(row, "note", "Note", "NOTE") ?? ""),
     }));
 }
