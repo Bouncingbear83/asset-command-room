@@ -260,6 +260,17 @@ function parsePct(val: any): number {
   return parsePercentLike(val);
 }
 
+/** For performance TWR fields: sheet stores values as whole percentages (e.g. 8.5 = 8.5%). Never multiply. */
+function parseRawPct(val: any): number {
+  if (typeof val === "number") return Number.isFinite(val) ? val : 0;
+  if (typeof val === "string") {
+    const cleaned = val.trim().replace(/[,+\s%]/g, "");
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num : 0;
+  }
+  return 0;
+}
+
 function parseSheetDate(val: any): string {
   if (typeof val === "string") {
     const match = val.match(/^Date\((\d+),(\d+),(\d+)\)$/);
