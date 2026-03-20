@@ -117,6 +117,7 @@ function resolveColumnLabel(label: string) {
   const labelLower = trimmed.toLowerCase();
 
   if (/\bticker\b/.test(labelLower)) return "ticker";
+  if (labelLower === "layer" || labelLower === "layer name") return "layer";
   if (/\bname\b/.test(labelLower)) return "name";
   if (labelLower.includes("next earnings") || labelLower.includes("next_earnings")) return "next_earnings_date";
   if (labelLower.includes("fiscal period") || labelLower.includes("fiscal_period")) return "fiscal_period";
