@@ -234,8 +234,8 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
           <div style={{ padding: "0 20px 12px" }}>
             {layerNarrative && <div style={{ ...emptyState, paddingBottom: 12, borderBottom: "1px solid rgba(28,28,48,0.4)" }}>{layerNarrative}</div>}
             {liveGapLayers.length === 0 && <div style={emptyState}>No live gap actions found in LAYERS.</div>}
-            {liveGapLayers.map((layer) => (
-              <div key={layer.name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+            {liveGapLayers.map((layer, i) => (
+              <div key={`gap-${i}`} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: layer.hexColor || "var(--text)" }}>{layer.name}</span>
                   {layer.priority && <span style={priorityBadge(layer.priority)}>{layer.priority}</span>}
