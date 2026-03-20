@@ -25,8 +25,8 @@ export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
   const [macroBannerOpen, setMacroBannerOpen] = useState(true);
   const portfolio = usePortfolioData();
-  const sippTotal = portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000;
-  const isaTotal = portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000;
+  const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
+  const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
   const total = sippTotal + isaTotal;
   const showMacroBanner = hasMacroBannerContent(portfolio.macroBanner);
 

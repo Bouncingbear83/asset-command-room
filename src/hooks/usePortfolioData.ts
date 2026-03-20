@@ -461,12 +461,12 @@ function parsePerformance(rows: Record<string, any>[]) {
       depositsSipp: parseMv(findCol(row, "deposits_in_period_sipp", "DEPOSITS_IN_PERIOD_SIPP")),
       depositsIsa: parseMv(findCol(row, "deposits_in_period_isa", "DEPOSITS_IN_PERIOD_ISA")),
       depositsTotal: parseMv(findCol(row, "deposits_in_period_total", "DEPOSITS_IN_PERIOD_TOTAL")),
-      subPeriodRtnSipp: parseRawPct(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
-      subPeriodRtnIsa: parseRawPct(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
-      subPeriodRtnTotal: parseRawPct(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
-      cumulativeTwrSipp: parseRawPct(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
-      cumulativeTwrIsa: parseRawPct(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
-      cumulativeTwrTotal: parseRawPct(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      subPeriodRtnSipp: parsePercentLike(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
+      subPeriodRtnIsa: parsePercentLike(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
+      subPeriodRtnTotal: parsePercentLike(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
+      cumulativeTwrSipp: parsePercentLike(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
+      cumulativeTwrIsa: parsePercentLike(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
+      cumulativeTwrTotal: parsePercentLike(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
       note: String(findCol(row, "note", "Note", "NOTE") ?? ""),
     }));
 }
@@ -637,6 +637,9 @@ export interface PortfolioData {
   riskControls: LiveRiskControl[];
   weeklyTriggers: LiveWeeklyTrigger[];
   earningsCalendar: LiveEarningsCalendarItem[];
+  cashSipp: number;
+  cashIsa: number;
+  cashTotal: number;
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
@@ -662,6 +665,9 @@ export function usePortfolioData(): PortfolioData {
     riskControls: [],
     weeklyTriggers: [],
     earningsCalendar: [],
+    cashSipp: 0,
+    cashIsa: 0,
+    cashTotal: 0,
     lastUpdated: null,
     loading: true,
     error: null,
@@ -682,6 +688,7 @@ export function usePortfolioData(): PortfolioData {
         narrativeGrid,
         macroStateGrid,
         earningsCalendarRaw,
+        cashGrid,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF32" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A2:K50" }),
@@ -694,6 +701,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
+        fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);
@@ -702,6 +710,28 @@ export function usePortfolioData(): PortfolioData {
       const narrativeData = parseNarrativeData(narrativeGrid);
       const macroState = parseMacroState(macroStateGrid);
       const macroStateRows = parseMacroStateRows(macroState);
+
+      // Parse cash balances from CASH sheet
+      let cashSipp = 0, cashIsa = 0, cashTotal = 0;
+      if (cashGrid.length >= 2) {
+        // Try header-based parsing: find columns by header row
+        const headers = cashGrid[0].map((h) => normalizeToken(h));
+        const sippIdx = headers.findIndex((h) => h.includes("sipp"));
+        const isaIdx = headers.findIndex((h) => h.includes("isa"));
+        const totalIdx = headers.findIndex((h) => h.includes("total"));
+        const dataRow = cashGrid[1];
+        if (sippIdx >= 0) cashSipp = parseMv(dataRow[sippIdx]);
+        if (isaIdx >= 0) cashIsa = parseMv(dataRow[isaIdx]);
+        if (totalIdx >= 0) cashTotal = parseMv(dataRow[totalIdx]);
+        // Fallback: if no total but have both, sum them
+        if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
+        // Fallback: positional A=SIPP, B=ISA, C=Total
+        if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0 && dataRow.length >= 2) {
+          cashSipp = parseMv(dataRow[0]);
+          cashIsa = parseMv(dataRow[1]);
+          cashTotal = dataRow.length >= 3 ? parseMv(dataRow[2]) : cashSipp + cashIsa;
+        }
+      }
 
       setState({
         holdings: allHoldings,
@@ -721,6 +751,9 @@ export function usePortfolioData(): PortfolioData {
         riskControls: parseRiskControls(macroState),
         weeklyTriggers: parseWeeklyTriggers(macroStateRows),
         earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
+        cashSipp,
+        cashIsa,
+        cashTotal,
         lastUpdated: new Date().toLocaleTimeString("en-GB"),
         loading: false,
         error: null,

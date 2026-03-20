@@ -7,9 +7,11 @@ interface Props {
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   "BUY T1": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
+  "BUY T2": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
   "BUY NOW": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
   WAIT: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)" },
   WATCH: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
+  MONITOR: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
   RESEARCH: { background: "rgba(28,28,48,0.5)", color: "var(--text-dim)", border: "1px solid var(--rim)" },
   "PRE-IPO": { background: "rgba(28,28,48,0.5)", color: "var(--text-dim)", border: "1px solid var(--rim)" },
 };
@@ -74,11 +76,12 @@ const STATUS_ORDER: Record<string, number> = {
   "EXECUTE": 0,
   "BUY NOW": 1,
   "BUY T1": 2,
-  "IN_ZONE": 3,
+  "BUY T2": 3,
   "WAIT": 4,
-  "WATCH": 5,
-  "RESEARCH": 6,
-  "PRE-IPO": 7,
+  "MONITOR": 5,
+  "WATCH": 6,
+  "RESEARCH": 7,
+  "PRE-IPO": 8,
 };
 
 function getSortPriority(item: LiveWatchItem): number {
@@ -192,11 +195,12 @@ function WatchTable({ items }: { items: LiveWatchItem[] }) {
 
 export default function WatchlistTab({ liveData, macroState }: Props) {
   const items = [...liveData].sort((a, b) => getSortPriority(a) - getSortPriority(b));
+  const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
   const buyItems = items.filter((item) => {
     const s = item.status.trim().toUpperCase();
-    return s === "BUY NOW" || s === "BUY T1";
+    return BUY_STATUSES.includes(s);
   });
-  const executeCount = items.filter((item) => normalizeAlertStatus(item.alertStatus) === "EXECUTE").length;
+  const buyReadyCount = buyItems.length;
   const inZoneCount = items.filter((item) => normalizeAlertStatus(item.alertStatus) === "IN_ZONE").length;
   const pauseActive = (macroState["PAUSE_ACTIVE"]?.currentValue || "").trim().toUpperCase() === "YES";
 
@@ -205,12 +209,12 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       <div style={cardHeader}>
         <span style={cardTitle}>Watchlist — Do Not Buy Above Entry Target</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {executeCount > 0 && <AlertBadge status="EXECUTE" />}
+          {buyReadyCount > 0 && <span style={{ ...ALERT_STYLE.EXECUTE, padding: "3px 10px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em" }}>{buyReadyCount} BUY READY</span>}
           {inZoneCount > 0 && <AlertBadge status="IN_ZONE" />}
         </div>
       </div>
       <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", letterSpacing: "0.08em" }}>
-        {executeCount} execute-ready · {inZoneCount} in-zone · {items.length} total
+        {buyReadyCount} buy-ready · {inZoneCount} in-zone · {items.length} total
       </div>
       <BuyHighlightBox items={buyItems} pauseActive={pauseActive} />
       <WatchTable items={items} />
