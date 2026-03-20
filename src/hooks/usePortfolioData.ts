@@ -724,6 +724,7 @@ export function usePortfolioData(): PortfolioData {
 
       // Parse cash balances from CASH sheet
       let cashSipp = 0, cashIsa = 0, cashTotal = 0;
+      console.log("[CASH] raw grid:", JSON.stringify(cashGrid));
       if (cashGrid.length >= 2) {
         // Try header-based parsing: find columns by header row
         const headers = cashGrid[0].map((h) => normalizeToken(h));
@@ -736,6 +737,16 @@ export function usePortfolioData(): PortfolioData {
         if (totalIdx >= 0) cashTotal = parseMv(dataRow[totalIdx]);
         // Fallback: if no total but have both, sum them
         if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
+        // Fallback: row-based layout (col A = label, col B/C = values)
+        if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0) {
+          for (const row of cashGrid) {
+            const label = normalizeToken(row[0]);
+            if (label.includes("sipp")) cashSipp = parseMv(row[1]) || parseMv(row[2]);
+            else if (label.includes("isa")) cashIsa = parseMv(row[1]) || parseMv(row[2]);
+            else if (label.includes("total")) cashTotal = parseMv(row[1]) || parseMv(row[2]);
+          }
+          if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
+        }
         // Fallback: positional A=SIPP, B=ISA, C=Total
         if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0 && dataRow.length >= 2) {
           cashSipp = parseMv(dataRow[0]);
@@ -743,6 +754,7 @@ export function usePortfolioData(): PortfolioData {
           cashTotal = dataRow.length >= 3 ? parseMv(dataRow[2]) : cashSipp + cashIsa;
         }
       }
+      console.log("[CASH] parsed:", { cashSipp, cashIsa, cashTotal });
 
       setState({
         holdings: allHoldings,
