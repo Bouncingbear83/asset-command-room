@@ -61,14 +61,17 @@ function getActionStyle(action: string): React.CSSProperties {
   return ACTION_STYLE["HOLD"];
 }
 
-const STATIC: LiveScore[] = [
-  { ticker: "ASML", name: "ASML Holding", layer: "Compute", tier: "Core", action: "HOLD", score: 91, scoreDate: "2026-03-04", substrate: 95, demand: 90, moat: 95, valuation: 75, mgmt: 90, disruption: 13, buyLow: 550, buyHigh: 680, fullThesis: "Only EUV lithography vendor. Irreplaceable compute substrate.", currency: "EUR", changeNote: "", rowType: "data" },
-  { ticker: "NVDA", name: "NVIDIA", layer: "Compute", tier: "Core", action: "SIZE UP", score: 88, scoreDate: "2026-03-04", substrate: 90, demand: 90, moat: 85, valuation: 70, mgmt: 85, disruption: 11, buyLow: 115, buyHigh: 220, fullThesis: "GPU compute substrate. Target 6% AUM. Was criminally undersized.", currency: "USD", changeNote: "", rowType: "data" },
-  { ticker: "CCJ", name: "Cameco", layer: "Energy", tier: "Core", action: "TRIMMED", score: 82, scoreDate: "2026-03-04", substrate: 85, demand: 80, moat: 75, valuation: 70, mgmt: 80, disruption: 14, buyLow: 38, buyHigh: 52, fullThesis: "Installed-base fuel monopoly. 440 reactors, 20-40yr remaining life.", currency: "USD", changeNote: "", rowType: "data" },
-];
+const DISRUPTION_STATUS_STYLE: Record<string, React.CSSProperties> = {
+  GREEN: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
+  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  AMBER: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+  RED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
+};
 
 type ScoreSortKey = "ticker" | "score" | "substrate" | "demand" | "moat" | "valuation" | "mgmt" | "disruption" | "buyLow" | "scoreDate" | "layer" | "tier" | "action";
+type DisruptionSortKey = "ticker" | "disruptionScore" | "subAvail" | "economics" | "govtSupport" | "demandVuln" | "timeViability" | "status";
 type SortDir = "asc" | "desc";
+type TabView = "scores" | "disruption";
 
 const COLUMNS: { label: string; key: ScoreSortKey; max: number }[] = [
   { label: "Ticker", key: "ticker", max: 0 },
@@ -85,7 +88,27 @@ const COLUMNS: { label: string; key: ScoreSortKey; max: number }[] = [
   { label: "Action", key: "action", max: 0 },
 ];
 
+const DISRUPTION_COLUMNS: { label: string; key: DisruptionSortKey }[] = [
+  { label: "Ticker", key: "ticker" },
+  { label: "Score /100", key: "disruptionScore" },
+  { label: "Sub Avail", key: "subAvail" },
+  { label: "Economics", key: "economics" },
+  { label: "Govt Support", key: "govtSupport" },
+  { label: "Demand Vuln", key: "demandVuln" },
+  { label: "Time Viability", key: "timeViability" },
+  { label: "Status", key: "status" },
+];
+
 function sortScores(data: LiveScore[], key: ScoreSortKey, dir: SortDir): LiveScore[] {
+  return [...data].sort((a, b) => {
+    const av = (a as any)[key] ?? "";
+    const bv = (b as any)[key] ?? "";
+    if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
+    return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+}
+
+function sortDisruption(data: LiveDisruption[], key: DisruptionSortKey, dir: SortDir): LiveDisruption[] {
   return [...data].sort((a, b) => {
     const av = (a as any)[key] ?? "";
     const bv = (b as any)[key] ?? "";
@@ -100,40 +123,19 @@ function ScoreTrend({ ticker, scoreLog, field = "score" }: { ticker: string; sco
   const entries = scoreLog
     .filter((e) => e.ticker === ticker && e[field] != null)
     .sort((a, b) => String(a.date ?? "").localeCompare(String(b.date ?? "")));
-
   if (entries.length === 0) return null;
-
-  if (entries.length === 1) {
-    return (
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>
-    );
-  }
-
+  if (entries.length === 1) return <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>;
   const prev = entries[entries.length - 2][field]!;
   const latest = entries[entries.length - 1][field]!;
   const delta = latest - prev;
-
-  if (delta === 0) {
-    return (
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>
-    );
-  }
-
+  if (delta === 0) return <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", marginLeft: 6 }}>→</span>;
   const isUp = delta > 0;
   return (
     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: isUp ? "var(--green)" : "var(--red)", marginLeft: 6 }}>
-      {isUp ? "↑" : "↓"}
-      <span style={{ fontSize: 9, marginLeft: 2 }}>{isUp ? `+${delta}` : delta}</span>
+      {isUp ? "↑" : "↓"}<span style={{ fontSize: 9, marginLeft: 2 }}>{isUp ? `+${delta}` : delta}</span>
     </span>
   );
 }
-
-const DISRUPTION_STATUS_STYLE: Record<string, React.CSSProperties> = {
-  GREEN: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
-  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  AMBER: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  RED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
-};
 
 function DisruptionPanel({ d }: { d: LiveDisruption }) {
   const subScores = [
@@ -165,11 +167,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
           </div>
         ))}
       </div>
-      {d.evidence && (
-        <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5, marginBottom: 4 }}>
-          {d.evidence}
-        </div>
-      )}
+      {d.evidence && <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5, marginBottom: 4 }}>{d.evidence}</div>}
       <div style={{ display: "flex", gap: 20, marginTop: 4 }}>
         {d.amberTrigger && (
           <div style={{ flex: 1 }}>
@@ -189,11 +187,14 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
 }
 
 export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Props) {
+  const [activeView, setActiveView] = useState<TabView>("scores");
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [dSortKey, setDSortKey] = useState<DisruptionSortKey>("disruptionScore");
+  const [dSortDir, setDSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const data = scores.length > 0 ? scores : STATIC;
+  const data = scores.length > 0 ? scores : [];
   const disruptionMap = new Map(disruptionData.map((d) => [d.ticker, d]));
   const sorted = sortScores(data, sortKey, sortDir);
   const isLive = scores.length > 0;
@@ -206,6 +207,11 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
     else { setSortKey(key); setSortDir("desc"); }
   };
 
+  const handleDSort = (key: DisruptionSortKey) => {
+    if (key === dSortKey) setDSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setDSortKey(key); setDSortDir("desc"); }
+  };
+
   const toggleExpand = (ticker: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -215,7 +221,8 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
     });
   };
 
-  const arrow = (key: ScoreSortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+  const arrow = (key: string, current: string) => (current === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+  const dArrow = (key: DisruptionSortKey) => (dSortKey === key ? (dSortDir === "asc" ? " ▲" : " ▼") : "");
 
   const getEffectiveTier = (s: LiveScore) => {
     if (s.tier && s.tier.trim()) return s.tier.toUpperCase();
@@ -233,6 +240,19 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
   const thBase: React.CSSProperties = { fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase" as const, padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left" as const, fontWeight: 400, whiteSpace: "nowrap" as const, cursor: "pointer", userSelect: "none" as const };
   const badgeBase: React.CSSProperties = { padding: "2px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", whiteSpace: "nowrap" as const };
 
+  const tabStyle = (isActive: boolean): React.CSSProperties => ({
+    background: "transparent",
+    border: "none",
+    borderBottom: isActive ? "2px solid var(--gold)" : "2px solid transparent",
+    color: isActive ? "var(--gold)" : "var(--text-dim)",
+    cursor: "pointer",
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    padding: "12px 20px 10px",
+  });
+
   const renderRow = (s: LiveScore) => {
     const tier = getEffectiveTier(s);
     const buyRange = s.buyLow && s.buyHigh ? `${s.currency} ${s.buyLow}–${s.buyHigh}` : s.buyLow ? `${s.currency} >${s.buyLow}` : "—";
@@ -243,123 +263,45 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
 
     return (
       <>
-        <tr
-          key={s.ticker}
-          style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}
-          onClick={() => toggleExpand(s.ticker)}
-        >
-          {/* Expand chevron + Ticker */}
+        <tr key={s.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }} onClick={() => toggleExpand(s.ticker)}>
           <td style={{ padding: "10px 12px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {isExpanded
-                ? <ChevronDown size={12} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
-                : <ChevronRight size={12} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
-              }
+              {isExpanded ? <ChevronDown size={12} style={{ color: "var(--text-dim)", flexShrink: 0 }} /> : <ChevronRight size={12} style={{ color: "var(--text-dim)", flexShrink: 0 }} />}
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>
                   {s.ticker}
-                  {s.disruption != null && s.disruption < 8 && (
-                    <span title="Disruption risk — review thesis" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12, cursor: "help" }}>⚠</span>
-                  )}
+                  {s.disruption != null && s.disruption < 8 && <span title="Disruption risk" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12 }}>⚠</span>}
                 </span>
-                {s.name && (
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1 }}>{s.name}</span>
-                )}
+                {s.name && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1 }}>{s.name}</span>}
               </div>
             </div>
           </td>
-          {/* Layer */}
-          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-mid)", letterSpacing: "0.08em" }}>
-            {s.layer || "—"}
-          </td>
-          {/* Score */}
+          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-mid)", letterSpacing: "0.08em" }}>{s.layer || "—"}</td>
           <td style={{ padding: "10px 12px" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
-              {s.score ?? "—"}
-              <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="score" />
+              {s.score ?? "—"}<ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="score" />
             </span>
           </td>
-          {/* Sub-scores with trends */}
-          <td style={{ padding: "10px 12px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center" }}>
-              <ScoreBar value={s.substrate} max={25} color="var(--gold)" />
-              <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="substrate" />
-            </div>
-          </td>
-          <td style={{ padding: "10px 12px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center" }}>
-              <ScoreBar value={s.demand} max={22} color="var(--accent)" />
-              <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="demand" />
-            </div>
-          </td>
-          <td style={{ padding: "10px 12px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center" }}>
-              <ScoreBar value={s.moat} max={18} color="var(--green)" />
-              <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="moat" />
-            </div>
-          </td>
-          <td style={{ padding: "10px 12px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center" }}>
-              <ScoreBar value={s.valuation} max={13} color="var(--amber)" />
-              <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="valuation" />
-            </div>
-          </td>
-          <td style={{ padding: "10px 12px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center" }}>
-              <ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" />
-              <ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="mgmt" />
-            </div>
-          </td>
-          {/* Disruption */}
+          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.substrate} max={25} color="var(--gold)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="substrate" /></div></td>
+          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.demand} max={22} color="var(--accent)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="demand" /></div></td>
+          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.moat} max={18} color="var(--green)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="moat" /></div></td>
+          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.valuation} max={13} color="var(--amber)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="valuation" /></div></td>
+          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="mgmt" /></div></td>
           <td style={{ padding: "10px 12px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 11 ? "var(--green)" : s.disruption >= 8 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
-              {(() => {
-                if (!dd || !dd.status) return null;
-                const st = dd.status.toUpperCase();
-                const style = DISRUPTION_STATUS_STYLE[st] ?? DISRUPTION_STATUS_STYLE.MONITOR;
-                return (
-                  <span style={{ ...style, ...badgeBase, padding: "1px 6px", fontSize: 8 }}>
-                    {st}
-                  </span>
-                );
-              })()}
+              {(() => { if (!dd || !dd.status) return null; const st = dd.status.toUpperCase(); const style = DISRUPTION_STATUS_STYLE[st] ?? DISRUPTION_STATUS_STYLE.MONITOR; return <span style={{ ...style, ...badgeBase, padding: "1px 6px", fontSize: 8 }}>{st}</span>; })()}
             </div>
           </td>
-          {/* Buy Range */}
           <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
-          {/* Tier */}
+          <td style={{ padding: "10px 12px" }}><span style={{ ...tierStyle, ...badgeBase }}>{tier}</span></td>
           <td style={{ padding: "10px 12px" }}>
-            <span style={{ ...tierStyle, ...badgeBase }}>{tier}</span>
+            {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
           </td>
-          {/* Action */}
-          <td style={{ padding: "10px 12px" }}>
-            {s.action && s.action.trim() ? (
-              <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span>
-            ) : (
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>
-            )}
-          </td>
-          {/* Notes */}
-          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {s.changeNote || s.fullThesis}
-          </td>
+          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.changeNote || s.fullThesis}</td>
         </tr>
-        {/* Expanded disruption panel */}
-        {isExpanded && dd && (
-          <tr key={`${s.ticker}-disruption`}>
-            <td colSpan={COLUMNS.length + 1}>
-              <DisruptionPanel d={dd} />
-            </td>
-          </tr>
-        )}
-        {isExpanded && !dd && (
-          <tr key={`${s.ticker}-no-disruption`}>
-            <td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No disruption data available for {s.ticker}</span>
-            </td>
-          </tr>
-        )}
+        {isExpanded && dd && <tr key={`${s.ticker}-disruption`}><td colSpan={COLUMNS.length + 1}><DisruptionPanel d={dd} /></td></tr>}
+        {isExpanded && !dd && <tr key={`${s.ticker}-no-disruption`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No disruption data for {s.ticker}</span></td></tr>}
       </>
     );
   };
@@ -369,28 +311,78 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
       <div style={cardHeaderS}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={cardTitleS}>{title}</span>
-          {subtitle && (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em" }}>{subtitle}</span>
-          )}
+          {subtitle && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em" }}>{subtitle}</span>}
         </div>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: isLive ? "var(--green)" : "var(--text-dim)", letterSpacing: "0.12em" }}>
-          {isLive ? "● LIVE" : "● STATIC"}
-        </span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: isLive ? "var(--green)" : "var(--text-dim)", letterSpacing: "0.12em" }}>{isLive ? "● LIVE" : "● STATIC"}</span>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
               {COLUMNS.map((col) => (
-                <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>
-                  {col.label}{arrow(col.key)}
-                </th>
+                <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
               ))}
               <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Notes</th>
             </tr>
           </thead>
+          <tbody>{rows.map((s) => renderRow(s))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const sortedDisruption = sortDisruption(disruptionData, dSortKey, dSortDir);
+
+  const renderDisruptionView = () => (
+    <div style={cardS}>
+      <div style={cardHeaderS}>
+        <span style={cardTitleS}>Disruption Analysis</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: disruptionData.length > 0 ? "var(--green)" : "var(--text-dim)", letterSpacing: "0.12em" }}>
+          {disruptionData.length > 0 ? `● ${disruptionData.length} ASSETS` : "● NO DATA"}
+        </span>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {DISRUPTION_COLUMNS.map((col) => (
+                <th key={col.key} onClick={() => handleDSort(col.key)} style={{ ...thBase, color: dSortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>
+                  {col.label}{dArrow(col.key)}
+                </th>
+              ))}
+              <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Triggers</th>
+              <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Evidence</th>
+            </tr>
+          </thead>
           <tbody>
-            {rows.map((s) => renderRow(s))}
+            {sortedDisruption.map((d) => {
+              const scoreColor = d.disruptionScore != null ? (d.disruptionScore >= 70 ? "var(--green)" : d.disruptionScore >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)";
+              const st = d.status.toUpperCase();
+              const statusStyle = DISRUPTION_STATUS_STYLE[st] ?? DISRUPTION_STATUS_STYLE.MONITOR;
+              return (
+                <tr key={d.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                  <td style={{ padding: "10px 12px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>{d.ticker}</span>
+                      {d.name && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{d.name}</span>}
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 700, color: scoreColor }}>{d.disruptionScore ?? "—"}</td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.subAvail ?? "—"}</td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.economics ?? "—"}</td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.govtSupport ?? "—"}</td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.demandVuln ?? "—"}</td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.timeViability ?? "—"}</td>
+                  <td style={{ padding: "10px 12px" }}><span style={{ ...statusStyle, ...badgeBase, padding: "2px 8px" }}>{st}</span></td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", maxWidth: 150 }}>
+                    {d.amberTrigger && <div style={{ color: "var(--amber)", marginBottom: 2 }}>⚠ {d.amberTrigger}</div>}
+                    {d.redTrigger && <div style={{ color: "var(--red)" }}>🔴 {d.redTrigger}</div>}
+                    {!d.amberTrigger && !d.redTrigger && "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.evidence || "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -399,34 +391,40 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
 
   return (
     <div>
-      {/* Summary row — holdings only */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 20 }}>
-        {[
-          { label: "Holdings", value: String(holdings.length), color: "var(--text)" },
-          { label: "Core", value: String(core), color: "var(--green)" },
-          { label: "Anchor", value: String(anchor), color: "var(--accent)" },
-          { label: "Satellite", value: String(satellite), color: "var(--amber)" },
-          { label: "Spec / Residual", value: String(spec), color: "var(--red)" },
-        ].map((m) => (
-          <div key={m.label} style={{ ...cardS, padding: "16px 20px", marginBottom: 0 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 300, color: m.color }}>{m.value}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6 }}>{m.label}</div>
+      {/* Tab switcher */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--rim)", marginBottom: 20 }}>
+        <button style={tabStyle(activeView === "scores")} onClick={() => setActiveView("scores")}>Scores</button>
+        <button style={tabStyle(activeView === "disruption")} onClick={() => setActiveView("disruption")}>Disruption</button>
+      </div>
+
+      {activeView === "scores" && (
+        <>
+          {/* Summary row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 20 }}>
+            {[
+              { label: "Holdings", value: String(holdings.length), color: "var(--text)" },
+              { label: "Core", value: String(core), color: "var(--green)" },
+              { label: "Anchor", value: String(anchor), color: "var(--accent)" },
+              { label: "Satellite", value: String(satellite), color: "var(--amber)" },
+              { label: "Spec / Residual", value: String(spec), color: "var(--red)" },
+            ].map((m) => (
+              <div key={m.label} style={{ ...cardS, padding: "16px 20px", marginBottom: 0 }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 300, color: m.color }}>{m.value}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6 }}>{m.label}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          {renderTable("Stellar Alignment Scores", holdings, `${holdings.length} holdings`)}
+          {watchlist.length > 0 && renderTable("Watchlist Scores", watchlist, `${watchlist.length} watchlist`)}
+          <div style={{ ...cardS, padding: "12px 20px" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", lineHeight: 2 }}>
+              DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; TIERS · Core (4–7% AUM) · Anchor · Satellite (1–3%) · Spec (≤1%) · Residual
+            </div>
+          </div>
+        </>
+      )}
 
-      {/* Holdings table */}
-      {renderTable("Stellar Alignment Scores", holdings, `${holdings.length} holdings`)}
-
-      {/* Watchlist table */}
-      {watchlist.length > 0 && renderTable("Watchlist Scores", watchlist, `${watchlist.length} watchlist`)}
-
-      {/* Framework reminder */}
-      <div style={{ ...cardS, padding: "12px 20px" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", lineHeight: 2 }}>
-          DIMENSION WEIGHTS · Substrate /25 · Demand /22 · Moat /18 · Valuation /13 · Mgmt /7 · Disruption /15 · Total /100 &nbsp;·&nbsp; TIERS · Core (4–7% AUM) · Anchor · Satellite (1–3%) · Spec (≤1%) · Residual
-        </div>
-      </div>
+      {activeView === "disruption" && renderDisruptionView()}
     </div>
   );
 }

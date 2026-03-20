@@ -260,6 +260,17 @@ function parsePct(val: any): number {
   return parsePercentLike(val);
 }
 
+/** For performance TWR fields: sheet stores values as whole percentages (e.g. 8.5 = 8.5%). Never multiply. */
+function parseRawPct(val: any): number {
+  if (typeof val === "number") return Number.isFinite(val) ? val : 0;
+  if (typeof val === "string") {
+    const cleaned = val.trim().replace(/[,+\s%]/g, "");
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num : 0;
+  }
+  return 0;
+}
+
 function parseSheetDate(val: any): string {
   if (typeof val === "string") {
     const match = val.match(/^Date\((\d+),(\d+),(\d+)\)$/);
@@ -450,12 +461,12 @@ function parsePerformance(rows: Record<string, any>[]) {
       depositsSipp: parseMv(findCol(row, "deposits_in_period_sipp", "DEPOSITS_IN_PERIOD_SIPP")),
       depositsIsa: parseMv(findCol(row, "deposits_in_period_isa", "DEPOSITS_IN_PERIOD_ISA")),
       depositsTotal: parseMv(findCol(row, "deposits_in_period_total", "DEPOSITS_IN_PERIOD_TOTAL")),
-      subPeriodRtnSipp: parsePct(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
-      subPeriodRtnIsa: parsePct(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
-      subPeriodRtnTotal: parsePct(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
-      cumulativeTwrSipp: parsePct(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
-      cumulativeTwrIsa: parsePct(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
-      cumulativeTwrTotal: parsePct(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      subPeriodRtnSipp: parseRawPct(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
+      subPeriodRtnIsa: parseRawPct(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
+      subPeriodRtnTotal: parseRawPct(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
+      cumulativeTwrSipp: parseRawPct(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
+      cumulativeTwrIsa: parseRawPct(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
+      cumulativeTwrTotal: parseRawPct(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
       note: String(findCol(row, "note", "Note", "NOTE") ?? ""),
     }));
 }
@@ -673,7 +684,7 @@ export function usePortfolioData(): PortfolioData {
         earningsCalendarRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF32" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A2:K20" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A2:K50" }),
         fetchSheet({ gid: GIDS.layers }).catch(() => []),
         fetchSheet({ gid: GIDS.scores }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
