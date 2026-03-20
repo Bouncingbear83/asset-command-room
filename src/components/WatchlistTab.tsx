@@ -219,7 +219,10 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
   const buyItems = statusSorted.filter((item) => BUY_STATUSES.includes(item.status.trim().toUpperCase()));
   const buyReadyCount = buyItems.length;
-  const inZoneCount = statusSorted.filter((item) => item.vsTarget < 0).length;
+  const inZoneCount = statusSorted.filter((item) => {
+    const pct = getPctInfo(item).pctDist;
+    return pct != null && pct < 0;
+  }).length;
   const pauseActive = (macroState["PAUSE_ACTIVE"]?.currentValue || "").trim().toUpperCase() === "YES";
 
   function handleSort(col: SortCol) {
