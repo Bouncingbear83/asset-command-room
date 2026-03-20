@@ -1,33 +1,30 @@
 
 
-## Fix: Missing Layer Names + 200% Invested Bug
+## Fix: Quick Commands blocked by Claude.ai
 
-### Root Cause
+### Problem
 
-The LAYERS sheet has a **title row in row 1** (showing "MV (£)" as a merged header) with the actual column headers ("LAYER", "TARGET %", "CURRENT %", etc.) in **row 2**. The current fetch at line 707 does `fetchSheet({ gid: GIDS.layers })` with no range specified, so the gviz API auto-detects row 1 as headers — which has mostly empty cells and one "MV (£)" label.
-
-This means:
-- Column A ("LAYER") gets no header label → resolves to a generic key → `findCol(row, "layer", ...)` finds nothing → all layer names are empty strings
-- Same issue cascades to target %, current %, hex color, etc. — some may accidentally map correctly via the fallback matching, others don't
-- Since all `layer.name` values are `""`, the `totalRow` and `cashRow` lookups both fail (no name matches "TOTAL" or "CASH"), so `totalInvested` falls back to summing all layers including CASH and TOTAL rows → **200%**
-- All rows have `key={layer.name}` = `""` → duplicate key warnings in console
+The Lovable preview runs inside an iframe. When `window.open(url, "_blank")` is called from within that iframe, Claude.ai rejects the connection (`ERR_BLOCKED_BY_RESPONSE`) because it sets headers that prevent loading from embedded contexts.
 
 ### Fix
 
-**`src/hooks/usePortfolioData.ts`** (line 707):
-- Change `fetchSheet({ gid: GIDS.layers })` to `fetchSheet({ gid: GIDS.layers, range: "A2:H11" })`
-- This skips the title row and starts from the actual headers in row 2, matching the sheet structure (rows 2–11 = headers + 9 data rows including CASH and TOTAL)
+Change `launchClaude` to use `window.top.open()` instead of `window.open()`, which opens the URL from the top-level browser window rather than from the iframe context. Add a fallback for cases where `window.top` is inaccessible due to cross-origin restrictions.
 
-**`src/components/LayersTab.tsx`**:
-- Fix duplicate keys: use index-prefixed keys (`key={`layer-${i}`}`) for all `.map()` calls on layer arrays
+### File
 
-### Validation
-- Layer names (Compute, Energy, Materials, etc.) will appear in legend and detail table
-- TOTAL row found → center label shows correct ~100% invested
-- CASH row found → rendered separately
-- No duplicate key warnings
+**`src/components/CommandTab.tsx`** (line 54-58):
 
-### Files
-- `src/hooks/usePortfolioData.ts` — add range to layers fetch
-- `src/components/LayersTab.tsx` — fix duplicate keys
+```typescript
+function launchClaude(prompt: string) {
+  const encodedPrompt = encodeURIComponent(prompt);
+  const url = `https://claude.ai/new?project=${PROJECT_ID}&q=${encodedPrompt}`;
+  try {
+    (window.top || window).open(url, "_blank");
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+```
+
+This single-line change should resolve the blocking issue. If it still fails in the preview (because Lovable's iframe sandbox may restrict `window.top` access), it will work correctly on the published URL where there's no parent iframe.
 
