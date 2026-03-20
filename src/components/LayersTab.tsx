@@ -166,11 +166,11 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Target</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Gap</div>
             </div>
-            {coloredLayers.map((layer) => {
+            {coloredLayers.map((layer, i) => {
               const diff = layer.current - layer.target;
               const diffColor = Math.abs(diff) < 1 ? "var(--green)" : Math.abs(diff) < 3 ? "var(--amber)" : "var(--red)";
               return (
-                <div key={layer.name} style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "4px 0" }}>
+                <div key={`legend-${i}`} style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "4px 0" }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: layer.color }} />
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text)", textAlign: "right" }}>{layer.current.toFixed(1)}%</div>
@@ -214,10 +214,10 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Key Holdings</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>MV</div>
           </div>
-          {chartLayers.map((layer) => {
+          {chartLayers.map((layer, i) => {
             const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
             return (
-              <div key={layer.name} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
+              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
@@ -234,8 +234,8 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
           <div style={{ padding: "0 20px 12px" }}>
             {layerNarrative && <div style={{ ...emptyState, paddingBottom: 12, borderBottom: "1px solid rgba(28,28,48,0.4)" }}>{layerNarrative}</div>}
             {liveGapLayers.length === 0 && <div style={emptyState}>No live gap actions found in LAYERS.</div>}
-            {liveGapLayers.map((layer) => (
-              <div key={layer.name} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+            {liveGapLayers.map((layer, i) => (
+              <div key={`gap-${i}`} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: layer.hexColor || "var(--text)" }}>{layer.name}</span>
                   {layer.priority && <span style={priorityBadge(layer.priority)}>{layer.priority}</span>}
