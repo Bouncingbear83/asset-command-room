@@ -214,10 +214,10 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Key Holdings</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>MV</div>
           </div>
-          {chartLayers.map((layer) => {
+          {chartLayers.map((layer, i) => {
             const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
             return (
-              <div key={layer.name} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
+              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
