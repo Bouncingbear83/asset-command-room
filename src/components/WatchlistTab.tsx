@@ -289,11 +289,11 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
             ))}
           </div>
           {/* Rows */}
-          {items.map((item) => {
+          {items.map((item, idx) => {
             const { current, vsColor, vsLabel } = getPctInfo(item);
             return (
               <div
-                key={`${item.name}-${item.ticker}`}
+                key={`row-${idx}-${item.ticker}`}
                 style={{
                   display: "grid",
                   gridTemplateColumns: gridCols,
