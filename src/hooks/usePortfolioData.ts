@@ -120,14 +120,15 @@ function resolveColumnLabel(label: string) {
   if (/\bname\b/.test(labelLower)) return "name";
   if (labelLower.includes("next earnings") || labelLower.includes("next_earnings")) return "next_earnings_date";
   if (labelLower.includes("fiscal period") || labelLower.includes("fiscal_period")) return "fiscal_period";
-  if (labelLower.includes("trigger_price_numeric")) return "trigger_price_numeric";
-  if (labelLower.includes("trigger_price_add")) return "trigger_price_add";
-  if (labelLower.includes("trigger_price_exit")) return "trigger_price_exit";
-  if (labelLower.includes("trigger_type")) return "trigger_type";
-  if (labelLower.includes("alert_status")) return "alert_status";
-  if (labelLower.includes("alert_fired_date")) return "alert_fired_date";
-  if (labelLower.includes("last_checked")) return "last_checked";
-  if (labelLower.includes("last_updated")) return "last_updated";
+  // Space-separated variants for watchlist columns
+  if (labelLower.includes("trigger price numeric") || labelLower.includes("trigger_price_numeric")) return "trigger_price_numeric";
+  if (labelLower.includes("trigger price add") || labelLower.includes("trigger_price_add")) return "trigger_price_add";
+  if (labelLower.includes("trigger price exit") || labelLower.includes("trigger_price_exit")) return "trigger_price_exit";
+  if (labelLower.includes("trigger type") || labelLower.includes("trigger_type")) return "trigger_type";
+  if (labelLower.includes("alert status") || labelLower.includes("alert_status")) return "alert_status";
+  if (labelLower.includes("alert fired date") || labelLower.includes("alert_fired_date")) return "alert_fired_date";
+  if (labelLower.includes("last checked") || labelLower.includes("last_checked")) return "last_checked";
+  if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
   if (labelLower.includes("trigger condition")) return "trigger condition";
@@ -723,6 +724,7 @@ export function usePortfolioData(): PortfolioData {
 
       // Parse cash balances from CASH sheet
       let cashSipp = 0, cashIsa = 0, cashTotal = 0;
+      console.log("[CASH] raw grid:", JSON.stringify(cashGrid));
       if (cashGrid.length >= 2) {
         // Try header-based parsing: find columns by header row
         const headers = cashGrid[0].map((h) => normalizeToken(h));
@@ -735,6 +737,16 @@ export function usePortfolioData(): PortfolioData {
         if (totalIdx >= 0) cashTotal = parseMv(dataRow[totalIdx]);
         // Fallback: if no total but have both, sum them
         if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
+        // Fallback: row-based layout (col A = label, col B/C = values)
+        if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0) {
+          for (const row of cashGrid) {
+            const label = normalizeToken(row[0]);
+            if (label.includes("sipp")) cashSipp = parseMv(row[1]) || parseMv(row[2]);
+            else if (label.includes("isa")) cashIsa = parseMv(row[1]) || parseMv(row[2]);
+            else if (label.includes("total")) cashTotal = parseMv(row[1]) || parseMv(row[2]);
+          }
+          if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
+        }
         // Fallback: positional A=SIPP, B=ISA, C=Total
         if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0 && dataRow.length >= 2) {
           cashSipp = parseMv(dataRow[0]);
@@ -742,6 +754,7 @@ export function usePortfolioData(): PortfolioData {
           cashTotal = dataRow.length >= 3 ? parseMv(dataRow[2]) : cashSipp + cashIsa;
         }
       }
+      console.log("[CASH] parsed:", { cashSipp, cashIsa, cashTotal });
 
       setState({
         holdings: allHoldings,
