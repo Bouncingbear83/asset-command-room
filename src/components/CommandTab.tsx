@@ -54,7 +54,11 @@ const HOLDING_ALERT_STYLE: Record<string, React.CSSProperties> = {
 function launchClaude(prompt: string) {
   const encodedPrompt = encodeURIComponent(prompt);
   const url = `https://claude.ai/new?project=${PROJECT_ID}&q=${encodedPrompt}`;
-  window.open(url, "_blank");
+  try {
+    (window.top || window).open(url, "_blank");
+  } catch {
+    window.open(url, "_blank");
+  }
 }
 
 const statusChip = (status: string): React.CSSProperties => {
