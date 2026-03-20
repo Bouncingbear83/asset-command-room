@@ -464,9 +464,9 @@ function parsePerformance(rows: Record<string, any>[]) {
       subPeriodRtnSipp: parsePercentLike(findCol(row, "sub_period_rtn_sipp", "SUB_PERIOD_RTN_SIPP")),
       subPeriodRtnIsa: parsePercentLike(findCol(row, "sub_period_rtn_isa", "SUB_PERIOD_RTN_ISA")),
       subPeriodRtnTotal: parsePercentLike(findCol(row, "sub_period_rtn_total", "SUB_PERIOD_RTN_TOTAL")),
-      cumulativeTwrSipp: parsePercentLike(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
-      cumulativeTwrIsa: parsePercentLike(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
-      cumulativeTwrTotal: parsePercentLike(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      cumulativeTwrSipp: parseFractionToPercent(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
+      cumulativeTwrIsa: parseFractionToPercent(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
+      cumulativeTwrTotal: parseFractionToPercent(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
       note: String(findCol(row, "note", "Note", "NOTE") ?? ""),
     }));
 }
