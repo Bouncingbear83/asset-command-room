@@ -76,11 +76,12 @@ const STATUS_ORDER: Record<string, number> = {
   "EXECUTE": 0,
   "BUY NOW": 1,
   "BUY T1": 2,
-  "IN_ZONE": 3,
+  "BUY T2": 3,
   "WAIT": 4,
-  "WATCH": 5,
-  "RESEARCH": 6,
-  "PRE-IPO": 7,
+  "MONITOR": 5,
+  "WATCH": 6,
+  "RESEARCH": 7,
+  "PRE-IPO": 8,
 };
 
 function getSortPriority(item: LiveWatchItem): number {
