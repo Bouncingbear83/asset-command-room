@@ -1,38 +1,33 @@
 
 
-## Layers: Fix Missing Layer Names + Better Visualization
+## Fix: Missing Layer Names + 200% Invested Bug
 
-### Problem 1: Missing Layer Names
+### Root Cause
 
-The layer name column in the sheet is likely "Layer" or "Layer Name". In `resolveColumnLabel`, the regex `/\bname\b/` at line 120 fires before any "layer" check, so a header like "Layer Name" resolves to `"name"` — colliding with other name columns. Meanwhile, `parseLayers` calls `findCol(row, "layer", "LAYER", "name", "NAME")` which tries "layer" first, but the column was already mapped to "name" by the resolver.
+The LAYERS sheet has a **title row in row 1** (showing "MV (£)" as a merged header) with the actual column headers ("LAYER", "TARGET %", "CURRENT %", etc.) in **row 2**. The current fetch at line 707 does `fetchSheet({ gid: GIDS.layers })` with no range specified, so the gviz API auto-detects row 1 as headers — which has mostly empty cells and one "MV (£)" label.
 
-**Fix**: Add a specific check in `resolveColumnLabel` before the generic `name` regex:
-```
-if (labelLower === "layer" || labelLower === "layer name") return "layer";
-```
+This means:
+- Column A ("LAYER") gets no header label → resolves to a generic key → `findCol(row, "layer", ...)` finds nothing → all layer names are empty strings
+- Same issue cascades to target %, current %, hex color, etc. — some may accidentally map correctly via the fallback matching, others don't
+- Since all `layer.name` values are `""`, the `totalRow` and `cashRow` lookups both fail (no name matches "TOTAL" or "CASH"), so `totalInvested` falls back to summing all layers including CASH and TOTAL rows → **200%**
+- All rows have `key={layer.name}` = `""` → duplicate key warnings in console
 
-### Problem 2: Visualization Alternatives
+### Fix
 
-The current horizontal progress bars are hard to read for comparing weights — it's difficult to judge relative sizes and gaps at a glance. Three strong alternatives:
+**`src/hooks/usePortfolioData.ts`** (line 707):
+- Change `fetchSheet({ gid: GIDS.layers })` to `fetchSheet({ gid: GIDS.layers, range: "A2:H11" })`
+- This skips the title row and starts from the actual headers in row 2, matching the sheet structure (rows 2–11 = headers + 9 data rows including CASH and TOTAL)
 
-**Option A: Stacked bar / donut chart** — A single donut (or two concentric rings: current vs target) gives an immediate portfolio-level view. Each segment is colored by layer. Hovering shows the detail. Clean and Ive-like.
+**`src/components/LayersTab.tsx`**:
+- Fix duplicate keys: use index-prefixed keys (`key={`layer-${i}`}`) for all `.map()` calls on layer arrays
 
-**Option B: Side-by-side horizontal bars** — For each layer, show TWO thin bars: one for current (filled), one for target (outline/dotted). This makes the gap visually obvious per-layer. Add a small "gap" label inline.
-
-**Option C: Grouped vertical bar chart** — Vertical bars, grouped by layer. Each group has a "current" bar and a "target" bar side by side. The gap is immediately visible as the height difference. Numbers above each bar.
-
-**Recommendation**: **Option A (donut) + detail table below**. A donut chart for the portfolio-level overview (current allocation) with a second faint ring for targets, plus a clean tabular breakdown below showing Layer Name, Current %, Target %, Gap, and MV. This separates "at a glance" from "detail" — better information hierarchy.
-
-### Plan
-
-**1. Fix layer name resolution** (`usePortfolioData.ts`)
-- Add `if (labelLower === "layer" || labelLower === "layer name") return "layer";` before the generic name regex in `resolveColumnLabel`
-
-**2. Redesign Layers visualization** (`LayersTab.tsx`)
-- **Top section**: Dual-ring donut chart (inner = target allocation, outer = current allocation). Each layer colored by its `hexColor`. Centered text shows total invested %. Built with SVG arcs (no library needed).
-- **Below donut**: Clean detail table with columns: Layer Name (colored), Key Holdings, Current %, Target %, Gap (colored ±), MV. CASH row at bottom. TOTAL summary row with border-top.
-- **Keep**: Gap Actions and Pre-IPO Watch cards below in the 2-column grid.
+### Validation
+- Layer names (Compute, Energy, Materials, etc.) will appear in legend and detail table
+- TOTAL row found → center label shows correct ~100% invested
+- CASH row found → rendered separately
+- No duplicate key warnings
 
 ### Files
-- `src/hooks/usePortfolioData.ts` — fix `resolveColumnLabel` for "layer" column
-- `src/components/LayersTab.tsx` — donut chart + detail table redesign
+- `src/hooks/usePortfolioData.ts` — add range to layers fetch
+- `src/components/LayersTab.tsx` — fix duplicate keys
+
