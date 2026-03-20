@@ -1,51 +1,43 @@
 
 
-## Fix: Watchlist summary, Buy T2 highlighting, sorting, Returns scaling, AUM cash
+## Fix: Cumulative TWR values break when they exceed 100%
 
-### Issues
+### Root cause
 
-1. **Watchlist execute-ready count is 0** — `getSortPriority` checks `alertStatus` for EXECUTE, but the BUY T1 status items like HEXA-B aren't being counted. The "execute-ready" label actually needs to count items with status `BUY NOW` or `BUY T1` (i.e. actionable buy statuses), not just `alertStatus === "EXECUTE"`.
+The Google Sheets API returns percentage-formatted cells as decimal fractions. A cell showing `129.4%` arrives as `1.294`. The `parsePercentLike` heuristic multiplies by 100 only when `abs(val) <= 1`, so:
 
-2. **BUY T2 items not green, not in callout box** — `BuyHighlightBox` only includes `BUY NOW` and `BUY T1`. Need to add `BUY T2`. `STATUS_STYLE` also lacks a `BUY T2` entry so it renders with fallback styling instead of green.
+- `0.737` (73.7%) → correctly scaled to `73.7` ✓
+- `1.04` (104.0%) → left as `1.04`, displayed as `+1.0%` ✗
+- `1.294` (129.4%) → left as `1.294`, displayed as `+1.3%` ✗
 
-3. **No sorting visible / wrong sort order** — The status sort order is missing `BUY T2`, `MONITOR`. Need to update `STATUS_ORDER` to: `BUY NOW` → `BUY T1` → `BUY T2` → `WAIT` → `MONITOR` → `RESEARCH` → `PRE-IPO`.
+This is why it "goes wrong at 2025-06-30" — that's the row where ISA TWR first crosses 100% (fraction > 1.0).
 
-4. **Returns showing 1.4% instead of 140%** — The `calcReturn` formula `((1 + endTwr / 100) / (1 + startTwr / 100) - 1) * 100` is correct for whole-percent TWR inputs. But if the sheet stores cumulative TWR as fractions (e.g. `0.014` meaning 1.4%), then `parseRawPct` reads it as `0.014` and `calcReturn` divides by 100 again, producing tiny numbers. The actual issue: sheet TWR values are likely stored as fractions (0–1 scale), not whole percentages. `parseRawPct` should detect this — if cumulative TWR values are all < 2, they're fractions and need `* 100`. Alternatively, since these are cumulative TWR values that could legitimately be small whole percentages, the safest fix is: use `parsePercentLike` for cumulative TWR fields (which handles the fraction detection), and keep `parseRawPct` only for sub-period returns which are truly small.
+Sub-period returns stay well under 100% in absolute terms so `parsePercentLike` works for those. The problem is isolated to the three cumulative TWR fields.
 
-5. **AUM missing cash** — The header AUM calculation sums only holdings MV. CASH sheet is never fetched. Need to fetch CASH tab and add it to the total.
+### Fix
 
-### Plan
+In `parsePerformance` within `usePortfolioData.ts`, change the three cumulative TWR lines from `parsePercentLike(...)` to a direct `parseRawFraction(...)` that always multiplies by 100:
 
-**1. Fetch CASH sheet and add to AUM**
+```
+cumulativeTwrSipp:  alwaysScaleFraction(val)   // 1.294 → 129.4
+cumulativeTwrIsa:   alwaysScaleFraction(val)   // 1.04  → 104.0
+cumulativeTwrTotal: alwaysScaleFraction(val)   // 0.737 → 73.7
+```
 
-In `usePortfolioData.ts`:
-- Add CASH fetch: `fetchSheetGrid({ gid: GIDS.cash, range: "A1:C3" })`
-- Parse to extract `cash_sipp` and `cash_isa` values
-- Expose `cashSipp`, `cashIsa`, `cashTotal` on the hook return
+Add a small helper (or inline): parse the raw number and unconditionally `* 100`, since the API always delivers these as fractions regardless of magnitude.
 
-In `Index.tsx`:
-- Add cash to the AUM calculation: `sippTotal + cashSipp`, `isaTotal + cashIsa`
+Sub-period return fields stay on `parsePercentLike` — they never exceed ±100% so the heuristic is safe there.
 
-**2. Fix Watchlist summary and Buy T2**
+### Validation
 
-In `WatchlistTab.tsx`:
-- Add `"BUY T2"` to `STATUS_STYLE` with green styling
-- Add `"BUY T2"` and `"MONITOR"` to `STATUS_ORDER` (BUY NOW=1, BUY T1=2, BUY T2=3, WAIT=4, MONITOR=5, RESEARCH=6, PRE-IPO=7)
-- Expand `buyItems` filter to include `BUY T2`
-- Change `executeCount` to count items with buy-actionable statuses (`BUY NOW`, `BUY T1`, `BUY T2`) — label it "buy-ready" instead of "execute-ready"
+After fix, the Performance History table's "Cumul. TWR" column should match the sheet exactly:
+- Row 2026-03-20: +140.6% (not +1.4%)
+- Row 2025-06-30: +88.5% (not +0.9%)
+- Row 2022-06-30: +84.6% (not +0.8%)
 
-**3. Fix Returns TWR scaling**
+Period Returns (TWR) will also compute correctly since `calcReturn` uses these cumulative values.
 
-In `usePortfolioData.ts`:
-- Change cumulative TWR parsing from `parseRawPct` to `parsePercentLike` so that fractional values like `0.014` get correctly scaled to `1.4`
-- Keep sub-period returns on `parseRawPct` since those are computed differently
+### Files
 
-In `ReturnsTab.tsx`:
-- Verify `calcReturn` formula works with correctly-scaled inputs — it should, since `(1 + 1.4/100) / (1 + 0/100) - 1) * 100 = 1.4` which is correct
-
-### Files affected
-
-- `src/hooks/usePortfolioData.ts` — CASH fetch, TWR parsing fix, expose cash values
-- `src/components/WatchlistTab.tsx` — BUY T2 styling/sorting/callout, summary label fix
-- `src/pages/Index.tsx` — add cash to AUM display
+- `src/hooks/usePortfolioData.ts` — add fraction parser, update 3 cumulative TWR fields in `parsePerformance`
 
