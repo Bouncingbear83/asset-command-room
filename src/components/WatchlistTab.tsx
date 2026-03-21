@@ -42,8 +42,9 @@ function getPctInfo(item: LiveWatchItem) {
   let vsColor = "var(--text-dim)";
   let vsLabel = "—";
   if (pctDist !== null) {
+    // Negative = below target (buy zone) = green. Positive = above target (wait) = amber/red.
     if (pctDist <= 0) { vsColor = "var(--green)"; vsLabel = pctDist === 0 ? "AT TARGET" : `${pctDist.toFixed(1)}%`; }
-    else if (pctDist <= 10) { vsColor = "var(--amber)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
+    else if (pctDist <= 10) { vsColor = "var(--red)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
     else { vsColor = "var(--red)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
   }
   return { current, entryNum, pctDist, vsColor, vsLabel };
@@ -213,7 +214,7 @@ function ActionButtons({ ticker }: { ticker: string }) {
 
 // ── Row Card ──
 
-function WatchlistRow({ item, dimmed }: { item: LiveWatchItem; dimmed?: boolean }) {
+function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimmed?: boolean; hideActions?: boolean }) {
   const { current, vsColor, vsLabel } = getPctInfo(item);
 
   return (
@@ -260,7 +261,7 @@ function WatchlistRow({ item, dimmed }: { item: LiveWatchItem; dimmed?: boolean 
       <ReviewCard note={item.triggerReviewNote} dateStr={item.triggerReviewDate} />
 
       {/* Line 5: Action buttons */}
-      {!dimmed && <ActionButtons ticker={item.ticker} />}
+      {!dimmed && !hideActions && <ActionButtons ticker={item.ticker} />}
     </div>
   );
 }
@@ -411,7 +412,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO / Research" count={research.length} />
           {research.map((item, idx) => (
-            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
+            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed hideActions />
           ))}
         </div>
       )}
