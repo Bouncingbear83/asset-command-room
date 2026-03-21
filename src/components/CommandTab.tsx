@@ -566,7 +566,7 @@ export default function CommandTab() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", minWidth: 60 }}>{label}</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: barColor }}>
-                        {isNaN(currentNum) ? r.current : `${currentNum}%`} / {limit}% {isFloor ? "floor" : "cap"}
+                        {isNaN(currentNum) ? r.current : `${currentNum.toFixed(1)}%`} / {limit.toFixed(1)}% {isFloor ? "floor" : "cap"}
                       </span>
                     </div>
                     <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "visible" }}>
