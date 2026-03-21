@@ -15,19 +15,6 @@ const LAYER_COLORS = [
   "#9b59b6", "#1abc9c", "#f39c12", "#3498db", "#e91e63",
 ];
 
-/* ── SVG donut helpers ── */
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function describeArc(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
-  const clampedEnd = Math.min(endAngle, startAngle + 359.999);
-  const start = polarToCartesian(cx, cy, r, clampedEnd);
-  const end = polarToCartesian(cx, cy, r, startAngle);
-  const largeArc = clampedEnd - startAngle > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
-}
 
 /* ── badge helpers ── */
 const priorityBadge = (priority: string): React.CSSProperties => {
