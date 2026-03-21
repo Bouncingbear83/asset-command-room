@@ -610,5 +610,6 @@ export default function CommandTab() {
           </div>
         </details>
       </div>
+    </div>
   );
 }
