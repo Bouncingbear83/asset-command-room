@@ -42,8 +42,9 @@ function getPctInfo(item: LiveWatchItem) {
   let vsColor = "var(--text-dim)";
   let vsLabel = "—";
   if (pctDist !== null) {
+    // Negative = below target (buy zone) = green. Positive = above target (wait) = amber/red.
     if (pctDist <= 0) { vsColor = "var(--green)"; vsLabel = pctDist === 0 ? "AT TARGET" : `${pctDist.toFixed(1)}%`; }
-    else if (pctDist <= 10) { vsColor = "var(--amber)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
+    else if (pctDist <= 10) { vsColor = "var(--red)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
     else { vsColor = "var(--red)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
   }
   return { current, entryNum, pctDist, vsColor, vsLabel };
