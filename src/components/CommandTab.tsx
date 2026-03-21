@@ -454,13 +454,12 @@ export default function CommandTab() {
           <div style={cardHeader}><span style={cardTitle}>Risk Controls</span></div>
           <div style={{ padding: "0 20px 8px" }}>
             {riskControls.map((r) => (
-              <div key={r.key} style={divRow}>
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{r.threshold || (r.current ? `Current ${r.current}` : "No threshold")}</div>
-                  {r.detail && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>→ {r.detail}</div>}
+              <div key={r.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: 12 }}>
+                <span style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{r.current || "—"}</span>
+                  <span style={statusChip(r.status)}>{r.status}</span>
                 </div>
-                <span style={statusChip(r.status)}>{r.status}</span>
               </div>
             ))}
             {riskControls.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>}
