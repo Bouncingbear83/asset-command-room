@@ -107,8 +107,10 @@ export default function LayersAllocation({ layers }: Props) {
   }, [investedLayers, cashRow]);
 
   const investedPct = useMemo(() => {
-    return totalRow?.current ?? investedLayers.reduce((s, l) => s + l.current, 0);
-  }, [totalRow, investedLayers]);
+    const cashPct = cashRow?.current ?? 0;
+    const total = totalRow?.current ?? investedLayers.reduce((s, l) => s + l.current, 0);
+    return total > 0 ? total : 100 - cashPct;
+  }, [totalRow, investedLayers, cashRow]);
 
   const dryPowder = cashRow?.mv ?? 0;
 
