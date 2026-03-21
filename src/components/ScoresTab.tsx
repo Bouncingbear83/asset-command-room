@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Shield } from "lucide-react";
+import { ChevronRight, ChevronDown, Shield, RefreshCw } from "lucide-react";
 import { LiveScore, LiveScoreLog, LiveDisruption } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 interface Props {
   scores: LiveScore[];
