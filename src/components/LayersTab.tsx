@@ -81,7 +81,7 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
             <div />
           </div>
           {chartLayers.map((layer, i) => {
-            const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
+            const color = layer.hexColor || LAYER_COLORS[i % LAYER_COLORS.length] || "var(--text-mid)";
             return (
               <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
