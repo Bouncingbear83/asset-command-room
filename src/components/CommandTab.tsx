@@ -524,17 +524,54 @@ export default function CommandTab() {
 
         <div style={card}>
           <div style={cardHeader}><span style={cardTitle}>Risk Controls</span></div>
-          <div style={{ padding: "0 20px 8px" }}>
-            {riskControls.map((r) => (
-              <div key={r.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: 12 }}>
-                <span style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{r.current || "—"}</span>
-                  <span style={statusChip(r.status)}>{r.status}</span>
-                </div>
-              </div>
-            ))}
-            {riskControls.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>}
+          <div style={{ padding: "0 20px 12px" }}>
+            {riskControls.length === 0 ? (
+              <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>
+            ) : (
+              riskControls.map((r) => {
+                const currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
+                const isFloor = r.key.toLowerCase().includes("floor");
+                // Parse threshold from the raw macro row
+                const thresholdRaw = r.threshold; // e.g. "AMBER 9 · RED 10" or "RED 12"
+                const redMatch = thresholdRaw.match(/RED\s+([\d.]+)/i);
+                const amberMatch = thresholdRaw.match(/AMBER\s+([\d.]+)/i);
+                const limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
+                const amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+
+                // For caps: bar fills toward cap. For floors: bar fills toward floor.
+                const maxBar = Math.max(limit * 1.3, currentNum * 1.2, 20);
+                const fillPct = Math.min((currentNum / maxBar) * 100, 100);
+                const thresholdPct = Math.min((limit / maxBar) * 100, 100);
+
+                // Status colors
+                let barColor = "var(--green)";
+                let statusLabel = "SAFE";
+                if (isFloor) {
+                  if (currentNum < limit) { barColor = "var(--red)"; statusLabel = "BREACH"; }
+                  else if (amberLimit != null && currentNum < amberLimit * 1.1) { barColor = "var(--amber)"; statusLabel = "WATCH"; }
+                } else {
+                  if (currentNum > limit) { barColor = "var(--red)"; statusLabel = "BREACH"; }
+                  else if (currentNum > limit - 1) { barColor = "var(--amber)"; statusLabel = "WATCH"; }
+                }
+
+                const label = r.key === "SGLD_AUM_PCT" ? "SGLD" : r.key === "TOP5_CONCENTRATION" ? "Top-5" : r.key === "HEDGE_FLOOR_PCT" ? "Hedge" : r.key === "BIO_TWIN_RISK_PCT" ? "BioTwin" : r.label;
+
+                return (
+                  <div key={r.key} style={{ padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", minWidth: 60 }}>{label}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: barColor }}>
+                        {isNaN(currentNum) ? r.current : `${currentNum}%`} / {limit}% {isFloor ? "floor" : "cap"}
+                      </span>
+                    </div>
+                    <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "visible" }}>
+                      <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, background: barColor, borderRadius: 2, transition: "width 0.4s ease" }} />
+                      <div style={{ position: "absolute", top: -2, left: `${thresholdPct}%`, width: 1, height: 12, background: "var(--text-dim)", opacity: 0.6 }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
