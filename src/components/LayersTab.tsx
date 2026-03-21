@@ -219,10 +219,19 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
           {chartLayers.map((layer, i) => {
             const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
             return (
-              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
+              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
+                {layer.name.toUpperCase() !== "CASH" && (
+                  <button
+                    title={`Scan ${layer.name}`}
+                    onClick={() => triggerWebhook("stellar-layer-scan", { layer: layer.name }, `Layer scan triggered for ${layer.name}. Check email.`)}
+                    style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s", justifySelf: "center" }}
+                  >
+                    🔍
+                  </button>
+                )}
               </div>
             );
           })}
