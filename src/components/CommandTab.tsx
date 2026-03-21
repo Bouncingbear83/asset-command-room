@@ -371,7 +371,7 @@ export default function CommandTab() {
             )}
           </div>
 
-          <QuickCommandsSection holdings={holdings} layers={[]} />
+          <QuickCommandsSection holdings={holdings} layers={layers} />
         </div>
 
         <div style={card}>
