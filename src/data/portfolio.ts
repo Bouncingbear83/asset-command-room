@@ -486,9 +486,14 @@ export const GOLDEN_RULES = [
   { n: 1, text: "Thesis is the substrate, not the story." },
   { n: 2, text: "Winners deserve more capital." },
   { n: 3, text: "Losers need a reason to stay." },
+  { n: 4, text: "Never average down without a catalyst." },
+  { n: 5, text: "Know the exit before the entry." },
   { n: 6, text: "Dry powder is a position." },
-  { n: 9, text: "Themes are consensus. The substrate test is not." },
-  { n: 11, text: "Test the substrate, not the story." },
+  { n: 7, text: "Concentration builds wealth. Diversification preserves it." },
+  { n: 8, text: "The market rewards patience, not conviction." },
+  { n: 9, text: "Stay one layer deeper than the narrative." },
+  { n: 10, text: "Position size reflects conviction, not hope." },
+  { n: 11, text: "Themes are consensus. The substrate test is not." },
   { n: 12, text: "Reclassification is where the returns are." },
 ];
 

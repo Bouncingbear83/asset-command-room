@@ -351,14 +351,14 @@ function parseWatchlist(rows: Record<string, any>[]) {
 
 function parseLayers(rows: Record<string, any>[]) {
   return rows.map((row) => {
-    const targetRaw = findCol(row, "target %", "TARGET %", "target");
-    const currentRaw = findCol(row, "current %", "CURRENT %", "current");
+    const targetRaw = findCol(row, "target %", "TARGET %", "target") ?? row["col_2"];
+    const currentRaw = findCol(row, "current %", "CURRENT %", "current") ?? row["col_3"];
     return {
-      name: String(findCol(row, "layer", "LAYER", "name", "NAME") ?? ""),
+      name: String(findCol(row, "layer", "LAYER", "name", "NAME") ?? row["MV (£)"] ?? ""),
       target: parsePct(targetRaw),
       current: parsePct(currentRaw),
-      mv: parseMv(findCol(row, "mv (£)", "MV (£)", "mv", "MV")),
-      hexColor: String(findCol(row, "hex color", "Hex Color", "hex_color") ?? ""),
+      mv: parseMv(findCol(row, "mv (£)", "MV (£)", "mv", "MV") ?? row["col_4"]),
+      hexColor: String(findCol(row, "hex color", "Hex Color", "hex_color") ?? row["col_5"] ?? ""),
       keyHoldings: String(findCol(row, "key holdings", "Key Holdings", "key_holdings") ?? ""),
       gapNotes: String(findCol(row, "gap / notes", "Gap / Notes", "gap_notes") ?? ""),
       priority: String(findCol(row, "priority", "Priority", "PRIORITY") ?? ""),

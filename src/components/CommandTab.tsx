@@ -339,12 +339,8 @@ export default function CommandTab() {
 
             {hasNarrative ? (
               <div style={{ display: "grid", gap: 18 }}>
-                <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 300, color: "var(--text)", lineHeight: 1.1, marginBottom: 8 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
-                  <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.7 }}>{narrativeData.posture_rationale || "Awaiting live posture rationale."}</div>
-                </div>
-
-                <div style={{ display: "grid", gap: 14 }}>
+                {/* Weekly Priorities — scanned most often, shown first */}
+                {priorityNarratives.length > 0 && (
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Weekly Priorities</div>
                     <div style={{ display: "grid", gap: 8 }}>
@@ -356,7 +352,15 @@ export default function CommandTab() {
                       ))}
                     </div>
                   </div>
+                )}
 
+                {/* Narrative regime — reduced size, posture_rationale as subtitle */}
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale || "Awaiting live posture rationale."}</div>
+                </div>
+
+                <div style={{ display: "grid", gap: 14 }}>
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Key Risk</div>
                     <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{narrativeData.key_risk_this_week || "No key risk supplied."}</div>
@@ -407,12 +411,18 @@ export default function CommandTab() {
                 {weeklyWatch.length > 0 && (
                   <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 10 }}>Watch this week</div>
-                    {weeklyWatch.map((item, index) => (
-                      <div key={`watch-${index}`} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: "1px solid rgba(28,28,48,0.4)" }}>
-                        <span style={statusChip("MONITOR")}>MONITOR</span>
-                        <span style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{item}</span>
-                      </div>
-                    ))}
+                    {weeklyWatch.map((item, index) => {
+                      const tickerMatch = item.match(/^([A-Z]{2,6})\b/);
+                      return (
+                        <div key={`watch-${index}`} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: "1px solid rgba(28,28,48,0.4)" }}>
+                          <span style={statusChip("MONITOR")}>MONITOR</span>
+                          <div>
+                            {tickerMatch && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", marginRight: 6 }}>{tickerMatch[1]}</span>}
+                            <span style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{tickerMatch ? item.slice(tickerMatch[0].length).replace(/^[\s:–—-]+/, '') : item}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -450,13 +460,12 @@ export default function CommandTab() {
           <div style={cardHeader}><span style={cardTitle}>Risk Controls</span></div>
           <div style={{ padding: "0 20px 8px" }}>
             {riskControls.map((r) => (
-              <div key={r.key} style={divRow}>
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{r.threshold || (r.current ? `Current ${r.current}` : "No threshold")}</div>
-                  {r.detail && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>→ {r.detail}</div>}
+              <div key={r.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: 12 }}>
+                <span style={{ fontSize: 12, color: "var(--text)" }}>{r.label}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{r.current || "—"}</span>
+                  <span style={statusChip(r.status)}>{r.status}</span>
                 </div>
-                <span style={statusChip(r.status)}>{r.status}</span>
               </div>
             ))}
             {riskControls.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>}
