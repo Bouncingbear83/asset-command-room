@@ -384,6 +384,39 @@ export default function CommandTab() {
           </div>
         </div>
 
+        {/* Earnings This Week card */}
+        <div style={card}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Earnings This Week</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>{earningsThisWeek.length} REPORTING</span>
+          </div>
+          <div style={{ padding: "0 20px 8px" }}>
+            {earningsThisWeek.length === 0 ? (
+              <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No earnings this week</div>
+            ) : (
+              earningsThisWeek.map((item) => {
+                const isUrgent = item.daysUntil <= 2;
+                return (
+                  <div key={`${item.ticker}-${item.nextEarningsDate}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: isUrgent ? "var(--red)" : "var(--text)", minWidth: 44 }}>{item.ticker}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: isUrgent ? "var(--red)" : "var(--text-dim)" }}>{formatDate(item.nextEarningsDate)}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{item.fiscalPeriod || ""}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      <span style={statusChip(isUrgent ? "TRIGGERED" : "AMBER")}>{item.daysUntil === 0 ? "TODAY" : `${item.daysUntil}D`}</span>
+                      <button
+                        onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}. Check email.`)}
+                        style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-mid)", padding: "3px 8px", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap" }}
+                      >📋 Prep</button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
         <div style={card}>
           <div style={{ padding: 32, borderBottom: "1px solid var(--rim)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
