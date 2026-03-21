@@ -44,42 +44,6 @@ const cardHeader: React.CSSProperties = { display: "flex", alignItems: "center",
 const cardTitle: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "var(--text-mid)" };
 const emptyState: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", padding: "14px 0 4px" };
 
-/* ── Donut Ring Component ── */
-function DonutRing({ segments, radius, strokeWidth, cx, cy, opacity = 1 }: {
-  segments: { value: number; color: string; label: string }[];
-  radius: number;
-  strokeWidth: number;
-  cx: number;
-  cy: number;
-  opacity?: number;
-}) {
-  const total = segments.reduce((s, seg) => s + Math.max(seg.value, 0), 0);
-  if (total <= 0) return null;
-  let angle = 0;
-  return (
-    <g opacity={opacity}>
-      {segments.map((seg, i) => {
-        if (seg.value <= 0) return null;
-        const sweep = (seg.value / total) * 360;
-        const startAngle = angle;
-        angle += sweep;
-        return (
-          <path
-            key={i}
-            d={describeArc(cx, cy, radius, startAngle, startAngle + sweep - 1)}
-            fill="none"
-            stroke={seg.color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            style={{ transition: "all 0.8s ease" }}
-          >
-            <title>{seg.label}: {seg.value.toFixed(1)}%</title>
-          </path>
-        );
-      })}
-    </g>
-  );
-}
 
 export default function LayersTab({ liveData, watchlist, narrative }: Props) {
   const allLayers = liveData;
