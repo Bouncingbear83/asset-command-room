@@ -129,6 +129,8 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("alert status") || labelLower.includes("alert_status")) return "alert_status";
   if (labelLower.includes("alert fired date") || labelLower.includes("alert_fired_date")) return "alert_fired_date";
   if (labelLower.includes("last checked") || labelLower.includes("last_checked")) return "last_checked";
+  if (labelLower.includes("trigger review date") || labelLower.includes("trigger_review_date")) return "trigger_review_date";
+  if (labelLower.includes("trigger review note") || labelLower.includes("trigger_review_note")) return "trigger_review_note";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
