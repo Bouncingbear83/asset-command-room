@@ -51,14 +51,28 @@ const HOLDING_ALERT_STYLE: Record<string, React.CSSProperties> = {
   REVIEW: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
 };
 
-function launchClaude(prompt: string) {
-  const encodedPrompt = encodeURIComponent(prompt);
-  const url = `https://claude.ai/new?project=${PROJECT_ID}&q=${encodedPrompt}`;
+function getClaudeUrl(prompt: string) {
+  const encodedPrompt = prompt ? `&q=${encodeURIComponent(prompt)}` : "";
+  return `https://claude.ai/new?project=${PROJECT_ID}${encodedPrompt}`;
+}
+
+function isEmbedded(): boolean {
   try {
-    (window.top || window).open(url, "_blank");
+    return window.self !== window.top;
   } catch {
-    window.open(url, "_blank");
+    return true;
   }
+}
+
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById("copy-toast");
+    if (el) {
+      el.textContent = "Copied!";
+      el.style.opacity = "1";
+      setTimeout(() => { el.style.opacity = "0"; }, 1500);
+    }
+  });
 }
 
 const statusChip = (status: string): React.CSSProperties => {
