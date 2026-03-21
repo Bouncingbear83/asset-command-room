@@ -529,7 +529,9 @@ export default function CommandTab() {
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>
             ) : (
               riskControls.map((r) => {
-                const currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
+                let currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
+                // Values ≤1 are likely fractions (0.082 = 8.2%), scale up
+                if (!isNaN(currentNum) && Math.abs(currentNum) <= 1) currentNum = currentNum * 100;
                 const isFloor = r.key.toLowerCase().includes("floor");
                 // Parse threshold from the raw macro row
                 const thresholdRaw = r.threshold; // e.g. "AMBER 9 · RED 10" or "RED 12"
