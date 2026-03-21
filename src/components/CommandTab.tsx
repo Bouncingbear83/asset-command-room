@@ -537,8 +537,11 @@ export default function CommandTab() {
                 const thresholdRaw = r.threshold; // e.g. "AMBER 9 · RED 10" or "RED 12"
                 const redMatch = thresholdRaw.match(/RED\s+([\d.]+)/i);
                 const amberMatch = thresholdRaw.match(/AMBER\s+([\d.]+)/i);
-                const limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
-                const amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+                let limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
+                let amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+                // Scale thresholds same as current if they're decimal fractions
+                if (limit <= 1) limit = limit * 100;
+                if (amberLimit != null && amberLimit <= 1) amberLimit = amberLimit * 100;
 
                 // For caps: bar fills toward cap. For floors: bar fills toward floor.
                 const maxBar = Math.max(limit * 1.3, currentNum * 1.2, 20);
@@ -563,7 +566,7 @@ export default function CommandTab() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", minWidth: 60 }}>{label}</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: barColor }}>
-                        {isNaN(currentNum) ? r.current : `${currentNum}%`} / {limit}% {isFloor ? "floor" : "cap"}
+                        {isNaN(currentNum) ? r.current : `${currentNum.toFixed(1)}%`} / {limit.toFixed(1)}% {isFloor ? "floor" : "cap"}
                       </span>
                     </div>
                     <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "visible" }}>
