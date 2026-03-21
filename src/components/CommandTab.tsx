@@ -191,8 +191,91 @@ function HoldingAlertBadge({ status }: { status: string }) {
   );
 }
 
+function QuickCommandsSection({ holdings, layers }: { holdings: { ticker: string }[]; layers: { name: string }[] }) {
+  const [webhookTarget, setWebhookTarget] = useState("");
+  const [webhookLoading, setWebhookLoading] = useState(false);
+
+  const tickers = holdings.map(h => h.ticker).filter(Boolean);
+  const layerNames = layers.map(l => l.name).filter(n => n && n.toUpperCase() !== "TOTAL" && n.toUpperCase() !== "CASH");
+
+  const handleWebhook = async (endpoint: string, body: object, msg: string) => {
+    setWebhookLoading(true);
+    await triggerWebhook(endpoint, body, msg);
+    setWebhookLoading(false);
+    setWebhookTarget("");
+  };
+
+  const selectStyle: React.CSSProperties = {
+    background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-mid)",
+    padding: "8px 10px", fontFamily: "var(--font-mono)", fontSize: 10, flex: 1, minWidth: 80,
+  };
+  const fireStyle: React.CSSProperties = {
+    background: "var(--gold)", color: "var(--void)", border: "none", padding: "8px 14px",
+    fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase",
+    cursor: "pointer", whiteSpace: "nowrap",
+  };
+
+  return (
+    <div style={{ padding: "20px" }}>
+      {isEmbedded() && (
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--amber-dim)", border: "1px solid rgba(200,146,90,0.2)", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)", letterSpacing: "0.08em" }}>
+          External links may be blocked in preview. Use the published site or copy prompts below.
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-dim)" }}>Quick Commands</div>
+        <a href={getClaudeUrl("")} target="_blank" rel="noopener noreferrer" style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "10px 20px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", textDecoration: "none", display: "inline-block" }}>Open Stellar Intelligence</a>
+      </div>
+
+      {/* Claude commands */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+        {CLAUDE_COMMANDS.map((cmd) => (
+          <div key={cmd.label} style={{ display: "flex", gap: 0 }}>
+            <a href={getClaudeUrl(cmd.prompt)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", textDecoration: "none", display: "block" }}>
+              {cmd.label}
+            </a>
+            <button onClick={() => copyToClipboard(cmd.prompt)} title="Copy prompt" style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "0 10px", fontFamily: "var(--font-mono)", fontSize: 10, cursor: "pointer", transition: "all 0.2s" }}>⧉</button>
+          </div>
+        ))}
+      </div>
+
+      {/* Webhook commands */}
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Webhook Actions</div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {/* Rescore */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔄 Rescore</span>
+          <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
+            <option value="">Select ticker…</option>
+            {tickers.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-rescore", { ticker: webhookTarget }, `Rescore triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>Fire</button>
+        </div>
+        {/* Earnings Prep */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
+          <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
+            <option value="">Select ticker…</option>
+            {tickers.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-earnings-prep", { ticker: webhookTarget }, `Earnings prep triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>Fire</button>
+        </div>
+        {/* Layer Scan */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔍 Scan</span>
+          <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
+            <option value="">Select layer…</option>
+            {layerNames.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-layer-scan", { layer: webhookTarget }, `Layer scan triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>Fire</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CommandTab() {
-  const { holdings, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
+  const { holdings, layers, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")
