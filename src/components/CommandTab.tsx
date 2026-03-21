@@ -339,12 +339,8 @@ export default function CommandTab() {
 
             {hasNarrative ? (
               <div style={{ display: "grid", gap: 18 }}>
-                <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 300, color: "var(--text)", lineHeight: 1.1, marginBottom: 8 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
-                  <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.7 }}>{narrativeData.posture_rationale || "Awaiting live posture rationale."}</div>
-                </div>
-
-                <div style={{ display: "grid", gap: 14 }}>
+                {/* Weekly Priorities — scanned most often, shown first */}
+                {priorityNarratives.length > 0 && (
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Weekly Priorities</div>
                     <div style={{ display: "grid", gap: 8 }}>
@@ -356,7 +352,15 @@ export default function CommandTab() {
                       ))}
                     </div>
                   </div>
+                )}
 
+                {/* Narrative regime — reduced size, posture_rationale as subtitle */}
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale || "Awaiting live posture rationale."}</div>
+                </div>
+
+                <div style={{ display: "grid", gap: 14 }}>
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Key Risk</div>
                     <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{narrativeData.key_risk_this_week || "No key risk supplied."}</div>
