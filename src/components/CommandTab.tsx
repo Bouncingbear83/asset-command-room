@@ -277,7 +277,7 @@ function QuickCommandsSection({ holdings, layers }: { holdings: { ticker: string
 }
 
 export default function CommandTab() {
-  const { holdings, layers, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
+  const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")
