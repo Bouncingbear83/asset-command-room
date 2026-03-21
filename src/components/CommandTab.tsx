@@ -327,9 +327,57 @@ export default function CommandTab() {
     .slice(0, 3)
     .map((item) => ({ ...item, daysUntil: getDaysUntil(item.nextEarningsDate) }));
 
+  // --- Next Actions: holdings SIZE UP/TOP-UP + watchlist BUY at/below target ---
+  const nextActions: { ticker: string; action: string; context: string }[] = [];
+
+  holdings.forEach((h) => {
+    const act = h.action.trim().toUpperCase();
+    if (act === "SIZE UP" || act === "TOP-UP") {
+      const context = h.notes || h.add_trigger || `${formatCurrency(h.mv)} current`;
+      nextActions.push({ ticker: h.ticker, action: act === "SIZE UP" ? `SIZE UP` : `TOP-UP`, context });
+    }
+  });
+
+  watchlist.forEach((w) => {
+    if (!w.status.toUpperCase().startsWith("BUY")) return;
+    const current = typeof w.current === "number" ? w.current : null;
+    const entryStr = w.entry;
+    const parts = entryStr.split(/\s*[-–]\s*|\s+to\s+/i);
+    const nums = parts.map((p) => parseFloat(p.replace(/[^0-9.]/g, ""))).filter((n) => !isNaN(n) && n > 0);
+    const midpoint = nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0] ?? null;
+    if (current == null || midpoint == null || current > midpoint) return;
+    const pct = ((current - midpoint) / midpoint * 100).toFixed(1);
+    nextActions.push({ ticker: w.ticker, action: "BUY", context: `${pct}% below ${entryStr} target` });
+  });
+
+  const displayActions = nextActions.slice(0, 4);
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
       <div>
+        {/* Next Actions card */}
+        <div style={{ ...card, borderLeft: "3px solid var(--gold)" }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Next Actions</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{displayActions.length} pending</span>
+          </div>
+          <div style={{ padding: "14px 20px" }}>
+            {displayActions.length === 0 ? (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No actions required</div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {displayActions.map((a, i) => (
+                  <div key={`${a.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{a.ticker}</span>
+                    <span style={{ ...actionBadge(a.action), flexShrink: 0 }}>{a.action}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.context}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div style={card}>
           <div style={{ padding: 32, borderBottom: "1px solid var(--rim)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
