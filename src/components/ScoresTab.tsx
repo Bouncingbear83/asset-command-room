@@ -308,7 +308,6 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
               </button>
             </div>
           </td>
-          </td>
           <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.changeNote || s.fullThesis}</td>
         </tr>
         {isExpanded && dd && <tr key={`${s.ticker}-disruption`}><td colSpan={COLUMNS.length + 1}><DisruptionPanel d={dd} /></td></tr>}
