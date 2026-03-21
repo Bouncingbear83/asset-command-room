@@ -1,6 +1,7 @@
 import { LiveLayer, LiveNarrativeData, LiveWatchItem } from "@/hooks/usePortfolioData";
 import React, { useMemo } from "react";
 import { triggerWebhook } from "@/lib/webhooks";
+import LayersAllocation from "./LayersAllocation";
 
 interface Props {
   liveData: LiveLayer[];
