@@ -444,7 +444,7 @@ export default function CommandTab() {
                 {/* Narrative regime — reduced size, posture_rationale as subtitle */}
                 <div>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale || "Awaiting live posture rationale."}</div>
+                  {narrativeData.posture_rationale && <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale}</div>}
                 </div>
 
                 <div style={{ display: "grid", gap: 14 }}>
