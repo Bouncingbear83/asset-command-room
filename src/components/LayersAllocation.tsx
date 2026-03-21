@@ -190,7 +190,19 @@ export default function LayersAllocation({ layers }: Props) {
               type="category"
               dataKey="name"
               width={90}
-              tick={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 500, fill: "var(--text)" }}
+              tick={({ x, y, payload }: any) => (
+                <g>
+                  <text x={x} y={y} dy={4} textAnchor="end" style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 500, fill: "var(--text)" }}>{payload.value}</text>
+                  <text
+                    x={x + 4}
+                    y={y}
+                    dy={4}
+                    textAnchor="start"
+                    style={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-dim)", cursor: "pointer" }}
+                    onClick={() => triggerWebhook("stellar-layer-scan", { layer: payload.value }, `Layer scan triggered for ${payload.value}. Check email.`)}
+                  >🔍</text>
+                </g>
+              )}
               axisLine={false}
               tickLine={false}
             />
@@ -205,7 +217,6 @@ export default function LayersAllocation({ layers }: Props) {
                 <Cell key={i} fill={entry.color} />
               ))}
             </Bar>
-            {/* Target markers as reference lines per layer */}
             {chartData.map((entry, i) => (
               entry.target > 0 ? (
                 <ReferenceLine
