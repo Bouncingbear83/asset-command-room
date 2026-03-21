@@ -214,7 +214,7 @@ function ActionButtons({ ticker }: { ticker: string }) {
 
 // ── Row Card ──
 
-function WatchlistRow({ item, dimmed }: { item: LiveWatchItem; dimmed?: boolean }) {
+function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimmed?: boolean; hideActions?: boolean }) {
   const { current, vsColor, vsLabel } = getPctInfo(item);
 
   return (
