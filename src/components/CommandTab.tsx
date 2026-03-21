@@ -444,7 +444,7 @@ export default function CommandTab() {
                 {/* Narrative regime — reduced size, posture_rationale as subtitle */}
                 <div>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale || "Awaiting live posture rationale."}</div>
+                  {narrativeData.posture_rationale && <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale}</div>}
                 </div>
 
                 <div style={{ display: "grid", gap: 14 }}>
@@ -591,8 +591,15 @@ export default function CommandTab() {
           </div>
         </div>
 
-        <div style={card}>
-          <div style={cardHeader}><span style={cardTitle}>Golden Rules</span></div>
+      </div>
+
+      {/* Golden Rules — collapsible at very bottom, spans full width */}
+      <div style={{ gridColumn: "1 / -1" }}>
+        <details style={{ ...card, marginBottom: 0 }}>
+          <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+            <span style={cardTitle}>Golden Rules</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>▸ {GOLDEN_RULES.length} RULES</span>
+          </summary>
           <div style={{ padding: "0 20px 8px" }}>
             {GOLDEN_RULES.map((r) => (
               <div key={r.n} style={{ ...divRow, alignItems: "flex-start", gap: 16 }}>
@@ -601,7 +608,7 @@ export default function CommandTab() {
               </div>
             ))}
           </div>
-        </div>
+        </details>
       </div>
     </div>
   );
