@@ -251,8 +251,14 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
       </div>
 
       {/* Line 3: Trigger condition */}
+      {item.trigger && (
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", marginBottom: 4, lineHeight: 1.5 }}>
+          {item.trigger}
+        </div>
+      )}
+      {/* Line 3b: Thesis / rationale */}
       {item.rationale && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5, fontStyle: "italic" }}>
           {item.rationale}
         </div>
       )}
