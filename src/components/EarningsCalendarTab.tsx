@@ -1,4 +1,5 @@
 import { LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 interface Props {
   items: LiveEarningsCalendarItem[];
