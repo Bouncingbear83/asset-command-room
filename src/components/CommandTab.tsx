@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { GOLDEN_RULES } from "@/data/portfolio";
-import { LiveMacroStateRow, usePortfolioData } from "@/hooks/usePortfolioData";
+import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
