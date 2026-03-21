@@ -1,6 +1,7 @@
 import { LiveLayer, LiveNarrativeData, LiveWatchItem } from "@/hooks/usePortfolioData";
 import React, { useMemo } from "react";
 import { triggerWebhook } from "@/lib/webhooks";
+import LayersAllocation from "./LayersAllocation";
 
 interface Props {
   liveData: LiveLayer[];
@@ -14,19 +15,6 @@ const LAYER_COLORS = [
   "#9b59b6", "#1abc9c", "#f39c12", "#3498db", "#e91e63",
 ];
 
-/* ── SVG donut helpers ── */
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function describeArc(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
-  const clampedEnd = Math.min(endAngle, startAngle + 359.999);
-  const start = polarToCartesian(cx, cy, r, clampedEnd);
-  const end = polarToCartesian(cx, cy, r, startAngle);
-  const largeArc = clampedEnd - startAngle > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
-}
 
 /* ── badge helpers ── */
 const priorityBadge = (priority: string): React.CSSProperties => {
@@ -56,42 +44,6 @@ const cardHeader: React.CSSProperties = { display: "flex", alignItems: "center",
 const cardTitle: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" as const, color: "var(--text-mid)" };
 const emptyState: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", padding: "14px 0 4px" };
 
-/* ── Donut Ring Component ── */
-function DonutRing({ segments, radius, strokeWidth, cx, cy, opacity = 1 }: {
-  segments: { value: number; color: string; label: string }[];
-  radius: number;
-  strokeWidth: number;
-  cx: number;
-  cy: number;
-  opacity?: number;
-}) {
-  const total = segments.reduce((s, seg) => s + Math.max(seg.value, 0), 0);
-  if (total <= 0) return null;
-  let angle = 0;
-  return (
-    <g opacity={opacity}>
-      {segments.map((seg, i) => {
-        if (seg.value <= 0) return null;
-        const sweep = (seg.value / total) * 360;
-        const startAngle = angle;
-        angle += sweep;
-        return (
-          <path
-            key={i}
-            d={describeArc(cx, cy, radius, startAngle, startAngle + sweep - 1)}
-            fill="none"
-            stroke={seg.color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            style={{ transition: "all 0.8s ease" }}
-          >
-            <title>{seg.label}: {seg.value.toFixed(1)}%</title>
-          </path>
-        );
-      })}
-    </g>
-  );
-}
 
 export default function LayersTab({ liveData, watchlist, narrative }: Props) {
   const allLayers = liveData;
@@ -111,98 +63,10 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
   const layerNarrative = narrative.layer_narrative || "";
 
   /* Assign colors to layers */
-  const coloredLayers = useMemo(() => {
-    return investedLayers.map((l, i) => ({
-      ...l,
-      color: l.hexColor || LAYER_COLORS[i % LAYER_COLORS.length],
-    }));
-  }, [investedLayers]);
-
-  const currentSegments = useMemo(() =>
-    coloredLayers.filter(l => l.current > 0).map(l => ({ value: l.current, color: l.color, label: l.name })),
-    [coloredLayers]
-  );
-
-  const targetSegments = useMemo(() =>
-    coloredLayers.filter(l => l.target > 0).map(l => ({ value: l.target, color: l.color, label: l.name })),
-    [coloredLayers]
-  );
-
-  const totalInvested = totalRow?.current ?? investedLayers.reduce((s, l) => s + l.current, 0);
-
-  const CX = 140, CY = 140, SIZE = 280;
-
   return (
     <div>
-      {/* ── Donut + Legend ── */}
-      <div style={card}>
-        <div style={cardHeader}>
-          <span style={cardTitle}>Portfolio Allocation</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: liveData.length > 0 ? "var(--green)" : "var(--text-dim)" }}>{liveData.length > 0 ? "● LIVE" : "● NO DATA"}</span>
-        </div>
-        <div style={{ padding: "24px", display: "flex", gap: 48, alignItems: "center", flexWrap: "wrap" }}>
-          {/* SVG Donut */}
-          <div style={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}>
-            <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-              {/* Target ring (inner, faint) */}
-              <DonutRing segments={targetSegments} radius={80} strokeWidth={18} cx={CX} cy={CY} opacity={0.25} />
-              {/* Current ring (outer, bold) */}
-              <DonutRing segments={currentSegments} radius={110} strokeWidth={22} cx={CX} cy={CY} />
-            </svg>
-            {/* Center label */}
-            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 700, color: "var(--gold)", lineHeight: 1 }}>
-                {totalInvested.toFixed(0)}%
-              </div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.1em", marginTop: 4 }}>INVESTED</div>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 200 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", marginBottom: 4 }}>
-              <div />
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Layer</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Actual</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Target</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>Gap</div>
-            </div>
-            {coloredLayers.map((layer, i) => {
-              const diff = layer.current - layer.target;
-              const diffColor = Math.abs(diff) < 1 ? "var(--green)" : Math.abs(diff) < 3 ? "var(--amber)" : "var(--red)";
-              return (
-                <div key={`legend-${i}`} style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "4px 0" }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: layer.color }} />
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text)", textAlign: "right" }}>{layer.current.toFixed(1)}%</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", textAlign: "right" }}>{layer.target > 0 ? `${layer.target.toFixed(0)}%` : "—"}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: diffColor, textAlign: "right", fontWeight: 600 }}>{layer.target > 0 ? `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}` : "—"}</div>
-                </div>
-              );
-            })}
-            {/* Cash row */}
-            {cashRow && (
-              <div style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "4px 0", borderTop: "1px solid var(--rim)", marginTop: 4 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: "var(--text-dim)", opacity: 0.4 }} />
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Cash</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)", textAlign: "right" }}>{cashRow.current.toFixed(1)}%</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", textAlign: "right" }}>—</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", textAlign: "right" }}>—</div>
-              </div>
-            )}
-            {/* Total */}
-            {totalRow && (
-              <div style={{ display: "grid", gridTemplateColumns: "12px 1fr 50px 50px 50px", gap: 8, alignItems: "center", padding: "6px 0", borderTop: "2px solid var(--rim)", marginTop: 2 }}>
-                <div />
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Total</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{totalRow.current.toFixed(1)}%</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", textAlign: "right" }}>{totalRow.target > 0 ? `${totalRow.target.toFixed(0)}%` : "100%"}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold)", textAlign: "right", fontWeight: 700 }}>{totalRow.mv > 0 ? `£${(totalRow.mv / 1000).toFixed(0)}k` : "—"}</div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* ── Horizontal Bar Chart ── */}
+      <LayersAllocation layers={liveData} />
 
       {/* ── Detail table: Key Holdings + MV ── */}
       <div style={card}>
@@ -217,7 +81,7 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
             <div />
           </div>
           {chartLayers.map((layer, i) => {
-            const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
+            const color = layer.hexColor || LAYER_COLORS[i % LAYER_COLORS.length] || "var(--text-mid)";
             return (
               <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
