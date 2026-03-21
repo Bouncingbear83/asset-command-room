@@ -261,7 +261,7 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
       <ReviewCard note={item.triggerReviewNote} dateStr={item.triggerReviewDate} />
 
       {/* Line 5: Action buttons */}
-      {!dimmed && <ActionButtons ticker={item.ticker} />}
+      {!dimmed && !hideActions && <ActionButtons ticker={item.ticker} />}
     </div>
   );
 }
