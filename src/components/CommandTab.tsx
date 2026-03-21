@@ -51,14 +51,28 @@ const HOLDING_ALERT_STYLE: Record<string, React.CSSProperties> = {
   REVIEW: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
 };
 
-function launchClaude(prompt: string) {
-  const encodedPrompt = encodeURIComponent(prompt);
-  const url = `https://claude.ai/new?project=${PROJECT_ID}&q=${encodedPrompt}`;
+function getClaudeUrl(prompt: string) {
+  const encodedPrompt = prompt ? `&q=${encodeURIComponent(prompt)}` : "";
+  return `https://claude.ai/new?project=${PROJECT_ID}${encodedPrompt}`;
+}
+
+function isEmbedded(): boolean {
   try {
-    (window.top || window).open(url, "_blank");
+    return window.self !== window.top;
   } catch {
-    window.open(url, "_blank");
+    return true;
   }
+}
+
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById("copy-toast");
+    if (el) {
+      el.textContent = "Copied!";
+      el.style.opacity = "1";
+      setTimeout(() => { el.style.opacity = "0"; }, 1500);
+    }
+  });
 }
 
 const statusChip = (status: string): React.CSSProperties => {
@@ -288,15 +302,24 @@ export default function CommandTab() {
           </div>
 
           <div style={{ padding: "20px" }}>
+            {isEmbedded() && (
+              <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--amber-dim)", border: "1px solid rgba(200,146,90,0.2)", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)", letterSpacing: "0.08em" }}>
+                External links may be blocked in preview. Use the published site or copy prompts below.
+              </div>
+            )}
+            <div id="copy-toast" style={{ position: "fixed", bottom: 24, right: 24, background: "var(--gold)", color: "var(--void)", padding: "8px 16px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", borderRadius: 2, opacity: 0, transition: "opacity 0.3s", pointerEvents: "none", zIndex: 999 }} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-dim)" }}>Quick Commands</div>
-              <button onClick={() => launchClaude("")} style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "10px 20px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer" }}>Open Stellar Intelligence</button>
+              <a href={getClaudeUrl("")} target="_blank" rel="noopener noreferrer" style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "10px 20px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", textDecoration: "none", display: "inline-block" }}>Open Stellar Intelligence</a>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {QUICK_COMMANDS.map((cmd) => (
-                <button key={cmd.label} onClick={() => launchClaude(cmd.prompt)} style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-mid)", padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s" }}>
-                  {cmd.label}
-                </button>
+                <div key={cmd.label} style={{ display: "flex", gap: 0 }}>
+                  <a href={getClaudeUrl(cmd.prompt)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", textDecoration: "none", display: "block" }}>
+                    {cmd.label}
+                  </a>
+                  <button onClick={() => copyToClipboard(cmd.prompt)} title="Copy prompt" style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "0 10px", fontFamily: "var(--font-mono)", fontSize: 10, cursor: "pointer", transition: "all 0.2s" }}>⧉</button>
+                </div>
               ))}
             </div>
           </div>
