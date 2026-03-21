@@ -1,33 +1,54 @@
 
 
-## Fix: Claude Quick Commands don't pre-fill the prompt
+## Watchlist Tab Redesign: Grouped Actionable Layout
 
-### Problem
+### Summary
+Replace the flat sortable table with three grouped sections based on actionability, inline review notes, and per-row webhook action buttons.
 
-The current URL format is:
-```
-https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?q=encoded_prompt
-```
+### Architecture
 
-The `/project/{id}` route does NOT support the `?q=` parameter — it just opens the project landing page and ignores the query string. The `?q=` parameter only works on `https://claude.ai/new?q=...`.
+Rewrite `src/components/WatchlistTab.tsx` completely. Keep all existing helper functions (parsing, badge components, stat cards) but replace the rendering logic.
 
-### Fix
+### Data Grouping
 
-**`src/components/CommandTab.tsx`** — Update `getClaudeUrl` to use `/new` with both `?q=` and `&project_uuid=` parameters:
+Using existing `LiveWatchItem` fields — no data hook changes needed:
 
-```typescript
-function getClaudeUrl(prompt: string) {
-  if (!prompt) {
-    return `https://claude.ai/project/${PROJECT_ID}`;
-  }
-  return `https://claude.ai/new?q=${encodeURIComponent(prompt)}&project_uuid=${PROJECT_ID}`;
-}
-```
+- **Buy Targets**: `status` in `["BUY NOW", "BUY T1", "BUY T2"]` — sorted by % below target (most actionable first)
+- **Waiting for Entry**: `status` in `["WAIT", "WATCH", "MONITOR"]` — sorted by % above target ascending (closest to entry first). Entries >25% above target dimmed. Show first 6, expandable.
+- **Pre-IPO / Research**: `status` in `["PRE-IPO", "RESEARCH"]` — sorted alphabetically, dimmed (opacity 0.7)
 
-When there's a prompt, use `/new?q=...&project_uuid=...` so the prompt is pre-filled AND the project context is attached. When there's no prompt (the "Open Stellar Intelligence" button), navigate directly to the project page.
+### Section Layout
 
-If `project_uuid` isn't a supported parameter, fall back to just `/new?q=...` — at minimum the prompt will be pre-filled.
+Each section gets a colored dot header (green/grey/purple) with count.
+
+### Row Component
+
+Each row renders as a card-style block (not a grid table):
+- **Line 1**: Ticker (bold) · Name · Layer tag · Status badge
+- **Line 2**: Target: $X · Current: $Y · ±Z% (color-coded: green if at/below target, amber if within 10%, red if >10% above)
+- **Line 3**: Trigger condition text
+- **Line 4** (conditional): Review note card with colored left border (orange=STALE, green=OK), parsed reason, suggested target/condition in gold italic
+- **Line 5**: Review date line
+- **Line 6**: Action buttons — Rescore + Earnings Prep (using `triggerWebhook`)
+
+### Summary Cards
+
+Keep existing 4 stat cards: Buy Ready, In Zone, Stale Triggers, Total Watching. Keep MACRO PAUSE banner in Buy Targets section.
+
+### Badge Colors
+
+- BUY T1/T2: green bg + text
+- WAIT/WATCH/MONITOR: grey
+- PRE-IPO: purple
+- RESEARCH: blue
+
+### Per-Row Actions
+
+- **Rescore**: always shown, calls `/stellar-rescore` with `{ ticker }`
+- **Earnings Prep**: calls `/stellar-earnings-prep` with `{ ticker }`, shown for all entries (user decides relevance)
+- Small ghost-style buttons matching existing app aesthetic
 
 ### Files
-- `src/components/CommandTab.tsx` — update `getClaudeUrl` function (line 41-44)
+
+- `src/components/WatchlistTab.tsx` — full rewrite, keeping existing helpers and imports
 
