@@ -52,8 +52,8 @@ const HOLDING_ALERT_STYLE: Record<string, React.CSSProperties> = {
 };
 
 function getClaudeUrl(prompt: string) {
-  const encodedPrompt = prompt ? `&q=${encodeURIComponent(prompt)}` : "";
-  return `https://claude.ai/new?project=${PROJECT_ID}${encodedPrompt}`;
+  const encodedPrompt = prompt ? `?q=${encodeURIComponent(prompt)}` : "";
+  return `https://claude.ai/project/${PROJECT_ID}${encodedPrompt}`;
 }
 
 function isEmbedded(): boolean {
