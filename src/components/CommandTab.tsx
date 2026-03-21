@@ -411,12 +411,18 @@ export default function CommandTab() {
                 {weeklyWatch.length > 0 && (
                   <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 10 }}>Watch this week</div>
-                    {weeklyWatch.map((item, index) => (
-                      <div key={`watch-${index}`} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: "1px solid rgba(28,28,48,0.4)" }}>
-                        <span style={statusChip("MONITOR")}>MONITOR</span>
-                        <span style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{item}</span>
-                      </div>
-                    ))}
+                    {weeklyWatch.map((item, index) => {
+                      const tickerMatch = item.match(/^([A-Z]{2,6})\b/);
+                      return (
+                        <div key={`watch-${index}`} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: "1px solid rgba(28,28,48,0.4)" }}>
+                          <span style={statusChip("MONITOR")}>MONITOR</span>
+                          <div>
+                            {tickerMatch && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", marginRight: 6 }}>{tickerMatch[1]}</span>}
+                            <span style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{tickerMatch ? item.slice(tickerMatch[0].length).replace(/^[\s:–—-]+/, '') : item}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
