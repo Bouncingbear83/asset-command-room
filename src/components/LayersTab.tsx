@@ -210,10 +210,11 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
           <span style={cardTitle}>Layer Detail</span>
         </div>
         <div style={{ padding: "0 20px 12px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid var(--rim)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid var(--rim)" }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Layer</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Key Holdings</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>MV</div>
+            <div />
           </div>
           {chartLayers.map((layer, i) => {
             const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
