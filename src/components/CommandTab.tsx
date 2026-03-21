@@ -1,24 +1,11 @@
+import { useState } from "react";
 import { GOLDEN_RULES } from "@/data/portfolio";
 import { LiveMacroStateRow, usePortfolioData } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
-const QUICK_COMMANDS = [
-  {
-    label: "Weekly check",
-    prompt:
-      "Run a weekly check. Search the web for: S&P 500, Nasdaq, and VIX current levels; uranium spot price; copper spot price; any holdings in my portfolio with >10% move this week. Compare against pause triggers (VIX >35) and Disruption Monitor AMBER/RED thresholds. Flag anything requiring action.",
-  },
-  {
-    label: "Monthly review",
-    prompt:
-      "Run a monthly review. Start with the weekly check, then: rescore the 3 lowest-scoring holdings, check all layer weights vs targets, verify top-5 concentration is ≤35% AUM, confirm hedge floor is ≥12% AUM, check bio twin-risk (ILMN+TWST combined ≤11% AUM). Recommend any actions required.",
-  },
-  {
-    label: "Quarterly review",
-    prompt:
-      "Run a quarterly review. Start with the monthly review, then refresh all 5 cost-curve metrics (solar LCOE, battery $/kWh, DNA synthesis $/bp, AI inference $/M tokens, humanoid unit production cost). Check all 6 structural triggers (China EUV access, AI drug Phase 3 trial, SSN(X) programme status, Kazatomprom Western market access, new major uranium mine, fleet closures). Update Disruption Monitor status and validate all thesis statements.",
-  },
+const CLAUDE_COMMANDS = [
   {
     label: "Substrate audit",
     prompt:
