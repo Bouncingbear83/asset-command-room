@@ -11,6 +11,7 @@ import {
   Tooltip,
 } from "recharts";
 import { LiveLayer } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 const LAYER_COLORS = [
   "#c9a84c", "#5b8def", "#e67e22", "#00aa66", "#e74c3c",
