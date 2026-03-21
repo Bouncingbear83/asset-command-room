@@ -521,27 +521,6 @@ export default function CommandTab() {
       </div>
 
       <div>
-        <div style={card}>
-          <div style={cardHeader}>
-            <span style={cardTitle}>Upcoming Earnings</span>
-            {earningsSummary.length > 0 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>NEXT 3</span>}
-          </div>
-          <div style={{ padding: "0 20px 8px" }}>
-            {earningsSummary.map((item) => {
-              const urgency = item.daysUntil <= 2 ? "TRIGGERED" : item.daysUntil <= 7 ? "AMBER" : item.confirmed ? "GREEN" : "MONITOR";
-              return (
-                <div key={`${item.ticker}-${item.nextEarningsDate}`} style={divRow}>
-                  <div>
-                    <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 600 }}>{item.ticker}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{formatDate(item.nextEarningsDate)} · {item.fiscalPeriod || "Period tbc"}</div>
-                  </div>
-                  <span style={statusChip(urgency)}>{item.daysUntil === Number.POSITIVE_INFINITY ? "TBC" : `${item.daysUntil}D`}</span>
-                </div>
-              );
-            })}
-            {earningsSummary.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No earnings events available</div>}
-          </div>
-        </div>
 
         <div style={card}>
           <div style={cardHeader}><span style={cardTitle}>Risk Controls</span></div>
