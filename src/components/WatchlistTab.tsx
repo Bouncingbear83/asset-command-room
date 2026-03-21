@@ -1,5 +1,11 @@
 import { useState, useMemo } from "react";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Props {
   liveData: LiveWatchItem[];
@@ -79,6 +85,42 @@ function getPctInfo(item: LiveWatchItem) {
   return { current, vsColor, vsLabel };
 }
 
+// --- Review note parsing ---
+function isStale(note: string) {
+  return note?.toUpperCase().startsWith("STALE:");
+}
+
+function reviewAge(dateStr: string): number | null {
+  if (!dateStr) return null;
+  const reviewDate = new Date(dateStr);
+  if (isNaN(reviewDate.getTime())) return null;
+  const now = new Date();
+  return Math.floor((now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatReviewDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function parseReviewNote(note: string) {
+  const parts = {
+    status: note?.toUpperCase().startsWith("STALE:") ? "STALE" as const : "OK" as const,
+    reason: "",
+    suggestedTarget: "",
+    suggestedCondition: "",
+  };
+  if (!note) return parts;
+  const targetMatch = note.match(/\|\s*Target:\s*([^|]+)/);
+  const condMatch = note.match(/\|\s*Cond:\s*([^|]+)/);
+  parts.reason = note.split("|")[0].replace(/^(STALE|OK):\s*/i, "").trim();
+  if (targetMatch) parts.suggestedTarget = targetMatch[1].trim();
+  if (condMatch) parts.suggestedCondition = condMatch[1].trim();
+  return parts;
+}
+
 type SortCol = "name" | "ticker" | "layer" | "entry" | "current" | "vs" | "status" | "alert";
 type SortDir = "asc" | "desc";
 
@@ -119,6 +161,103 @@ function AlertBadge({ status }: { status: string }) {
     <span style={{ ...style, padding: "3px 10px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", whiteSpace: "nowrap" }}>
       {normalized.replace("_", " ")}
     </span>
+  );
+}
+
+function StaleBadge({ note }: { note: string }) {
+  const parsed = parseReviewNote(note);
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              background: "rgba(239, 159, 39, 0.15)",
+              color: "#EF9F27",
+              fontSize: 11,
+              padding: "2px 8px",
+              borderRadius: 4,
+              cursor: "help",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ⚠️ Stale
+          </span>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          className="max-w-xs"
+          style={{
+            background: "var(--panel)",
+            border: "1px solid var(--rim)",
+            color: "var(--text)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            lineHeight: 1.5,
+            padding: "10px 14px",
+          }}
+        >
+          <div style={{ fontWeight: 700, color: "#EF9F27", marginBottom: 4, fontSize: 10, letterSpacing: "0.1em" }}>
+            STALE TRIGGER
+          </div>
+          <div style={{ color: "var(--text-mid)" }}>{parsed.reason || note}</div>
+          {parsed.suggestedTarget && (
+            <div style={{ marginTop: 6, color: "var(--gold)", fontStyle: "italic" }}>
+              💡 Target: {parsed.suggestedTarget}
+            </div>
+          )}
+          {parsed.suggestedCondition && (
+            <div style={{ color: "var(--gold)", fontStyle: "italic" }}>
+              💡 Cond: {parsed.suggestedCondition}
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function ReviewDateLine({ dateStr }: { dateStr: string }) {
+  if (!dateStr) {
+    return (
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", opacity: 0.5 }}>
+        (no review)
+      </span>
+    );
+  }
+  const age = reviewAge(dateStr);
+  const overdue = age !== null && age > 90;
+  return (
+    <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: overdue ? "var(--red)" : "var(--text-dim)" }}>
+      {overdue
+        ? `Review overdue (${age}d)`
+        : `Reviewed: ${formatReviewDate(dateStr)} ✓`}
+    </span>
+  );
+}
+
+function SuggestedUpdates({ note }: { note: string }) {
+  const parsed = parseReviewNote(note);
+  if (!parsed.suggestedTarget && !parsed.suggestedCondition) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {parsed.suggestedTarget && (
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", fontStyle: "italic" }}>
+          💡 Suggested target: {parsed.suggestedTarget}
+        </span>
+      )}
+      {parsed.suggestedCondition && (
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", fontStyle: "italic" }}>
+          💡 Suggested cond: {parsed.suggestedCondition}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -225,6 +364,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
     if (current == null || entryNum == null || entryNum <= 0) return false;
     return ((current - entryNum) / entryNum) * 100 < 0;
   }).length;
+  const staleCount = statusSorted.filter((item) => isStale(item.triggerReviewNote)).length;
   const pauseActive = (macroState["PAUSE_ACTIVE"]?.currentValue || "").trim().toUpperCase() === "YES";
 
   function handleSort(col: SortCol) {
@@ -242,9 +382,10 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   return (
     <div>
       {/* Hero summary strip */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <StatCard count={buyReadyCount} label="Buy Ready" color="var(--green)" glow="rgba(90, 191, 160, 0.5)" />
         <StatCard count={inZoneCount} label="In Zone" color="var(--amber)" glow="rgba(200, 146, 90, 0.5)" />
+        <StatCard count={staleCount} label="Stale Triggers" color="#EF9F27" glow="rgba(239, 159, 39, 0.4)" />
         <StatCard count={items.length} label="Total Watching" color="var(--text-mid)" />
       </div>
 
@@ -296,13 +437,14 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
           {/* Rows */}
           {items.map((item, idx) => {
             const { current, vsColor, vsLabel } = getPctInfo(item);
+            const staleNote = isStale(item.triggerReviewNote);
+            const hasReviewNote = item.triggerReviewNote && item.triggerReviewNote.trim() !== "";
+            const parsed = hasReviewNote ? parseReviewNote(item.triggerReviewNote) : null;
+
             return (
               <div
                 key={`row-${idx}-${item.ticker}`}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: gridCols,
-                  minWidth: 800,
                   borderBottom: "1px solid rgba(28,28,48,0.4)",
                   fontFamily: "var(--font-mono)",
                   fontSize: 11,
@@ -311,18 +453,29 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(200, 169, 110, 0.03)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <div style={{ padding: "12px 16px", color: "var(--text)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.rationale}>{item.name}</div>
-                <div style={{ padding: "12px 16px", color: "var(--gold)" }}>{item.ticker || "—"}</div>
-                <div style={{ padding: "12px 16px", color: "var(--text-dim)", fontSize: 10 }}>{item.layer || "—"}</div>
-                <div style={{ padding: "12px 16px", color: "var(--gold)", textAlign: "right" }}>{item.entry || "—"}</div>
-                <div style={{ padding: "12px 16px", color: "var(--text)", textAlign: "right" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</div>
-                <div style={{ padding: "12px 16px", textAlign: "right" }}>
-                  <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
+                {/* Main row */}
+                <div style={{ display: "grid", gridTemplateColumns: gridCols, minWidth: 800 }}>
+                  <div style={{ padding: "12px 16px", color: "var(--text)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: 8 }} title={item.rationale}>
+                    {item.name}
+                    {staleNote && <StaleBadge note={item.triggerReviewNote} />}
+                  </div>
+                  <div style={{ padding: "12px 16px", color: "var(--gold)" }}>{item.ticker || "—"}</div>
+                  <div style={{ padding: "12px 16px", color: "var(--text-dim)", fontSize: 10 }}>{item.layer || "—"}</div>
+                  <div style={{ padding: "12px 16px", color: "var(--gold)", textAlign: "right" }}>{item.entry || "—"}</div>
+                  <div style={{ padding: "12px 16px", color: "var(--text)", textAlign: "right" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</div>
+                  <div style={{ padding: "12px 16px", textAlign: "right" }}>
+                    <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
+                  </div>
+                  <div style={{ padding: "12px 16px" }}>
+                    <span style={{ ...(STATUS_STYLE[item.status] ?? STATUS_STYLE.WATCH), padding: "3px 10px", borderRadius: 2, fontSize: 9, letterSpacing: "0.15em", whiteSpace: "nowrap" }}>{item.status}</span>
+                  </div>
+                  <div style={{ padding: "12px 16px" }}><AlertBadge status={item.alertStatus} /></div>
                 </div>
-                <div style={{ padding: "12px 16px" }}>
-                  <span style={{ ...(STATUS_STYLE[item.status] ?? STATUS_STYLE.WATCH), padding: "3px 10px", borderRadius: 2, fontSize: 9, letterSpacing: "0.15em", whiteSpace: "nowrap" }}>{item.status}</span>
+                {/* Sub-row: review date + suggested updates */}
+                <div style={{ padding: "0 16px 8px 16px", display: "flex", flexDirection: "column", gap: 3 }}>
+                  <ReviewDateLine dateStr={item.triggerReviewDate} />
+                  {parsed && <SuggestedUpdates note={item.triggerReviewNote} />}
                 </div>
-                <div style={{ padding: "12px 16px" }}><AlertBadge status={item.alertStatus} /></div>
               </div>
             );
           })}
