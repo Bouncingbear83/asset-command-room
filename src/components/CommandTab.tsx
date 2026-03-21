@@ -537,8 +537,11 @@ export default function CommandTab() {
                 const thresholdRaw = r.threshold; // e.g. "AMBER 9 · RED 10" or "RED 12"
                 const redMatch = thresholdRaw.match(/RED\s+([\d.]+)/i);
                 const amberMatch = thresholdRaw.match(/AMBER\s+([\d.]+)/i);
-                const limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
-                const amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+                let limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
+                let amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+                // Scale thresholds same as current if they're decimal fractions
+                if (limit <= 1) limit = limit * 100;
+                if (amberLimit != null && amberLimit <= 1) amberLimit = amberLimit * 100;
 
                 // For caps: bar fills toward cap. For floors: bar fills toward floor.
                 const maxBar = Math.max(limit * 1.3, currentNum * 1.2, 20);
