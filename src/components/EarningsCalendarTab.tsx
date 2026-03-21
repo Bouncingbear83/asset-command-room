@@ -102,7 +102,7 @@ export default function EarningsCalendarTab({ items }: Props) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
             <thead>
               <tr>
-                {["Ticker", "Next Earnings", "Window", "Fiscal Period", "Confirmed", "Updated"].map((heading) => (
+                {["Ticker", "Next Earnings", "Window", "Fiscal Period", "Confirmed", "Updated", ""].map((heading) => (
                   <th key={heading} style={th}>{heading}</th>
                 ))}
               </tr>
