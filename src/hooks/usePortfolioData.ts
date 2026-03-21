@@ -129,6 +129,8 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("alert status") || labelLower.includes("alert_status")) return "alert_status";
   if (labelLower.includes("alert fired date") || labelLower.includes("alert_fired_date")) return "alert_fired_date";
   if (labelLower.includes("last checked") || labelLower.includes("last_checked")) return "last_checked";
+  if (labelLower.includes("trigger review date") || labelLower.includes("trigger_review_date")) return "trigger_review_date";
+  if (labelLower.includes("trigger review note") || labelLower.includes("trigger_review_note")) return "trigger_review_note";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
@@ -341,6 +343,8 @@ function parseWatchlist(rows: Record<string, any>[]) {
       triggerPriceNumeric: parseNum(findCol(row, "trigger_price_numeric", "TRIGGER_PRICE_NUMERIC")),
       alertStatus: String(findCol(row, "alert_status", "ALERT_STATUS") ?? "WAITING"),
       lastChecked: parseSheetDate(findCol(row, "last_checked", "LAST_CHECKED")),
+      triggerReviewDate: String(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE") ?? ""),
+      triggerReviewNote: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
     }))
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
 }
@@ -703,7 +707,7 @@ export function usePortfolioData(): PortfolioData {
         cashGrid,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF32" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:K50" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:M50" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
