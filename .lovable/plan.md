@@ -1,45 +1,33 @@
 
 
-## Update Quick Commands + Add Authenticated Webhook Buttons
+## Fix: Claude Quick Commands don't pre-fill the prompt
 
-### Summary
+### Problem
 
-Remove 3 quick commands (Weekly Check, Monthly Review, Quarterly Review), keep 3 Claude-linked commands (Substrate Audit, Layer Gaps, Reclassification Risk), add 3 webhook-powered commands (Rescore, Earnings Prep, Layer Scan). Add per-row action buttons on Holdings, Scores, Earnings, and Layers tabs. All webhook calls authenticated with `x-stellar-key` header.
+The current URL format is:
+```
+https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?q=encoded_prompt
+```
 
-### Authentication
+The `/project/{id}` route does NOT support the `?q=` parameter — it just opens the project landing page and ignores the query string. The `?q=` parameter only works on `https://claude.ai/new?q=...`.
 
-Store the webhook secret as a runtime secret (`N8N_STELLAR_KEY`) accessible from the client-side webhook helper. Since this is a client-side app, the key will be embedded — but the header auth prevents casual URL abuse. The helper will read from an environment variable with a fallback.
+### Fix
 
-### Changes
+**`src/components/CommandTab.tsx`** — Update `getClaudeUrl` to use `/new` with both `?q=` and `&project_uuid=` parameters:
 
-**1. `src/lib/webhooks.ts`** — New shared helper
-- `N8N_BASE` constant
-- `triggerWebhook(endpoint, body, successMsg)` with `x-stellar-key` header
-- Toast feedback on success/failure via sonner
+```typescript
+function getClaudeUrl(prompt: string) {
+  if (!prompt) {
+    return `https://claude.ai/project/${PROJECT_ID}`;
+  }
+  return `https://claude.ai/new?q=${encodeURIComponent(prompt)}&project_uuid=${PROJECT_ID}`;
+}
+```
 
-**2. `src/components/CommandTab.tsx`** — Update Quick Commands
-- Remove: Weekly Check, Monthly Review, Quarterly Review
-- Keep: Open Stellar Intelligence, Substrate Audit, Layer Gaps, Reclassification Risk (Claude links)
-- Add: Rescore (ticker dropdown → webhook), Earnings Prep (ticker dropdown → webhook), Layer Scan (layer dropdown → webhook)
-- Webhook commands use dropdowns populated from portfolio data, then call `triggerWebhook`
+When there's a prompt, use `/new?q=...&project_uuid=...` so the prompt is pre-filled AND the project context is attached. When there's no prompt (the "Open Stellar Intelligence" button), navigate directly to the project page.
 
-**3. `src/components/HoldingsTab.tsx`** — Add 🔄 Rescore icon per row
-- POST `{ ticker }` to `/stellar-rescore`
-
-**4. `src/components/ScoresTab.tsx`** — Add 🔄 Rescore icon per row
-- POST `{ ticker }` to `/stellar-rescore`
-
-**5. `src/components/EarningsCalendarTab.tsx`** — Add 📋 Prep icon per row
-- POST `{ ticker }` to `/stellar-earnings-prep`
-
-**6. `src/components/LayersTab.tsx`** — Add 🔍 Scan icon per layer row
-- POST `{ layer }` to `/stellar-layer-scan`
+If `project_uuid` isn't a supported parameter, fall back to just `/new?q=...` — at minimum the prompt will be pre-filled.
 
 ### Files
-- `src/lib/webhooks.ts` — new
-- `src/components/CommandTab.tsx` — update commands
-- `src/components/HoldingsTab.tsx` — add rescore button
-- `src/components/ScoresTab.tsx` — add rescore button
-- `src/components/EarningsCalendarTab.tsx` — add prep button
-- `src/components/LayersTab.tsx` — add scan button
+- `src/components/CommandTab.tsx` — update `getClaudeUrl` function (line 41-44)
 
