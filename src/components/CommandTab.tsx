@@ -327,6 +327,12 @@ export default function CommandTab() {
     .slice(0, 3)
     .map((item) => ({ ...item, daysUntil: getDaysUntil(item.nextEarningsDate) }));
 
+  // Earnings this week: within 7 days
+  const earningsThisWeek = [...earningsCalendar]
+    .map((item) => ({ ...item, daysUntil: getDaysUntil(item.nextEarningsDate) }))
+    .filter((item) => item.daysUntil >= 0 && item.daysUntil <= 7)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+
   // --- Next Actions: holdings SIZE UP/TOP-UP + watchlist BUY at/below target ---
   const nextActions: { ticker: string; action: string; context: string }[] = [];
 
