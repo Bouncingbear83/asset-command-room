@@ -1,5 +1,6 @@
 import { LiveLayer, LiveNarrativeData, LiveWatchItem } from "@/hooks/usePortfolioData";
 import React, { useMemo } from "react";
+import { triggerWebhook } from "@/lib/webhooks";
 
 interface Props {
   liveData: LiveLayer[];
@@ -209,18 +210,28 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
           <span style={cardTitle}>Layer Detail</span>
         </div>
         <div style={{ padding: "0 20px 12px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid var(--rim)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid var(--rim)" }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Layer</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase" }}>Key Holdings</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "right" }}>MV</div>
+            <div />
           </div>
           {chartLayers.map((layer, i) => {
             const color = coloredLayers.find(c => c.name === layer.name)?.color || layer.hexColor || "var(--text-mid)";
             return (
-              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
+              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
+                {layer.name.toUpperCase() !== "CASH" && (
+                  <button
+                    title={`Scan ${layer.name}`}
+                    onClick={() => triggerWebhook("stellar-layer-scan", { layer: layer.name }, `Layer scan triggered for ${layer.name}. Check email.`)}
+                    style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s", justifySelf: "center" }}
+                  >
+                    🔍
+                  </button>
+                )}
               </div>
             );
           })}

@@ -1,4 +1,5 @@
 import { LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 interface Props {
   items: LiveEarningsCalendarItem[];
@@ -101,7 +102,7 @@ export default function EarningsCalendarTab({ items }: Props) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
             <thead>
               <tr>
-                {["Ticker", "Next Earnings", "Window", "Fiscal Period", "Confirmed", "Updated"].map((heading) => (
+                {["Ticker", "Next Earnings", "Window", "Fiscal Period", "Confirmed", "Updated", ""].map((heading) => (
                   <th key={heading} style={th}>{heading}</th>
                 ))}
               </tr>
@@ -136,6 +137,15 @@ export default function EarningsCalendarTab({ items }: Props) {
                       </span>
                     </td>
                     <td style={{ padding: "12px 16px", color: "var(--text-dim)" }}>{formatDate(item.lastUpdated)}</td>
+                    <td style={{ padding: "12px 8px" }}>
+                      <button
+                        title={`Earnings prep for ${item.ticker}`}
+                        onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}. Check email.`)}
+                        style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s" }}
+                      >
+                        📋 Prep
+                      </button>
+                    </td>
                   </tr>
                 );
               })}

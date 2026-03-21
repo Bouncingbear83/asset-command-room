@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Shield } from "lucide-react";
+import { ChevronRight, ChevronDown, Shield, RefreshCw } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LiveDisruption } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 interface Props {
   sipp: LiveHolding[];
@@ -348,7 +349,16 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                   <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>
                   <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>
                   <td style={{ padding: "10px 12px" }}>
-                    <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
+                      <button
+                        title={`Rescore ${h.ticker}`}
+                        onClick={(e) => { e.stopPropagation(); triggerWebhook("stellar-rescore", { ticker: h.ticker }, `Rescore triggered for ${h.ticker}. Check email.`); }}
+                        style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+                      >
+                        <RefreshCw size={11} />
+                      </button>
+                    </div>
                   </td>
                   <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                 </tr>

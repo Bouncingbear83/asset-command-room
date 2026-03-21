@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Shield } from "lucide-react";
+import { ChevronRight, ChevronDown, Shield, RefreshCw } from "lucide-react";
 import { LiveScore, LiveScoreLog, LiveDisruption } from "@/hooks/usePortfolioData";
+import { triggerWebhook } from "@/lib/webhooks";
 
 interface Props {
   scores: LiveScore[];
@@ -296,7 +297,16 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
           <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
           <td style={{ padding: "10px 12px" }}><span style={{ ...tierStyle, ...badgeBase }}>{tier}</span></td>
           <td style={{ padding: "10px 12px" }}>
-            {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
+              <button
+                title={`Rescore ${s.ticker}`}
+                onClick={(e) => { e.stopPropagation(); triggerWebhook("stellar-rescore", { ticker: s.ticker }, `Rescore triggered for ${s.ticker}. Check email.`); }}
+                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+              >
+                <RefreshCw size={11} />
+              </button>
+            </div>
           </td>
           <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.changeNote || s.fullThesis}</td>
         </tr>
