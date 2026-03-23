@@ -75,6 +75,8 @@ interface PeriodReturn {
   total: number | null;
   sipp: number | null;
   isa: number | null;
+  sp500: number | null;
+  alpha: number | null;
 }
 
 function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodReturn[] {
@@ -124,15 +126,20 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
 
   return periods.map(({ label, start, end }) => {
     if (start.getTime() < oldest.getTime() - 45 * 86400000) {
-      return { label, total: null, sipp: null, isa: null };
+      return { label, total: null, sipp: null, isa: null, sp500: null, alpha: null };
     }
     const startRow = nearest(start);
     const endRow = end ? nearest(end) : latest;
+    const totalRtn = calcReturn(endRow.cumulativeTwrTotal, startRow.cumulativeTwrTotal);
+    const sp500Rtn = (endRow.sp500Tr != null && startRow.sp500Tr != null)
+      ? calcReturn(endRow.sp500Tr, startRow.sp500Tr) : null;
     return {
       label,
-      total: calcReturn(endRow.cumulativeTwrTotal, startRow.cumulativeTwrTotal),
+      total: totalRtn,
       sipp: calcReturn(endRow.cumulativeTwrSipp, startRow.cumulativeTwrSipp),
       isa: calcReturn(endRow.cumulativeTwrIsa, startRow.cumulativeTwrIsa),
+      sp500: sp500Rtn,
+      alpha: sp500Rtn != null ? totalRtn - sp500Rtn : null,
     };
   });
 }
@@ -204,58 +211,53 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
     ? (showAllRows ? sortedPerf : sortedPerf.slice(0, 5))
     : [];
 
+  // Precompute benchmark values
+  const sp500Val = latest?.sp500Tr ?? null;
+  const msciVal = latest?.msciWorldTr ?? null;
+  const portfolioVal = latest?.cumulativeTwrTotal ?? null;
+  const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
+
   return (
     <div>
-      {/* Benchmark summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
-        {(() => {
-          const sp500Val = latest?.sp500Tr;
-          const msciVal = latest?.msciWorldTr;
-          const portfolioVal = latest?.cumulativeTwrTotal;
-          const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
-          return [
-            { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
-            { label: "S&P 500 TR · Since Inception", value: sp500Val ? fmtPct(sp500Val) : "—", color: sp500Val ? pctColor(sp500Val) : undefined },
-            { label: "MSCI World TR · Since Inception", value: msciVal ? fmtPct(msciVal) : "—", color: msciVal ? pctColor(msciVal) : undefined },
-            { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined, highlight: true },
-          ];
-        })().map((metric) => (
-          <div key={metric.label} style={{
-            ...card,
-            padding: 20,
-            marginBottom: 0,
-            ...(metric.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
+      {/* Hero metrics — SIPP / ISA / Portfolio */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+        {[
+          { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined, border: false },
+          { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined, border: false },
+          { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined, border: true },
+        ].map((m) => (
+          <div key={m.label} style={{
+            ...card, padding: 20, marginBottom: 0,
+            ...(m.border ? { borderLeft: "3px solid var(--gold)" } : {}),
           }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: metric.highlight ? 30 : 26, color: metric.color ?? "var(--text)", fontWeight: metric.highlight ? 700 : 300 }}>
-              {metric.value}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, color: m.color ?? "var(--text)", fontWeight: 700 }}>
+              {m.value}
             </div>
-            <div style={{
-              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
-              textTransform: "uppercase", color: metric.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 6,
-            }}>
-              {metric.label}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: m.border ? "var(--gold)" : "var(--text-dim)", marginTop: 6 }}>
+              {m.label}
             </div>
           </div>
         ))}
       </div>
 
-      {/* AUM cards */}
+      {/* Reference metrics — benchmarks + AUM */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
-          { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
-          { label: "Cumulative TWR · Total", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
-          { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
-          { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
-        ].map((metric) => (
-          <div key={metric.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: metric.color ?? "var(--text)", fontWeight: 300 }}>
-              {metric.value}
+          { label: "S&P 500 TR", value: sp500Val != null ? fmtPct(sp500Val) : "—", highlight: false },
+          { label: "MSCI World TR", value: msciVal != null ? fmtPct(msciVal) : "—", highlight: false },
+          { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", highlight: true, color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined },
+          { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total), highlight: false },
+        ].map((m) => (
+          <div key={m.label} style={{
+            ...card, padding: "14px 20px", marginBottom: 0,
+            background: m.highlight ? "var(--panel)" : "rgba(20,20,40,0.5)",
+            ...(m.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, color: m.highlight ? (m.color ?? "var(--gold)") : "var(--text-dim)", fontWeight: m.highlight ? 700 : 400 }}>
+              {m.value}
             </div>
-            <div style={{
-              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
-              textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6,
-            }}>
-              {metric.label}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase", color: m.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 4, opacity: 0.7 }}>
+              {m.label}
             </div>
           </div>
         ))}
@@ -270,7 +272,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--rim)" }}>
-                  {["Period", "SIPP", "ISA", "Portfolio"].map((h) => (
+                  {["Period", "SIPP", "ISA", "Portfolio", "S&P 500", "Alpha"].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -280,7 +282,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
                         fontSize: 9,
                         letterSpacing: "0.15em",
                         textTransform: "uppercase",
-                        color: "var(--text-dim)",
+                        color: h === "Alpha" ? "var(--gold)" : "var(--text-dim)",
                         fontWeight: 700,
                       }}
                     >
@@ -294,18 +296,16 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
                   <tr key={pr.label} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                     <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{pr.label}</td>
                     {[pr.sipp, pr.isa, pr.total].map((val, i) => (
-                      <td
-                        key={i}
-                        style={{
-                          padding: "10px 14px",
-                          textAlign: "right",
-                          fontWeight: 700,
-                          color: val == null ? "var(--text-dim)" : pctColor(val),
-                        }}
-                      >
+                      <td key={i} style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: val == null ? "var(--text-dim)" : pctColor(val) }}>
                         {val == null ? "—" : fmtPct(val)}
                       </td>
                     ))}
+                    <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 400, color: pr.sp500 == null ? "var(--text-dim)" : "var(--text-dim)" }}>
+                      {pr.sp500 == null ? "—" : fmtPct(pr.sp500)}
+                    </td>
+                    <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: pr.alpha == null ? "var(--text-dim)" : pctColor(pr.alpha) }}>
+                      {pr.alpha == null ? "—" : fmtPct(pr.alpha)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -322,15 +322,15 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
           <div style={{ padding: "18px 20px 16px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 14 }}>
               {[
-                { label: "Portfolio", color: "#C8A96E", dashed: false },
-                { label: "SIPP", color: "var(--accent)", dashed: false },
-                { label: "ISA", color: "var(--green)", dashed: false },
-                { label: "S&P 500 TR", color: "#888780", dashed: true },
-                { label: "MSCI World TR", color: "#378ADD", dashed: true },
+                { label: "Portfolio Total", color: "#C8A96E", dashed: false, width: 3 },
+                { label: "SIPP", color: "#2EC4B6", dashed: false, width: 2 },
+                { label: "ISA", color: "#9B5DE5", dashed: false, width: 2 },
+                { label: "S&P 500 TR", color: "#888780", dashed: true, width: 1.5 },
+                { label: "MSCI World TR", color: "#378ADD", dashed: true, width: 1.5 },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase" }}>
                   <svg width="20" height="12" style={{ display: "inline-block" }}>
-                    <line x1="0" y1="6" x2="20" y2="6" stroke={item.color} strokeWidth="2" strokeDasharray={item.dashed ? "4 3" : "none"} />
+                    <line x1="0" y1="6" x2="20" y2="6" stroke={item.color} strokeWidth={item.width} strokeDasharray={item.dashed ? "4 3" : "none"} />
                   </svg>
                   {item.label}
                 </div>
@@ -358,45 +358,19 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
               <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
 
-              {/* Benchmark dashed lines (render behind portfolio lines) */}
-              <polyline
-                fill="none"
-                stroke="#888780"
-                strokeWidth="1.5"
-                strokeDasharray="6 4"
-                opacity="0.7"
-                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))}
-              />
-              <polyline
-                fill="none"
-                stroke="#378ADD"
-                strokeWidth="1.5"
-                strokeDasharray="6 4"
-                opacity="0.7"
-                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.msciY })))}
-              />
+              {/* Benchmark dashed lines — subtle reference */}
+              <polyline fill="none" stroke="#888780" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.5"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))} />
+              <polyline fill="none" stroke="#378ADD" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.5"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.msciY })))} />
 
-              {/* Portfolio lines */}
-              <polyline
-                fill="none"
-                stroke="#C8A96E"
-                strokeWidth="3"
-                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.totalY })))}
-              />
-              <polyline
-                fill="none"
-                stroke="var(--accent)"
-                strokeWidth="2"
-                opacity="0.8"
-                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.sippY })))}
-              />
-              <polyline
-                fill="none"
-                stroke="var(--green)"
-                strokeWidth="2"
-                opacity="0.8"
-                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.isaY })))}
-              />
+              {/* Portfolio lines — visually dominant */}
+              <polyline fill="none" stroke="#2EC4B6" strokeWidth="2" opacity="0.8"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sippY })))} />
+              <polyline fill="none" stroke="#9B5DE5" strokeWidth="2" opacity="0.8"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.isaY })))} />
+              <polyline fill="none" stroke="#C8A96E" strokeWidth="3"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.totalY })))} />
             </svg>
           </div>
         </div>
