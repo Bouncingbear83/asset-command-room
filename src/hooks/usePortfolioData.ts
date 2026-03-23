@@ -68,7 +68,8 @@ const KNOWN_COLS = [
   "cumulative_twr_total", "note", "trigger_type", "trigger_price_add", "trigger_price_exit",
   "trigger_price_numeric", "alert_status", "alert_fired_date", "key", "current_value",
   "threshold_amber", "threshold_red", "value", "next_earnings_date", "fiscal_period",
-  "confirmed", "sp500_tr", "msci_world_tr",
+  "confirmed", "sp500_tr", "msci_world_tr", "deploy_target_gbp", "deploy_note",
+  "deploy_amount_gbp",
 ];
 
 interface SheetFetchOptions {
@@ -326,6 +327,8 @@ function parseHoldings(rows: Record<string, any>[]) {
       ma60: parseNum(findCol(row, "MA60", "ma60", "Ma60")),
       high_52w: parseNum(findCol(row, "HIGH_52w", "HIGH_52W", "high_52w", "High_52w")),
       low_52w: parseNum(findCol(row, "LOW_52w", "LOW_52W", "low_52w", "Low_52w")),
+      deploy_target_gbp: parseNum(findCol(row, "deploy_target_gbp", "DEPLOY_TARGET_GBP", "Deploy_Target_GBP")),
+      deploy_note: String(findCol(row, "deploy_note", "DEPLOY_NOTE", "Deploy_Note") ?? ""),
     }));
 }
 
@@ -345,6 +348,7 @@ function parseWatchlist(rows: Record<string, any>[]) {
       lastChecked: parseSheetDate(findCol(row, "last_checked", "LAST_CHECKED")),
       triggerReviewDate: String(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE") ?? ""),
       triggerReviewNote: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
+      deploy_amount_gbp: parseNum(findCol(row, "deploy_amount_gbp", "DEPLOY_AMOUNT_GBP", "Deploy_Amount_GBP")),
     }))
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
 }
