@@ -327,6 +327,8 @@ function parseHoldings(rows: Record<string, any>[]) {
       ma60: parseNum(findCol(row, "MA60", "ma60", "Ma60")),
       high_52w: parseNum(findCol(row, "HIGH_52w", "HIGH_52W", "high_52w", "High_52w")),
       low_52w: parseNum(findCol(row, "LOW_52w", "LOW_52W", "low_52w", "Low_52w")),
+      deploy_target_gbp: parseNum(findCol(row, "deploy_target_gbp", "DEPLOY_TARGET_GBP", "Deploy_Target_GBP")),
+      deploy_note: String(findCol(row, "deploy_note", "DEPLOY_NOTE", "Deploy_Note") ?? ""),
     }));
 }
 
