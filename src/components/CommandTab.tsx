@@ -434,6 +434,34 @@ export default function CommandTab() {
           </div>
         </div>
 
+        {/* Deploy Queue card */}
+        <div style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}` }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Deploy Queue {isPaused ? "(paused)" : "(ready)"}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{deployTotal > 0 ? formatCurrency(deployTotal) + " staged" : "—"}</span>
+          </div>
+          <div style={{ padding: "14px 20px" }}>
+            {isPaused && (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--amber)", marginBottom: 12, lineHeight: 1.5 }}>When pause lifts, deploy in this order:</div>
+            )}
+            {deployQueue.length === 0 ? (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No deployments queued</div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {deployQueue.map((d, i) => (
+                  <div key={`${d.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", width: 16 }}>{i + 1}.</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{d.ticker}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", minWidth: 60 }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 70 }}>{d.layer}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.context}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Earnings This Week card */}
         <div style={card}>
           <div style={cardHeader}>
