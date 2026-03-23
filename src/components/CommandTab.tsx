@@ -358,6 +358,56 @@ export default function CommandTab() {
 
   const displayActions = nextActions.slice(0, 4);
 
+  // --- Deploy Queue: holdings SIZE UP/TOP-UP + watchlist BUY entries ---
+  const LAYER_PRIORITY = ["materials", "robotics", "compute", "biological", "sovereignty", "energy", "hedge"];
+  const deployQueue: { ticker: string; amount: number; layer: string; context: string }[] = [];
+
+  holdings.forEach((h) => {
+    const act = h.action.trim().toUpperCase();
+    if (act === "SIZE UP" || act === "TOP-UP") {
+      // Parse £ amount from notes: e.g. "Target 6% AUM (~£60k)" or "£11k"
+      const notesStr = h.notes || h.add_trigger || "";
+      let amount = 0;
+      const amountMatch = notesStr.match(/£([\d,.]+)\s*k/i);
+      if (amountMatch) {
+        amount = parseFloat(amountMatch[1].replace(/,/g, "")) * 1000;
+      } else {
+        const rawMatch = notesStr.match(/£([\d,.]+)/);
+        if (rawMatch) amount = parseFloat(rawMatch[1].replace(/,/g, ""));
+      }
+      deployQueue.push({ ticker: h.ticker, amount, layer: h.layer, context: `${act === "SIZE UP" ? "Size-up" : "Top-up"} · ${notesStr || formatCurrency(h.mv) + " current"}` });
+    }
+  });
+
+  watchlist.forEach((w) => {
+    if (!w.status.toUpperCase().startsWith("BUY")) return;
+    const entryStr = w.entry;
+    const triggerStr = w.trigger || "";
+    // Parse amount from trigger condition
+    let amount = 0;
+    const amountMatch = (triggerStr + " " + entryStr).match(/£([\d,.]+)\s*k/i);
+    if (amountMatch) {
+      amount = parseFloat(amountMatch[1].replace(/,/g, "")) * 1000;
+    } else {
+      const rawMatch = (triggerStr + " " + entryStr).match(/£([\d,.]+)/);
+      if (rawMatch) amount = parseFloat(rawMatch[1].replace(/,/g, ""));
+    }
+    deployQueue.push({ ticker: w.ticker, amount, layer: w.layer, context: `Entry at ${entryStr}` });
+  });
+
+  // Sort by layer priority
+  deployQueue.sort((a, b) => {
+    const ai = LAYER_PRIORITY.indexOf(a.layer.toLowerCase());
+    const bi = LAYER_PRIORITY.indexOf(b.layer.toLowerCase());
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  const deployTotal = deployQueue.reduce((sum, d) => sum + d.amount, 0);
+
+  // Check pause status
+  const pauseRow = macroState["PAUSE_ACTIVE"];
+  const isPaused = pauseRow ? ["YES", "TRUE", "ACTIVE"].includes(pauseRow.currentValue.toUpperCase()) : false;
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
       <div>
@@ -377,6 +427,34 @@ export default function CommandTab() {
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{a.ticker}</span>
                     <span style={{ ...actionBadge(a.action), flexShrink: 0 }}>{a.action}</span>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.context}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Deploy Queue card */}
+        <div style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}` }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Deploy Queue {isPaused ? "(paused)" : "(ready)"}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{deployTotal > 0 ? formatCurrency(deployTotal) + " staged" : "—"}</span>
+          </div>
+          <div style={{ padding: "14px 20px" }}>
+            {isPaused && (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--amber)", marginBottom: 12, lineHeight: 1.5 }}>When pause lifts, deploy in this order:</div>
+            )}
+            {deployQueue.length === 0 ? (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No deployments queued</div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {deployQueue.map((d, i) => (
+                  <div key={`${d.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", width: 16 }}>{i + 1}.</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{d.ticker}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", minWidth: 60 }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 70 }}>{d.layer}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.context}</span>
                   </div>
                 ))}
               </div>
