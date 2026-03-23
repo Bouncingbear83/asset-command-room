@@ -212,53 +212,51 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
     : [];
 
   // Precompute benchmark values
-  const sp500Val = latest?.sp500Tr ?? null;
-  const msciVal = latest?.msciWorldTr ?? null;
-  const portfolioVal = latest?.cumulativeTwrTotal ?? null;
-  const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
+  const sp500Val = latest?.sp500Tr ?? 0;
+  const msciVal = latest?.msciWorldTr ?? 0;
+  const sippTwr = latest?.cumulativeTwrSipp ?? 0;
+  const isaTwr = latest?.cumulativeTwrIsa ?? 0;
+  const totalTwr = latest?.cumulativeTwrTotal ?? 0;
+  const sippCount = sippData.filter((h) => h.mv > 0).length;
+  const isaCount = isaData.filter((h) => h.mv > 0).length;
+
+  const fmtGbpShort = (v: number) => v >= 1000 ? `£${Math.round(v / 1000).toLocaleString("en-GB")}k` : fmtGbp(v);
+
+  const accountCards = [
+    { title: "SIPP", aum: sippTotal, twr: sippTwr, alphaSp: sippTwr - sp500Val, alphaMsci: sippTwr - msciVal, footer: `Long horizon · ${sippCount} positions`, highlight: false },
+    { title: "ISA", aum: isaTotal, twr: isaTwr, alphaSp: isaTwr - sp500Val, alphaMsci: isaTwr - msciVal, footer: `Flex wrapper · ${isaCount} positions`, highlight: false },
+    { title: "PORTFOLIO", aum: total, twr: totalTwr, alphaSp: totalTwr - sp500Val, alphaMsci: totalTwr - msciVal, footer: `${sippCount + isaCount} positions`, highlight: true },
+  ];
 
   return (
     <div>
-      {/* Hero metrics — SIPP / ISA / Portfolio */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
-        {[
-          { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined, border: false },
-          { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined, border: false },
-          { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined, border: true },
-        ].map((m) => (
-          <div key={m.label} style={{
-            ...card, padding: 20, marginBottom: 0,
-            ...(m.border ? { borderLeft: "3px solid var(--gold)" } : {}),
+      {/* Three account cards with embedded benchmarks */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
+        {accountCards.map((ac) => (
+          <div key={ac.title} style={{
+            ...card, padding: 24, marginBottom: 0, borderRadius: 12,
+            ...(ac.highlight ? { borderLeft: "3px solid var(--gold)" } : {}),
           }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, color: m.color ?? "var(--text)", fontWeight: 700 }}>
-              {m.value}
-            </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: m.border ? "var(--gold)" : "var(--text-dim)", marginTop: 6 }}>
-              {m.label}
-            </div>
-          </div>
-        ))}
-      </div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: ac.highlight ? "var(--gold)" : "var(--text-dim)", marginBottom: 16 }}>{ac.title}</div>
 
-      {/* Reference metrics — benchmarks + AUM */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
-        {[
-          { label: "S&P 500 TR", value: sp500Val != null ? fmtPct(sp500Val) : "—", highlight: false },
-          { label: "MSCI World TR", value: msciVal != null ? fmtPct(msciVal) : "—", highlight: false },
-          { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", highlight: true, color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined },
-          { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total), highlight: false },
-        ].map((m) => (
-          <div key={m.label} style={{
-            ...card, padding: "14px 20px", marginBottom: 0,
-            background: m.highlight ? "var(--panel)" : "rgba(20,20,40,0.5)",
-            ...(m.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
-          }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, color: m.highlight ? (m.color ?? "var(--gold)") : "var(--text-dim)", fontWeight: m.highlight ? 700 : 400 }}>
-              {m.value}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 24, fontWeight: 700, color: "var(--text)" }}>{fmtGbpShort(ac.aum)}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 16 }}>AUM</div>
+
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 700, color: pctColor(ac.twr) }}>{fmtPct(ac.twr)}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 16 }}>TWR since inception</div>
+
+            <div style={{ display: "grid", gap: 6, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>vs S&P 500</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: pctColor(ac.alphaSp) }}>{fmtPct(ac.alphaSp)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>vs MSCI World</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: pctColor(ac.alphaMsci) }}>{fmtPct(ac.alphaMsci)}</span>
+              </div>
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase", color: m.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 4, opacity: 0.7 }}>
-              {m.label}
-            </div>
+
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", opacity: 0.6 }}>{ac.footer}</div>
           </div>
         ))}
       </div>
