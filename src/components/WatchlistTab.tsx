@@ -445,7 +445,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
           {preIpo.map((item, idx) => (
-            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed hideActions />
+            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed />
           ))}
         </div>
       )}
