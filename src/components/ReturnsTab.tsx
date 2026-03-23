@@ -322,15 +322,15 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
           <div style={{ padding: "18px 20px 16px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 14 }}>
               {[
-                { label: "Portfolio", color: "#C8A96E", dashed: false },
-                { label: "SIPP", color: "var(--accent)", dashed: false },
-                { label: "ISA", color: "var(--green)", dashed: false },
-                { label: "S&P 500 TR", color: "#888780", dashed: true },
-                { label: "MSCI World TR", color: "#378ADD", dashed: true },
+                { label: "Portfolio Total", color: "#C8A96E", dashed: false, width: 3 },
+                { label: "SIPP", color: "#2EC4B6", dashed: false, width: 2 },
+                { label: "ISA", color: "#9B5DE5", dashed: false, width: 2 },
+                { label: "S&P 500 TR", color: "#888780", dashed: true, width: 1.5 },
+                { label: "MSCI World TR", color: "#378ADD", dashed: true, width: 1.5 },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase" }}>
                   <svg width="20" height="12" style={{ display: "inline-block" }}>
-                    <line x1="0" y1="6" x2="20" y2="6" stroke={item.color} strokeWidth="2" strokeDasharray={item.dashed ? "4 3" : "none"} />
+                    <line x1="0" y1="6" x2="20" y2="6" stroke={item.color} strokeWidth={item.width} strokeDasharray={item.dashed ? "4 3" : "none"} />
                   </svg>
                   {item.label}
                 </div>
@@ -358,45 +358,19 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
               <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
 
-              {/* Benchmark dashed lines (render behind portfolio lines) */}
-              <polyline
-                fill="none"
-                stroke="#888780"
-                strokeWidth="1.5"
-                strokeDasharray="6 4"
-                opacity="0.7"
-                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))}
-              />
-              <polyline
-                fill="none"
-                stroke="#378ADD"
-                strokeWidth="1.5"
-                strokeDasharray="6 4"
-                opacity="0.7"
-                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.msciY })))}
-              />
+              {/* Benchmark dashed lines — subtle reference */}
+              <polyline fill="none" stroke="#888780" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.5"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))} />
+              <polyline fill="none" stroke="#378ADD" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.5"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.msciY })))} />
 
-              {/* Portfolio lines */}
-              <polyline
-                fill="none"
-                stroke="#C8A96E"
-                strokeWidth="3"
-                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.totalY })))}
-              />
-              <polyline
-                fill="none"
-                stroke="var(--accent)"
-                strokeWidth="2"
-                opacity="0.8"
-                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.sippY })))}
-              />
-              <polyline
-                fill="none"
-                stroke="var(--green)"
-                strokeWidth="2"
-                opacity="0.8"
-                points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.isaY })))}
-              />
+              {/* Portfolio lines — visually dominant */}
+              <polyline fill="none" stroke="#2EC4B6" strokeWidth="2" opacity="0.8"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sippY })))} />
+              <polyline fill="none" stroke="#9B5DE5" strokeWidth="2" opacity="0.8"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.isaY })))} />
+              <polyline fill="none" stroke="#C8A96E" strokeWidth="3"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.totalY })))} />
             </svg>
           </div>
         </div>
