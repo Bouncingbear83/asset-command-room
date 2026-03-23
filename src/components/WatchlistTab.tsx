@@ -208,6 +208,25 @@ function ActionButtons({ ticker }: { ticker: string }) {
       >
         📋 Earnings Prep
       </button>
+      <button
+        onClick={() => triggerWebhook("stellar-watchlist-review", { ticker }, `Watchlist review triggered for ${ticker}. Check email.`)}
+        style={{
+          background: "none",
+          border: "1px solid var(--rim)",
+          color: "var(--text-dim)",
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          letterSpacing: "0.08em",
+          padding: "3px 10px",
+          borderRadius: 2,
+          cursor: "pointer",
+          transition: "all 0.15s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
+      >
+        🔄 Review
+      </button>
     </div>
   );
 }
