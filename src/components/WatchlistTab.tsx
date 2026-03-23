@@ -311,7 +311,8 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
 
   const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
   const WAIT_STATUSES = ["WAIT", "WATCH", "MONITOR"];
-  const RESEARCH_STATUSES = ["PRE-IPO", "RESEARCH"];
+  const PREIPO_STATUSES = ["PRE-IPO"];
+  const RESEARCH_STATUSES = ["RESEARCH"];
 
   const buyTargets = useMemo(() =>
     liveData
@@ -332,6 +333,13 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         const bPct = getPctInfo(b).pctDist ?? 999;
         return aPct - bPct; // closest to entry first
       }),
+    [liveData]
+  );
+
+  const preIpo = useMemo(() =>
+    liveData
+      .filter((item) => PREIPO_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     [liveData]
   );
 
@@ -432,10 +440,20 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         )}
       </div>
 
-      {/* ── Section 3: Pre-IPO / Research ── */}
+      {/* ── Section 3: Pre-IPO ── */}
+      {preIpo.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
+          <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
+          {preIpo.map((item, idx) => (
+            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed hideActions />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 4: Research ── */}
       {research.length > 0 && (
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
-          <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO / Research" count={research.length} />
+          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
           {research.map((item, idx) => (
             <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed hideActions />
           ))}
