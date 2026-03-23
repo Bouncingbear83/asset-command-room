@@ -360,7 +360,7 @@ export default function CommandTab() {
 
   // --- Deploy Queue: HOLDINGS with DEPLOY_TARGET_GBP > MV, plus WATCHLIST BUY not in holdings ---
   const LAYER_PRIORITY = ["materials", "robotics", "compute", "biological", "sovereignty", "energy", "hedge"];
-  const deployQueue: { ticker: string; amount: number; layer: string; context: string }[] = [];
+  const deployQueue: { ticker: string; amount: number; layer: string; context: string; price: number; tier: number }[] = [];
   const holdingsTickers = new Set(holdings.map((h) => h.ticker.toUpperCase()));
 
   holdings.forEach((h) => {
@@ -368,21 +368,25 @@ export default function CommandTab() {
     if (target > 0 && target > h.mv) {
       const amount = Math.round(target - h.mv);
       const instruction = h.deploy_note || `${h.action} · ${h.notes}`.trim();
-      deployQueue.push({ ticker: h.ticker, amount, layer: h.layer, context: instruction || `Deploy to £${(target / 1000).toFixed(0)}k target` });
+      deployQueue.push({ ticker: h.ticker, amount, layer: h.layer, context: instruction || `Deploy to £${(target / 1000).toFixed(0)}k target`, price: h.price, tier: 0 });
     }
   });
 
   watchlist.forEach((w) => {
     if (!w.status.toUpperCase().startsWith("BUY")) return;
-    if (holdingsTickers.has(w.ticker.toUpperCase())) return; // holdings wins
+    if (holdingsTickers.has(w.ticker.toUpperCase())) return;
     const amount = w.deploy_amount_gbp;
     if (amount <= 0) return;
+    // Extract tier from status: "BUY T1", "BUY T2", "BUY T3" etc.
+    const tierMatch = w.status.match(/T(\d)/i);
+    const tier = tierMatch ? parseInt(tierMatch[1], 10) : 9;
     const instruction = w.trigger || `Entry at ${w.entry}`;
-    deployQueue.push({ ticker: w.ticker, amount, layer: w.layer, context: instruction });
+    deployQueue.push({ ticker: w.ticker, amount, layer: w.layer, context: instruction, price: w.current, tier });
   });
 
-  // Sort by layer priority
+  // Sort: holdings (tier=0) first, then watchlist by tier (T1→T2→T3), then by layer priority
   deployQueue.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
     const ai = LAYER_PRIORITY.indexOf(a.layer.toLowerCase());
     const bi = LAYER_PRIORITY.indexOf(b.layer.toLowerCase());
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
