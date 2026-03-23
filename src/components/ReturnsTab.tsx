@@ -75,6 +75,8 @@ interface PeriodReturn {
   total: number | null;
   sipp: number | null;
   isa: number | null;
+  sp500: number | null;
+  alpha: number | null;
 }
 
 function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodReturn[] {
@@ -124,15 +126,20 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
 
   return periods.map(({ label, start, end }) => {
     if (start.getTime() < oldest.getTime() - 45 * 86400000) {
-      return { label, total: null, sipp: null, isa: null };
+      return { label, total: null, sipp: null, isa: null, sp500: null, alpha: null };
     }
     const startRow = nearest(start);
     const endRow = end ? nearest(end) : latest;
+    const totalRtn = calcReturn(endRow.cumulativeTwrTotal, startRow.cumulativeTwrTotal);
+    const sp500Rtn = (endRow.sp500Tr != null && startRow.sp500Tr != null)
+      ? calcReturn(endRow.sp500Tr, startRow.sp500Tr) : null;
     return {
       label,
-      total: calcReturn(endRow.cumulativeTwrTotal, startRow.cumulativeTwrTotal),
+      total: totalRtn,
       sipp: calcReturn(endRow.cumulativeTwrSipp, startRow.cumulativeTwrSipp),
       isa: calcReturn(endRow.cumulativeTwrIsa, startRow.cumulativeTwrIsa),
+      sp500: sp500Rtn,
+      alpha: sp500Rtn != null ? totalRtn - sp500Rtn : null,
     };
   });
 }
