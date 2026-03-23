@@ -487,6 +487,8 @@ function parsePerformance(rows: Record<string, any>[]) {
       cumulativeTwrSipp: parseFractionToPercent(findCol(row, "cumulative_twr_sipp", "CUMULATIVE_TWR_SIPP")),
       cumulativeTwrIsa: parseFractionToPercent(findCol(row, "cumulative_twr_isa", "CUMULATIVE_TWR_ISA")),
       cumulativeTwrTotal: parseFractionToPercent(findCol(row, "cumulative_twr_total", "CUMULATIVE_TWR_TOTAL")),
+      sp500Tr: parseFractionToPercent(findCol(row, "sp500_tr", "SP500_TR", "S&P500_TR")),
+      msciWorldTr: parseFractionToPercent(findCol(row, "msci_world_tr", "MSCI_WORLD_TR", "MSCI World TR")),
       note: String(findCol(row, "note", "Note", "NOTE") ?? ""),
     }));
 }
