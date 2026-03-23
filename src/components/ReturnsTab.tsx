@@ -206,10 +206,44 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
   return (
     <div>
+      {/* Benchmark summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
+        {(() => {
+          const sp500Val = latest?.sp500Tr;
+          const msciVal = latest?.msciWorldTr;
+          const portfolioVal = latest?.cumulativeTwrTotal;
+          const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
+          return [
+            { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
+            { label: "S&P 500 TR · Since Inception", value: sp500Val ? fmtPct(sp500Val) : "—", color: sp500Val ? pctColor(sp500Val) : undefined },
+            { label: "MSCI World TR · Since Inception", value: msciVal ? fmtPct(msciVal) : "—", color: msciVal ? pctColor(msciVal) : undefined },
+            { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined, highlight: true },
+          ];
+        })().map((metric) => (
+          <div key={metric.label} style={{
+            ...card,
+            padding: 20,
+            marginBottom: 0,
+            ...(metric.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: metric.highlight ? 30 : 26, color: metric.color ?? "var(--text)", fontWeight: metric.highlight ? 700 : 300 }}>
+              {metric.value}
+            </div>
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
+              textTransform: "uppercase", color: metric.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 6,
+            }}>
+              {metric.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* AUM cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
           { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
-          { label: "Cumulative TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
+          { label: "Cumulative TWR · Total", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
           { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
           { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
         ].map((metric) => (
@@ -217,16 +251,10 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: metric.color ?? "var(--text)", fontWeight: 300 }}>
               {metric.value}
             </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 9,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                color: "var(--text-dim)",
-                marginTop: 6,
-              }}
-            >
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
+              textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6,
+            }}>
               {metric.label}
             </div>
           </div>
