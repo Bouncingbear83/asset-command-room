@@ -358,6 +358,56 @@ export default function CommandTab() {
 
   const displayActions = nextActions.slice(0, 4);
 
+  // --- Deploy Queue: holdings SIZE UP/TOP-UP + watchlist BUY entries ---
+  const LAYER_PRIORITY = ["materials", "robotics", "compute", "biological", "sovereignty", "energy", "hedge"];
+  const deployQueue: { ticker: string; amount: number; layer: string; context: string }[] = [];
+
+  holdings.forEach((h) => {
+    const act = h.action.trim().toUpperCase();
+    if (act === "SIZE UP" || act === "TOP-UP") {
+      // Parse £ amount from notes: e.g. "Target 6% AUM (~£60k)" or "£11k"
+      const notesStr = h.notes || h.add_trigger || "";
+      let amount = 0;
+      const amountMatch = notesStr.match(/£([\d,.]+)\s*k/i);
+      if (amountMatch) {
+        amount = parseFloat(amountMatch[1].replace(/,/g, "")) * 1000;
+      } else {
+        const rawMatch = notesStr.match(/£([\d,.]+)/);
+        if (rawMatch) amount = parseFloat(rawMatch[1].replace(/,/g, ""));
+      }
+      deployQueue.push({ ticker: h.ticker, amount, layer: h.layer, context: `${act === "SIZE UP" ? "Size-up" : "Top-up"} · ${notesStr || formatCurrency(h.mv) + " current"}` });
+    }
+  });
+
+  watchlist.forEach((w) => {
+    if (!w.status.toUpperCase().startsWith("BUY")) return;
+    const entryStr = w.entry;
+    const triggerStr = w.trigger || "";
+    // Parse amount from trigger condition
+    let amount = 0;
+    const amountMatch = (triggerStr + " " + entryStr).match(/£([\d,.]+)\s*k/i);
+    if (amountMatch) {
+      amount = parseFloat(amountMatch[1].replace(/,/g, "")) * 1000;
+    } else {
+      const rawMatch = (triggerStr + " " + entryStr).match(/£([\d,.]+)/);
+      if (rawMatch) amount = parseFloat(rawMatch[1].replace(/,/g, ""));
+    }
+    deployQueue.push({ ticker: w.ticker, amount, layer: w.layer, context: `Entry at ${entryStr}` });
+  });
+
+  // Sort by layer priority
+  deployQueue.sort((a, b) => {
+    const ai = LAYER_PRIORITY.indexOf(a.layer.toLowerCase());
+    const bi = LAYER_PRIORITY.indexOf(b.layer.toLowerCase());
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  const deployTotal = deployQueue.reduce((sum, d) => sum + d.amount, 0);
+
+  // Check pause status
+  const pauseRow = macroState["PAUSE_ACTIVE"];
+  const isPaused = pauseRow ? ["YES", "TRUE", "ACTIVE"].includes(pauseRow.currentValue.toUpperCase()) : false;
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
       <div>
