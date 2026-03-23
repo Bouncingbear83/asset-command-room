@@ -5,6 +5,48 @@ interface Props {
   weeklyTriggers: LiveWeeklyTrigger[];
 }
 
+const proximityIndicator = (metric: { current: any; amberThreshold: any; unit?: string }) => {
+  const cur = parseFloat(String(metric.current).replace(/[^0-9.\-]/g, ""));
+  const amber = parseFloat(String(metric.amberThreshold).replace(/[^0-9.\-]/g, ""));
+  if (isNaN(cur) || isNaN(amber) || amber === 0) return null;
+
+  // For cost curves, lower current = more disruptive, amber is the "danger" floor
+  // Check if amber threshold uses "<" logic (current should stay above amber)
+  const amberStr = String(metric.amberThreshold).trim();
+  const isFloor = amberStr.startsWith("<") || amberStr.startsWith("≤");
+  // For ">" thresholds (e.g., humanoid cost > 50000), invert
+  const isCeiling = amberStr.startsWith(">") || amberStr.startsWith("≥");
+
+  let ratio: number;
+  let pctToAmber: number;
+
+  if (isCeiling) {
+    // Current should stay below amber (e.g., humanoid cost)
+    ratio = amber / cur;
+    pctToAmber = Math.round(((amber - cur) / cur) * 100);
+  } else {
+    // Default: current above amber is safe (cost curves — lower is disruptive)
+    ratio = cur / amber;
+    pctToAmber = Math.round(((cur - amber) / amber) * 100);
+  }
+
+  let arrow: string;
+  let label: string;
+  let color: string;
+
+  if (ratio > 2) {
+    arrow = "→"; color = "#00aa66"; label = `${Math.abs(pctToAmber)}% to amber`;
+  } else if (ratio > 1.3) {
+    arrow = "→"; color = "#00aa66"; label = `${Math.abs(pctToAmber)}% to amber`;
+  } else if (ratio > 1) {
+    arrow = "↘"; color = "#c9a84c"; label = `${Math.abs(pctToAmber)}% to amber`;
+  } else {
+    arrow = "↘↘"; color = "#e67e22"; label = "breached";
+  }
+
+  return { arrow, color, label };
+};
+
 const rag = (status: string): React.CSSProperties => {
   const upper = (status ?? "").toUpperCase();
   const solidMap: Record<string, { bg: string; color: string; pulse?: boolean }> = {
