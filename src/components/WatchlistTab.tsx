@@ -286,7 +286,7 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
       <ReviewCard note={item.triggerReviewNote} dateStr={item.triggerReviewDate} />
 
       {/* Line 5: Action buttons */}
-      {!dimmed && !hideActions && <ActionButtons ticker={item.ticker} />}
+      {!hideActions && <ActionButtons ticker={item.ticker} />}
     </div>
   );
 }
@@ -445,7 +445,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
           {preIpo.map((item, idx) => (
-            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed hideActions />
+            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed />
           ))}
         </div>
       )}
@@ -455,7 +455,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
           {research.map((item, idx) => (
-            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed hideActions />
+            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
           ))}
         </div>
       )}
