@@ -336,6 +336,13 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
     [liveData]
   );
 
+  const preIpo = useMemo(() =>
+    liveData
+      .filter((item) => PREIPO_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
   const research = useMemo(() =>
     liveData
       .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
