@@ -455,7 +455,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
           {research.map((item, idx) => (
-            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed hideActions />
+            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
           ))}
         </div>
       )}
