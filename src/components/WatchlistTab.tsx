@@ -440,10 +440,20 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         )}
       </div>
 
-      {/* ── Section 3: Pre-IPO / Research ── */}
+      {/* ── Section 3: Pre-IPO ── */}
+      {preIpo.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
+          <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
+          {preIpo.map((item, idx) => (
+            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed hideActions />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 4: Research ── */}
       {research.length > 0 && (
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
-          <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO / Research" count={research.length} />
+          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
           {research.map((item, idx) => (
             <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed hideActions />
           ))}
