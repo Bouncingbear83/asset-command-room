@@ -132,8 +132,14 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
             <div key={metric.name} style={row}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{metric.name}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                  Current: {metric.current}{metric.unit ? ` ${metric.unit}` : ""} · AMBER: {metric.amberThreshold} · RED: {metric.redThreshold}
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span>Current: {metric.current}{metric.unit ? ` ${metric.unit}` : ""}</span>
+                  {(() => {
+                    const p = proximityIndicator(metric);
+                    if (!p) return null;
+                    return <span style={{ color: p.color, fontWeight: 600 }}>{p.arrow} {p.label}</span>;
+                  })()}
+                  <span>· AMBER: {metric.amberThreshold} · RED: {metric.redThreshold}</span>
                 </div>
                 {metric.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {metric.notes}</div>}
                 {metric.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {metric.lastUpdated}</div>}
