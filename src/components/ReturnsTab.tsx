@@ -25,7 +25,10 @@ function formatChartDate(value: string) {
 function buildChartGeometry(rows: LivePerformance[]) {
   const innerWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
   const innerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
-  const values = rows.flatMap((row) => [row.cumulativeTwrTotal, row.cumulativeTwrSipp, row.cumulativeTwrIsa]);
+  const values = rows.flatMap((row) => [
+    row.cumulativeTwrTotal, row.cumulativeTwrSipp, row.cumulativeTwrIsa,
+    row.sp500Tr, row.msciWorldTr,
+  ]);
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 0);
   const range = max - min || 1;
@@ -42,9 +45,13 @@ function buildChartGeometry(rows: LivePerformance[]) {
       totalY: mapY(row.cumulativeTwrTotal),
       sippY: mapY(row.cumulativeTwrSipp),
       isaY: mapY(row.cumulativeTwrIsa),
+      sp500Y: mapY(row.sp500Tr),
+      msciY: mapY(row.msciWorldTr),
       total: row.cumulativeTwrTotal,
       sipp: row.cumulativeTwrSipp,
       isa: row.cumulativeTwrIsa,
+      sp500: row.sp500Tr,
+      msci: row.msciWorldTr,
     };
   });
 
@@ -199,10 +206,44 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
   return (
     <div>
+      {/* Benchmark summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
+        {(() => {
+          const sp500Val = latest?.sp500Tr;
+          const msciVal = latest?.msciWorldTr;
+          const portfolioVal = latest?.cumulativeTwrTotal;
+          const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
+          return [
+            { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
+            { label: "S&P 500 TR · Since Inception", value: sp500Val ? fmtPct(sp500Val) : "—", color: sp500Val ? pctColor(sp500Val) : undefined },
+            { label: "MSCI World TR · Since Inception", value: msciVal ? fmtPct(msciVal) : "—", color: msciVal ? pctColor(msciVal) : undefined },
+            { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined, highlight: true },
+          ];
+        })().map((metric) => (
+          <div key={metric.label} style={{
+            ...card,
+            padding: 20,
+            marginBottom: 0,
+            ...(metric.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: metric.highlight ? 30 : 26, color: metric.color ?? "var(--text)", fontWeight: metric.highlight ? 700 : 300 }}>
+              {metric.value}
+            </div>
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
+              textTransform: "uppercase", color: metric.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 6,
+            }}>
+              {metric.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* AUM cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
           { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
-          { label: "Cumulative TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
+          { label: "Cumulative TWR · Total", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
           { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
           { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
         ].map((metric) => (
@@ -210,16 +251,10 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: metric.color ?? "var(--text)", fontWeight: 300 }}>
               {metric.value}
             </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 9,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                color: "var(--text-dim)",
-                marginTop: 6,
-              }}
-            >
+            <div style={{
+              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
+              textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6,
+            }}>
               {metric.label}
             </div>
           </div>
@@ -287,18 +322,22 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
           <div style={{ padding: "18px 20px 16px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 14 }}>
               {[
-                { label: "Total", color: "var(--gold)" },
-                { label: "SIPP", color: "var(--accent)" },
-                { label: "ISA", color: "var(--green)" },
+                { label: "Portfolio", color: "#C8A96E", dashed: false },
+                { label: "SIPP", color: "var(--accent)", dashed: false },
+                { label: "ISA", color: "var(--green)", dashed: false },
+                { label: "S&P 500 TR", color: "#888780", dashed: true },
+                { label: "MSCI World TR", color: "#378ADD", dashed: true },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 999, background: item.color, display: "inline-block" }} />
+                  <svg width="20" height="12" style={{ display: "inline-block" }}>
+                    <line x1="0" y1="6" x2="20" y2="6" stroke={item.color} strokeWidth="2" strokeDasharray={item.dashed ? "4 3" : "none"} />
+                  </svg>
                   {item.label}
                 </div>
               ))}
             </div>
 
-            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} style={{ width: "100%", height: 320, display: "block" }} role="img" aria-label="Portfolio cumulative time weighted return chart">
+            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} style={{ width: "100%", height: 320, display: "block" }} role="img" aria-label="Portfolio cumulative time weighted return chart with benchmarks">
               {chartGeometry.yTicks.map((tick) => (
                 <g key={`y-${tick.value}`}>
                   <line x1={CHART_PADDING.left} y1={tick.y} x2={CHART_WIDTH - CHART_PADDING.right} y2={tick.y} stroke="var(--rim)" strokeDasharray="4 4" />
@@ -319,9 +358,28 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
               <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
 
+              {/* Benchmark dashed lines (render behind portfolio lines) */}
               <polyline
                 fill="none"
-                stroke="var(--gold)"
+                stroke="#888780"
+                strokeWidth="1.5"
+                strokeDasharray="6 4"
+                opacity="0.7"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))}
+              />
+              <polyline
+                fill="none"
+                stroke="#378ADD"
+                strokeWidth="1.5"
+                strokeDasharray="6 4"
+                opacity="0.7"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.msciY })))}
+              />
+
+              {/* Portfolio lines */}
+              <polyline
+                fill="none"
+                stroke="#C8A96E"
                 strokeWidth="3"
                 points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.totalY })))}
               />
