@@ -250,7 +250,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         ].map((m) => (
           <div key={m.label} style={{
             ...card, padding: "14px 20px", marginBottom: 0,
-            background: "m.highlight" ? "var(--panel)" : "rgba(var(--panel-rgb,20,20,40),0.5)",
+            background: m.highlight ? "var(--panel)" : "rgba(20,20,40,0.5)",
             ...(m.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
           }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, color: m.highlight ? (m.color ?? "var(--gold)") : "var(--text-dim)", fontWeight: m.highlight ? 700 : 400 }}>
