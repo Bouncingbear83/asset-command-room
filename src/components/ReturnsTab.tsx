@@ -25,7 +25,10 @@ function formatChartDate(value: string) {
 function buildChartGeometry(rows: LivePerformance[]) {
   const innerWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
   const innerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
-  const values = rows.flatMap((row) => [row.cumulativeTwrTotal, row.cumulativeTwrSipp, row.cumulativeTwrIsa]);
+  const values = rows.flatMap((row) => [
+    row.cumulativeTwrTotal, row.cumulativeTwrSipp, row.cumulativeTwrIsa,
+    row.sp500Tr, row.msciWorldTr,
+  ]);
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 0);
   const range = max - min || 1;
@@ -42,9 +45,13 @@ function buildChartGeometry(rows: LivePerformance[]) {
       totalY: mapY(row.cumulativeTwrTotal),
       sippY: mapY(row.cumulativeTwrSipp),
       isaY: mapY(row.cumulativeTwrIsa),
+      sp500Y: mapY(row.sp500Tr),
+      msciY: mapY(row.msciWorldTr),
       total: row.cumulativeTwrTotal,
       sipp: row.cumulativeTwrSipp,
       isa: row.cumulativeTwrIsa,
+      sp500: row.sp500Tr,
+      msci: row.msciWorldTr,
     };
   });
 
