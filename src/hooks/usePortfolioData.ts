@@ -68,7 +68,7 @@ const KNOWN_COLS = [
   "cumulative_twr_total", "note", "trigger_type", "trigger_price_add", "trigger_price_exit",
   "trigger_price_numeric", "alert_status", "alert_fired_date", "key", "current_value",
   "threshold_amber", "threshold_red", "value", "next_earnings_date", "fiscal_period",
-  "confirmed",
+  "confirmed", "sp500_tr", "msci_world_tr",
 ];
 
 interface SheetFetchOptions {
