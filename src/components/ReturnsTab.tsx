@@ -211,58 +211,53 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
     ? (showAllRows ? sortedPerf : sortedPerf.slice(0, 5))
     : [];
 
+  // Precompute benchmark values
+  const sp500Val = latest?.sp500Tr ?? null;
+  const msciVal = latest?.msciWorldTr ?? null;
+  const portfolioVal = latest?.cumulativeTwrTotal ?? null;
+  const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
+
   return (
     <div>
-      {/* Benchmark summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
-        {(() => {
-          const sp500Val = latest?.sp500Tr;
-          const msciVal = latest?.msciWorldTr;
-          const portfolioVal = latest?.cumulativeTwrTotal;
-          const alphaVsSp500 = portfolioVal != null && sp500Val != null ? portfolioVal - sp500Val : null;
-          return [
-            { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
-            { label: "S&P 500 TR · Since Inception", value: sp500Val ? fmtPct(sp500Val) : "—", color: sp500Val ? pctColor(sp500Val) : undefined },
-            { label: "MSCI World TR · Since Inception", value: msciVal ? fmtPct(msciVal) : "—", color: msciVal ? pctColor(msciVal) : undefined },
-            { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined, highlight: true },
-          ];
-        })().map((metric) => (
-          <div key={metric.label} style={{
-            ...card,
-            padding: 20,
-            marginBottom: 0,
-            ...(metric.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
+      {/* Hero metrics — SIPP / ISA / Portfolio */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+        {[
+          { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined, border: false },
+          { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined, border: false },
+          { label: "Portfolio TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined, border: true },
+        ].map((m) => (
+          <div key={m.label} style={{
+            ...card, padding: 20, marginBottom: 0,
+            ...(m.border ? { borderLeft: "3px solid var(--gold)" } : {}),
           }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: metric.highlight ? 30 : 26, color: metric.color ?? "var(--text)", fontWeight: metric.highlight ? 700 : 300 }}>
-              {metric.value}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, color: m.color ?? "var(--text)", fontWeight: 700 }}>
+              {m.value}
             </div>
-            <div style={{
-              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
-              textTransform: "uppercase", color: metric.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 6,
-            }}>
-              {metric.label}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: m.border ? "var(--gold)" : "var(--text-dim)", marginTop: 6 }}>
+              {m.label}
             </div>
           </div>
         ))}
       </div>
 
-      {/* AUM cards */}
+      {/* Reference metrics — benchmarks + AUM */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         {[
-          { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total) },
-          { label: "Cumulative TWR · Total", value: latest ? fmtPct(latest.cumulativeTwrTotal) : "—", color: latest ? pctColor(latest.cumulativeTwrTotal) : undefined },
-          { label: "SIPP TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrSipp) : "—", color: latest ? pctColor(latest.cumulativeTwrSipp) : undefined },
-          { label: "ISA TWR · Since Inception", value: latest ? fmtPct(latest.cumulativeTwrIsa) : "—", color: latest ? pctColor(latest.cumulativeTwrIsa) : undefined },
-        ].map((metric) => (
-          <div key={metric.label} style={{ ...card, padding: 20, marginBottom: 0 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, color: metric.color ?? "var(--text)", fontWeight: 300 }}>
-              {metric.value}
+          { label: "S&P 500 TR", value: sp500Val != null ? fmtPct(sp500Val) : "—", highlight: false },
+          { label: "MSCI World TR", value: msciVal != null ? fmtPct(msciVal) : "—", highlight: false },
+          { label: "Alpha vs S&P 500", value: alphaVsSp500 != null ? fmtPct(alphaVsSp500) : "—", highlight: true, color: alphaVsSp500 != null ? pctColor(alphaVsSp500) : undefined },
+          { label: "Total AUM", value: latest ? fmtGbp(latest.totalValue) : fmtGbp(total), highlight: false },
+        ].map((m) => (
+          <div key={m.label} style={{
+            ...card, padding: "14px 20px", marginBottom: 0,
+            background: "m.highlight" ? "var(--panel)" : "rgba(var(--panel-rgb,20,20,40),0.5)",
+            ...(m.highlight ? { borderColor: "var(--gold)", borderWidth: 2 } : {}),
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, color: m.highlight ? (m.color ?? "var(--gold)") : "var(--text-dim)", fontWeight: m.highlight ? 700 : 400 }}>
+              {m.value}
             </div>
-            <div style={{
-              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em",
-              textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6,
-            }}>
-              {metric.label}
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase", color: m.highlight ? "var(--gold)" : "var(--text-dim)", marginTop: 4, opacity: 0.7 }}>
+              {m.label}
             </div>
           </div>
         ))}
@@ -277,7 +272,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--rim)" }}>
-                  {["Period", "SIPP", "ISA", "Portfolio"].map((h) => (
+                  {["Period", "SIPP", "ISA", "Portfolio", "S&P 500", "Alpha"].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -287,7 +282,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
                         fontSize: 9,
                         letterSpacing: "0.15em",
                         textTransform: "uppercase",
-                        color: "var(--text-dim)",
+                        color: h === "Alpha" ? "var(--gold)" : "var(--text-dim)",
                         fontWeight: 700,
                       }}
                     >
@@ -301,18 +296,16 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
                   <tr key={pr.label} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                     <td style={{ padding: "10px 14px", color: "var(--text-mid)" }}>{pr.label}</td>
                     {[pr.sipp, pr.isa, pr.total].map((val, i) => (
-                      <td
-                        key={i}
-                        style={{
-                          padding: "10px 14px",
-                          textAlign: "right",
-                          fontWeight: 700,
-                          color: val == null ? "var(--text-dim)" : pctColor(val),
-                        }}
-                      >
+                      <td key={i} style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: val == null ? "var(--text-dim)" : pctColor(val) }}>
                         {val == null ? "—" : fmtPct(val)}
                       </td>
                     ))}
+                    <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 400, color: pr.sp500 == null ? "var(--text-dim)" : "var(--text-dim)" }}>
+                      {pr.sp500 == null ? "—" : fmtPct(pr.sp500)}
+                    </td>
+                    <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: pr.alpha == null ? "var(--text-dim)" : pctColor(pr.alpha) }}>
+                      {pr.alpha == null ? "—" : fmtPct(pr.alpha)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
