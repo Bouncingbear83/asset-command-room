@@ -322,18 +322,22 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
           <div style={{ padding: "18px 20px 16px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 14 }}>
               {[
-                { label: "Total", color: "var(--gold)" },
-                { label: "SIPP", color: "var(--accent)" },
-                { label: "ISA", color: "var(--green)" },
+                { label: "Portfolio", color: "#C8A96E", dashed: false },
+                { label: "SIPP", color: "var(--accent)", dashed: false },
+                { label: "ISA", color: "var(--green)", dashed: false },
+                { label: "S&P 500 TR", color: "#888780", dashed: true },
+                { label: "MSCI World TR", color: "#378ADD", dashed: true },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 999, background: item.color, display: "inline-block" }} />
+                  <svg width="20" height="12" style={{ display: "inline-block" }}>
+                    <line x1="0" y1="6" x2="20" y2="6" stroke={item.color} strokeWidth="2" strokeDasharray={item.dashed ? "4 3" : "none"} />
+                  </svg>
                   {item.label}
                 </div>
               ))}
             </div>
 
-            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} style={{ width: "100%", height: 320, display: "block" }} role="img" aria-label="Portfolio cumulative time weighted return chart">
+            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} style={{ width: "100%", height: 320, display: "block" }} role="img" aria-label="Portfolio cumulative time weighted return chart with benchmarks">
               {chartGeometry.yTicks.map((tick) => (
                 <g key={`y-${tick.value}`}>
                   <line x1={CHART_PADDING.left} y1={tick.y} x2={CHART_WIDTH - CHART_PADDING.right} y2={tick.y} stroke="var(--rim)" strokeDasharray="4 4" />
@@ -354,9 +358,28 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
               <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
 
+              {/* Benchmark dashed lines (render behind portfolio lines) */}
               <polyline
                 fill="none"
-                stroke="var(--gold)"
+                stroke="#888780"
+                strokeWidth="1.5"
+                strokeDasharray="6 4"
+                opacity="0.7"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))}
+              />
+              <polyline
+                fill="none"
+                stroke="#378ADD"
+                strokeWidth="1.5"
+                strokeDasharray="6 4"
+                opacity="0.7"
+                points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.msciY })))}
+              />
+
+              {/* Portfolio lines */}
+              <polyline
+                fill="none"
+                stroke="#C8A96E"
                 strokeWidth="3"
                 points={toPolyline(chartGeometry.points.map((point) => ({ x: point.x, y: point.totalY })))}
               />
