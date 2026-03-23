@@ -358,41 +358,27 @@ export default function CommandTab() {
 
   const displayActions = nextActions.slice(0, 4);
 
-  // --- Deploy Queue: holdings SIZE UP/TOP-UP + watchlist BUY entries ---
+  // --- Deploy Queue: HOLDINGS with DEPLOY_TARGET_GBP > MV, plus WATCHLIST BUY not in holdings ---
   const LAYER_PRIORITY = ["materials", "robotics", "compute", "biological", "sovereignty", "energy", "hedge"];
   const deployQueue: { ticker: string; amount: number; layer: string; context: string }[] = [];
+  const holdingsTickers = new Set(holdings.map((h) => h.ticker.toUpperCase()));
 
   holdings.forEach((h) => {
-    const act = h.action.trim().toUpperCase();
-    if (act === "SIZE UP" || act === "TOP-UP") {
-      // Parse £ amount from notes: e.g. "Target 6% AUM (~£60k)" or "£11k"
-      const notesStr = h.notes || h.add_trigger || "";
-      let amount = 0;
-      const amountMatch = notesStr.match(/£([\d,.]+)\s*k/i);
-      if (amountMatch) {
-        amount = parseFloat(amountMatch[1].replace(/,/g, "")) * 1000;
-      } else {
-        const rawMatch = notesStr.match(/£([\d,.]+)/);
-        if (rawMatch) amount = parseFloat(rawMatch[1].replace(/,/g, ""));
-      }
-      deployQueue.push({ ticker: h.ticker, amount, layer: h.layer, context: `${act === "SIZE UP" ? "Size-up" : "Top-up"} · ${notesStr || formatCurrency(h.mv) + " current"}` });
+    const target = h.deploy_target_gbp;
+    if (target > 0 && target > h.mv) {
+      const amount = Math.round(target - h.mv);
+      const instruction = h.deploy_note || `${h.action} · ${h.notes}`.trim();
+      deployQueue.push({ ticker: h.ticker, amount, layer: h.layer, context: instruction || `Deploy to £${(target / 1000).toFixed(0)}k target` });
     }
   });
 
   watchlist.forEach((w) => {
     if (!w.status.toUpperCase().startsWith("BUY")) return;
-    const entryStr = w.entry;
-    const triggerStr = w.trigger || "";
-    // Parse amount from trigger condition
-    let amount = 0;
-    const amountMatch = (triggerStr + " " + entryStr).match(/£([\d,.]+)\s*k/i);
-    if (amountMatch) {
-      amount = parseFloat(amountMatch[1].replace(/,/g, "")) * 1000;
-    } else {
-      const rawMatch = (triggerStr + " " + entryStr).match(/£([\d,.]+)/);
-      if (rawMatch) amount = parseFloat(rawMatch[1].replace(/,/g, ""));
-    }
-    deployQueue.push({ ticker: w.ticker, amount, layer: w.layer, context: `Entry at ${entryStr}` });
+    if (holdingsTickers.has(w.ticker.toUpperCase())) return; // holdings wins
+    const amount = w.deploy_amount_gbp;
+    if (amount <= 0) return;
+    const instruction = w.trigger || `Entry at ${w.entry}`;
+    deployQueue.push({ ticker: w.ticker, amount, layer: w.layer, context: instruction });
   });
 
   // Sort by layer priority
