@@ -525,9 +525,41 @@ export default function CommandTab() {
   const pauseRow = macroState["PAUSE_ACTIVE"];
   const isPaused = pauseRow ? ["YES", "TRUE", "ACTIVE"].includes(pauseRow.currentValue.toUpperCase()) : false;
 
+  // --- RAG summary helpers ---
+  const riskStatusCounts = riskControls.reduce((acc, r) => {
+    let currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
+    if (!isNaN(currentNum) && Math.abs(currentNum) <= 1) currentNum = currentNum * 100;
+    const isFloor = r.key.toLowerCase().includes("floor");
+    const redMatch = r.threshold.match(/RED\s+([\d.]+)/i);
+    const amberMatch = r.threshold.match(/AMBER\s+([\d.]+)/i);
+    let limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
+    if (limit <= 1) limit = limit * 100;
+    const amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+    let status = "SAFE";
+    if (isFloor) {
+      if (currentNum < limit) status = "BREACH";
+      else if (amberLimit != null && currentNum < (amberLimit <= 1 ? amberLimit * 100 : amberLimit) * 1.1) status = "WATCH";
+    } else {
+      if (currentNum > limit) status = "BREACH";
+      else if (currentNum > limit - 1) status = "WATCH";
+    }
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const macroStatusCounts = macroSignals.reduce((acc, s) => {
+    const key = s.status.toUpperCase();
+    const bucket = (key === "CLEAR" || key === "GREEN") ? "GREEN" : (key === "TRIGGERED" || key === "FIRED") ? "RED" : "AMBER";
+    acc[bucket] = (acc[bucket] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const ragChipStyle = (color: string): React.CSSProperties => ({
+    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", color,
+  });
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-      <div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
         {/* Next Actions card */}
         <div style={{ ...card, borderLeft: "3px solid var(--gold)" }}>
           <div style={cardHeader}>
@@ -719,49 +751,44 @@ export default function CommandTab() {
             )}
           </div>
         </div>
-      </div>
-
-      <div>
-
-        <div style={card}>
-          <div style={cardHeader}><span style={cardTitle}>Risk Controls</span></div>
+        {/* Risk Controls — collapsible with RAG summary */}
+        <details style={card}>
+          <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+            <span style={cardTitle}>Risk Controls</span>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              {riskStatusCounts.SAFE && <span style={ragChipStyle("var(--green)")}>{riskStatusCounts.SAFE} SAFE</span>}
+              {riskStatusCounts.WATCH && <span style={ragChipStyle("var(--amber)")}>{riskStatusCounts.WATCH} WATCH</span>}
+              {riskStatusCounts.BREACH && <span style={ragChipStyle("var(--red)")}>{riskStatusCounts.BREACH} BREACH</span>}
+              {riskControls.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
+            </div>
+          </summary>
           <div style={{ padding: "0 20px 12px" }}>
             {riskControls.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>
             ) : (
               riskControls.map((r) => {
                 let currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
-                // Values ≤1 are likely fractions (0.082 = 8.2%), scale up
                 if (!isNaN(currentNum) && Math.abs(currentNum) <= 1) currentNum = currentNum * 100;
                 const isFloor = r.key.toLowerCase().includes("floor");
-                // Parse threshold from the raw macro row
-                const thresholdRaw = r.threshold; // e.g. "AMBER 9 · RED 10" or "RED 12"
+                const thresholdRaw = r.threshold;
                 const redMatch = thresholdRaw.match(/RED\s+([\d.]+)/i);
                 const amberMatch = thresholdRaw.match(/AMBER\s+([\d.]+)/i);
                 let limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
                 let amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
-                // Scale thresholds same as current if they're decimal fractions
                 if (limit <= 1) limit = limit * 100;
                 if (amberLimit != null && amberLimit <= 1) amberLimit = amberLimit * 100;
-
-                // For caps: bar fills toward cap. For floors: bar fills toward floor.
                 const maxBar = Math.max(limit * 1.3, currentNum * 1.2, 20);
                 const fillPct = Math.min((currentNum / maxBar) * 100, 100);
                 const thresholdPct = Math.min((limit / maxBar) * 100, 100);
-
-                // Status colors
                 let barColor = "var(--green)";
-                let statusLabel = "SAFE";
                 if (isFloor) {
-                  if (currentNum < limit) { barColor = "var(--red)"; statusLabel = "BREACH"; }
-                  else if (amberLimit != null && currentNum < amberLimit * 1.1) { barColor = "var(--amber)"; statusLabel = "WATCH"; }
+                  if (currentNum < limit) barColor = "var(--red)";
+                  else if (amberLimit != null && currentNum < amberLimit * 1.1) barColor = "var(--amber)";
                 } else {
-                  if (currentNum > limit) { barColor = "var(--red)"; statusLabel = "BREACH"; }
-                  else if (currentNum > limit - 1) { barColor = "var(--amber)"; statusLabel = "WATCH"; }
+                  if (currentNum > limit) barColor = "var(--red)";
+                  else if (currentNum > limit - 1) barColor = "var(--amber)";
                 }
-
                 const label = r.key === "SGLD_AUM_PCT" ? "SGLD" : r.key === "TOP5_CONCENTRATION" ? "Top-5" : r.key === "HEDGE_FLOOR_PCT" ? "Hedge" : r.key === "BIO_TWIN_RISK_PCT" ? "BioTwin" : r.label;
-
                 return (
                   <div key={r.key} style={{ padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -779,10 +806,19 @@ export default function CommandTab() {
               })
             )}
           </div>
-        </div>
+        </details>
 
-        <div style={card}>
-          <div style={cardHeader}><span style={cardTitle}>Macro Signals</span></div>
+        {/* Macro Signals — collapsible with RAG summary */}
+        <details style={card}>
+          <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+            <span style={cardTitle}>Macro Signals</span>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              {macroStatusCounts.GREEN && <span style={ragChipStyle("var(--green)")}>{macroStatusCounts.GREEN} GREEN</span>}
+              {macroStatusCounts.AMBER && <span style={ragChipStyle("var(--amber)")}>{macroStatusCounts.AMBER} AMBER</span>}
+              {macroStatusCounts.RED && <span style={ragChipStyle("var(--red)")}>{macroStatusCounts.RED} RED</span>}
+              {macroSignals.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
+            </div>
+          </summary>
           <div style={{ padding: "0 20px 8px" }}>
             {macroSignals.map((signal) => (
               <div key={signal.name} style={divRow}>
@@ -795,17 +831,12 @@ export default function CommandTab() {
             ))}
             {macroSignals.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Macro signals unavailable</div>}
           </div>
-        </div>
+        </details>
 
-      </div>
-
-      {/* Commit Research — collapsible, spans full width */}
-      <div style={{ gridColumn: "1 / -1" }}>
+        {/* Commit Research */}
         <CommitResearchPanel />
-      </div>
 
-      {/* Golden Rules — collapsible at very bottom, spans full width */}
-      <div style={{ gridColumn: "1 / -1" }}>
+        {/* Golden Rules */}
         <details style={{ ...card, marginBottom: 0 }}>
           <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
             <span style={cardTitle}>Golden Rules</span>
@@ -820,7 +851,6 @@ export default function CommandTab() {
             ))}
           </div>
         </details>
-      </div>
     </div>
   );
 }
