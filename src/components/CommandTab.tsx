@@ -305,6 +305,104 @@ function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { tic
   );
 }
 
+function CommitResearchPanel() {
+  const [jsonText, setJsonText] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCommit = async () => {
+    if (!jsonText.trim()) return;
+    setLoading(true);
+    try {
+      const payload = JSON.parse(jsonText);
+      const response = await fetch(
+        "https://bertbroad83.app.n8n.cloud/webhook/stellar-research-commit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-stellar-key": "STELLAR",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (response.ok) {
+        setStatus(`✓ Committed ${payload.ticker || "?"} (${payload.action || "unknown"})`);
+        setJsonText("");
+      } else {
+        setStatus(`✗ Error: ${response.statusText}`);
+      }
+    } catch {
+      setStatus("✗ Invalid JSON");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <details style={{ ...card, borderLeft: "3px solid transparent", marginBottom: 16 }}
+      onToggle={(e) => {
+        const el = e.currentTarget;
+        el.style.borderLeftColor = el.open ? "var(--gold)" : "transparent";
+      }}
+    >
+      <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+        <span style={cardTitle}>Commit Research</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>▸ PASTE JSON</span>
+      </summary>
+      <div style={{ padding: "14px 20px" }}>
+        <textarea
+          value={jsonText}
+          onChange={(e) => setJsonText(e.target.value)}
+          placeholder='{"ticker":"ASML","action":"RESCORE","substrate":22,...}'
+          rows={6}
+          style={{
+            width: "100%",
+            background: "var(--surface)",
+            border: "1px solid var(--rim)",
+            color: "var(--text)",
+            fontFamily: "'DM Mono', var(--font-mono)",
+            fontSize: 11,
+            padding: "10px 12px",
+            resize: "vertical",
+            borderRadius: 2,
+            lineHeight: 1.5,
+          }}
+        />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
+          <button
+            disabled={loading || !jsonText.trim()}
+            onClick={handleCommit}
+            style={{
+              background: "var(--gold)",
+              color: "var(--void)",
+              border: "none",
+              padding: "8px 18px",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              cursor: loading || !jsonText.trim() ? "not-allowed" : "pointer",
+              opacity: loading || !jsonText.trim() ? 0.4 : 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {loading ? "Committing…" : "Commit to Sheet"}
+          </button>
+          {status && (
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              color: status.startsWith("✓") ? "var(--green)" : "var(--red)",
+            }}>
+              {status}
+            </span>
+          )}
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export default function CommandTab() {
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
 
@@ -699,6 +797,11 @@ export default function CommandTab() {
           </div>
         </div>
 
+      </div>
+
+      {/* Commit Research — collapsible, spans full width */}
+      <div style={{ gridColumn: "1 / -1" }}>
+        <CommitResearchPanel />
       </div>
 
       {/* Golden Rules — collapsible at very bottom, spans full width */}
