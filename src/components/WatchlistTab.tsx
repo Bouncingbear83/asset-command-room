@@ -272,6 +272,9 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
             <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
             <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
             <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
+            {item.deploy_amount_gbp != null && item.deploy_amount_gbp > 0 && (
+              <span style={{ color: "var(--text-dim)" }}>Deploy: <span style={{ color: "var(--accent)" }}>£{item.deploy_amount_gbp.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
+            )}
           </div>
         </div>
 
