@@ -525,9 +525,41 @@ export default function CommandTab() {
   const pauseRow = macroState["PAUSE_ACTIVE"];
   const isPaused = pauseRow ? ["YES", "TRUE", "ACTIVE"].includes(pauseRow.currentValue.toUpperCase()) : false;
 
+  // --- RAG summary helpers ---
+  const riskStatusCounts = riskControls.reduce((acc, r) => {
+    let currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
+    if (!isNaN(currentNum) && Math.abs(currentNum) <= 1) currentNum = currentNum * 100;
+    const isFloor = r.key.toLowerCase().includes("floor");
+    const redMatch = r.threshold.match(/RED\s+([\d.]+)/i);
+    const amberMatch = r.threshold.match(/AMBER\s+([\d.]+)/i);
+    let limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
+    if (limit <= 1) limit = limit * 100;
+    const amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
+    let status = "SAFE";
+    if (isFloor) {
+      if (currentNum < limit) status = "BREACH";
+      else if (amberLimit != null && currentNum < (amberLimit <= 1 ? amberLimit * 100 : amberLimit) * 1.1) status = "WATCH";
+    } else {
+      if (currentNum > limit) status = "BREACH";
+      else if (currentNum > limit - 1) status = "WATCH";
+    }
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const macroStatusCounts = macroSignals.reduce((acc, s) => {
+    const key = s.status.toUpperCase();
+    const bucket = (key === "CLEAR" || key === "GREEN") ? "GREEN" : (key === "TRIGGERED" || key === "FIRED") ? "RED" : "AMBER";
+    acc[bucket] = (acc[bucket] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const ragChipStyle = (color: string): React.CSSProperties => ({
+    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", color,
+  });
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-      <div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
         {/* Next Actions card */}
         <div style={{ ...card, borderLeft: "3px solid var(--gold)" }}>
           <div style={cardHeader}>
