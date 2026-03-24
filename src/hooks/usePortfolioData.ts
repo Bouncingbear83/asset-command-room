@@ -717,7 +717,7 @@ export function usePortfolioData(): PortfolioData {
         cashGrid,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF32" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:M50" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
