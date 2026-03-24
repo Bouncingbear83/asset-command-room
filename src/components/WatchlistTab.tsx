@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
@@ -92,8 +93,8 @@ function StatCard({ count, label, color, glow }: { count: number; label: string;
   return (
     <div style={{
       flex: "1 1 0",
-      minWidth: 120,
-      padding: "18px 20px",
+      minWidth: 80,
+      padding: "14px 14px",
       background: "var(--panel)",
       border: "1px solid var(--rim)",
       borderRadius: 3,
@@ -101,8 +102,8 @@ function StatCard({ count, label, color, glow }: { count: number; label: string;
       overflow: "hidden",
     }}>
       {glow && <div style={{ position: "absolute", top: -20, right: -20, width: 60, height: 60, borderRadius: "50%", background: glow, filter: "blur(24px)", opacity: 0.4 }} />}
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 700, color, lineHeight: 1, position: "relative" }}>{count}</div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6, position: "relative" }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 24, fontWeight: 700, color, lineHeight: 1, position: "relative" }}>{count}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6, position: "relative" }}>{label}</div>
     </div>
   );
 }
@@ -234,11 +235,12 @@ function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 
 function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimmed?: boolean; hideActions?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const { current, vsColor, vsLabel } = getPctInfo(item);
+  const isMobile = useIsMobile();
 
   return (
     <div
       style={{
-        padding: "14px 20px",
+        padding: isMobile ? "10px 12px" : "14px 20px",
         borderBottom: "1px solid rgba(28,28,48,0.3)",
         opacity: dimmed ? 0.6 : 1,
         transition: "background 0.15s",
@@ -268,7 +270,7 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
           </div>
 
           {/* Line 2: Target · Current · vs% */}
-          <div style={{ display: "flex", gap: 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+          <div style={{ display: "flex", gap: isMobile ? 8 : 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10, flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
             <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
             <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
@@ -315,8 +317,9 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
 // ── Section Header ──
 
 function SectionHeader({ dotColor, label, count }: { dotColor: string; label: string; count: number }) {
+  const isMobile = useIsMobile();
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px", borderBottom: "1px solid var(--rim)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "12px 12px" : "14px 20px", borderBottom: "1px solid var(--rim)" }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: dotColor, textTransform: "uppercase" }}>
         {label} ({count})
