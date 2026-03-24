@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Shield, RefreshCw } from "lucide-react";
+import { ChevronRight, ChevronDown, Shield, RefreshCw, Microscope } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LiveDisruption } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
