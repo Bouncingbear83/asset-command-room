@@ -358,6 +358,18 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                       >
                         <RefreshCw size={11} />
                       </button>
+                      <button
+                        title={`Deep dive ${h.ticker} (opens Claude project)`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const prompt = `Deep dive on ${h.ticker}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`;
+                          const url = `https://claude.ai/new?q=${encodeURIComponent(prompt)}&project_uuid=019ca3a9-aefe-77ea-af76-db62fd96f4e1`;
+                          (window.top || window).open(url, '_blank');
+                        }}
+                        style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+                      >
+                        <Microscope size={11} />
+                      </button>
                     </div>
                   </td>
                   <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
