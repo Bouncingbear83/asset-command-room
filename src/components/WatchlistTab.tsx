@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
 import {
@@ -231,6 +232,7 @@ function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 
 // ── Row Card ──
 
 function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimmed?: boolean; hideActions?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
   const { current, vsColor, vsLabel } = getPctInfo(item);
 
   return (
@@ -244,46 +246,65 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(200, 169, 110, 0.03)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      {/* Line 1: Ticker · Name · Layer · Status */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.ticker || "—"}</span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{item.name}</span>
-        {item.layer && (
-          <span style={{
-            fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", padding: "2px 7px", borderRadius: 2,
-            background: "rgba(28,28,48,0.5)", border: "1px solid var(--rim)", color: "var(--text-dim)", textTransform: "uppercase",
-          }}>
-            {item.layer}
-          </span>
-        )}
-        <StatusBadge status={item.status} />
+      {/* Collapsed header — always visible, clickable */}
+      <div
+        style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: 8 }}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Line 1: Ticker · Name · Layer · Status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.ticker || "—"}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{item.name}</span>
+            {item.layer && (
+              <span style={{
+                fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", padding: "2px 7px", borderRadius: 2,
+                background: "rgba(28,28,48,0.5)", border: "1px solid var(--rim)", color: "var(--text-dim)", textTransform: "uppercase",
+              }}>
+                {item.layer}
+              </span>
+            )}
+            <StatusBadge status={item.status} />
+          </div>
+
+          {/* Line 2: Target · Current · vs% */}
+          <div style={{ display: "flex", gap: 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+            <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
+            <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
+            <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
+          </div>
+        </div>
+
+        {/* Chevron */}
+        {expanded
+          ? <ChevronDown size={14} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
+          : <ChevronRight size={14} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
+        }
       </div>
 
-      {/* Line 2: Target · Current · vs% */}
-      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 6, fontFamily: "var(--font-mono)", fontSize: 10 }}>
-        <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
-        <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
-        <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
-      </div>
+      {/* Expanded details */}
+      {expanded && (
+        <div style={{ marginTop: 8 }}>
+          {/* Trigger condition */}
+          {item.trigger && (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", marginBottom: 4, lineHeight: 1.5 }}>
+              {item.trigger}
+            </div>
+          )}
+          {/* Thesis / rationale */}
+          {item.rationale && (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5, fontStyle: "italic" }}>
+              {item.rationale}
+            </div>
+          )}
 
-      {/* Line 3: Trigger condition */}
-      {item.trigger && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", marginBottom: 4, lineHeight: 1.5 }}>
-          {item.trigger}
+          {/* Review note */}
+          <ReviewCard note={item.triggerReviewNote} dateStr={item.triggerReviewDate} />
+
+          {/* Action buttons */}
+          {!hideActions && <ActionButtons ticker={item.ticker} />}
         </div>
       )}
-      {/* Line 3b: Thesis / rationale */}
-      {item.rationale && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5, fontStyle: "italic" }}>
-          {item.rationale}
-        </div>
-      )}
-
-      {/* Line 4: Review note */}
-      <ReviewCard note={item.triggerReviewNote} dateStr={item.triggerReviewDate} />
-
-      {/* Line 5: Action buttons */}
-      {!hideActions && <ActionButtons ticker={item.ticker} />}
     </div>
   );
 }
