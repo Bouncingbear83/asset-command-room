@@ -167,23 +167,33 @@ function ReviewCard({ note, dateStr }: { note: string; dateStr: string }) {
   );
 }
 
-function ActionButtons({ ticker }: { ticker: string }) {
+function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 'holding' | 'watchlist' }) {
+  const handleDeepDive = () => {
+    const prompt = type === 'holding'
+      ? `Deep dive on ${ticker}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`
+      : `Watchlist review for ${ticker}. Search for latest developments. Reassess entry target, trigger condition, and thesis. Produce research commit JSON at the end.`;
+    const url = `https://claude.ai/new?q=${encodeURIComponent(prompt)}&project_uuid=019ca3a9-aefe-77ea-af76-db62fd96f4e1`;
+    (window.top || window).open(url, '_blank');
+  };
+
+  const btnStyle: React.CSSProperties = {
+    background: "none",
+    border: "1px solid var(--rim)",
+    color: "var(--text-dim)",
+    fontFamily: "var(--font-mono)",
+    fontSize: 9,
+    letterSpacing: "0.08em",
+    padding: "3px 10px",
+    borderRadius: 2,
+    cursor: "pointer",
+    transition: "all 0.15s",
+  };
+
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
       <button
         onClick={() => triggerWebhook("stellar-rescore", { ticker }, `Rescore triggered for ${ticker}`)}
-        style={{
-          background: "none",
-          border: "1px solid var(--rim)",
-          color: "var(--text-dim)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 9,
-          letterSpacing: "0.08em",
-          padding: "3px 10px",
-          borderRadius: 2,
-          cursor: "pointer",
-          transition: "all 0.15s",
-        }}
+        style={btnStyle}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
       >
@@ -191,18 +201,7 @@ function ActionButtons({ ticker }: { ticker: string }) {
       </button>
       <button
         onClick={() => triggerWebhook("stellar-earnings-prep", { ticker }, `Earnings prep triggered for ${ticker}`)}
-        style={{
-          background: "none",
-          border: "1px solid var(--rim)",
-          color: "var(--text-dim)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 9,
-          letterSpacing: "0.08em",
-          padding: "3px 10px",
-          borderRadius: 2,
-          cursor: "pointer",
-          transition: "all 0.15s",
-        }}
+        style={btnStyle}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
       >
@@ -210,22 +209,20 @@ function ActionButtons({ ticker }: { ticker: string }) {
       </button>
       <button
         onClick={() => triggerWebhook("stellar-watchlist-review", { ticker }, `Watchlist review triggered for ${ticker}. Check email.`)}
-        style={{
-          background: "none",
-          border: "1px solid var(--rim)",
-          color: "var(--text-dim)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 9,
-          letterSpacing: "0.08em",
-          padding: "3px 10px",
-          borderRadius: 2,
-          cursor: "pointer",
-          transition: "all 0.15s",
-        }}
+        style={btnStyle}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
       >
         🔄 Review
+      </button>
+      <button
+        onClick={handleDeepDive}
+        style={{ ...btnStyle, color: "var(--accent)" }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--accent)"; }}
+        title="Deep dive (opens Claude project — free on Max)"
+      >
+        🔬 Deep Dive
       </button>
     </div>
   );
