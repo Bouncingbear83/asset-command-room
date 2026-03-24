@@ -24,7 +24,9 @@ function formatPercent(value: number) {
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
   const [macroBannerOpen, setMacroBannerOpen] = useState(true);
+  const isMobile = useIsMobile();
   const portfolio = usePortfolioData();
+  const px = isMobile ? "16px" : "40px";
   const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
   const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
   const total = sippTotal + isaTotal;
@@ -35,18 +37,20 @@ export default function Index() {
     header: {
       background: "rgba(4,4,10,0.96)",
       borderBottom: "1px solid var(--rim)",
-      padding: "0 40px",
-      height: 56,
+      padding: isMobile ? "12px 16px" : "0 40px",
+      height: isMobile ? "auto" : 56,
       display: "flex",
-      alignItems: "center",
+      alignItems: isMobile ? "flex-start" : "center",
       justifyContent: "space-between",
+      flexDirection: isMobile ? "column" : "row",
+      gap: isMobile ? 10 : 0,
       position: "sticky",
       top: 0,
       zIndex: 100,
     },
     logo: {
       fontFamily: "var(--font-display)",
-      fontSize: 22,
+      fontSize: isMobile ? 18 : 22,
       fontStyle: "italic",
       color: "var(--text)",
       display: "flex",
@@ -62,7 +66,13 @@ export default function Index() {
       color: "var(--text-dim)",
       fontStyle: "normal",
     },
-    mid: { display: "flex", gap: 28, alignItems: "center" },
+    mid: {
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, auto)",
+      gap: isMobile ? "8px 16px" : 28,
+      alignItems: "center",
+      width: isMobile ? "100%" : "auto",
+    },
     meta: {
       fontFamily: "var(--font-mono)",
       fontSize: 10,
@@ -71,7 +81,14 @@ export default function Index() {
       lineHeight: 1.6,
     },
     val: { color: "var(--gold)", fontWeight: 700 },
-    nav: { display: "flex", borderBottom: "1px solid var(--rim)", padding: "0 40px", overflowX: "auto" },
+    nav: {
+      display: "flex",
+      borderBottom: "1px solid var(--rim)",
+      padding: `0 ${px}`,
+      overflowX: "auto",
+      scrollbarWidth: "none" as any,
+      msOverflowStyle: "none" as any,
+    },
     tab: {
       background: "transparent",
       border: "none",
@@ -82,20 +99,21 @@ export default function Index() {
       fontSize: 10,
       letterSpacing: "0.18em",
       textTransform: "uppercase",
-      padding: "20px 20px 18px",
+      padding: isMobile ? "14px 10px 12px" : "20px 20px 18px",
       transition: "color 0.2s",
       whiteSpace: "nowrap",
     },
     tabOn: { color: "var(--gold)", borderBottomColor: "var(--gold)" },
     status: {
-      padding: "5px 40px",
+      padding: `5px ${px}`,
       borderBottom: "1px solid var(--rim)",
       display: "flex",
       alignItems: "center",
-      gap: 16,
+      gap: isMobile ? 10 : 16,
       minHeight: 28,
+      flexWrap: "wrap",
     },
-    page: { maxWidth: 1280, margin: "0 auto", padding: "32px 40px 80px" },
+    page: { maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 16px 60px" : "32px 40px 80px" },
   };
 
   return (
@@ -126,7 +144,7 @@ export default function Index() {
       </nav>
 
       {showMacroBanner && portfolio.macroBanner && (
-        <div style={{ background: "var(--panel)", borderBottom: "1px solid var(--rim)", padding: "0 40px" }}>
+        <div style={{ background: "var(--panel)", borderBottom: "1px solid var(--rim)", padding: `0 ${px}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }} onClick={() => setMacroBannerOpen(!macroBannerOpen)}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
               {portfolio.macroBanner.vix !== null && <span>VIX {portfolio.macroBanner.vix}</span>}
