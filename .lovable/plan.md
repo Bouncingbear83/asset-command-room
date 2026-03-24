@@ -1,28 +1,44 @@
 
 
-## Collapsible Watchlist Rows
+## Fix Command Tab Layout — Remove Sidebar, Add Collapsible Sections
 
-### What changes
-Make each watchlist row compact by default — showing only **Line 1** (Ticker · Name · Layer · Status) and **Line 2** (Target · Current · ±%) — with the rest (trigger text, rationale, review card, action buttons) revealed on click/expand.
+### Problem
+The current 2-column grid layout puts Risk Controls and Macro Signals in a narrow right sidebar that wastes space and looks awkward. These are important but secondary — they should be scannable at a glance without dominating the layout.
 
-### How
+### Solution
+Switch to a **single-column layout** and convert Risk Controls and Macro Signals into **collapsible `<details>` sections** (like Golden Rules already is). Each section header shows a RAG summary count so the user can see status without expanding.
 
-**File: `src/components/WatchlistTab.tsx`**
+### Changes — `src/components/CommandTab.tsx`
 
-1. Add `expandedTickers` state (`Set<string>`) to the `WatchlistRow` component (local state per row using `useState`).
+1. **Change grid to single column**: Replace `gridTemplateColumns: "1fr 1fr"` with `gridTemplateColumns: "1fr"` and remove the wrapping `<div>` elements that split left/right columns.
 
-2. Restructure `WatchlistRow` layout:
-   - **Always visible (collapsed):** Lines 1 & 2 (ticker/name/layer/status + target/current/%) plus a small expand chevron (▸/▾) on the right side.
-   - **Expandable (on click):** Lines 3–6 (trigger condition, rationale, review card, action buttons) — wrapped in a conditional render toggled by clicking the row header area.
+2. **Risk Controls — collapsible with summary chip**:
+   - Wrap in `<details>` (collapsed by default)
+   - Header shows: `RISK CONTROLS` + summary like `3 SAFE · 1 WATCH` derived from computed statuses
+   - Content unchanged
 
-3. The row header div gets `cursor: pointer` and an `onClick` that toggles the expanded state.
+3. **Macro Signals — collapsible with summary chip**:
+   - Wrap in `<details>` (collapsed by default)
+   - Header shows: `MACRO SIGNALS` + summary like `3 GREEN · 2 RED` derived from signal statuses
+   - Content unchanged
 
-4. Use a simple `ChevronRight`/`ChevronDown` icon (from lucide-react, already available in the project) at the far right of line 1 to indicate expandability.
+4. **Reorder sections** (top to bottom):
+   - Next Actions
+   - Deploy Queue
+   - Earnings This Week
+   - Risk Controls (collapsed, with summary)
+   - Macro Signals (collapsed, with summary)
+   - Narrative + Quick Commands
+   - This Week's Actions
+   - Commit Research
+   - Golden Rules
 
-5. No external state needed — each `WatchlistRow` manages its own `expanded` boolean via `useState(false)`.
+### Summary chip logic
 
-### Visual behaviour
-- Collapsed: single compact row (~2 lines of content)
-- Expanded: full detail card as it appears today
-- Smooth transition not strictly necessary but can add CSS transition on max-height if desired
+```text
+Risk Controls:  count statuses → "2 SAFE · 1 WATCH · 1 BREACH"
+Macro Signals:  count statuses → "3 GREEN · 1 TRIGGERED · 1 CLEAR"
+```
+
+Color-code the counts: green for safe/clear, amber for watch/monitor, red for breach/triggered.
 
