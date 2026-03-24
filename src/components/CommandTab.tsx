@@ -193,11 +193,14 @@ function HoldingAlertBadge({ status }: { status: string }) {
   );
 }
 
-function QuickCommandsSection({ holdings, layers }: { holdings: { ticker: string }[]; layers: { name: string }[] }) {
+function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { ticker: string }[]; layers: { name: string }[]; watchlist?: { ticker: string }[] }) {
   const [webhookTarget, setWebhookTarget] = useState("");
+  const [deepDiveTarget, setDeepDiveTarget] = useState("");
   const [webhookLoading, setWebhookLoading] = useState(false);
 
   const tickers = holdings.map(h => h.ticker).filter(Boolean);
+  const watchlistTickers = (watchlist || []).map(w => w.ticker).filter(Boolean);
+  const allTickers = [...new Set([...tickers, ...watchlistTickers])].sort();
   const layerNames = layers.map(l => l.name).filter(n => n && n.toUpperCase() !== "TOTAL" && n.toUpperCase() !== "CASH");
 
   const handleWebhook = async (endpoint: string, body: object, msg: string) => {
@@ -205,6 +208,17 @@ function QuickCommandsSection({ holdings, layers }: { holdings: { ticker: string
     await triggerWebhook(endpoint, body, msg);
     setWebhookLoading(false);
     setWebhookTarget("");
+  };
+
+  const handleDeepDive = () => {
+    if (!deepDiveTarget) return;
+    const isHolding = tickers.includes(deepDiveTarget);
+    const prompt = isHolding
+      ? `Deep dive on ${deepDiveTarget}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`
+      : `Watchlist review for ${deepDiveTarget}. Search for latest developments. Reassess entry target, trigger condition, and thesis. Produce research commit JSON at the end.`;
+    const url = getClaudeUrl(prompt);
+    (window.top || window).open(url, '_blank');
+    setDeepDiveTarget("");
   };
 
   const selectStyle: React.CSSProperties = {
@@ -239,6 +253,21 @@ function QuickCommandsSection({ holdings, layers }: { holdings: { ticker: string
             <button onClick={() => copyToClipboard(cmd.prompt)} title="Copy prompt" style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "0 10px", fontFamily: "var(--font-mono)", fontSize: 10, cursor: "pointer", transition: "all 0.2s" }}>⧉</button>
           </div>
         ))}
+      </div>
+
+      {/* Deep Dive command */}
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 8 }}>🔬 Deep Dive (Claude Project — free on Max)</div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+        <select style={selectStyle} value={deepDiveTarget} onChange={e => setDeepDiveTarget(e.target.value)}>
+          <option value="">Select ticker…</option>
+          <optgroup label="Holdings">
+            {tickers.map(t => <option key={`h-${t}`} value={t}>{t}</option>)}
+          </optgroup>
+          <optgroup label="Watchlist">
+            {watchlistTickers.filter(t => !tickers.includes(t)).map(t => <option key={`w-${t}`} value={t}>{t}</option>)}
+          </optgroup>
+        </select>
+        <button disabled={!deepDiveTarget} onClick={handleDeepDive} style={{ ...fireStyle, background: "var(--accent)", opacity: deepDiveTarget ? 1 : 0.4 }}>Open</button>
       </div>
 
       {/* Webhook commands */}
