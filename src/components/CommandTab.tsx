@@ -701,6 +701,11 @@ export default function CommandTab() {
 
       </div>
 
+      {/* Commit Research — collapsible, spans full width */}
+      <div style={{ gridColumn: "1 / -1" }}>
+        <CommitResearchPanel />
+      </div>
+
       {/* Golden Rules — collapsible at very bottom, spans full width */}
       <div style={{ gridColumn: "1 / -1" }}>
         <details style={{ ...card, marginBottom: 0 }}>
