@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { useIsMobile } from "@/hooks/use-mobile";
 import CommandTab from "@/components/CommandTab";
 import MonitorTab from "@/components/MonitorTab";
 import WatchlistTab from "@/components/WatchlistTab";
