@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown, Shield, RefreshCw, Microscope } from "lucide
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LiveDisruption } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   sipp: LiveHolding[];
@@ -272,6 +273,7 @@ function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: numb
 }
 
 function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; disruptionMap: Map<string, LiveDisruption> }) {
+  const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -302,7 +304,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         <thead>
           <tr>
-            {COLUMNS.map((col) => (
+            {COLUMNS.filter(col => !(isMobile && (col.key === "name" || col.key === "layer" || col.key === "day"))).map((col) => (
               <th
                 key={col.key}
                 onClick={() => handleSort(col.key)}
@@ -311,7 +313,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                   letterSpacing: "0.15em",
                   textTransform: "uppercase",
                   color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)",
-                  padding: "8px 12px",
+                  padding: isMobile ? "8px 6px" : "8px 12px",
                   borderBottom: "1px solid var(--rim)",
                   textAlign: col.align ?? "left",
                   fontWeight: 400,
@@ -324,8 +326,8 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                 {arrow(col.key)}
               </th>
             ))}
-            <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Notes</th>
-            <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Action</th>
+            {!isMobile && <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Notes</th>}
+            <th style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: isMobile ? "8px 6px" : "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400 }}>Action</th>
             <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
           </tr>
         </thead>
@@ -335,20 +337,20 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
             return (
               <>
                 <tr key={h.ticker} onClick={() => toggle(h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}>
-                  <td style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700 }}>
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--gold)", fontWeight: 700 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span>{h.ticker}</span>
                       <AlertBadge status={h.alert_status} />
                     </div>
                   </td>
-                  <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
-                  <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>
-                  <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
-                  <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
-                  <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
-                  <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>
-                  <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>
-                  <td style={{ padding: "10px 12px" }}>
+                  {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>}
+                  {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
+                  {!isMobile && <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>}
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+                  {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
                       <button

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { GOLDEN_RULES } from "@/data/portfolio";
 import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -404,6 +405,7 @@ function CommitResearchPanel() {
 }
 
 export default function CommandTab() {
+  const isMobile = useIsMobile();
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
@@ -601,14 +603,14 @@ export default function CommandTab() {
                   const tierColor = d.tier === 1 ? "#00cc66" : d.tier === 2 ? "#66bb6a" : d.tier === 3 ? "#a5d6a7" : "var(--text-mid)";
                   const tierLabel = d.tier >= 1 && d.tier <= 3 ? `T${d.tier}` : null;
                   return (
-                    <div key={`${d.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div key={`${d.ticker}-${i}`} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: isMobile ? 4 : 10 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", width: 16 }}>{i + 1}.</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: tierLabel ? tierColor : "var(--text)", minWidth: 50 }}>{d.ticker}</span>
                       {tierLabel && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700, color: tierColor, background: `${tierColor}18`, padding: "1px 5px", borderRadius: 3, letterSpacing: "0.1em" }}>{tierLabel}</span>}
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", minWidth: 60 }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 50 }}>{d.price > 0 ? `@${d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : ""}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.context}</span>
+                      {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 50 }}>{d.price > 0 ? `@${d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : ""}</span>}
+                      {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>}
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, minWidth: isMobile ? "100%" : "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isMobile ? `${d.layer} · ${d.context}` : d.context}</span>
                     </div>
                   );
                 })}
