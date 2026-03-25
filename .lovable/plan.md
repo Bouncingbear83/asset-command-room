@@ -1,50 +1,36 @@
 
 
-## Make the App Mobile-Friendly
+## Fix Mobile Overflow Issues
 
-### Problem
-The app uses fixed `40px` padding, a wide header with stats that don't wrap, horizontally overflowing tabs, and content that assumes desktop widths. On a 430px viewport everything is cramped.
+### Problems Found
+1. **Command Tab — Deploy Queue**: Each row uses `display: flex` with multiple `minWidth` values (50+60+60+16+50 = 236px minimum for fixed elements, plus flex content). The context text overflows on 430px.
+2. **Holdings Tab**: Table columns (TICKER, NAME, MV, G/L%, DAY%, PRICE, NOTES) are too wide for 430px. Has `overflowX: auto` but the wrapper may not be constraining width properly.
+3. **Scores Tab**: Similar — many columns (TICKER, LAYER, SCORE, SUB/25, DEM/22, MOAT/18, plus more off-screen). Has `overflowX: auto`.
+4. **Monitor Tab**: 2-column grid (`1fr 1fr`) is fine at 430px but could be tight.
+5. **Header stats**: Currently showing fine but the AUM/SIPP/ISA/TARGET area is cramped.
 
 ### Changes
 
-**File: `src/pages/Index.tsx`**
+**`src/components/CommandTab.tsx`**
+- **Deploy Queue rows**: On mobile, switch from single-line flex to a stacked layout — ticker+tier+amount on line 1, layer+context on line 2. Remove `minWidth` constraints. Use `flexWrap: wrap` or a two-line block layout.
+- Import `useIsMobile` hook.
 
-1. **Header** — Stack vertically on mobile:
-   - Reduce padding from `40px` to `16px` on small screens
-   - Move the AUM/SIPP/ISA/TARGET stats row below the logo, wrapping into a 2×2 grid
-   - Reduce header height from fixed `56px` to `auto`
+**`src/components/HoldingsTab.tsx`**
+- On mobile, hide the NOTES column (least critical data) to reduce table width.
+- Alternatively, give the table a `minWidth` (e.g. 700px) inside the `overflowX: auto` wrapper so it scrolls cleanly rather than squishing columns. But since the user said "without scrolling horizontally", we should hide/collapse less important columns on mobile.
+- Import `useIsMobile`. On mobile: hide NOTES column, reduce PRICE column, abbreviate NAME.
 
-2. **Tab nav** — Make scrollable and touch-friendly:
-   - Reduce padding from `0 40px` to `0 16px`
-   - Reduce individual tab padding from `20px` to `12px 10px`
-   - Hide the scrollbar with `scrollbarWidth: "none"` / `msOverflowStyle: "none"`
+**`src/components/ScoresTab.tsx`**
+- On mobile, hide the individual dimension columns (SUB, DEM, MOAT, etc.) and show only TICKER, LAYER, SCORE, and CHANGE. The detail is available in the expandable row.
+- Import `useIsMobile`.
 
-3. **Status bar** — Reduce padding to `5px 16px`
+**`src/components/MonitorTab.tsx`**
+- Switch from `1fr 1fr` grid to single column (`1fr`) on mobile.
+- Import `useIsMobile`.
 
-4. **Macro banner** — Reduce padding to `0 16px`, allow wrapping
-
-5. **Page container** — Reduce padding from `32px 40px 80px` to `16px 16px 60px` on mobile
-
-6. **Responsive detection** — Use a simple inline media-query approach: check `window.innerWidth` via a `useIsMobile()` hook (already exists at `src/hooks/use-mobile.tsx`) to toggle between mobile/desktop style objects.
-
-**File: `src/components/CommandTab.tsx`**
-
-7. **Quick Commands grid** — Currently uses `gridTemplateColumns: "1fr 1fr"` for the command buttons; keep as-is (already works at 430px)
-
-**File: `src/components/HoldingsTab.tsx`**
-
-8. **Table overflow** — Wrap the table in a horizontally scrollable container on mobile so columns don't get crushed
-
-**File: `src/components/WatchlistTab.tsx`**
-
-9. **Row padding** — Reduce card padding from `20px` to `12px` on mobile
-
-**General pattern**: Import `useIsMobile` in `Index.tsx` and pass an `isMobile` boolean down as needed, or use the hook directly in child components. All style changes are conditional on this flag — desktop layout stays untouched.
-
-### Summary of visual changes
-- Tighter padding throughout (40px → 16px)
-- Header stats wrap below logo on mobile
-- Tabs scroll horizontally without visible scrollbar
-- Tables get horizontal scroll containers
-- No layout breakage on desktop
+### Section order (top to bottom)
+1. CommandTab Deploy Queue → stacked rows
+2. HoldingsTab → hide NOTES column on mobile
+3. ScoresTab → hide dimension columns on mobile
+4. MonitorTab → single column on mobile
 
