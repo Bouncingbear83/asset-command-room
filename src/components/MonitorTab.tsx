@@ -1,4 +1,5 @@
 import { LiveMonitor, LiveWeeklyTrigger } from "@/hooks/usePortfolioData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   monitorData: LiveMonitor[];
@@ -109,6 +110,7 @@ const emptyState: React.CSSProperties = {
 };
 
 export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
+  const isMobile = useIsMobile();
   const liveCostCurves = monitorData.filter((item) => item.type.includes("cost"));
   const liveStructural = monitorData.filter((item) => item.type.includes("structural"));
   const liveDisruption = monitorData.filter((item) => item.type.includes("disruption"));
@@ -118,7 +120,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
   const weeklyHeaderRag = weeklyTriggers.length === 0 ? "MONITOR" : firedCount > 0 ? "FIRED" : "CLEAR";
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Cost Curve Metrics</span>

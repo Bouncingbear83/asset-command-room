@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronRight, ChevronDown, Shield, RefreshCw } from "lucide-react";
 import { LiveScore, LiveScoreLog, LiveDisruption } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   scores: LiveScore[];
@@ -188,6 +189,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
 }
 
 export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Props) {
+  const isMobile = useIsMobile();
   const [activeView, setActiveView] = useState<TabView>("scores");
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -254,6 +256,8 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
     padding: "12px 20px 10px",
   });
 
+  const MOBILE_COLUMNS = ["ticker", "layer", "score", "tier", "action"];
+
   const renderRow = (s: LiveScore) => {
     const tier = getEffectiveTier(s);
     const buyRange = s.buyLow && s.buyHigh ? `${s.currency} ${s.buyLow}–${s.buyHigh}` : s.buyLow ? `${s.currency} >${s.buyLow}` : "—";
@@ -261,11 +265,12 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
     const actionStyle = getActionStyle(s.action);
     const isExpanded = expanded.has(s.ticker);
     const dd = disruptionMap.get(s.ticker);
+    const p = isMobile ? "10px 6px" : "10px 12px";
 
     return (
       <>
         <tr key={s.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }} onClick={() => toggleExpand(s.ticker)}>
-          <td style={{ padding: "10px 12px" }}>
+          <td style={{ padding: p }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {isExpanded ? <ChevronDown size={12} style={{ color: "var(--text-dim)", flexShrink: 0 }} /> : <ChevronRight size={12} style={{ color: "var(--text-dim)", flexShrink: 0 }} />}
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -277,38 +282,38 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
               </div>
             </div>
           </td>
-          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-mid)", letterSpacing: "0.08em" }}>{s.layer || "—"}</td>
-          <td style={{ padding: "10px 12px" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
+          {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-mid)", letterSpacing: "0.08em" }}>{s.layer || "—"}</td>}
+          <td style={{ padding: p }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: isMobile ? 14 : 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
               {s.score ?? "—"}<ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="score" />
             </span>
           </td>
-          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.substrate} max={25} color="var(--gold)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="substrate" /></div></td>
-          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.demand} max={22} color="var(--accent)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="demand" /></div></td>
-          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.moat} max={18} color="var(--green)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="moat" /></div></td>
-          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.valuation} max={13} color="var(--amber)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="valuation" /></div></td>
-          <td style={{ padding: "10px 12px" }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="mgmt" /></div></td>
-          <td style={{ padding: "10px 12px" }}>
+          {!isMobile && <td style={{ padding: p }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.substrate} max={25} color="var(--gold)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="substrate" /></div></td>}
+          {!isMobile && <td style={{ padding: p }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.demand} max={22} color="var(--accent)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="demand" /></div></td>}
+          {!isMobile && <td style={{ padding: p }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.moat} max={18} color="var(--green)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="moat" /></div></td>}
+          {!isMobile && <td style={{ padding: p }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.valuation} max={13} color="var(--amber)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="valuation" /></div></td>}
+          {!isMobile && <td style={{ padding: p }}><div style={{ display: "inline-flex", alignItems: "center" }}><ScoreBar value={s.mgmt} max={7} color="var(--text-mid)" /><ScoreTrend ticker={s.ticker} scoreLog={scoreLog} field="mgmt" /></div></td>}
+          {!isMobile && <td style={{ padding: p }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <ScoreBar value={s.disruption} max={15} color={s.disruption != null ? (s.disruption >= 11 ? "var(--green)" : s.disruption >= 8 ? "var(--amber)" : "var(--red)") : "var(--text-dim)"} />
               {(() => { if (!dd || !dd.status) return null; const st = dd.status.toUpperCase(); const style = DISRUPTION_STATUS_STYLE[st] ?? DISRUPTION_STATUS_STYLE.MONITOR; return <span style={{ ...style, ...badgeBase, padding: "1px 6px", fontSize: 8 }}>{st}</span>; })()}
             </div>
-          </td>
-          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>
-          <td style={{ padding: "10px 12px" }}><span style={{ ...tierStyle, ...badgeBase }}>{tier}</span></td>
-          <td style={{ padding: "10px 12px" }}>
+          </td>}
+          {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>}
+          <td style={{ padding: p }}><span style={{ ...tierStyle, ...badgeBase }}>{tier}</span></td>
+          <td style={{ padding: p }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
-              <button
+              {!isMobile && <button
                 title={`Rescore ${s.ticker}`}
                 onClick={(e) => { e.stopPropagation(); triggerWebhook("stellar-rescore", { ticker: s.ticker }, `Rescore triggered for ${s.ticker}. Check email.`); }}
                 style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
               >
                 <RefreshCw size={11} />
-              </button>
+              </button>}
             </div>
           </td>
-          <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.changeNote || s.fullThesis}</td>
+          {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.changeNote || s.fullThesis}</td>}
         </tr>
         {isExpanded && dd && <tr key={`${s.ticker}-disruption`}><td colSpan={COLUMNS.length + 1}><DisruptionPanel d={dd} /></td></tr>}
         {isExpanded && !dd && <tr key={`${s.ticker}-no-disruption`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No disruption data for {s.ticker}</span></td></tr>}
@@ -329,10 +334,10 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {COLUMNS.map((col) => (
-                <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
+              {COLUMNS.filter(col => !isMobile || MOBILE_COLUMNS.includes(col.key)).map((col) => (
+                <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, padding: isMobile ? "8px 6px" : "8px 12px", color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
               ))}
-              <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Notes</th>
+              {!isMobile && <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Notes</th>}
             </tr>
           </thead>
           <tbody>{rows.map((s) => renderRow(s))}</tbody>
@@ -410,7 +415,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
       {activeView === "scores" && (
         <>
           {/* Summary row */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: isMobile ? 8 : 16, marginBottom: 20 }}>
             {[
               { label: "Holdings", value: String(holdings.length), color: "var(--text)" },
               { label: "Core", value: String(core), color: "var(--green)" },
