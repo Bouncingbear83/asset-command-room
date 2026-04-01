@@ -659,7 +659,7 @@ export default function CommandTab() {
             <span style={cardTitle}>Deploy Queue {isPaused ? "(paused)" : "(ready)"}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{deployTotal > 0 ? formatCurrency(deployTotal) + " staged" : "—"}</span>
           </div>
-          <div style={{ padding: "14px 20px" }}>
+          <div style={{ padding: mp }}>
             {isPaused && (
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--amber)", marginBottom: 12, lineHeight: 1.5 }}>When pause lifts, deploy in this order:</div>
             )}
