@@ -777,7 +777,7 @@ export default function CommandTab() {
               {alertedHoldings.length > 0 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", letterSpacing: "0.15em" }}>{alertedHoldings.length} ALERT{alertedHoldings.length !== 1 ? "S" : ""}</span>}
             </div>
           </div>
-          <div style={{ padding: "0 20px 12px" }}>
+          <div style={{ padding: isMobile ? "0 12px 12px" : "0 20px 12px" }}>
             {loading && weeklyActions.length === 0 && weeklyWatch.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Loading weekly actions…</div>
             ) : (
