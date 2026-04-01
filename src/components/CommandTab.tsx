@@ -193,7 +193,7 @@ function HoldingAlertBadge({ status }: { status: string }) {
   );
 }
 
-function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { ticker: string }[]; layers: { name: string }[]; watchlist?: { ticker: string }[] }) {
+function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdings: { ticker: string }[]; layers: { name: string }[]; watchlist?: { ticker: string }[]; isMobile: boolean }) {
   const [webhookTarget, setWebhookTarget] = useState("");
   const [deepDiveTarget, setDeepDiveTarget] = useState("");
   const [webhookLoading, setWebhookLoading] = useState(false);
