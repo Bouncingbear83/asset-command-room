@@ -678,7 +678,7 @@ export default function CommandTab() {
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", minWidth: 60 }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
                       {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 50 }}>{d.price > 0 ? `@${d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : ""}</span>}
                       {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>}
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, minWidth: isMobile ? "100%" : "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isMobile ? `${d.layer} · ${d.context}` : d.context}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, minWidth: isMobile ? "100%" : "auto", overflow: "hidden", textOverflow: isMobile ? undefined : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", paddingLeft: isMobile ? 26 : 0 }}>{isMobile ? `${d.layer} · ${d.context}` : d.context}</span>
                     </div>
                   );
                 })}
