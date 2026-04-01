@@ -1,42 +1,44 @@
 
 
-## Restore Day% Column + Top Movers on Command Tab + Fix Mobile Layout
+## Fix: Mobile Layout Flashing Then Reverting
 
-### Problem
-1. The Holdings tab **Layer View** (default view) doesn't apply mobile column hiding — all columns still show, causing horizontal overflow at 430px.
-2. The **Day %** column was hidden on mobile in the Account view but the user wants it back (it's sortable and useful).
-3. No "Top Movers" section on the Command tab.
+### Root Cause
 
-### Changes
+The `useIsMobile()` hook initialises state as `undefined` (`!!undefined = false` → desktop). The mobile-correct value only applies **after** the first React effect fires. This causes a flash: the page renders with desktop styles, then snaps to mobile — or in the Lovable preview's simulated mobile viewport, `window.innerWidth` may report the actual iframe width (>768px), so `isMobile` stays `false` permanently despite the visual viewport being 430px.
 
-**`src/components/HoldingsTab.tsx`**
+### Fix
 
-1. **Layer View — apply mobile responsiveness**: Import and use `useIsMobile` in `LayerView`. On mobile, hide `Name`, `Notes`, and `Price` columns (keep Ticker, MV, G/L%, Day%, Action). Reduce cell padding to `6px`. This matches the pattern already in `HoldingsTable`.
+Two-part approach:
 
-2. **Account View (HoldingsTable) — restore Day% on mobile**: Remove `day` from the mobile-hidden columns list. The user wants it visible and sortable. Still hide `name`, `layer`, and `notes` on mobile.
+**1. Fix the hook to be correct on first render** (`src/hooks/use-mobile.tsx`)
 
-**`src/components/CommandTab.tsx`**
+Use `window.matchMedia(...).matches` for the initial state (via a lazy initialiser) so the very first render already knows the correct value — no flash:
 
-3. **Add "Top Movers Today" card** between "Next Actions" and "Deploy Queue":
-   - Combine SIPP + ISA holdings, deduplicate by ticker, sort by absolute `day` value descending.
-   - Show top 5 movers: Ticker, Day%, direction arrow, MV.
-   - Color green for positive, red for negative.
-   - Compact single-line rows, no expand needed.
-   - Card title: `TODAY'S MOVERS` with count of positive/negative (e.g., `12 ▲ · 5 ▼`).
+```typescript
+const [isMobile, setIsMobile] = useState<boolean>(
+  () => window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches
+);
+```
 
-### Section order on Command tab (updated)
-1. Next Actions
-2. **Today's Movers** (new)
-3. Deploy Queue
-4. Earnings This Week
-5. Risk Controls (collapsed)
-6. Macro Signals (collapsed)
-7. Narrative + Quick Commands
-8. Commit Research
-9. Golden Rules
+Also use `mql.matches` in the change handler instead of `window.innerWidth`, as `matchMedia` is more reliable across iframe/scaling scenarios.
 
-### Mobile visual result
-- Holdings Layer View: 5 columns (Ticker, MV, G/L%, Day%, Action) — fits 430px
-- Holdings Account View: 5 columns (Ticker, MV, G/L%, Day%, Action) — fits 430px
-- Command tab: compact movers card, same single-column flow
+**2. Add CSS media query fallbacks** (`src/index.css`)
+
+For the most critical layout shifts (padding, header stacking), add CSS media queries so the layout is mobile-correct even before JS hydrates:
+
+```css
+@media (max-width: 767px) {
+  #root { --app-px: 16px; }
+  .stellar-header { flex-direction: column !important; height: auto !important; padding: 12px 16px !important; }
+  .stellar-nav { padding: 0 16px !important; }
+  .stellar-page { padding: 16px 16px 60px !important; }
+}
+```
+
+Then add the corresponding class names to the JSX elements in `Index.tsx` (e.g. `className="stellar-header"`) so both CSS and JS responsive logic coexist. The JS inline styles will override on hydration, but the CSS ensures no flash.
+
+### Files changed
+- `src/hooks/use-mobile.tsx` — lazy initialiser + matchMedia-based handler
+- `src/index.css` — media query fallbacks for key layout elements
+- `src/pages/Index.tsx` — add classNames to header, nav, page container
 
