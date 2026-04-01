@@ -832,7 +832,7 @@ export default function CommandTab() {
               {riskControls.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
             </div>
           </summary>
-          <div style={{ padding: "0 20px 12px" }}>
+          <div style={{ padding: isMobile ? "0 12px 12px" : "0 20px 12px" }}>
             {riskControls.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>
             ) : (
