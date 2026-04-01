@@ -1,49 +1,37 @@
 
 
-## Fix: Mobile Layout "Spills" After Initial Render
+## Improve Command Tab Mobile UX/UI
 
-### Root Cause
+### Current Issues (at 430px)
+1. **Card padding too generous** — `14px 20px` and `padding: 32px` waste space on small screens
+2. **Deploy Queue rows are dense** — ticker, tier badge, amount, price, layer, and context all crammed into one flex row
+3. **Quick Commands grid is 2-column** (`gridTemplateColumns: 1fr 1fr`) — too tight at 430px
+4. **Webhook actions** have a fixed 90px label width that wastes space
+5. **Narrative section** uses `padding: 32` — excessive on mobile
+6. **"Open Stellar Intelligence" button** is large and inline with heading — awkward on mobile
+7. **Next Actions context text** truncates with ellipsis — could wrap instead on mobile
+8. **Earnings rows** have gap between ticker/date and prep button that doesn't compact well
+9. **No visual breathing room** — cards feel like dense walls of monospace text
 
-The problem is **not** the `useIsMobile` hook or CSS media queries — those are now correct. The real issue is that **child elements with intrinsic min-width are expanding the page wider than the viewport** after React hydrates. Once any child overflows, the `<html>` / `<body>` expands horizontally, and the CSS media query `(max-width: 767px)` **stops matching** because the document is now wider than 767px. This causes the mobile styles to deactivate — the "revert."
+### Plan
 
-The flash-then-revert sequence:
-1. CSS media queries apply mobile styles immediately (correct)
-2. React renders content with wide tables/grids/flex rows
-3. A child overflows → document width exceeds 767px
-4. Media queries no longer match → desktop styles apply
-5. Page is now stuck in desktop layout on a mobile screen
+**File: `src/components/CommandTab.tsx`** — use `isMobile` (already imported) to adjust:
 
-### Fix
+1. **Card padding** — reduce from `14px 20px` to `10px 12px` on mobile; narrative section from `32px` to `16px`
+2. **Next Actions** — allow context text to wrap on mobile instead of `whiteSpace: nowrap` + ellipsis
+3. **Today's Movers** — reduce inner padding; looks OK otherwise
+4. **Deploy Queue** — on mobile, use a two-line stacked layout per item: line 1 = rank + ticker + tier + amount; line 2 = layer + context (indented). Remove `minWidth` constraints on mobile
+5. **Earnings This Week** — stack ticker/date above the prep button on mobile instead of side-by-side
+6. **Quick Commands** — switch from `1fr 1fr` grid to `1fr` single column on mobile
+7. **Webhook actions** — reduce label width from 90px to 70px on mobile; stack vertically if needed
+8. **"Open Stellar Intelligence"** — make full-width on mobile, placed below the label
+9. **Narrative** — reduce padding to 16px; reduce macro regime font from 18px to 15px on mobile
+10. **This Week's Actions** — allow size context to wrap below the action badge on mobile
 
-**`src/index.css`** — Add global overflow containment:
-
-```css
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  min-width: 0;           /* prevent flex/grid children from expanding parent */
-}
-
-html, body, #root {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;     /* clip any remaining overflow */
-}
-
-img, table, pre, code, svg {
-  max-width: 100%;        /* prevent media/code from blowing out */
-}
-```
-
-Key additions:
-- `min-width: 0` on `*` — flex and grid items default to `min-width: auto`, which prevents them from shrinking below their content width. Setting it to 0 allows proper shrinking.
-- `overflow-x: hidden` on `html, body, #root` — even if a deeply nested element is slightly too wide, the page won't expand horizontally and break the media query.
-- `max-width: 100%` on content elements — prevents images, tables, code blocks from exceeding their container.
-
-### Files changed
-- `src/index.css` — 3 small additions to existing rules (no layout changes, no component changes)
-
-### Why this works
-The media query breakpoint stays valid because the document can never exceed the viewport width. The `min-width: 0` fix addresses the root cause (flex/grid children refusing to shrink), while `overflow-x: hidden` is a safety net.
+### Summary of visual result
+- Tighter padding throughout cards (saves ~30% vertical space)
+- Content wraps naturally instead of truncating
+- Deploy Queue and Earnings rows are scannable two-line blocks on mobile
+- Quick Commands stack single-column so buttons are tappable
+- No horizontal overflow anywhere
 
