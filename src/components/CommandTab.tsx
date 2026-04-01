@@ -580,7 +580,7 @@ export default function CommandTab() {
                   <div key={`${a.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{a.ticker}</span>
                     <span style={{ ...actionBadge(a.action), flexShrink: 0 }}>{a.action}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.context}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: isMobile ? undefined : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{a.context}</span>
                   </div>
                 ))}
               </div>
