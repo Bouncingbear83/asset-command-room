@@ -1,37 +1,54 @@
 
 
-## Improve Command Tab Mobile UX/UI
+## Mobile Nav, Collapsible Narrative, Deploy Queue Improvements
 
-### Current Issues (at 430px)
-1. **Card padding too generous** — `14px 20px` and `padding: 32px` waste space on small screens
-2. **Deploy Queue rows are dense** — ticker, tier badge, amount, price, layer, and context all crammed into one flex row
-3. **Quick Commands grid is 2-column** (`gridTemplateColumns: 1fr 1fr`) — too tight at 430px
-4. **Webhook actions** have a fixed 90px label width that wastes space
-5. **Narrative section** uses `padding: 32` — excessive on mobile
-6. **"Open Stellar Intelligence" button** is large and inline with heading — awkward on mobile
-7. **Next Actions context text** truncates with ellipsis — could wrap instead on mobile
-8. **Earnings rows** have gap between ticker/date and prep button that doesn't compact well
-9. **No visual breathing room** — cards feel like dense walls of monospace text
+### 1. Mobile-Friendly Nav Bar
 
-### Plan
+**Problem**: Tab buttons at 430px are cramped — 8 tabs with `padding: 14px 10px` and `font-size: 10px` produce a long scrollable row with no visual affordance that it scrolls. Users don't realize there are more tabs off-screen.
 
-**File: `src/components/CommandTab.tsx`** — use `isMobile` (already imported) to adjust:
+**Fix** (`src/index.css`):
+- Reduce tab padding to `12px 8px` on mobile
+- Add a right fade/gradient mask on `.stellar-nav` to hint at scrollability
+- Add `scroll-snap-type: x mandatory` and `scroll-snap-align: start` on tabs for better swipe UX
 
-1. **Card padding** — reduce from `14px 20px` to `10px 12px` on mobile; narrative section from `32px` to `16px`
-2. **Next Actions** — allow context text to wrap on mobile instead of `whiteSpace: nowrap` + ellipsis
-3. **Today's Movers** — reduce inner padding; looks OK otherwise
-4. **Deploy Queue** — on mobile, use a two-line stacked layout per item: line 1 = rank + ticker + tier + amount; line 2 = layer + context (indented). Remove `minWidth` constraints on mobile
-5. **Earnings This Week** — stack ticker/date above the prep button on mobile instead of side-by-side
-6. **Quick Commands** — switch from `1fr 1fr` grid to `1fr` single column on mobile
-7. **Webhook actions** — reduce label width from 90px to 70px on mobile; stack vertically if needed
-8. **"Open Stellar Intelligence"** — make full-width on mobile, placed below the label
-9. **Narrative** — reduce padding to 16px; reduce macro regime font from 18px to 15px on mobile
-10. **This Week's Actions** — allow size context to wrap below the action badge on mobile
+```css
+@media (max-width: 767px) {
+  .stellar-nav {
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    scroll-snap-type: x mandatory;
+  }
+  .stellar-tab {
+    padding: 12px 10px;
+    font-size: 9px;
+    scroll-snap-align: start;
+  }
+}
+```
 
-### Summary of visual result
-- Tighter padding throughout cards (saves ~30% vertical space)
-- Content wraps naturally instead of truncating
-- Deploy Queue and Earnings rows are scannable two-line blocks on mobile
-- Quick Commands stack single-column so buttons are tappable
-- No horizontal overflow anywhere
+### 2. Collapsible Narrative Section
+
+**Problem**: The Narrative card (Weekly Priorities, Macro Regime, Key Risk, Layer Narrative) takes significant vertical space. It's reference content — not something you act on every visit.
+
+**Fix** (`src/components/CommandTab.tsx`):
+- Wrap the narrative card in a `<details>` element (same pattern as Risk Controls, Macro Signals, Golden Rules)
+- Summary shows "NARRATIVE" title + last updated date + a brief regime snippet
+- Content is collapsed by default on mobile, open by default on desktop (use `open` attribute conditionally via `isMobile`)
+- Keep Quick Commands outside the collapsible since those are actionable
+
+### 3. Deploy Queue Improvements
+
+**Problem**: On mobile, deploy queue rows use a two-line layout but it's still dense — rank number, ticker, tier badge, amount, then a second line with layer + context all jammed together. The `minWidth` and padding feel arbitrary.
+
+**Fix** (`src/components/CommandTab.tsx`):
+- Restructure each deploy item as a proper card-like block on mobile:
+  - **Line 1**: `#1 · TICKER · T2` (rank, ticker bold, tier badge) — left-aligned
+  - **Line 2**: `£2,400 · @150` (amount in gold, price) — left-aligned  
+  - **Line 3**: `Materials · Deploy context text` (layer dim, context) — smaller, wrapping
+- Add subtle bottom border between items with slightly more vertical padding (8px → 10px)
+- On desktop, keep the current single-line layout but remove unnecessary `minWidth` constraints
+
+### Files Changed
+- `src/index.css` — nav scroll hint + snap for mobile
+- `src/components/CommandTab.tsx` — narrative as `<details>`, deploy queue mobile card layout
 
