@@ -345,11 +345,11 @@ function CommitResearchPanel() {
         el.style.borderLeftColor = el.open ? "var(--gold)" : "transparent";
       }}
     >
-      <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+      <summary style={{ ...cardHeaderBase, padding: "10px 12px", cursor: "pointer", userSelect: "none", listStyle: "none" }}>
         <span style={cardTitle}>Commit Research</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>▸ PASTE JSON</span>
       </summary>
-      <div style={{ padding: "14px 20px" }}>
+      <div style={{ padding: "10px 12px" }}>
         <textarea
           value={jsonText}
           onChange={(e) => setJsonText(e.target.value)}
