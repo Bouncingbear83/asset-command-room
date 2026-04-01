@@ -163,8 +163,15 @@ nav::-webkit-scrollbar {
     padding: 5px 16px;
     gap: 10px;
   }
+  .stellar-nav {
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    scroll-snap-type: x mandatory;
+  }
   .stellar-tab {
-    padding: 14px 10px 12px;
+    padding: 12px 10px;
+    font-size: 9px;
+    scroll-snap-align: start;
   }
   .stellar-page {
     padding: 16px 16px 60px;

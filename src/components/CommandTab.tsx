@@ -666,19 +666,39 @@ export default function CommandTab() {
             {deployQueue.length === 0 ? (
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No deployments queued</div>
             ) : (
-              <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ display: "grid", gap: isMobile ? 0 : 8 }}>
                 {deployQueue.map((d, i) => {
                   const tierColor = d.tier === 1 ? "#00cc66" : d.tier === 2 ? "#66bb6a" : d.tier === 3 ? "#a5d6a7" : "var(--text-mid)";
                   const tierLabel = d.tier >= 1 && d.tier <= 3 ? `T${d.tier}` : null;
+
+                  if (isMobile) {
+                    return (
+                      <div key={`${d.ticker}-${i}`} style={{ padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", width: 16 }}>{i + 1}.</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: tierLabel ? tierColor : "var(--text)" }}>{d.ticker}</span>
+                          {tierLabel && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700, color: tierColor, background: `${tierColor}18`, padding: "1px 5px", borderRadius: 3, letterSpacing: "0.1em" }}>{tierLabel}</span>}
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
+                          {d.price > 0 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>@{d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span>}
+                        </div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", paddingLeft: 24, lineHeight: 1.5 }}>
+                          <span style={{ color: "var(--text-dim)" }}>{d.layer}</span>
+                          <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+                          <span style={{ color: "var(--text-mid)" }}>{d.context}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <div key={`${d.ticker}-${i}`} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: isMobile ? 4 : 10 }}>
+                    <div key={`${d.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", width: 16 }}>{i + 1}.</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: tierLabel ? tierColor : "var(--text)", minWidth: 50 }}>{d.ticker}</span>
                       {tierLabel && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700, color: tierColor, background: `${tierColor}18`, padding: "1px 5px", borderRadius: 3, letterSpacing: "0.1em" }}>{tierLabel}</span>}
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", minWidth: 60 }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
-                      {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 50 }}>{d.price > 0 ? `@${d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : ""}</span>}
-                      {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>}
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, minWidth: isMobile ? "100%" : "auto", overflow: "hidden", textOverflow: isMobile ? undefined : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", paddingLeft: isMobile ? 26 : 0 }}>{isMobile ? `${d.layer} · ${d.context}` : d.context}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 50 }}>{d.price > 0 ? `@${d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : ""}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.context}</span>
                     </div>
                   );
                 })}
