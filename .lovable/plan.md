@@ -1,36 +1,42 @@
 
 
-## Fix Mobile Overflow Issues
+## Restore Day% Column + Top Movers on Command Tab + Fix Mobile Layout
 
-### Problems Found
-1. **Command Tab — Deploy Queue**: Each row uses `display: flex` with multiple `minWidth` values (50+60+60+16+50 = 236px minimum for fixed elements, plus flex content). The context text overflows on 430px.
-2. **Holdings Tab**: Table columns (TICKER, NAME, MV, G/L%, DAY%, PRICE, NOTES) are too wide for 430px. Has `overflowX: auto` but the wrapper may not be constraining width properly.
-3. **Scores Tab**: Similar — many columns (TICKER, LAYER, SCORE, SUB/25, DEM/22, MOAT/18, plus more off-screen). Has `overflowX: auto`.
-4. **Monitor Tab**: 2-column grid (`1fr 1fr`) is fine at 430px but could be tight.
-5. **Header stats**: Currently showing fine but the AUM/SIPP/ISA/TARGET area is cramped.
+### Problem
+1. The Holdings tab **Layer View** (default view) doesn't apply mobile column hiding — all columns still show, causing horizontal overflow at 430px.
+2. The **Day %** column was hidden on mobile in the Account view but the user wants it back (it's sortable and useful).
+3. No "Top Movers" section on the Command tab.
 
 ### Changes
 
-**`src/components/CommandTab.tsx`**
-- **Deploy Queue rows**: On mobile, switch from single-line flex to a stacked layout — ticker+tier+amount on line 1, layer+context on line 2. Remove `minWidth` constraints. Use `flexWrap: wrap` or a two-line block layout.
-- Import `useIsMobile` hook.
-
 **`src/components/HoldingsTab.tsx`**
-- On mobile, hide the NOTES column (least critical data) to reduce table width.
-- Alternatively, give the table a `minWidth` (e.g. 700px) inside the `overflowX: auto` wrapper so it scrolls cleanly rather than squishing columns. But since the user said "without scrolling horizontally", we should hide/collapse less important columns on mobile.
-- Import `useIsMobile`. On mobile: hide NOTES column, reduce PRICE column, abbreviate NAME.
 
-**`src/components/ScoresTab.tsx`**
-- On mobile, hide the individual dimension columns (SUB, DEM, MOAT, etc.) and show only TICKER, LAYER, SCORE, and CHANGE. The detail is available in the expandable row.
-- Import `useIsMobile`.
+1. **Layer View — apply mobile responsiveness**: Import and use `useIsMobile` in `LayerView`. On mobile, hide `Name`, `Notes`, and `Price` columns (keep Ticker, MV, G/L%, Day%, Action). Reduce cell padding to `6px`. This matches the pattern already in `HoldingsTable`.
 
-**`src/components/MonitorTab.tsx`**
-- Switch from `1fr 1fr` grid to single column (`1fr`) on mobile.
-- Import `useIsMobile`.
+2. **Account View (HoldingsTable) — restore Day% on mobile**: Remove `day` from the mobile-hidden columns list. The user wants it visible and sortable. Still hide `name`, `layer`, and `notes` on mobile.
 
-### Section order (top to bottom)
-1. CommandTab Deploy Queue → stacked rows
-2. HoldingsTab → hide NOTES column on mobile
-3. ScoresTab → hide dimension columns on mobile
-4. MonitorTab → single column on mobile
+**`src/components/CommandTab.tsx`**
+
+3. **Add "Top Movers Today" card** between "Next Actions" and "Deploy Queue":
+   - Combine SIPP + ISA holdings, deduplicate by ticker, sort by absolute `day` value descending.
+   - Show top 5 movers: Ticker, Day%, direction arrow, MV.
+   - Color green for positive, red for negative.
+   - Compact single-line rows, no expand needed.
+   - Card title: `TODAY'S MOVERS` with count of positive/negative (e.g., `12 ▲ · 5 ▼`).
+
+### Section order on Command tab (updated)
+1. Next Actions
+2. **Today's Movers** (new)
+3. Deploy Queue
+4. Earnings This Week
+5. Risk Controls (collapsed)
+6. Macro Signals (collapsed)
+7. Narrative + Quick Commands
+8. Commit Research
+9. Golden Rules
+
+### Mobile visual result
+- Holdings Layer View: 5 columns (Ticker, MV, G/L%, Day%, Action) — fits 430px
+- Holdings Account View: 5 columns (Ticker, MV, G/L%, Day%, Action) — fits 430px
+- Command tab: compact movers card, same single-column flow
 
