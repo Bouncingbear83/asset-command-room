@@ -165,7 +165,7 @@ export default function Index() {
         </div>
       )}
 
-      <div style={s.page}>
+      <div style={s.page} className="stellar-page">
         {active === "Command" && <CommandTab />}
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} />}
