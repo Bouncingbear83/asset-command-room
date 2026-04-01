@@ -585,6 +585,47 @@ export default function CommandTab() {
           </div>
         </div>
 
+        {/* Today's Movers card */}
+        {(() => {
+          const deduped = new Map<string, { ticker: string; day: number; mv: number }>();
+          holdings.forEach((h) => {
+            if (h.day == null) return;
+            const key = h.ticker.toUpperCase();
+            const existing = deduped.get(key);
+            if (!existing || Math.abs(h.day) > Math.abs(existing.day)) {
+              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0 });
+            }
+          });
+          const all = Array.from(deduped.values());
+          const up = all.filter(m => m.day > 0).length;
+          const down = all.filter(m => m.day < 0).length;
+          const topMovers = [...all].sort((a, b) => Math.abs(b.day) - Math.abs(a.day)).slice(0, 5);
+
+          return topMovers.length > 0 ? (
+            <div style={card}>
+              <div style={cardHeader}>
+                <span style={cardTitle}>Today's Movers</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em" }}>
+                  <span style={{ color: "var(--green)" }}>{up} ▲</span>
+                  <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+                  <span style={{ color: "var(--red)" }}>{down} ▼</span>
+                </span>
+              </div>
+              <div style={{ padding: "10px 20px" }}>
+                {topMovers.map((m) => (
+                  <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: m.day >= 0 ? "var(--green)" : "var(--red)", minWidth: 60 }}>
+                      {m.day >= 0 ? "▲" : "▼"} {m.day >= 0 ? "+" : ""}{m.day.toFixed(2)}%
+                    </span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, textAlign: "right" }}>{formatCurrency(m.mv)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null;
+        })()}
+
         {/* Deploy Queue card */}
         <div style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}` }}>
           <div style={cardHeader}>
