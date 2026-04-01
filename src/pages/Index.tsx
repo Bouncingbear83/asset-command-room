@@ -140,7 +140,7 @@ export default function Index() {
         {!portfolio.loading && <button onClick={portfolio.refresh} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", padding: "2px 10px", cursor: "pointer" }}>REFRESH</button>}
       </div>
 
-      <nav style={s.nav}>
+      <nav style={s.nav} className="stellar-nav">
         {TABS.map((t) => <button key={t} style={active === t ? { ...s.tab, ...s.tabOn } : s.tab} onClick={() => setActive(t)}>{t}</button>)}
       </nav>
 
