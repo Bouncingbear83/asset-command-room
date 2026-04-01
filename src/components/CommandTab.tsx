@@ -889,7 +889,7 @@ export default function CommandTab() {
               {macroSignals.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
             </div>
           </summary>
-          <div style={{ padding: "0 20px 8px" }}>
+          <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {macroSignals.map((signal) => (
               <div key={signal.name} style={divRow}>
                 <div>
