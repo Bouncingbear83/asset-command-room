@@ -633,12 +633,12 @@ export default function CommandTab() {
                   <span style={{ color: "var(--red)" }}>{down} ▼</span>
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 4, padding: "6px 20px 0" }}>
+              <div style={{ display: "flex", gap: 4, padding: isMobile ? "6px 12px 0" : "6px 20px 0" }}>
                 <button style={toggleBtn("ALL", "abs")} onClick={() => setMoverSort("abs")}>ALL</button>
                 <button style={toggleBtn("▲ GAIN", "gainers")} onClick={() => setMoverSort("gainers")}>▲ GAIN</button>
                 <button style={toggleBtn("▼ LOSS", "losers")} onClick={() => setMoverSort("losers")}>▼ LOSS</button>
               </div>
-              <div style={{ padding: "10px 20px" }}>
+              <div style={{ padding: isMobile ? "10px 12px" : "10px 20px" }}>
                 {topMovers.map((m) => (
                   <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
