@@ -912,7 +912,7 @@ export default function CommandTab() {
             <span style={cardTitle}>Golden Rules</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>▸ {GOLDEN_RULES.length} RULES</span>
           </summary>
-          <div style={{ padding: "0 20px 8px" }}>
+          <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {GOLDEN_RULES.map((r) => (
               <div key={r.n} style={{ ...divRow, alignItems: "flex-start", gap: 16 }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)", flexShrink: 0, width: 20 }}>{r.n}.</span>
