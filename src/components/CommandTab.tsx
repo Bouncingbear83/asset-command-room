@@ -693,14 +693,14 @@ export default function CommandTab() {
             <span style={cardTitle}>Earnings This Week</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>{earningsThisWeek.length} REPORTING</span>
           </div>
-          <div style={{ padding: "0 20px 8px" }}>
+          <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {earningsThisWeek.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No earnings this week</div>
             ) : (
               earningsThisWeek.map((item) => {
                 const isUrgent = item.daysUntil <= 2;
                 return (
-                  <div key={`${item.ticker}-${item.nextEarningsDate}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: 10 }}>
+                  <div key={`${item.ticker}-${item.nextEarningsDate}`} style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: isMobile ? 6 : 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: isUrgent ? "var(--red)" : "var(--text)", minWidth: 44 }}>{item.ticker}</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: isUrgent ? "var(--red)" : "var(--text-dim)" }}>{formatDate(item.nextEarningsDate)}</span>
