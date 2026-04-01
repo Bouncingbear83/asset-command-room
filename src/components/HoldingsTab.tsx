@@ -304,7 +304,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         <thead>
           <tr>
-            {COLUMNS.filter(col => !(isMobile && (col.key === "name" || col.key === "layer" || col.key === "day"))).map((col) => (
+            {COLUMNS.filter(col => !(isMobile && (col.key === "name" || col.key === "layer"))).map((col) => (
               <th
                 key={col.key}
                 onClick={() => handleSort(col.key)}
