@@ -720,16 +720,25 @@ export default function CommandTab() {
           </div>
         </div>
 
-        <div style={card}>
-          <div style={{ padding: isMobile ? 16 : 32, borderBottom: "1px solid var(--rim)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold)" }}>Narrative</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)" }}>Updated {formatDate(narrativeData.last_updated)}</div>
+        {/* Narrative — collapsible */}
+        <details style={{ ...card, borderLeft: "3px solid transparent" }} open={!isMobile}
+          onToggle={(e) => {
+            const el = e.currentTarget;
+            el.style.borderLeftColor = el.open ? "var(--gold)" : "transparent";
+          }}
+        >
+          <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+              <span style={cardTitle}>Narrative</span>
+              {narrativeData.macro_regime && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{narrativeData.macro_regime}</span>
+              )}
             </div>
-
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em", flexShrink: 0 }}>▸ {formatDate(narrativeData.last_updated)}</span>
+          </summary>
+          <div style={{ padding: isMobile ? 16 : 32 }}>
             {hasNarrative ? (
               <div style={{ display: "grid", gap: 18 }}>
-                {/* Weekly Priorities — scanned most often, shown first */}
                 {priorityNarratives.length > 0 && (
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Weekly Priorities</div>
@@ -743,19 +752,15 @@ export default function CommandTab() {
                     </div>
                   </div>
                 )}
-
-                {/* Narrative regime — reduced size, posture_rationale as subtitle */}
                 <div>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: isMobile ? 15 : 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
                   {narrativeData.posture_rationale && <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale}</div>}
                 </div>
-
                 <div style={{ display: "grid", gap: 14 }}>
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Key Risk</div>
                     <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{narrativeData.key_risk_this_week || "No key risk supplied."}</div>
                   </div>
-
                   <div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Layer Narrative</div>
                     <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{narrativeData.layer_narrative || "No layer commentary supplied."}</div>
@@ -766,7 +771,10 @@ export default function CommandTab() {
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>Awaiting first n8n run</div>
             )}
           </div>
+        </details>
 
+        {/* Quick Commands — separate card */}
+        <div style={card}>
           <QuickCommandsSection holdings={holdings} layers={layers} watchlist={watchlist} isMobile={isMobile} />
         </div>
 
