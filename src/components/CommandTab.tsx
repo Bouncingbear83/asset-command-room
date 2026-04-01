@@ -721,7 +721,7 @@ export default function CommandTab() {
         </div>
 
         <div style={card}>
-          <div style={{ padding: 32, borderBottom: "1px solid var(--rim)" }}>
+          <div style={{ padding: isMobile ? 16 : 32, borderBottom: "1px solid var(--rim)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold)" }}>Narrative</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)" }}>Updated {formatDate(narrativeData.last_updated)}</div>
