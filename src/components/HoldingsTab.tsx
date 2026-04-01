@@ -304,7 +304,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         <thead>
           <tr>
-            {COLUMNS.filter(col => !(isMobile && (col.key === "name" || col.key === "layer" || col.key === "day"))).map((col) => (
+            {COLUMNS.filter(col => !(isMobile && (col.key === "name" || col.key === "layer"))).map((col) => (
               <th
                 key={col.key}
                 onClick={() => handleSort(col.key)}
@@ -347,7 +347,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                   {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
-                  {!isMobile && <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>}
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
                   {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px" }}>
@@ -439,6 +439,7 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
     }))
     .sort((a, b) => b.totalMv - a.totalMv);
 
+  const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleRow = (key: string) => {
     setExpanded((prev) => {
@@ -448,33 +449,44 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
     });
   };
 
+  const pad = isMobile ? "8px 6px" : "8px 12px";
+  const cellPad = isMobile ? "10px 6px" : "10px 12px";
+
   const thS: React.CSSProperties = {
     fontSize: 9,
     letterSpacing: "0.15em",
     textTransform: "uppercase",
     color: "var(--text-dim)",
-    padding: "8px 12px",
+    padding: pad,
     borderBottom: "1px solid var(--rim)",
     textAlign: "left",
     fontWeight: 400,
     whiteSpace: "nowrap",
   };
 
-  const totalCols = 9;
+  // On mobile: Ticker, MV, G/L%, Day%, Action (hide Name, Price, Notes)
+  const LAYER_COLS: { label: string; key: string; align?: "right"; hideMobile?: boolean }[] = [
+    { label: "Ticker", key: "ticker" },
+    { label: "Name", key: "name", hideMobile: true },
+    { label: "MV £", key: "mv", align: "right" },
+    { label: "G/L %", key: "gl", align: "right" },
+    { label: "Day %", key: "day", align: "right" },
+    { label: "Price", key: "price", align: "right", hideMobile: true },
+    { label: "Notes", key: "notes", hideMobile: true },
+    { label: "Action", key: "action" },
+  ];
+
+  const visibleCols = LAYER_COLS.filter(c => !(isMobile && c.hideMobile));
+  const totalCols = visibleCols.length + 1; // +1 for chevron
 
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         <thead>
           <tr>
-            <th style={thS}>Ticker</th>
-            <th style={thS}>Name</th>
-            <th style={{ ...thS, textAlign: "right" }}>MV £</th>
-            <th style={{ ...thS, textAlign: "right" }}>G/L %</th>
-            <th style={{ ...thS, textAlign: "right" }}>Day %</th>
-            <th style={{ ...thS, textAlign: "right" }}>Price</th>
-            <th style={thS}>Notes</th>
-            <th style={thS}>Action</th>
+            {visibleCols.map((col) => (
+              <th key={col.key} style={{ ...thS, textAlign: col.align ?? "left" }}>{col.label}</th>
+            ))}
             <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
           </tr>
         </thead>
@@ -482,32 +494,32 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
           {layers.map((lg) => (
             <>
               <tr key={`layer-${lg.layer}`} style={{ background: "rgba(28,28,48,0.6)" }}>
-                <td colSpan={2} style={{ padding: "10px 12px", color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                <td colSpan={isMobile ? 2 : 2} style={{ padding: cellPad, color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                   {lg.layer}
-                  <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>{lg.holdings.length} holding{lg.holdings.length !== 1 ? "s" : ""}</span>
+                  <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>{lg.holdings.length}</span>
                 </td>
-                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{lg.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-                <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>{lg.pctAum.toFixed(1)}% AUM</td>
-                <td colSpan={5} />
+                <td style={{ padding: cellPad, textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{lg.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
+                <td style={{ padding: cellPad, textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>{lg.pctAum.toFixed(1)}%</td>
+                <td colSpan={totalCols - 4} />
               </tr>
               {[...lg.holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
                 const isOpen = expanded.has(h.ticker);
                 return (
                   <>
                     <tr key={h.ticker} onClick={() => toggleRow(h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
-                      <td style={{ padding: "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <td style={{ padding: isMobile ? "10px 6px 10px 12px" : "10px 12px 10px 24px", color: "var(--gold)", fontWeight: 700 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                           <span>{h.ticker}</span>
                           <AlertBadge status={h.alert_status} />
                         </div>
                       </td>
-                      <td style={{ padding: "10px 12px", color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
-                      <td style={{ padding: "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
-                      <td style={{ padding: "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>
-                      <td style={{ padding: "10px 12px" }}>
+                      {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>}
+                      <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
+                      <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
+                      <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
+                      {!isMobile && <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>}
+                      {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
+                      <td style={{ padding: cellPad }}>
                         <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
                       </td>
                       <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
@@ -521,9 +533,9 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={2} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
+            <td colSpan={isMobile ? 2 : 2} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-            <td colSpan={totalCols - 2} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={totalCols - 3} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
