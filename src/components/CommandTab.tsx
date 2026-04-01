@@ -600,7 +600,26 @@ export default function CommandTab() {
           const all = Array.from(deduped.values());
           const up = all.filter(m => m.day > 0).length;
           const down = all.filter(m => m.day < 0).length;
-          const topMovers = [...all].sort((a, b) => Math.abs(b.day) - Math.abs(a.day)).slice(0, 5);
+          const sorted = moverSort === "gainers"
+            ? [...all].filter(m => m.day > 0).sort((a, b) => b.day - a.day)
+            : moverSort === "losers"
+            ? [...all].filter(m => m.day < 0).sort((a, b) => a.day - b.day)
+            : [...all].sort((a, b) => Math.abs(b.day) - Math.abs(a.day));
+          const topMovers = sorted.slice(0, 5);
+
+          const toggleBtn = (label: string, value: "abs" | "gainers" | "losers") => ({
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            fontWeight: moverSort === value ? 700 : 400,
+            color: moverSort === value ? "var(--text)" : "var(--text-dim)",
+            background: moverSort === value ? "rgba(255,255,255,0.08)" : "transparent",
+            border: "1px solid",
+            borderColor: moverSort === value ? "rgba(255,255,255,0.15)" : "transparent",
+            borderRadius: 4,
+            padding: "2px 8px",
+            cursor: "pointer",
+            letterSpacing: "0.05em",
+          } as React.CSSProperties);
 
           return topMovers.length > 0 ? (
             <div style={card}>
@@ -611,6 +630,11 @@ export default function CommandTab() {
                   <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
                   <span style={{ color: "var(--red)" }}>{down} ▼</span>
                 </span>
+              </div>
+              <div style={{ display: "flex", gap: 4, padding: "6px 20px 0" }}>
+                <button style={toggleBtn("ALL", "abs")} onClick={() => setMoverSort("abs")}>ALL</button>
+                <button style={toggleBtn("▲ GAIN", "gainers")} onClick={() => setMoverSort("gainers")}>▲ GAIN</button>
+                <button style={toggleBtn("▼ LOSS", "losers")} onClick={() => setMoverSort("losers")}>▼ LOSS</button>
               </div>
               <div style={{ padding: "10px 20px" }}>
                 {topMovers.map((m) => (
