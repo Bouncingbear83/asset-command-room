@@ -49,18 +49,116 @@ nav::-webkit-scrollbar {
   50% { opacity: 0.7; }
 }
 
+/* ── Core layout (CSS-driven responsive, no inline styles) ── */
+
+.stellar-header {
+  background: rgba(4,4,10,0.96);
+  border-bottom: 1px solid var(--rim);
+  padding: 0 40px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row;
+  gap: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.stellar-header-stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 28px;
+  align-items: center;
+}
+
+.stellar-nav {
+  display: flex;
+  border-bottom: 1px solid var(--rim);
+  padding: 0 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stellar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.stellar-status {
+  padding: 5px 40px;
+  border-bottom: 1px solid var(--rim);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 28px;
+  flex-wrap: wrap;
+}
+
+.stellar-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 40px 80px;
+}
+
+.stellar-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 20px 20px 18px;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.stellar-tab-active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+.stellar-logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-style: italic;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 @media (max-width: 767px) {
   .stellar-header {
-    flex-direction: column !important;
-    height: auto !important;
-    padding: 12px 16px !important;
-    align-items: flex-start !important;
-    gap: 10px !important;
+    flex-direction: column;
+    height: auto;
+    padding: 12px 16px;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .stellar-header-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    width: 100%;
   }
   .stellar-nav {
-    padding: 0 16px !important;
+    padding: 0 16px;
+  }
+  .stellar-status {
+    padding: 5px 16px;
+    gap: 10px;
+  }
+  .stellar-tab {
+    padding: 14px 10px 12px;
   }
   .stellar-page {
-    padding: 16px 16px 60px !important;
+    padding: 16px 16px 60px;
+  }
+  .stellar-logo {
+    font-size: 18px;
   }
 }

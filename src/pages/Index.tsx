@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
-import { useIsMobile } from "@/hooks/use-mobile";
 import CommandTab from "@/components/CommandTab";
 import MonitorTab from "@/components/MonitorTab";
 import WatchlistTab from "@/components/WatchlistTab";
@@ -25,9 +24,7 @@ function formatPercent(value: number) {
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
   const [macroBannerOpen, setMacroBannerOpen] = useState(true);
-  const isMobile = useIsMobile();
   const portfolio = usePortfolioData();
-  const px = isMobile ? "16px" : "40px";
   const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
   const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
   const total = sippTotal + isaTotal;
@@ -35,29 +32,6 @@ export default function Index() {
 
   const s: Record<string, React.CSSProperties> = {
     app: { minHeight: "100vh", background: "var(--void)" },
-    header: {
-      background: "rgba(4,4,10,0.96)",
-      borderBottom: "1px solid var(--rim)",
-      padding: isMobile ? "12px 16px" : "0 40px",
-      height: isMobile ? "auto" : 56,
-      display: "flex",
-      alignItems: isMobile ? "flex-start" : "center",
-      justifyContent: "space-between",
-      flexDirection: isMobile ? "column" : "row",
-      gap: isMobile ? 10 : 0,
-      position: "sticky",
-      top: 0,
-      zIndex: 100,
-    },
-    logo: {
-      fontFamily: "var(--font-display)",
-      fontSize: isMobile ? 18 : 22,
-      fontStyle: "italic",
-      color: "var(--text)",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-    },
     sep: { color: "var(--rim)", fontStyle: "normal", fontFamily: "var(--font-mono)", fontSize: 12 },
     sub: {
       fontFamily: "var(--font-mono)",
@@ -67,13 +41,6 @@ export default function Index() {
       color: "var(--text-dim)",
       fontStyle: "normal",
     },
-    mid: {
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, auto)",
-      gap: isMobile ? "8px 16px" : 28,
-      alignItems: "center",
-      width: isMobile ? "100%" : "auto",
-    },
     meta: {
       fontFamily: "var(--font-mono)",
       fontSize: 10,
@@ -82,50 +49,17 @@ export default function Index() {
       lineHeight: 1.6,
     },
     val: { color: "var(--gold)", fontWeight: 700 },
-    nav: {
-      display: "flex",
-      borderBottom: "1px solid var(--rim)",
-      padding: `0 ${px}`,
-      overflowX: "auto",
-      scrollbarWidth: "none" as any,
-      msOverflowStyle: "none" as any,
-    },
-    tab: {
-      background: "transparent",
-      border: "none",
-      borderBottom: "2px solid transparent",
-      color: "var(--text-dim)",
-      cursor: "pointer",
-      fontFamily: "var(--font-mono)",
-      fontSize: 10,
-      letterSpacing: "0.18em",
-      textTransform: "uppercase",
-      padding: isMobile ? "14px 10px 12px" : "20px 20px 18px",
-      transition: "color 0.2s",
-      whiteSpace: "nowrap",
-    },
-    tabOn: { color: "var(--gold)", borderBottomColor: "var(--gold)" },
-    status: {
-      padding: `5px ${px}`,
-      borderBottom: "1px solid var(--rim)",
-      display: "flex",
-      alignItems: "center",
-      gap: isMobile ? 10 : 16,
-      minHeight: 28,
-      flexWrap: "wrap",
-    },
-    page: { maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 16px 60px" : "32px 40px 80px" },
   };
 
   return (
     <div style={s.app}>
-      <header style={s.header} className="stellar-header">
-        <div style={s.logo}>
+      <header className="stellar-header">
+        <div className="stellar-logo">
           <em>Stellar</em>
           <span style={s.sep}>|</span>
           <span style={s.sub}>Portfolio Command</span>
         </div>
-        <div style={s.mid}>
+        <div className="stellar-header-stats">
           <div style={s.meta}>AUM<br /><span style={s.val}>£{(total / 1000).toFixed(0)}k</span></div>
           <div style={s.meta}>SIPP<br /><span style={s.val}>£{(sippTotal / 1000).toFixed(0)}k</span></div>
           <div style={s.meta}>ISA<br /><span style={s.val}>£{(isaTotal / 1000).toFixed(0)}k</span></div>
@@ -133,19 +67,27 @@ export default function Index() {
         </div>
       </header>
 
-      <div style={s.status}>
+      <div className="stellar-status">
         {portfolio.loading && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--accent)" }}>● SYNCING...</span>}
         {portfolio.lastUpdated && !portfolio.loading && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--green)" }}>● LIVE · {portfolio.lastUpdated}</span>}
         {portfolio.error && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)" }}>⚠ {portfolio.error}</span>}
         {!portfolio.loading && <button onClick={portfolio.refresh} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", padding: "2px 10px", cursor: "pointer" }}>REFRESH</button>}
       </div>
 
-      <nav style={s.nav} className="stellar-nav">
-        {TABS.map((t) => <button key={t} style={active === t ? { ...s.tab, ...s.tabOn } : s.tab} onClick={() => setActive(t)}>{t}</button>)}
+      <nav className="stellar-nav">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            className={`stellar-tab${active === t ? " stellar-tab-active" : ""}`}
+            onClick={() => setActive(t)}
+          >
+            {t}
+          </button>
+        ))}
       </nav>
 
       {showMacroBanner && portfolio.macroBanner && (
-        <div style={{ background: "var(--panel)", borderBottom: "1px solid var(--rim)", padding: `0 ${px}` }}>
+        <div style={{ background: "var(--panel)", borderBottom: "1px solid var(--rim)", padding: "0 var(--app-px, 40px)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }} onClick={() => setMacroBannerOpen(!macroBannerOpen)}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
               {portfolio.macroBanner.vix !== null && <span>VIX {portfolio.macroBanner.vix}</span>}
@@ -165,7 +107,7 @@ export default function Index() {
         </div>
       )}
 
-      <div style={s.page} className="stellar-page">
+      <div className="stellar-page">
         {active === "Command" && <CommandTab />}
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} />}
