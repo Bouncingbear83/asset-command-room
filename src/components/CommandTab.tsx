@@ -126,11 +126,10 @@ const actionBadge = (action: string): React.CSSProperties => {
 };
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
-const cardHeader: React.CSSProperties = {
+const cardHeaderBase: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  padding: "14px 20px",
   borderBottom: "1px solid var(--rim)",
 };
 const cardTitle: React.CSSProperties = {
