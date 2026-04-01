@@ -406,6 +406,7 @@ function CommitResearchPanel() {
 
 export default function CommandTab() {
   const isMobile = useIsMobile();
+  const [moverSort, setMoverSort] = useState<"abs" | "gainers" | "losers">("abs");
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, loading, error } = usePortfolioData();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
