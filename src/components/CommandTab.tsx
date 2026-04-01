@@ -560,6 +560,9 @@ export default function CommandTab() {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", color,
   });
 
+  const mp = isMobile ? "10px 12px" : "14px 20px";
+  const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: mp };
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
         {/* Next Actions card */}
@@ -568,7 +571,7 @@ export default function CommandTab() {
             <span style={cardTitle}>Next Actions</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{displayActions.length} pending</span>
           </div>
-          <div style={{ padding: "14px 20px" }}>
+          <div style={{ padding: mp }}>
             {displayActions.length === 0 ? (
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No actions required</div>
             ) : (
