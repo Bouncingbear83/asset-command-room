@@ -126,11 +126,10 @@ const actionBadge = (action: string): React.CSSProperties => {
 };
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
-const cardHeader: React.CSSProperties = {
+const cardHeaderBase: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  padding: "14px 20px",
   borderBottom: "1px solid var(--rim)",
 };
 const cardTitle: React.CSSProperties = {
@@ -194,7 +193,7 @@ function HoldingAlertBadge({ status }: { status: string }) {
   );
 }
 
-function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { ticker: string }[]; layers: { name: string }[]; watchlist?: { ticker: string }[] }) {
+function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdings: { ticker: string }[]; layers: { name: string }[]; watchlist?: { ticker: string }[]; isMobile: boolean }) {
   const [webhookTarget, setWebhookTarget] = useState("");
   const [deepDiveTarget, setDeepDiveTarget] = useState("");
   const [webhookLoading, setWebhookLoading] = useState(false);
@@ -233,22 +232,22 @@ function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { tic
   };
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: isMobile ? "14px 12px" : "20px" }}>
       {isEmbedded() && (
         <div style={{ marginBottom: 12, padding: "8px 12px", background: "var(--amber-dim)", border: "1px solid rgba(200,146,90,0.2)", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)", letterSpacing: "0.08em" }}>
           External links may be blocked in preview. Use the published site or copy prompts below.
         </div>
       )}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 10, marginBottom: 12, flexDirection: isMobile ? "column" : "row" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-dim)" }}>Quick Commands</div>
-        <a href={getClaudeUrl("")} target="_blank" rel="noopener noreferrer" style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "10px 20px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", textDecoration: "none", display: "inline-block" }}>Open Stellar Intelligence</a>
+        <a href={getClaudeUrl("")} target="_blank" rel="noopener noreferrer" style={{ background: "var(--gold)", color: "var(--void)", border: "none", padding: "10px 20px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", textDecoration: "none", display: "block", textAlign: "center", width: isMobile ? "100%" : "auto" }}>Open Stellar Intelligence</a>
       </div>
 
       {/* Claude commands */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 16 }}>
         {CLAUDE_COMMANDS.map((cmd) => (
           <div key={cmd.label} style={{ display: "flex", gap: 0 }}>
-            <a href={getClaudeUrl(cmd.prompt)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", textDecoration: "none", display: "block" }}>
+            <a href={getClaudeUrl(cmd.prompt)} target="_blank" rel="noopener noreferrer" style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: isMobile ? "10px 12px" : "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", textDecoration: "none", display: "block" }}>
               {cmd.label}
             </a>
             <button onClick={() => copyToClipboard(cmd.prompt)} title="Copy prompt" style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "0 10px", fontFamily: "var(--font-mono)", fontSize: 10, cursor: "pointer", transition: "all 0.2s" }}>⧉</button>
@@ -276,7 +275,7 @@ function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { tic
       <div style={{ display: "grid", gap: 10 }}>
         {/* Rescore */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔄 Rescore</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔄 Rescore</span>
           <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
             <option value="">Select ticker…</option>
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
@@ -285,7 +284,7 @@ function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { tic
         </div>
         {/* Earnings Prep */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
           <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
             <option value="">Select ticker…</option>
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
@@ -294,7 +293,7 @@ function QuickCommandsSection({ holdings, layers, watchlist }: { holdings: { tic
         </div>
         {/* Layer Scan */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔍 Scan</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔍 Scan</span>
           <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
             <option value="">Select layer…</option>
             {layerNames.map(l => <option key={l} value={l}>{l}</option>)}
@@ -346,11 +345,11 @@ function CommitResearchPanel() {
         el.style.borderLeftColor = el.open ? "var(--gold)" : "transparent";
       }}
     >
-      <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
+      <summary style={{ ...cardHeaderBase, padding: "10px 12px", cursor: "pointer", userSelect: "none", listStyle: "none" }}>
         <span style={cardTitle}>Commit Research</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>▸ PASTE JSON</span>
       </summary>
-      <div style={{ padding: "14px 20px" }}>
+      <div style={{ padding: "10px 12px" }}>
         <textarea
           value={jsonText}
           onChange={(e) => setJsonText(e.target.value)}
@@ -561,6 +560,9 @@ export default function CommandTab() {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", color,
   });
 
+  const mp = isMobile ? "10px 12px" : "14px 20px";
+  const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: mp };
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
         {/* Next Actions card */}
@@ -569,7 +571,7 @@ export default function CommandTab() {
             <span style={cardTitle}>Next Actions</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{displayActions.length} pending</span>
           </div>
-          <div style={{ padding: "14px 20px" }}>
+          <div style={{ padding: mp }}>
             {displayActions.length === 0 ? (
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No actions required</div>
             ) : (
@@ -578,7 +580,7 @@ export default function CommandTab() {
                   <div key={`${a.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{a.ticker}</span>
                     <span style={{ ...actionBadge(a.action), flexShrink: 0 }}>{a.action}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.context}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: isMobile ? undefined : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{a.context}</span>
                   </div>
                 ))}
               </div>
@@ -631,12 +633,12 @@ export default function CommandTab() {
                   <span style={{ color: "var(--red)" }}>{down} ▼</span>
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 4, padding: "6px 20px 0" }}>
+              <div style={{ display: "flex", gap: 4, padding: isMobile ? "6px 12px 0" : "6px 20px 0" }}>
                 <button style={toggleBtn("ALL", "abs")} onClick={() => setMoverSort("abs")}>ALL</button>
                 <button style={toggleBtn("▲ GAIN", "gainers")} onClick={() => setMoverSort("gainers")}>▲ GAIN</button>
                 <button style={toggleBtn("▼ LOSS", "losers")} onClick={() => setMoverSort("losers")}>▼ LOSS</button>
               </div>
-              <div style={{ padding: "10px 20px" }}>
+              <div style={{ padding: isMobile ? "10px 12px" : "10px 20px" }}>
                 {topMovers.map((m) => (
                   <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
@@ -657,7 +659,7 @@ export default function CommandTab() {
             <span style={cardTitle}>Deploy Queue {isPaused ? "(paused)" : "(ready)"}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{deployTotal > 0 ? formatCurrency(deployTotal) + " staged" : "—"}</span>
           </div>
-          <div style={{ padding: "14px 20px" }}>
+          <div style={{ padding: mp }}>
             {isPaused && (
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--amber)", marginBottom: 12, lineHeight: 1.5 }}>When pause lifts, deploy in this order:</div>
             )}
@@ -676,7 +678,7 @@ export default function CommandTab() {
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", minWidth: 60 }}>{d.amount > 0 ? formatCurrency(d.amount) : "—"}</span>
                       {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 50 }}>{d.price > 0 ? `@${d.price.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : ""}</span>}
                       {!isMobile && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>}
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, minWidth: isMobile ? "100%" : "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isMobile ? `${d.layer} · ${d.context}` : d.context}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, minWidth: isMobile ? "100%" : "auto", overflow: "hidden", textOverflow: isMobile ? undefined : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", paddingLeft: isMobile ? 26 : 0 }}>{isMobile ? `${d.layer} · ${d.context}` : d.context}</span>
                     </div>
                   );
                 })}
@@ -691,14 +693,14 @@ export default function CommandTab() {
             <span style={cardTitle}>Earnings This Week</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>{earningsThisWeek.length} REPORTING</span>
           </div>
-          <div style={{ padding: "0 20px 8px" }}>
+          <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {earningsThisWeek.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No earnings this week</div>
             ) : (
               earningsThisWeek.map((item) => {
                 const isUrgent = item.daysUntil <= 2;
                 return (
-                  <div key={`${item.ticker}-${item.nextEarningsDate}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: 10 }}>
+                  <div key={`${item.ticker}-${item.nextEarningsDate}`} style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", gap: isMobile ? 6 : 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: isUrgent ? "var(--red)" : "var(--text)", minWidth: 44 }}>{item.ticker}</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: isUrgent ? "var(--red)" : "var(--text-dim)" }}>{formatDate(item.nextEarningsDate)}</span>
@@ -719,7 +721,7 @@ export default function CommandTab() {
         </div>
 
         <div style={card}>
-          <div style={{ padding: 32, borderBottom: "1px solid var(--rim)" }}>
+          <div style={{ padding: isMobile ? 16 : 32, borderBottom: "1px solid var(--rim)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold)" }}>Narrative</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)" }}>Updated {formatDate(narrativeData.last_updated)}</div>
@@ -744,7 +746,7 @@ export default function CommandTab() {
 
                 {/* Narrative regime — reduced size, posture_rationale as subtitle */}
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: isMobile ? 15 : 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
                   {narrativeData.posture_rationale && <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale}</div>}
                 </div>
 
@@ -765,7 +767,7 @@ export default function CommandTab() {
             )}
           </div>
 
-          <QuickCommandsSection holdings={holdings} layers={layers} watchlist={watchlist} />
+          <QuickCommandsSection holdings={holdings} layers={layers} watchlist={watchlist} isMobile={isMobile} />
         </div>
 
         <div style={card}>
@@ -775,7 +777,7 @@ export default function CommandTab() {
               {alertedHoldings.length > 0 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", letterSpacing: "0.15em" }}>{alertedHoldings.length} ALERT{alertedHoldings.length !== 1 ? "S" : ""}</span>}
             </div>
           </div>
-          <div style={{ padding: "0 20px 12px" }}>
+          <div style={{ padding: isMobile ? "0 12px 12px" : "0 20px 12px" }}>
             {loading && weeklyActions.length === 0 && weeklyWatch.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Loading weekly actions…</div>
             ) : (
@@ -830,7 +832,7 @@ export default function CommandTab() {
               {riskControls.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
             </div>
           </summary>
-          <div style={{ padding: "0 20px 12px" }}>
+          <div style={{ padding: isMobile ? "0 12px 12px" : "0 20px 12px" }}>
             {riskControls.length === 0 ? (
               <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>
             ) : (
@@ -887,7 +889,7 @@ export default function CommandTab() {
               {macroSignals.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
             </div>
           </summary>
-          <div style={{ padding: "0 20px 8px" }}>
+          <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {macroSignals.map((signal) => (
               <div key={signal.name} style={divRow}>
                 <div>
@@ -910,7 +912,7 @@ export default function CommandTab() {
             <span style={cardTitle}>Golden Rules</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>▸ {GOLDEN_RULES.length} RULES</span>
           </summary>
-          <div style={{ padding: "0 20px 8px" }}>
+          <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {GOLDEN_RULES.map((r) => (
               <div key={r.n} style={{ ...divRow, alignItems: "flex-start", gap: 16 }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)", flexShrink: 0, width: 20 }}>{r.n}.</span>
