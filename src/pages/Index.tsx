@@ -119,7 +119,7 @@ export default function Index() {
 
   return (
     <div style={s.app}>
-      <header style={s.header}>
+      <header style={s.header} className="stellar-header">
         <div style={s.logo}>
           <em>Stellar</em>
           <span style={s.sep}>|</span>
