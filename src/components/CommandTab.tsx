@@ -275,7 +275,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
       <div style={{ display: "grid", gap: 10 }}>
         {/* Rescore */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔄 Rescore</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔄 Rescore</span>
           <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
             <option value="">Select ticker…</option>
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
@@ -284,7 +284,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
         </div>
         {/* Earnings Prep */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
           <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
             <option value="">Select ticker…</option>
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
@@ -293,7 +293,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
         </div>
         {/* Layer Scan */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔍 Scan</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔍 Scan</span>
           <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
             <option value="">Select layer…</option>
             {layerNames.map(l => <option key={l} value={l}>{l}</option>)}
