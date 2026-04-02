@@ -44,10 +44,11 @@ function AllocationTooltip({ active, payload }: any) {
 
 /* ── Custom bar label (gap value) ── */
 function GapLabel(props: any) {
-  const { x, y, width, height, value } = props;
+  const { x, y, width, height } = props;
   const d = props.payload ?? props;
   const gap = (d.current ?? 0) - (d.target ?? 0);
-  const color = gap < -3 ? "var(--red)" : gap > 3 ? "var(--green)" : "var(--text-mid)";
+  const color = gap < 0 ? "var(--red)" : gap > 0 ? "var(--green)" : "var(--text-mid)";
+  const suffix = gap < 0 ? " under" : gap > 0 ? " over" : "";
   return (
     <text
       x={(x ?? 0) + (width ?? 0) + 8}
@@ -55,7 +56,7 @@ function GapLabel(props: any) {
       fill={color}
       style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600 }}
     >
-      {gap >= 0 ? "+" : ""}{gap.toFixed(1)}
+      {gap >= 0 ? "+" : ""}{gap.toFixed(1)}{suffix}
     </text>
   );
 }

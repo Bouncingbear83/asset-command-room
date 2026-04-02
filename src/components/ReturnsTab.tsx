@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   sipp: LiveHolding[];
@@ -149,6 +150,7 @@ function toPolyline(points: Array<{ x: number; y: number }>) {
 }
 
 export default function ReturnsTab({ sipp, isa, performance }: Props) {
+  const isMobile = useIsMobile();
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
 
@@ -231,10 +233,10 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
   return (
     <div>
       {/* Three account cards with embedded benchmarks */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
         {accountCards.map((ac) => (
           <div key={ac.title} style={{
-            ...card, padding: 24, marginBottom: 0, borderRadius: 12,
+            ...card, padding: isMobile ? 16 : 24, marginBottom: 0, borderRadius: 12,
             ...(ac.highlight ? { borderLeft: "3px solid var(--gold)" } : {}),
           }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: ac.highlight ? "var(--gold)" : "var(--text-dim)", marginBottom: 16 }}>{ac.title}</div>
@@ -374,7 +376,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
         {[
           { title: "Top Winners (All Time)", rows: winners, key: "gl" as const },
           { title: "Under Pressure", rows: losers, key: "gl" as const },

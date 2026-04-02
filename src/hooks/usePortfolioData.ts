@@ -354,7 +354,7 @@ function parseWatchlist(rows: Record<string, any>[]) {
 }
 
 function parseLayers(rows: Record<string, any>[]) {
-  const SKIP = ["TOTAL", "CASH", "LAYER", ""];
+  const SKIP = ["LAYER", ""];
   return rows
     .map((row) => {
       const targetRaw = findCol(row, "target %", "TARGET %", "TARGET%", "target") ?? row["col_2"];
