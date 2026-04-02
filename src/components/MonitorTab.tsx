@@ -159,15 +159,22 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
             {liveStructural.length > 0 ? `${liveStructural.length} TRIGGERS` : "NO LIVE DATA"}
           </span>
         </div>
-        <div style={{ padding: "0 20px 16px" }}>
+        <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
           {liveStructural.length === 0 && <div style={emptyState}>No live structural-trigger rows found in MONITOR.</div>}
           {liveStructural.map((trigger, index) => (
             <div key={`${trigger.name}-${index}`} style={row}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{trigger.name}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                  Current: {trigger.current}{trigger.unit ? ` ${trigger.unit}` : ""} · AMBER: {trigger.amberThreshold} · RED: {trigger.redThreshold}
-                </div>
+                {isMobile ? (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                    <div>Current: {trigger.current}{trigger.unit ? ` ${trigger.unit}` : ""}</div>
+                    <div>AMBER: {trigger.amberThreshold} · RED: {trigger.redThreshold}</div>
+                  </div>
+                ) : (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                    Current: {trigger.current}{trigger.unit ? ` ${trigger.unit}` : ""} · AMBER: {trigger.amberThreshold} · RED: {trigger.redThreshold}
+                  </div>
+                )}
                 {trigger.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {trigger.notes}</div>}
                 {trigger.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {trigger.lastUpdated}</div>}
               </div>
