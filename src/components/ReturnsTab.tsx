@@ -376,7 +376,7 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
         {[
           { title: "Top Winners (All Time)", rows: winners, key: "gl" as const },
           { title: "Under Pressure", rows: losers, key: "gl" as const },

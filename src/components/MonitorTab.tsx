@@ -222,7 +222,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
           <span style={cardTitle}>Weekly Market Triggers</span>
           <span style={rag(weeklyHeaderRag)}>{weeklyHeaderStatus}</span>
         </div>
-        <div style={{ padding: "0 20px 16px" }}>
+        <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
           {weeklyTriggers.length === 0 && <div style={emptyState}>No live weekly trigger rows found in MACRO_STATE.</div>}
           {weeklyTriggers.map((trigger) => (
             <div key={trigger.key} style={row}>
