@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   sipp: LiveHolding[];
