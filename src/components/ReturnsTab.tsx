@@ -150,6 +150,7 @@ function toPolyline(points: Array<{ x: number; y: number }>) {
 }
 
 export default function ReturnsTab({ sipp, isa, performance }: Props) {
+  const isMobile = useIsMobile();
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
 
