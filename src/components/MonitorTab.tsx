@@ -192,14 +192,21 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
               {`${liveDisruption.length} RISK${liveDisruption.length !== 1 ? "S" : ""}`}
             </span>
           </div>
-          <div style={{ padding: "0 20px 16px" }}>
+          <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
             {liveDisruption.map((item, index) => (
               <div key={`${item.name}-${index}`} style={row}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{item.name}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-                    Current: {item.current}{item.unit ? ` ${item.unit}` : ""} · AMBER: {item.amberThreshold} · RED: {item.redThreshold}
-                  </div>
+                  {isMobile ? (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      <div>Current: {item.current}{item.unit ? ` ${item.unit}` : ""}</div>
+                      <div>AMBER: {item.amberThreshold} · RED: {item.redThreshold}</div>
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                      Current: {item.current}{item.unit ? ` ${item.unit}` : ""} · AMBER: {item.amberThreshold} · RED: {item.redThreshold}
+                    </div>
+                  )}
                   {item.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {item.notes}</div>}
                   {item.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {item.lastUpdated}</div>}
                 </div>
