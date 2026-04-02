@@ -1,54 +1,50 @@
 
 
-## Mobile Nav, Collapsible Narrative, Deploy Queue Improvements
+## Fix Mobile Layout Issues Across Multiple Tabs
 
-### 1. Mobile-Friendly Nav Bar
+### Issues Identified
 
-**Problem**: Tab buttons at 430px are cramped — 8 tabs with `padding: 14px 10px` and `font-size: 10px` produce a long scrollable row with no visual affordance that it scrolls. Users don't realize there are more tabs off-screen.
+1. **Nav bar text bleed** — Tab labels run together with no spacing (screenshot shows "COMMANDMONITORWATCHLISTLAYERSSCORESRETURNSHOLDINGSEARNINGS CALEN..."). The tabs have reduced padding on mobile but the letters still bleed into each other.
 
-**Fix** (`src/index.css`):
-- Reduce tab padding to `12px 8px` on mobile
-- Add a right fade/gradient mask on `.stellar-nav` to hint at scrollability
-- Add `scroll-snap-type: x mandatory` and `scroll-snap-align: start` on tabs for better swipe UX
+2. **Monitor tab card overflow** — Monitor uses `gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr"` which is correct, but the inner content (metric details with "Current: ... · AMBER: ... · RED: ...") wraps poorly. The status badges and long text strings cause horizontal bleed.
 
-```css
-@media (max-width: 767px) {
-  .stellar-nav {
-    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-    mask-image: linear-gradient(to right, black 85%, transparent 100%);
-    scroll-snap-type: x mandatory;
-  }
-  .stellar-tab {
-    padding: 12px 10px;
-    font-size: 9px;
-    scroll-snap-align: start;
-  }
-}
-```
+3. **Layers AUM not including cash** — `parseLayers()` filters out CASH and TOTAL rows, so `LayersAllocation` can never find them. `totalMv` only sums invested layer MVs, and `dryPowder` is always £0. Need to pass cash data separately or stop filtering those rows.
 
-### 2. Collapsible Narrative Section
+4. **Layers allocation chart — over/under not clear** — The gap labels just show signed numbers like "-11.0" or "+3.0" without context. Need to append "under" / "over" text and use clearer color coding.
 
-**Problem**: The Narrative card (Weekly Priorities, Macro Regime, Key Risk, Layer Narrative) takes significant vertical space. It's reference content — not something you act on every visit.
+5. **Returns tab 3-column cards not stacking on mobile** — `ReturnsTab` doesn't import or use `isMobile`. The account cards grid is hardcoded to `repeat(3,1fr)`, making SIPP/ISA/PORTFOLIO cards unreadable at 430px.
 
-**Fix** (`src/components/CommandTab.tsx`):
-- Wrap the narrative card in a `<details>` element (same pattern as Risk Controls, Macro Signals, Golden Rules)
-- Summary shows "NARRATIVE" title + last updated date + a brief regime snippet
-- Content is collapsed by default on mobile, open by default on desktop (use `open` attribute conditionally via `isMobile`)
-- Keep Quick Commands outside the collapsible since those are actionable
+---
 
-### 3. Deploy Queue Improvements
+### Plan
 
-**Problem**: On mobile, deploy queue rows use a two-line layout but it's still dense — rank number, ticker, tier badge, amount, then a second line with layer + context all jammed together. The `minWidth` and padding feel arbitrary.
+**File: `src/index.css`**
+- Increase mobile tab gap/padding slightly — add `gap: 2px` to `.stellar-nav` on mobile and ensure tab padding has enough horizontal breathing room (e.g. `padding: 12px 12px` instead of `12px 10px`)
 
-**Fix** (`src/components/CommandTab.tsx`):
-- Restructure each deploy item as a proper card-like block on mobile:
-  - **Line 1**: `#1 · TICKER · T2` (rank, ticker bold, tier badge) — left-aligned
-  - **Line 2**: `£2,400 · @150` (amount in gold, price) — left-aligned  
-  - **Line 3**: `Materials · Deploy context text` (layer dim, context) — smaller, wrapping
-- Add subtle bottom border between items with slightly more vertical padding (8px → 10px)
-- On desktop, keep the current single-line layout but remove unnecessary `minWidth` constraints
+**File: `src/components/MonitorTab.tsx`**
+- On mobile, reduce inner card padding from `0 20px` to `0 12px`
+- For metric detail lines, break "Current · AMBER · RED" into separate lines on mobile instead of one long inline span
 
-### Files Changed
-- `src/index.css` — nav scroll hint + snap for mobile
-- `src/components/CommandTab.tsx` — narrative as `<details>`, deploy queue mobile card layout
+**File: `src/hooks/usePortfolioData.ts`**
+- Stop filtering CASH and TOTAL from `parseLayers()` — remove them from the SKIP list so they pass through to the Layers components (the chart/table already filters them at the component level)
+
+**File: `src/components/LayersAllocation.tsx`**
+- Gap labels: append "under" or "over" text (e.g. "-11.0 under", "+3.0 over") for clarity
+- Use red for under-allocation, green for over-allocation consistently
+
+**File: `src/components/ReturnsTab.tsx`**
+- Import `useIsMobile`
+- Change account cards grid from `repeat(3,1fr)` to `1fr` on mobile so the three cards stack vertically
+- Reduce card padding on mobile
+
+### Technical Detail
+
+The `parseLayers` SKIP list currently is `["TOTAL", "CASH", "LAYER", ""]`. Changing it to `["LAYER", ""]` will let CASH and TOTAL rows flow to `LayersAllocation` where they're already looked up via `.find()`. This fixes the AUM calculation (`layerSum + cashRow.mv`) and the Dry Powder display.
+
+### Files changed
+- `src/index.css` — nav tab spacing
+- `src/components/MonitorTab.tsx` — mobile padding and text wrapping
+- `src/hooks/usePortfolioData.ts` — remove CASH/TOTAL from parseLayers SKIP
+- `src/components/LayersAllocation.tsx` — clearer gap labels
+- `src/components/ReturnsTab.tsx` — responsive card stacking
 
