@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -26,6 +26,7 @@ interface Props {
 function AllocationTooltip({ active, payload }: any) {
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
+  const isCash = d.name?.toUpperCase() === "CASH";
   const gap = d.current - d.target;
   return (
     <div style={{
@@ -34,30 +35,13 @@ function AllocationTooltip({ active, payload }: any) {
     }}>
       <div style={{ fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{d.name}</div>
       <div style={{ color: "var(--text-mid)" }}>Actual: {d.current.toFixed(1)}%</div>
-      <div style={{ color: "var(--text-mid)" }}>Target: {d.target.toFixed(1)}%</div>
-      <div style={{ color: gap > 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
-        Gap: {gap >= 0 ? "+" : ""}{gap.toFixed(1)}%
-      </div>
+      {!isCash && <div style={{ color: "var(--text-mid)" }}>Target: {d.target.toFixed(1)}%</div>}
+      {!isCash && (
+        <div style={{ color: gap > 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
+          Gap: {gap >= 0 ? "+" : ""}{gap.toFixed(1)}%
+        </div>
+      )}
     </div>
-  );
-}
-
-/* ── Custom bar label (gap value) ── */
-function GapLabel(props: any) {
-  const { x, y, width, height } = props;
-  const d = props.payload ?? props;
-  const gap = (d.current ?? 0) - (d.target ?? 0);
-  const color = gap < 0 ? "var(--red)" : gap > 0 ? "var(--green)" : "var(--text-mid)";
-  const suffix = gap < 0 ? " under" : gap > 0 ? " over" : "";
-  return (
-    <text
-      x={(x ?? 0) + (width ?? 0) + 8}
-      y={(y ?? 0) + (height ?? 0) / 2 + 4}
-      fill={color}
-      style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600 }}
-    >
-      {gap >= 0 ? "+" : ""}{gap.toFixed(1)}{suffix}
-    </text>
   );
 }
 
@@ -66,10 +50,8 @@ function TargetMarker(props: any) {
   const { y, height, background } = props;
   const target = props.payload?.target ?? 0;
   if (target <= 0) return null;
-  // Calculate x position based on the chart area
   const chartWidth = background?.width ?? 0;
   const chartX = background?.x ?? 0;
-  // xAxis domain is 0-25, so target position:
   const xPos = chartX + (target / 25) * chartWidth;
   return (
     <line
@@ -90,17 +72,64 @@ export default function LayersAllocation({ layers }: Props) {
     return n !== "TOTAL" && n !== "CASH" && n.trim() !== "";
   });
 
-  /* Sort by gap ascending (most underweight first) */
+  /* Sort by gap ascending (most underweight first), then append cash */
   const chartData = useMemo(() => {
-    return [...investedLayers]
+    const sorted = [...investedLayers]
       .map((l, i) => ({
         name: l.name,
         current: l.current,
         target: l.target,
         color: l.hexColor || LAYER_COLORS[i % LAYER_COLORS.length],
+        isCash: false,
       }))
       .sort((a, b) => (a.current - a.target) - (b.current - b.target));
-  }, [investedLayers]);
+
+    if (cashRow && cashRow.current > 0) {
+      sorted.push({
+        name: "Cash",
+        current: cashRow.current,
+        target: 0,
+        color: "var(--muted)",
+        isCash: true,
+      });
+    }
+
+    return sorted;
+  }, [investedLayers, cashRow]);
+
+  /* Gap label as closure so it can access chartData */
+  const GapLabel = useCallback((props: any) => {
+    const { x, y, width, height, index } = props;
+    const d = chartData[index];
+    if (!d) return null;
+
+    if (d.isCash) {
+      return (
+        <text
+          x={(x ?? 0) + (width ?? 0) + 8}
+          y={(y ?? 0) + (height ?? 0) / 2 + 4}
+          fill="var(--text-dim)"
+          style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600 }}
+        >
+          {d.current.toFixed(1)}%
+        </text>
+      );
+    }
+
+    const gap = d.current - d.target;
+    const color = gap < 0 ? "var(--red)" : gap > 0 ? "var(--green)" : "var(--text-mid)";
+    const suffix = gap < 0 ? " under" : gap > 0 ? " over" : "";
+    return (
+      <text
+        x={(x ?? 0) + (width ?? 0) + 8}
+        y={(y ?? 0) + (height ?? 0) / 2 + 4}
+        fill={color}
+        style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600 }}
+      >
+        {gap >= 0 ? "+" : ""}{gap.toFixed(1)}{suffix}
+      </text>
+    );
+  }, [chartData]);
 
   /* Metrics */
   const totalMv = useMemo(() => {
@@ -109,10 +138,8 @@ export default function LayersAllocation({ layers }: Props) {
   }, [investedLayers, cashRow]);
 
   const investedPct = useMemo(() => {
-    const cashPct = cashRow?.current ?? 0;
-    const total = totalRow?.current ?? investedLayers.reduce((s, l) => s + l.current, 0);
-    return total > 0 ? total : 100 - cashPct;
-  }, [totalRow, investedLayers, cashRow]);
+    return 100 - (cashRow?.current ?? 0);
+  }, [cashRow]);
 
   const dryPowder = cashRow?.mv ?? 0;
 
@@ -195,14 +222,16 @@ export default function LayersAllocation({ layers }: Props) {
               tick={({ x, y, payload }: any) => (
                 <g>
                   <text x={x} y={y} dy={4} textAnchor="end" style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 500, fill: "var(--text)" }}>{payload.value}</text>
-                  <text
-                    x={x + 4}
-                    y={y}
-                    dy={4}
-                    textAnchor="start"
-                    style={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-dim)", cursor: "pointer" }}
-                    onClick={() => triggerWebhook("stellar-layer-scan", { layer: payload.value }, `Layer scan triggered for ${payload.value}. Check email.`)}
-                  >🔍</text>
+                  {payload.value?.toUpperCase() !== "CASH" && (
+                    <text
+                      x={x + 4}
+                      y={y}
+                      dy={4}
+                      textAnchor="start"
+                      style={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-dim)", cursor: "pointer" }}
+                      onClick={() => triggerWebhook("stellar-layer-scan", { layer: payload.value }, `Layer scan triggered for ${payload.value}. Check email.`)}
+                    >🔍</text>
+                  )}
                 </g>
               )}
               axisLine={false}
@@ -257,6 +286,10 @@ export default function LayersAllocation({ layers }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ color: "var(--green)", fontWeight: 600 }}>+X.X</span>
           <span>OVER TARGET</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 12, height: 12, borderRadius: 2, background: "var(--muted)" }} />
+          <span>CASH / DRY POWDER</span>
         </div>
       </div>
     </div>
