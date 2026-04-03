@@ -828,7 +828,7 @@ export default function CommandTab() {
 
                 {/* Active Monitoring sub-section */}
                 {(() => {
-                  const monitorItems = watchlist.filter(w => w.status.trim().toUpperCase() === "MONITOR");
+                  const monitorItems = watchlist.filter(w => w.status.trim().toUpperCase() === "ACTIVE_MONITORING");
                   if (monitorItems.length === 0) return null;
                   return (
                     <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>

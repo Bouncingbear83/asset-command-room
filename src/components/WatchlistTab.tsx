@@ -459,7 +459,17 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         </div>
       )}
 
-      {/* ── Section 3: Waiting for Entry ── */}
+      {/* ── Section 3: Monitoring ── */}
+      {monitoring.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+          <SectionHeader dotColor="var(--accent)" label="Monitoring" count={monitoring.length} />
+          {monitoring.map((item, idx) => (
+            <WatchlistRow key={`monitoring-${idx}-${item.ticker}`} item={item} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 4: Waiting for Entry ── */}
       <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
         <SectionHeader dotColor="var(--text-dim)" label="Waiting for Entry" count={waiting.length} />
 
@@ -500,9 +510,19 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         )}
       </div>
 
-      {/* ── Section 3: Pre-IPO ── */}
+      {/* ── Section 5: Research ── */}
+      {research.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
+          {research.map((item, idx) => (
+            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 6: Pre-IPO ── */}
       {preIpo.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
           {preIpo.map((item, idx) => (
             <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed />
@@ -510,12 +530,12 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         </div>
       )}
 
-      {/* ── Section 4: Research ── */}
-      {research.length > 0 && (
+      {/* ── Section 7: Exited ── */}
+      {exited.length > 0 && (
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
-          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
-          {research.map((item, idx) => (
-            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
+          <SectionHeader dotColor="var(--text-dim)" label="Exited" count={exited.length} />
+          {exited.map((item, idx) => (
+            <WatchlistRow key={`exited-${idx}-${item.ticker}`} item={item} dimmed />
           ))}
         </div>
       )}
