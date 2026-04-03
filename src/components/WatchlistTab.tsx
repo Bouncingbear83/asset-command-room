@@ -431,7 +431,17 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         )}
       </div>
 
-      {/* ── Section 2: Waiting for Entry ── */}
+      {/* ── Section 2: Active Monitoring ── */}
+      {activeMonitoring.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+          <SectionHeader dotColor="var(--amber)" label="Active Monitoring" count={activeMonitoring.length} />
+          {activeMonitoring.map((item, idx) => (
+            <WatchlistRow key={`monitor-${idx}-${item.ticker}`} item={item} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 3: Waiting for Entry ── */}
       <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
         <SectionHeader dotColor="var(--text-dim)" label="Waiting for Entry" count={waiting.length} />
 
