@@ -374,7 +374,14 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
 
   const activeMonitoring = useMemo(() =>
     liveData
-      .filter((item) => MONITOR_STATUSES.includes(item.status.trim().toUpperCase()))
+      .filter((item) => ACTIVE_MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
+  const monitoring = useMemo(() =>
+    liveData
+      .filter((item) => MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
       .sort((a, b) => a.name.localeCompare(b.name)),
     [liveData]
   );
@@ -382,6 +389,13 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const research = useMemo(() =>
     liveData
       .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
+  const exited = useMemo(() =>
+    liveData
+      .filter((item) => EXITED_STATUSES.includes(item.status.trim().toUpperCase()))
       .sort((a, b) => a.name.localeCompare(b.name)),
     [liveData]
   );
