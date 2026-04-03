@@ -1,39 +1,44 @@
 
 
-## Add "Active Monitoring" Category to Watchlist + Surface on Command Tab
+## Fix Watchlist Category Hierarchy
 
-### What
-Add a new watchlist section called **Active Monitoring** — positioned 2nd (after Buy Targets, before Waiting for Entry). These are assets you already hold or are closely tracking that need active attention but aren't buy candidates. Surface them on the Command tab in the "This Week's Actions" card.
+### Current order
+1. Buy Targets → 2. Active Monitoring (`MONITOR`) → 3. Waiting for Entry (`WAIT`, `WATCH`) → 4. Pre-IPO → 5. Research
 
-### How it works
+### Requested order
+1. **Buy** (T1, T2, etc.) — green
+2. **Active Monitoring** (`ACTIVE_MONITORING`) — amber
+3. **Monitoring** (`MONITOR`) — accent
+4. **Wait** (`WAIT`, `WATCH`) — grey
+5. **Research** — blue
+6. **Pre-IPO** — purple
+7. **Exited** — new, dimmed/muted
 
-**Trigger**: Assets with status `MONITOR` in the Google Sheet will be categorized as "Active Monitoring" instead of being lumped into "Waiting for Entry".
+### Changes needed
 
----
+**File: `src/components/WatchlistTab.tsx`**
 
-### File: `src/components/WatchlistTab.tsx`
+1. **Rename status constant** — `MONITOR_STATUSES` becomes `ACTIVE_MONITORING_STATUSES = ["ACTIVE_MONITORING"]` for the amber section
+2. **Add new `MONITORING_STATUSES = ["MONITOR"]`** — separate section with accent styling, rendered 3rd
+3. **Add `EXITED_STATUSES = ["EXITED"]`** — new category at the bottom, dimmed rows
+4. **Reorder `WAIT_STATUSES`** to position 4th (after Monitoring)
+5. **Swap Pre-IPO and Research** — Research now comes before Pre-IPO
+6. **Add `activeMonitoringMemo`** filtering for `ACTIVE_MONITORING`, add `monitoringMemo` filtering for `MONITOR`, add `exitedMemo` filtering for `EXITED`
+7. **Render sections** in new order with appropriate colors:
+   - Active Monitoring: amber dot
+   - Monitoring: accent dot
+   - Wait: grey dot
+   - Research: blue dot
+   - Pre-IPO: purple dot
+   - Exited: muted/dim dot, dimmed rows
 
-1. **Split MONITOR out of WAIT_STATUSES** — Change `WAIT_STATUSES` from `["WAIT", "WATCH", "MONITOR"]` to `["WAIT", "WATCH"]`
-2. **Add new category constant**: `MONITOR_STATUSES = ["MONITOR"]`
-3. **Add `activeMonitoring` memo** — filter `liveData` for MONITOR status, sort by name
-4. **Render new section** between Buy Targets and Waiting for Entry with an amber dot color and label "Active Monitoring"
-5. **Style**: Use the existing `MONITOR` status style (amber-toned). Rows are not dimmed (unlike Research/Pre-IPO)
+8. **Add status badge styles** for `ACTIVE_MONITORING` (amber) and `EXITED` (muted grey)
 
-### File: `src/components/CommandTab.tsx`
+**File: `src/components/CommandTab.tsx`**
 
-1. **Filter watchlist for MONITOR items** — `const monitorItems = watchlist.filter(w => w.status.trim().toUpperCase() === "MONITOR")`
-2. **Add an "Active Monitoring" sub-section** inside the "This Week's Actions" card, after the weekly actions and before "Watch this week"
-3. **Each monitor item shows**: ticker (bold), current price, and entry target distance — compact one-line format with an amber MONITOR badge
-4. This gives immediate visibility on the Command tab without needing to switch to Watchlist
-
-### Section Order (Watchlist tab)
-1. Buy Targets (green)
-2. **Active Monitoring** (amber) — NEW
-3. Waiting for Entry (grey)
-4. Pre-IPO (purple)
-5. Research (blue)
+9. Update the monitor items filter to use `ACTIVE_MONITORING` status instead of `MONITOR` (since Active Monitoring is the higher-priority category to surface on Command)
 
 ### Files changed
-- `src/components/WatchlistTab.tsx` — new category filter + section
-- `src/components/CommandTab.tsx` — surface MONITOR items in weekly actions
+- `src/components/WatchlistTab.tsx` — restructure categories, add Monitoring + Exited sections
+- `src/components/CommandTab.tsx` — update filter to match new status name
 
