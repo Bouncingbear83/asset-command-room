@@ -19,11 +19,13 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
   "BUY T1": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
   "BUY T2": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
   "BUY NOW": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
-  WAIT: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)" },
-  WATCH: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
+  ACTIVE_MONITORING: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)" },
   MONITOR: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
+  WAIT: { background: "rgba(80, 80, 120, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(80, 80, 120, 0.25)" },
+  WATCH: { background: "rgba(80, 80, 120, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(80, 80, 120, 0.25)" },
   RESEARCH: { background: "rgba(80, 80, 160, 0.15)", color: "rgb(140, 140, 220)", border: "1px solid rgba(140, 140, 220, 0.25)" },
   "PRE-IPO": { background: "rgba(130, 80, 180, 0.15)", color: "rgb(170, 120, 220)", border: "1px solid rgba(170, 120, 220, 0.25)" },
+  EXITED: { background: "rgba(60, 60, 80, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(60, 60, 80, 0.3)" },
 };
 
 function parseEntryTarget(entry: string): number | null {
@@ -334,10 +336,12 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const [showAllWaiting, setShowAllWaiting] = useState(false);
 
   const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
+  const ACTIVE_MONITORING_STATUSES = ["ACTIVE_MONITORING"];
+  const MONITORING_STATUSES = ["MONITOR"];
   const WAIT_STATUSES = ["WAIT", "WATCH"];
-  const MONITOR_STATUSES = ["MONITOR"];
-  const PREIPO_STATUSES = ["PRE-IPO"];
   const RESEARCH_STATUSES = ["RESEARCH"];
+  const PREIPO_STATUSES = ["PRE-IPO"];
+  const EXITED_STATUSES = ["EXITED"];
 
   const buyTargets = useMemo(() =>
     liveData
@@ -370,7 +374,14 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
 
   const activeMonitoring = useMemo(() =>
     liveData
-      .filter((item) => MONITOR_STATUSES.includes(item.status.trim().toUpperCase()))
+      .filter((item) => ACTIVE_MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
+  const monitoring = useMemo(() =>
+    liveData
+      .filter((item) => MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
       .sort((a, b) => a.name.localeCompare(b.name)),
     [liveData]
   );
@@ -378,6 +389,13 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const research = useMemo(() =>
     liveData
       .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
+  const exited = useMemo(() =>
+    liveData
+      .filter((item) => EXITED_STATUSES.includes(item.status.trim().toUpperCase()))
       .sort((a, b) => a.name.localeCompare(b.name)),
     [liveData]
   );
@@ -441,7 +459,17 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         </div>
       )}
 
-      {/* ── Section 3: Waiting for Entry ── */}
+      {/* ── Section 3: Monitoring ── */}
+      {monitoring.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+          <SectionHeader dotColor="var(--accent)" label="Monitoring" count={monitoring.length} />
+          {monitoring.map((item, idx) => (
+            <WatchlistRow key={`monitoring-${idx}-${item.ticker}`} item={item} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 4: Waiting for Entry ── */}
       <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
         <SectionHeader dotColor="var(--text-dim)" label="Waiting for Entry" count={waiting.length} />
 
@@ -482,9 +510,19 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         )}
       </div>
 
-      {/* ── Section 3: Pre-IPO ── */}
+      {/* ── Section 5: Research ── */}
+      {research.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
+          {research.map((item, idx) => (
+            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 6: Pre-IPO ── */}
       {preIpo.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
           <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
           {preIpo.map((item, idx) => (
             <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed />
@@ -492,12 +530,12 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         </div>
       )}
 
-      {/* ── Section 4: Research ── */}
-      {research.length > 0 && (
+      {/* ── Section 7: Exited ── */}
+      {exited.length > 0 && (
         <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
-          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
-          {research.map((item, idx) => (
-            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
+          <SectionHeader dotColor="var(--text-dim)" label="Exited" count={exited.length} />
+          {exited.map((item, idx) => (
+            <WatchlistRow key={`exited-${idx}-${item.ticker}`} item={item} dimmed />
           ))}
         </div>
       )}
