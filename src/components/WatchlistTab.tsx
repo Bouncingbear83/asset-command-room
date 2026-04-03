@@ -368,6 +368,13 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
     [liveData]
   );
 
+  const activeMonitoring = useMemo(() =>
+    liveData
+      .filter((item) => MONITOR_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
   const research = useMemo(() =>
     liveData
       .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
