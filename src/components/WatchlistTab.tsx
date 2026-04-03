@@ -336,10 +336,12 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const [showAllWaiting, setShowAllWaiting] = useState(false);
 
   const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
+  const ACTIVE_MONITORING_STATUSES = ["ACTIVE_MONITORING"];
+  const MONITORING_STATUSES = ["MONITOR"];
   const WAIT_STATUSES = ["WAIT", "WATCH"];
-  const MONITOR_STATUSES = ["MONITOR"];
-  const PREIPO_STATUSES = ["PRE-IPO"];
   const RESEARCH_STATUSES = ["RESEARCH"];
+  const PREIPO_STATUSES = ["PRE-IPO"];
+  const EXITED_STATUSES = ["EXITED"];
 
   const buyTargets = useMemo(() =>
     liveData
