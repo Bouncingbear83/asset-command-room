@@ -826,6 +826,36 @@ export default function CommandTab() {
                   </div>
                 ))}
 
+                {/* Active Monitoring sub-section */}
+                {(() => {
+                  const monitorItems = watchlist.filter(w => w.status.trim().toUpperCase() === "MONITOR");
+                  if (monitorItems.length === 0) return null;
+                  return (
+                    <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--amber)", marginBottom: 10 }}>Active Monitoring</div>
+                      {monitorItems.map((item, index) => {
+                        const current = typeof item.current === "number" ? item.current : null;
+                        const entryStr = item.entry;
+                        const parts = entryStr ? entryStr.split(/\s*[-–]\s*|\s+to\s+/i) : [];
+                        const nums = parts.map(p => parseFloat(p.replace(/[^0-9.]/g, ""))).filter(n => !isNaN(n) && n > 0);
+                        const midpoint = nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0] ?? null;
+                        const pctDist = current != null && midpoint != null && midpoint > 0 ? ((current - midpoint) / midpoint * 100) : null;
+                        const distLabel = pctDist !== null ? (pctDist <= 0 ? `${pctDist.toFixed(1)}%` : `+${pctDist.toFixed(1)}%`) : "";
+                        const distColor = pctDist !== null ? (pctDist <= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)";
+                        return (
+                          <div key={`monitor-${index}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "1px solid rgba(28,28,48,0.4)", flexWrap: "wrap" }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 44 }}>{item.ticker}</span>
+                            <span style={{ ...statusChip("MONITOR") }}>MONITOR</span>
+                            {current != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{current.toLocaleString("en-GB", { maximumFractionDigits: 2 })}</span>}
+                            {distLabel && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: distColor }}>{distLabel}</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+
                 {weeklyWatch.length > 0 && (
                   <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 10 }}>Watch this week</div>

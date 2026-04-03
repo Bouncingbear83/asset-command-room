@@ -334,7 +334,8 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const [showAllWaiting, setShowAllWaiting] = useState(false);
 
   const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
-  const WAIT_STATUSES = ["WAIT", "WATCH", "MONITOR"];
+  const WAIT_STATUSES = ["WAIT", "WATCH"];
+  const MONITOR_STATUSES = ["MONITOR"];
   const PREIPO_STATUSES = ["PRE-IPO"];
   const RESEARCH_STATUSES = ["RESEARCH"];
 
@@ -363,6 +364,13 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const preIpo = useMemo(() =>
     liveData
       .filter((item) => PREIPO_STATUSES.includes(item.status.trim().toUpperCase()))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [liveData]
+  );
+
+  const activeMonitoring = useMemo(() =>
+    liveData
+      .filter((item) => MONITOR_STATUSES.includes(item.status.trim().toUpperCase()))
       .sort((a, b) => a.name.localeCompare(b.name)),
     [liveData]
   );
@@ -423,7 +431,17 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         )}
       </div>
 
-      {/* ── Section 2: Waiting for Entry ── */}
+      {/* ── Section 2: Active Monitoring ── */}
+      {activeMonitoring.length > 0 && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+          <SectionHeader dotColor="var(--amber)" label="Active Monitoring" count={activeMonitoring.length} />
+          {activeMonitoring.map((item, idx) => (
+            <WatchlistRow key={`monitor-${idx}-${item.ticker}`} item={item} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Section 3: Waiting for Entry ── */}
       <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
         <SectionHeader dotColor="var(--text-dim)" label="Waiting for Entry" count={waiting.length} />
 
