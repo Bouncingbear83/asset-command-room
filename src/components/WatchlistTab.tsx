@@ -19,11 +19,13 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
   "BUY T1": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
   "BUY T2": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
   "BUY NOW": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
-  WAIT: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)" },
-  WATCH: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
+  ACTIVE_MONITORING: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)" },
   MONITOR: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
+  WAIT: { background: "rgba(80, 80, 120, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(80, 80, 120, 0.25)" },
+  WATCH: { background: "rgba(80, 80, 120, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(80, 80, 120, 0.25)" },
   RESEARCH: { background: "rgba(80, 80, 160, 0.15)", color: "rgb(140, 140, 220)", border: "1px solid rgba(140, 140, 220, 0.25)" },
   "PRE-IPO": { background: "rgba(130, 80, 180, 0.15)", color: "rgb(170, 120, 220)", border: "1px solid rgba(170, 120, 220, 0.25)" },
+  EXITED: { background: "rgba(60, 60, 80, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(60, 60, 80, 0.3)" },
 };
 
 function parseEntryTarget(entry: string): number | null {
