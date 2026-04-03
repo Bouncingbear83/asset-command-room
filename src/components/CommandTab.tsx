@@ -856,6 +856,7 @@ export default function CommandTab() {
                 })()}
 
 
+                {weeklyWatch.length > 0 && (
                   <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 10 }}>Watch this week</div>
                     {weeklyWatch.map((item, index) => {
