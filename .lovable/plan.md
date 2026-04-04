@@ -1,65 +1,41 @@
 
 
-## Transactions Tab — New Component + Data Integration
+## Fix Transactions Column Mapping
 
-### Overview
-Add a read-only Transactions tab that fetches trade history from the Google Sheet, displays summary cards + filterable table, and supports ticker drill-down for position-level detail.
+### Problem
+The column mapping in `parseTransactions` doesn't match the actual sheet headers. The sheet columns are:
 
-### Files to Create/Edit
+| Col | Header | Code maps to | Should be |
+|-----|--------|-------------|-----------|
+| 0–9 | DATE→TRANCHE | ✓ correct | — |
+| 10 | **TRIGGER** | `layer` ❌ | `trigger` |
+| 11 | **RATIONALE** | `notes` | `rationale` (rename for clarity) |
+| 12 | SCORE_AT_ENTRY | ✓ | — |
+| 13 | **LAYER** | `name` ❌ | `layer` |
+| 14 | **LINKED_SCORE_LOG** | `accountName` ❌ | `linkedScoreLog` |
 
-#### 1. `src/hooks/usePortfolioData.ts` — Add transactions + scores fetch
+The `layer` field is currently reading col_10 (TRIGGER) instead of col_13 (LAYER). This means every transaction shows the wrong layer — or no layer at all — breaking layer dots, layer filtering, and drill-down grouping.
 
-- Add `transactions: "1970586669"` to `GIDS`
-- Add `fetchSheet({ gid: GIDS.transactions, range: "A1:O" })` to the `Promise.all` in `load()`
-- Add `parseTransactions()` function mapping columns A–O to: `DATE`, `ACCOUNT`, `TICKER`, `ACTION`, `SHARES`, `PRICE`, `CURRENCY`, `FX_RATE`, `VALUE_GBP`, `TRANCHE`, `LAYER`, `NOTES`, `SCORE_AT_ENTRY`, `LAYER_NAME`, `ACCOUNT_NAME`
-- Add parsed transactions to state and return type
-- Scores data is already fetched — will be passed through for drill-down cross-reference
+### Fix
 
-#### 2. `src/components/TransactionsTab.tsx` — New component (~400 lines)
+**File: `src/hooks/usePortfolioData.ts`** — `parseTransactions` function
 
-**Props**: `transactions`, `scores`, `layers` (for hex colours)
+1. **col_10** → map to `trigger` (string) — e.g. "Score 86, Bio layer gap, price GBP 191"
+2. **col_11** → rename from `notes` to `rationale` — e.g. "Anchor tranche. Cytiva Protein A..."
+3. **col_13** → map to `layer` (was incorrectly mapped as `name`)
+4. **col_14** → map to `linkedScoreLog` (was incorrectly mapped as `accountName`)
+5. Remove the `name` field (no NAME column exists in this sheet)
 
-**Summary Cards** (row of 4):
-- Deployed YTD — sum of VALUE_GBP where ACTION is BUY/SIZE_UP, current year
-- Exited YTD — sum of VALUE_GBP where ACTION is SELL/TRIM/EXIT
-- Net Deployed — deployed minus exited
-- Trades YTD — count excluding DIVIDEND
+**File: `src/components/TransactionsTab.tsx`**
 
-**Filter Bar**:
-- Account toggle buttons: All / SIPP / ISA / JISA-1 / JISA-2 / JISA-3
-- Action toggle buttons: All / BUY / SELL / DIVIDEND (grouped)
-- Layer dropdown (populated from unique layers in data)
-- Date range inputs (from/to)
+6. Update any references to `t.notes` → `t.rationale`
+7. Remove references to `t.name` / `t.accountName` if used
+8. Verify layer filtering uses the now-correct `t.layer` field
 
-**Transaction Table**:
-- Columns: Date, Ticker, Action, Shares, Price, Ccy, Value £, Tranche, Layer, Account, Score
-- Sorted newest-first by default
-- Action badges colour-coded (BUY/SIZE_UP green, SELL/TRIM/EXIT red, DIVIDEND blue)
-- Layer dots use hex from layers data
-- Mobile: collapse to card layout per row
-- Ticker is clickable → drill-down view
+### Result
+Layer dots, layer filter dropdown, and drill-down header will show correct layer names (e.g. "Biological", "Compute", "Materials") instead of trigger text.
 
-**Ticker Drill-Down** (replaces table when a ticker is clicked):
-- Back button to return to full list
-- Header: Ticker, Name, Layer, Current Score, Tier
-- Position Summary cards: Net Shares (by account), Total Cost £, Avg Price
-- Transaction History table (filtered to that ticker, excluding dividends)
-- Dividends section (filtered to DIVIDEND actions)
-- Score at entry vs current score delta
-
-#### 3. `src/pages/Index.tsx` — Add tab
-
-- Import `TransactionsTab`
-- Add `"Transactions"` to `TABS` array after `"Holdings"`
-- Render `<TransactionsTab>` with transactions, scores, and layers props
-
-### Styling
-- Matches existing dark theme (panel/rim/gold variables)
-- Action badges follow existing pattern from HoldingsTab
-- Summary cards match CommandTab card styling
-- Table alternates bg-transparent / bg-white/5
-- Mobile responsive: table → card view at small widths
-
-### No database changes needed
-All data comes from Google Sheets. Read-only display.
+### Files changed
+- `src/hooks/usePortfolioData.ts` — fix column mapping in parseTransactions
+- `src/components/TransactionsTab.tsx` — update field references
 
