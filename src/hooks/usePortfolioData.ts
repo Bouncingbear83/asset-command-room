@@ -787,6 +787,7 @@ export function usePortfolioData(): PortfolioData {
         earningsCalendarRaw,
         cashGrid,
         transactionsRaw,
+        jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
@@ -801,6 +802,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" }).catch(() => []),
         fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
+        fetchSheet({ gid: GIDS.jisaHoldings, range: "A1:O" }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);
