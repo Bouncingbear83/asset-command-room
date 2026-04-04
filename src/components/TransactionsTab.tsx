@@ -58,6 +58,9 @@ const metaVal: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: "var(--gold)",
 };
 
+type SortKey = "date" | "ticker" | "action" | "shares" | "price" | "currency" | "valueGbp" | "tranche" | "layer" | "account" | "scoreAtEntry";
+type SortDir = "asc" | "desc";
+
 export default function TransactionsTab({ transactions, scores, layers }: Props) {
   const isMobile = useIsMobile();
   const [accountFilter, setAccountFilter] = useState("All");
@@ -66,6 +69,17 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [drillTicker, setDrillTicker] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+  };
 
   const layerHexMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -79,7 +93,7 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
   }, [transactions]);
 
   const filtered = useMemo(() => {
-    return transactions.filter(t => {
+    const base = transactions.filter(t => {
       if (accountFilter !== "All" && t.account.toUpperCase() !== accountFilter) return false;
       if (actionFilter !== "All") {
         if (actionFilter === "BUY" && !BUY_ACTIONS.includes(t.action)) return false;
@@ -90,8 +104,18 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
       if (dateFrom && t.date < dateFrom) return false;
       if (dateTo && t.date > dateTo) return false;
       return true;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [transactions, accountFilter, actionFilter, layerFilter, dateFrom, dateTo]);
+    });
+    const mul = sortDir === "asc" ? 1 : -1;
+    return base.sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul;
+      return String(av).localeCompare(String(bv)) * mul;
+    });
+  }, [transactions, accountFilter, actionFilter, layerFilter, dateFrom, dateTo, sortKey, sortDir]);
 
   // YTD summary
   const ytd = useMemo(() => filtered.filter(t => t.date >= `${currentYear}-01-01`), [filtered]);
