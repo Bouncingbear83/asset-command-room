@@ -659,11 +659,11 @@ function parseTransactions(rows: Record<string, any>[]) {
       const fxRate = parseNum(row["col_7"] ?? findCol(row, "fx_rate", "FX_RATE", "FX Rate"));
       const valueGbp = parseNum(row["col_8"] ?? findCol(row, "value_gbp", "VALUE_GBP", "Value GBP", "Value (£)"));
       const tranche = String(row["col_9"] ?? findCol(row, "tranche", "TRANCHE", "Tranche") ?? "");
-      const layerName = String(row["col_10"] ?? findCol(row, "layer", "LAYER", "Layer") ?? "");
-      const notes = String(row["col_11"] ?? findCol(row, "notes", "NOTES", "Notes") ?? "");
+      const trigger = String(row["col_10"] ?? findCol(row, "trigger", "TRIGGER", "Trigger") ?? "");
+      const rationale = String(row["col_11"] ?? findCol(row, "rationale", "RATIONALE", "Rationale") ?? "");
       const scoreAtEntry = parseNum(row["col_12"] ?? findCol(row, "score_at_entry", "SCORE_AT_ENTRY", "Score"));
-      const name = String(row["col_13"] ?? findCol(row, "name", "NAME", "Name") ?? "");
-      const accountName = String(row["col_14"] ?? "");
+      const layerName = String(row["col_13"] ?? findCol(row, "layer", "LAYER", "Layer") ?? "");
+      const linkedScoreLog = String(row["col_14"] ?? "");
       return {
         date: parseSheetDate(dateRaw),
         account: account.trim(),
@@ -676,10 +676,10 @@ function parseTransactions(rows: Record<string, any>[]) {
         valueGbp,
         tranche: tranche.trim(),
         layer: layerName.trim(),
-        notes: notes.trim(),
+        trigger: trigger.trim(),
+        rationale: rationale.trim(),
         scoreAtEntry,
-        name: name.trim(),
-        accountName: accountName.trim(),
+        linkedScoreLog: linkedScoreLog.trim(),
       };
     })
     .filter((t) => t.ticker !== "" && t.action !== "" && t.date !== "");
