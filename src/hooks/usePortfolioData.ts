@@ -688,26 +688,66 @@ function parseTransactions(rows: Record<string, any>[]) {
 
 export type LiveTransaction = ReturnType<typeof parseTransactions>[number];
 
-function parseJisaHoldings(rows: Record<string, any>[]) {
-  return rows
-    .map((row) => ({
-      child: String(row["col_0"] ?? findCol(row, "child", "CHILD", "Child") ?? ""),
-      ticker: String(row["col_1"] ?? findCol(row, "ticker", "TICKER") ?? ""),
-      name: String(row["col_2"] ?? findCol(row, "name", "NAME") ?? ""),
-      type: String(row["col_3"] ?? findCol(row, "type", "TYPE") ?? ""),
-      layer: String(row["col_4"] ?? findCol(row, "layer", "LAYER") ?? ""),
-      shares: parseNum(row["col_5"] ?? findCol(row, "shares", "SHARES")),
-      priceLocal: parseNum(row["col_6"] ?? findCol(row, "price_local", "PRICE_LOCAL")),
-      currency: String(row["col_7"] ?? findCol(row, "currency", "CURRENCY") ?? "GBP"),
-      mvGbp: parseNum(row["col_8"] ?? findCol(row, "mv_gbp", "MV_GBP")),
-      weightPct: parseNum(row["col_9"] ?? findCol(row, "weight_pct", "WEIGHT_PCT")),
-      costGbp: parseNum(row["col_10"] ?? findCol(row, "cost_gbp", "COST_GBP")),
-      glPct: parseNum(row["col_11"] ?? findCol(row, "gl_pct", "GL_PCT")),
-      codeGf: String(row["col_12"] ?? ""),
-      targetPct: parseNum(row["col_13"] ?? findCol(row, "target_pct", "TARGET_PCT")),
-      notes: String(row["col_14"] ?? findCol(row, "notes", "NOTES") ?? ""),
-    }))
-    .filter((h) => h.ticker.trim() !== "" && h.child.trim() !== "");
+function parseJisaHoldings(grid: string[][]) {
+  // Wide/pivoted layout: each row = one stock, child-specific data in columns
+  // A=Pillar/Layer, B=Target%, C=Ticker, D=Name, E=FX
+  // M/N/O = Shares (JB/AB/EB), V/W/X = Weight%, Y/Z/AA = Cost GBP
+  // AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
+  const CHILDREN_MAP = [
+    { child: "Bear", sharesCol: 12, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33 },
+    { child: "Alfie", sharesCol: 13, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34 },
+    { child: "Edie", sharesCol: 14, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35 },
+  ];
+
+  const results: {
+    child: string; ticker: string; name: string; type: string; layer: string;
+    shares: number | null; priceLocal: number | null; currency: string;
+    mvGbp: number | null; weightPct: number | null; costGbp: number | null;
+    glPct: number | null; codeGf: string; targetPct: number | null; notes: string;
+  }[] = [];
+
+  // Skip header rows (rows 0-1 typically) and TOTAL row
+  for (const row of grid) {
+    const ticker = (row[2] ?? "").trim();
+    const layer = (row[0] ?? "").trim();
+    if (!ticker || ticker.toUpperCase() === "TOTAL" || ticker.toUpperCase() === "TICKER") continue;
+    if (layer.toUpperCase() === "PILLAR" || layer === "") continue;
+
+    const targetPct = parsePct(row[1]);
+    const name = (row[3] ?? "").trim();
+    const currency = (row[4] ?? "GBP").trim();
+
+    for (const cm of CHILDREN_MAP) {
+      const shares = parseNum(row[cm.sharesCol]);
+      if (!shares || shares === 0) continue;
+
+      const costGbp = parseNum(row[cm.costCol]) || 0;
+      const glGbp = parseNum(row[cm.glGbpCol]) || 0;
+      const mvGbp = costGbp + glGbp;
+      const weightPct = parsePct(row[cm.weightCol]);
+      const glPct = parsePct(row[cm.glPctCol]);
+
+      results.push({
+        child: cm.child,
+        ticker,
+        name,
+        type: "",
+        layer,
+        shares,
+        priceLocal: parseNum(row[8]),
+        currency,
+        mvGbp,
+        weightPct,
+        costGbp,
+        glPct,
+        codeGf: (row[5] ?? "").trim(),
+        targetPct,
+        notes: "",
+      });
+    }
+  }
+
+  return results;
 }
 
 export type LiveJisaHolding = ReturnType<typeof parseJisaHoldings>[number];
