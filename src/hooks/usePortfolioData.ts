@@ -705,6 +705,7 @@ export interface PortfolioData {
   riskControls: LiveRiskControl[];
   weeklyTriggers: LiveWeeklyTrigger[];
   earningsCalendar: LiveEarningsCalendarItem[];
+  transactions: LiveTransaction[];
   cashSipp: number;
   cashIsa: number;
   cashTotal: number;
