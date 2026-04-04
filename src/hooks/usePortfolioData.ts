@@ -759,6 +759,7 @@ export function usePortfolioData(): PortfolioData {
         macroStateGrid,
         earningsCalendarRaw,
         cashGrid,
+        transactionsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
