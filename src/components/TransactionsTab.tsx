@@ -36,7 +36,7 @@ function formatPrice(val: number | null, ccy: string): string {
 
 const currentYear = new Date().getFullYear();
 
-const ACCOUNT_OPTIONS = ["All", "SIPP", "ISA", "JISA-1", "JISA-2", "JISA-3"];
+const ACCOUNT_OPTIONS = ["All", "SIPP", "ISA", "JISA-Bear", "JISA-Alfie", "JISA-Edie"];
 const ACTION_OPTIONS = ["All", "BUY", "SELL", "DIVIDEND"];
 
 const badge: React.CSSProperties = {
