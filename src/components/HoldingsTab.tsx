@@ -1,19 +1,21 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronRight, ChevronDown, Shield, RefreshCw, Microscope } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding, LiveDisruption } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption, LiveTransaction } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
   disruption?: LiveDisruption[];
+  transactions?: LiveTransaction[];
 }
 
 type ViewMode = "layer" | "account" | "pricemap";
 
-type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action";
+type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action" | "annReturn" | "cost" | "truePL" | "truePLpct" | "entryDate";
 type SortDir = "asc" | "desc";
 
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
@@ -59,14 +61,22 @@ const detailRowS: React.CSSProperties = {
   borderBottom: "1px solid rgba(28,28,48,0.25)",
 };
 
-const COLUMNS: { label: string; key: SortKey; align?: "right" }[] = [
+const BASE_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobile?: boolean }[] = [
   { label: "Ticker", key: "ticker" },
-  { label: "Name", key: "name" },
-  { label: "Layer", key: "layer" },
+  { label: "Name", key: "name", hideMobile: true },
+  { label: "Layer", key: "layer", hideMobile: true },
   { label: "MV £", key: "mv", align: "right" },
   { label: "G/L %", key: "gl", align: "right" },
   { label: "Day %", key: "day", align: "right" },
   { label: "Price", key: "price", align: "right" },
+];
+
+const RETURNS_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobile?: boolean }[] = [
+  { label: "Cost £", key: "cost", align: "right", hideMobile: true },
+  { label: "P&L £", key: "truePL", align: "right", hideMobile: true },
+  { label: "Return %", key: "truePLpct", align: "right", hideMobile: true },
+  { label: "Ann. Return", key: "annReturn", align: "right" },
+  { label: "Entry", key: "entryDate", hideMobile: true },
 ];
 
 function normalizeAlertStatus(value: string) {
@@ -95,10 +105,19 @@ function AlertBadge({ status }: { status: string }) {
   );
 }
 
-function sortHoldings(data: LiveHolding[], key: SortKey, dir: SortDir): LiveHolding[] {
+type HoldingWithReturns = LiveHolding & { returns?: HoldingReturns };
+
+function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): HoldingWithReturns[] {
   return [...data].sort((a, b) => {
-    const av = a[key] ?? "";
-    const bv = b[key] ?? "";
+    let av: any, bv: any;
+    switch (key) {
+      case "annReturn": av = a.returns?.annualisedReturn ?? -999; bv = b.returns?.annualisedReturn ?? -999; break;
+      case "cost": av = a.returns?.totalCost ?? 0; bv = b.returns?.totalCost ?? 0; break;
+      case "truePL": av = a.returns?.truePL ?? 0; bv = b.returns?.truePL ?? 0; break;
+      case "truePLpct": av = a.returns?.truePLpct ?? 0; bv = b.returns?.truePLpct ?? 0; break;
+      case "entryDate": av = a.returns?.entryDate ?? ""; bv = b.returns?.entryDate ?? ""; break;
+      default: av = a[key] ?? ""; bv = b[key] ?? "";
+    }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
     return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
   });
@@ -225,7 +244,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption }) {
+function TriggerRows({ h, colSpan, disruption, returns }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns }) {
   const addVal = h.trigger_price_add || h.add_trigger || "—";
   const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
@@ -261,6 +280,21 @@ function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: numb
           </td>
         </tr>
       )}
+      {/* Mobile: show returns detail in expanded row */}
+      {returns && returns.totalCost > 0 && (
+        <tr>
+          <td colSpan={colSpan} style={detailRowS}>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+              <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>COST</span> <span style={{ color: "var(--text-mid)" }}>£{returns.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
+              <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>P&L</span> <span style={{ color: returns.truePL >= 0 ? "var(--green)" : "var(--red)" }}>£{returns.truePL >= 0 ? "+" : ""}{returns.truePL.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
+              <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>RETURN</span> <span style={{ color: returns.truePLpct >= 0 ? "var(--green)" : "var(--red)" }}>{returns.truePLpct >= 0 ? "+" : ""}{returns.truePLpct.toFixed(1)}%</span></span>
+              <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>ANN.</span> <span style={{ color: returns.annualisedReturn >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700 }}>{returns.annualisedReturn >= 0 ? "+" : ""}{returns.annualisedReturn.toFixed(1)}% pa</span></span>
+              <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>ENTRY</span> <span style={{ color: "var(--text-dim)" }}>{returns.entryDate}</span></span>
+              <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>TRANCHES</span> <span style={{ color: "var(--text-mid)" }}>{returns.trancheCount}</span></span>
+            </div>
+          </td>
+        </tr>
+      )}
       {disruption && (
         <tr>
           <td colSpan={colSpan} style={{ padding: 0 }}>
@@ -272,11 +306,19 @@ function TriggerRows({ h, colSpan, disruption }: { h: LiveHolding; colSpan: numb
   );
 }
 
-function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; disruptionMap: Map<string, LiveDisruption> }) {
+function HoldingsTable({ holdings, disruptionMap, transactions }: { holdings: LiveHolding[]; disruptionMap: Map<string, LiveDisruption>; transactions: LiveTransaction[] }) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Calculate returns for each holding
+  const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
+    return holdings.map(h => ({
+      ...h,
+      returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
+    }));
+  }, [holdings, transactions]);
 
   const toggle = (key: string) => {
     setExpanded((prev) => {
@@ -294,17 +336,20 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
     }
   };
 
-  const sorted = sortHoldings(holdings, sortKey, sortDir);
+  const sorted = sortHoldings(holdingsWithReturns, sortKey, sortDir);
   const total = holdings.reduce((sum, holding) => sum + (holding.mv || 0), 0);
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-  const totalCols = COLUMNS.length + 2;
+
+  const allColumns = [...BASE_COLUMNS, ...RETURNS_COLUMNS];
+  const visibleCols = allColumns.filter(col => !(isMobile && col.hideMobile));
+  const totalCols = visibleCols.length + 2; // +notes +action +chevron on desktop
 
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         <thead>
           <tr>
-            {COLUMNS.filter(col => !(isMobile && (col.key === "name" || col.key === "layer"))).map((col) => (
+            {visibleCols.map((col) => (
               <th
                 key={col.key}
                 onClick={() => handleSort(col.key)}
@@ -334,6 +379,8 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
         <tbody>
           {sorted.map((h) => {
             const isOpen = expanded.has(h.ticker);
+            const r = h.returns;
+            const hasReturns = r && r.totalCost > 0;
             return (
               <>
                 <tr key={h.ticker} onClick={() => toggle(h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }}>
@@ -349,6 +396,12 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+                  {/* Returns columns */}
+                  {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", textAlign: "right", fontSize: 10 }}>{hasReturns ? `£${r!.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
+                  {!isMobile && <td style={{ padding: "10px 12px", textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
+                  {!isMobile && <td style={{ padding: "10px 12px", textAlign: "right", color: hasReturns ? (r!.truePLpct >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePLpct >= 0 ? "+" : ""}${r!.truePLpct.toFixed(1)}%` : "—"}</td>}
+                  <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}% pa` : "—"}</td>
+                  {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", textAlign: "left", fontSize: 9 }}>{hasReturns ? r!.entryDate : "—"}</td>}
                   {!isMobile && <td style={{ padding: "10px 12px", color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -376,7 +429,7 @@ function HoldingsTable({ holdings, disruptionMap }: { holdings: LiveHolding[]; d
                   </td>
                   <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                 </tr>
-                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} />}
+                {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} />}
               </>
             );
           })}
@@ -417,14 +470,21 @@ function ToggleButton({ active, label, onClick }: { active: boolean; label: stri
 
 interface LayerGroup {
   layer: string;
-  holdings: LiveHolding[];
+  holdings: HoldingWithReturns[];
   totalMv: number;
   pctAum: number;
 }
 
-function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; totalAum: number }) {
-  const grouped = new Map<string, LiveHolding[]>();
-  for (const h of allHoldings) {
+function LayerView({ allHoldings, totalAum, transactions }: { allHoldings: LiveHolding[]; totalAum: number; transactions: LiveTransaction[] }) {
+  const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
+    return allHoldings.map(h => ({
+      ...h,
+      returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
+    }));
+  }, [allHoldings, transactions]);
+
+  const grouped = new Map<string, HoldingWithReturns[]>();
+  for (const h of holdingsWithReturns) {
     const key = h.layer || "Uncategorised";
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(h);
@@ -441,12 +501,19 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
 
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>("mv");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const toggleRow = (key: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
+  };
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
   };
 
   const pad = isMobile ? "8px 6px" : "8px 12px";
@@ -462,22 +529,26 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
     textAlign: "left",
     fontWeight: 400,
     whiteSpace: "nowrap",
+    cursor: "pointer",
+    userSelect: "none",
   };
 
-  // On mobile: Ticker, MV, G/L%, Day%, Action (hide Name, Price, Notes)
-  const LAYER_COLS: { label: string; key: string; align?: "right"; hideMobile?: boolean }[] = [
+  const LAYER_COLS: { label: string; key: SortKey; align?: "right"; hideMobile?: boolean }[] = [
     { label: "Ticker", key: "ticker" },
     { label: "Name", key: "name", hideMobile: true },
     { label: "MV £", key: "mv", align: "right" },
     { label: "G/L %", key: "gl", align: "right" },
     { label: "Day %", key: "day", align: "right" },
     { label: "Price", key: "price", align: "right", hideMobile: true },
-    { label: "Notes", key: "notes", hideMobile: true },
+    { label: "Ann. Ret", key: "annReturn", align: "right" },
+    { label: "Notes", key: "name", hideMobile: true },
     { label: "Action", key: "action" },
   ];
 
   const visibleCols = LAYER_COLS.filter(c => !(isMobile && c.hideMobile));
-  const totalCols = visibleCols.length + 1; // +1 for chevron
+  const totalCols = visibleCols.length + 1;
+
+  const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -485,13 +556,15 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
         <thead>
           <tr>
             {visibleCols.map((col) => (
-              <th key={col.key} style={{ ...thS, textAlign: col.align ?? "left" }}>{col.label}</th>
+              <th key={col.key + col.label} onClick={() => handleSort(col.key)} style={{ ...thS, textAlign: col.align ?? "left", color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key)}</th>
             ))}
             <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
           </tr>
         </thead>
         <tbody>
-          {layers.map((lg) => (
+          {layers.map((lg) => {
+            const sortedHoldings = sortHoldings(lg.holdings, sortKey, sortDir);
+            return (
             <>
               <tr key={`layer-${lg.layer}`} style={{ background: "rgba(28,28,48,0.6)" }}>
                 <td colSpan={isMobile ? 2 : 2} style={{ padding: cellPad, color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
@@ -502,8 +575,10 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
                 <td style={{ padding: cellPad, textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>{lg.pctAum.toFixed(1)}%</td>
                 <td colSpan={totalCols - 4} />
               </tr>
-              {[...lg.holdings].sort((a, b) => (b.mv || 0) - (a.mv || 0)).map((h) => {
+              {sortedHoldings.map((h) => {
                 const isOpen = expanded.has(h.ticker);
+                const r = h.returns;
+                const hasReturns = r && r.totalCost > 0;
                 return (
                   <>
                     <tr key={h.ticker} onClick={() => toggleRow(h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
@@ -518,18 +593,19 @@ function LayerView({ allHoldings, totalAum }: { allHoldings: LiveHolding[]; tota
                       <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                       <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
                       {!isMobile && <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })} ${h.currency}` : "—"}</td>}
+                      <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>
                       {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10, maxWidth: 260, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
                       <td style={{ padding: cellPad }}>
                         <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
                       </td>
                       <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                     </tr>
-                    {isOpen && <TriggerRows h={h} colSpan={totalCols} />}
+                    {isOpen && <TriggerRows h={h} colSpan={totalCols} returns={r} />}
                   </>
                 );
               })}
             </>
-          ))}
+          )})}
         </tbody>
         <tfoot>
           <tr>
@@ -691,7 +767,7 @@ function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" 
   };
 }
 
-export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
+export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [] }: Props) {
   const [view, setView] = useState<ViewMode>("layer");
 
   const disruptionMap = new Map<string, LiveDisruption>();
@@ -719,7 +795,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
           </div>
         </div>
 
-        {view === "layer" && <LayerView allHoldings={allHoldings} totalAum={totalAum} />}
+        {view === "layer" && <LayerView allHoldings={allHoldings} totalAum={totalAum} transactions={transactions} />}
         {view === "pricemap" && <PriceMapView allHoldings={allHoldings} />}
       </div>
 
@@ -730,14 +806,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [] }: Props) {
               <span style={cardTitle}>SIPP Holdings</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>£{sippTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}<span style={{ color: "var(--text-dim)", fontSize: 10 }}> · long horizon</span></span>
             </div>
-            <HoldingsTable holdings={sippData} disruptionMap={disruptionMap} />
+            <HoldingsTable holdings={sippData} disruptionMap={disruptionMap} transactions={transactions} />
           </div>
           <div style={card}>
             <div style={cardHeader}>
               <span style={cardTitle}>ISA Holdings</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>£{isaTotal.toLocaleString("en-GB", { maximumFractionDigits: 0 })}<span style={{ color: "var(--text-dim)", fontSize: 10 }}> · flexible wrapper</span></span>
             </div>
-            <HoldingsTable holdings={isaData} disruptionMap={disruptionMap} />
+            <HoldingsTable holdings={isaData} disruptionMap={disruptionMap} transactions={transactions} />
           </div>
         </>
       )}

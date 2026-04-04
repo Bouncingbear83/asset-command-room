@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { LiveJisaHolding, LiveTransaction, LiveLayer } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 
 interface Props {
   jisaHoldings: LiveJisaHolding[];
@@ -9,6 +10,7 @@ interface Props {
 }
 
 const CHILDREN = ["Bear", "Alfie", "Edie"] as const;
+const JISA_ACCOUNT_MAP: Record<string, string> = { Bear: "JISA-Bear", Alfie: "JISA-Alfie", Edie: "JISA-Edie" };
 
 const BUY_ACTIONS = ["BUY", "SIZE_UP"];
 const SELL_ACTIONS = ["SELL", "TRIM", "EXIT"];
@@ -28,13 +30,6 @@ function formatCurrency(val: number | null, prefix = "£"): string {
 function formatPct(val: number | null): string {
   if (val === null || val === undefined) return "—";
   return `${val >= 0 ? "+" : ""}${val.toFixed(1)}%`;
-}
-
-function typeBadgeStyle(type: string): React.CSSProperties {
-  const base: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", padding: "2px 8px", borderRadius: 4, display: "inline-block" };
-  if (type === "ETF") return { ...base, background: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)" };
-  if (type === "SINGLE_STOCK") return { ...base, background: "rgba(200,169,110,0.15)", color: "var(--gold)", border: "1px solid rgba(200,169,110,0.25)" };
-  return { ...base, background: "rgba(255,255,255,0.06)", color: "var(--text-dim)", border: "1px solid var(--rim)" };
 }
 
 const badge: React.CSSProperties = {
@@ -66,26 +61,37 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
     return map;
   }, [layers]);
 
+  // Calculate returns for each JISA holding from transactions
+  const holdingsWithReturns = useMemo(() => {
+    return jisaHoldings.map(h => {
+      const account = JISA_ACCOUNT_MAP[h.child] || `JISA-${h.child}`;
+      const r = transactions.length > 0
+        ? calcHoldingReturns(h.ticker, account, h.mvGbp || 0, transactions)
+        : undefined;
+      return { ...h, returns: r };
+    });
+  }, [jisaHoldings, transactions]);
+
   // Summary per child
   const childSummaries = useMemo(() => {
     return CHILDREN.map(child => {
-      const holdings = jisaHoldings.filter(h => h.child === child);
+      const holdings = holdingsWithReturns.filter(h => h.child === child);
       const mv = holdings.reduce((s, h) => s + (h.mvGbp || 0), 0);
-      const cost = holdings.reduce((s, h) => s + (h.costGbp || 0), 0);
+      const cost = holdings.reduce((s, h) => s + (h.returns?.totalCost || h.costGbp || 0), 0);
       const gl = cost > 0 ? ((mv - cost) / cost) * 100 : 0;
       return { child, mv, cost, gl, count: holdings.length };
     });
-  }, [jisaHoldings]);
+  }, [holdingsWithReturns]);
 
   const combinedMv = childSummaries.reduce((s, c) => s + c.mv, 0);
 
   // Filtered holdings
   const filteredHoldings = useMemo(() => {
-    const items = childFilter === "All" ? jisaHoldings : jisaHoldings.filter(h => h.child === childFilter);
+    const items = childFilter === "All" ? holdingsWithReturns : holdingsWithReturns.filter(h => h.child === childFilter);
     return [...items].sort((a, b) => (b.mvGbp || 0) - (a.mvGbp || 0));
-  }, [jisaHoldings, childFilter]);
+  }, [holdingsWithReturns, childFilter]);
 
-  // Group by child for display
+  // Group by child
   const groupedHoldings = useMemo(() => {
     if (childFilter !== "All") return [{ child: childFilter, holdings: filteredHoldings }];
     return CHILDREN.map(child => ({
@@ -158,10 +164,17 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
           {filteredHoldings.map((h, i) => {
             const drift = (h.weightPct || 0) - (h.targetPct || 0);
             const hexColor = layerHexMap[h.layer.toLowerCase()] || "var(--text-dim)";
+            const r = h.returns;
+            const hasReturns = r && r.totalCost > 0;
             return (
               <div key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                  {hasReturns && (
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
+                      {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% pa
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{h.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
@@ -173,6 +186,12 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                     {h.layer}
                   </span>
                 </div>
+                {hasReturns && (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <span>Cost: {formatCurrency(r!.totalCost)}</span>
+                    <span style={{ color: r!.truePL >= 0 ? "var(--green)" : "var(--red)" }}>P&L: {r!.truePL >= 0 ? "+" : ""}£{Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -184,7 +203,6 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
               <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Ticker</th>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Name</th>
-                
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Layer</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Shares</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>MV £</th>
@@ -192,6 +210,10 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Target %</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Drift</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>G/L %</th>
+                <th style={{ textAlign: "right", padding: "8px 6px" }}>Cost £</th>
+                <th style={{ textAlign: "right", padding: "8px 6px" }}>P&L £</th>
+                <th style={{ textAlign: "right", padding: "8px 6px" }}>Return %</th>
+                <th style={{ textAlign: "right", padding: "8px 6px" }}>Ann. Return</th>
               </tr>
             </thead>
             <tbody>
@@ -199,7 +221,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                 <>
                   {childFilter === "All" && (
                     <tr key={`hdr-${group.child}`}>
-                      <td colSpan={9} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
+                      <td colSpan={13} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
                         {group.child}
                       </td>
                     </tr>
@@ -209,11 +231,12 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                     const driftAbs = Math.abs(drift);
                     const driftColor = driftAbs <= 2 ? "var(--green)" : driftAbs <= 5 ? "var(--amber)" : "var(--red)";
                     const hexColor = layerHexMap[h.layer.toLowerCase()] || "var(--text-dim)";
+                    const r = h.returns;
+                    const hasReturns = r && r.totalCost > 0;
                     return (
                       <tr key={`${group.child}-${h.ticker}-${i}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</td>
                         <td style={{ padding: "7px 6px", color: "var(--text)" }}>{h.name}</td>
-                        
                         <td style={{ padding: "7px 6px" }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                             <span style={{ width: 7, height: 7, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
@@ -226,6 +249,10 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                         <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)" }}>{h.targetPct?.toFixed(1) ?? "—"}%</td>
                         <td style={{ padding: "7px 6px", textAlign: "right", color: driftColor }}>{drift >= 0 ? "+" : ""}{drift.toFixed(1)}%</td>
                         <td style={{ padding: "7px 6px", textAlign: "right", color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)", fontSize: 10 }}>{hasReturns ? formatCurrency(r!.totalCost) : "—"}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePLpct >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePLpct >= 0 ? "+" : ""}${r!.truePLpct.toFixed(1)}%` : "—"}</td>
+                        <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}% pa` : "—"}</td>
                       </tr>
                     );
                   })}
