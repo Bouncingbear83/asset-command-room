@@ -734,6 +734,7 @@ export function usePortfolioData(): PortfolioData {
     riskControls: [],
     weeklyTriggers: [],
     earningsCalendar: [],
+    transactions: [],
     cashSipp: 0,
     cashIsa: 0,
     cashTotal: 0,
