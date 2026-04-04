@@ -842,7 +842,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" }).catch(() => []),
         fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
-        fetchSheet({ gid: GIDS.jisaHoldings, range: "A1:O" }).catch(() => []),
+        fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);

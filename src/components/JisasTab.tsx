@@ -185,7 +185,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
               <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Ticker</th>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Name</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Type</th>
+                
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Layer</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Shares</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>MV £</th>
