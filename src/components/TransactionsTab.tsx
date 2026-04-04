@@ -292,10 +292,58 @@ interface DrillProps {
   isMobile: boolean;
 }
 
+type DrillSortKey = "date" | "action" | "shares" | "price" | "valueGbp" | "tranche" | "account";
+
 function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, isMobile }: DrillProps) {
-  const tickerTxns = useMemo(() => transactions.filter(t => t.ticker === ticker).sort((a, b) => b.date.localeCompare(a.date)), [transactions, ticker]);
-  const trades = useMemo(() => tickerTxns.filter(t => !DIV_ACTIONS.includes(t.action)), [tickerTxns]);
-  const dividends = useMemo(() => tickerTxns.filter(t => DIV_ACTIONS.includes(t.action)), [tickerTxns]);
+  const [accountFilter, setAccountFilter] = useState("All");
+  const [actionFilter, setActionFilter] = useState("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortKey, setSortKey] = useState<DrillSortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (key: DrillSortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+  };
+
+  const tickerTxns = useMemo(() => transactions.filter(t => t.ticker === ticker), [transactions, ticker]);
+
+  const drillAccountOptions = useMemo(() => {
+    const set = new Set(tickerTxns.map(t => t.account));
+    return ["All", ...Array.from(set).sort()];
+  }, [tickerTxns]);
+
+  const filtered = useMemo(() => {
+    const base = tickerTxns.filter(t => {
+      if (accountFilter !== "All" && t.account !== accountFilter) return false;
+      if (actionFilter !== "All") {
+        if (actionFilter === "BUY" && !BUY_ACTIONS.includes(t.action)) return false;
+        if (actionFilter === "SELL" && !SELL_ACTIONS.includes(t.action)) return false;
+        if (actionFilter === "DIVIDEND" && !DIV_ACTIONS.includes(t.action)) return false;
+      }
+      if (dateFrom && t.date < dateFrom) return false;
+      if (dateTo && t.date > dateTo) return false;
+      return true;
+    });
+    const mul = sortDir === "asc" ? 1 : -1;
+    return [...base].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul;
+      return String(av).localeCompare(String(bv)) * mul;
+    });
+  }, [tickerTxns, accountFilter, actionFilter, dateFrom, dateTo, sortKey, sortDir]);
+
+  const trades = useMemo(() => filtered.filter(t => !DIV_ACTIONS.includes(t.action)), [filtered]);
+  const dividends = useMemo(() => filtered.filter(t => DIV_ACTIONS.includes(t.action)), [filtered]);
 
   const currentScore = scores.find(s => s.ticker === ticker);
   const firstTxn = tickerTxns[tickerTxns.length - 1];
@@ -303,19 +351,28 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
   const layer = firstTxn?.layer || currentScore?.layer || "";
   const tier = currentScore?.tier || "";
 
-  // Position summary
+  // Position summary (always from unfiltered data)
+  const allTrades = useMemo(() => tickerTxns.filter(t => !DIV_ACTIONS.includes(t.action)), [tickerTxns]);
   const sharesByAccount: Record<string, number> = {};
-  trades.forEach(t => {
+  allTrades.forEach(t => {
     const acct = t.account;
     sharesByAccount[acct] = (sharesByAccount[acct] || 0) + (t.shares || 0);
   });
 
-  const buys = trades.filter(t => (t.shares || 0) > 0);
+  const buys = allTrades.filter(t => (t.shares || 0) > 0);
   const totalCost = buys.reduce((s, t) => s + (t.valueGbp || 0), 0);
   const totalSharesBought = buys.reduce((s, t) => s + (t.shares || 0), 0);
   const avgPrice = totalSharesBought > 0 ? totalCost / totalSharesBought : 0;
 
   const hexColor = layerHexMap[layer.toLowerCase()] || "var(--text-dim)";
+
+  const toggleBtn = (label: string, active: boolean): React.CSSProperties => ({
+    fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em",
+    padding: "4px 12px", cursor: "pointer", borderRadius: 4,
+    border: active ? "1px solid var(--gold)" : "1px solid var(--rim)",
+    background: active ? "rgba(200,169,110,0.12)" : "transparent",
+    color: active ? "var(--gold)" : "var(--text-dim)",
+  });
 
   return (
     <div>
@@ -367,18 +424,43 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
         </div>
       )}
 
+      {/* Filter Bar */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+        {drillAccountOptions.map(a => (
+          <button key={a} style={toggleBtn(a, accountFilter === a)} onClick={() => setAccountFilter(a)}>{a}</button>
+        ))}
+        <span style={{ color: "var(--rim)", margin: "0 4px" }}>|</span>
+        {ACTION_OPTIONS.map(a => (
+          <button key={a} style={toggleBtn(a, actionFilter === a)} onClick={() => setActionFilter(a)}>{a}</button>
+        ))}
+        <span style={{ color: "var(--rim)", margin: "0 4px" }}>|</span>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--panel)", color: "var(--text-dim)", border: "1px solid var(--rim)", borderRadius: 4, padding: "4px 8px" }} />
+        <span style={{ color: "var(--text-dim)", fontSize: 10 }}>to</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--panel)", color: "var(--text-dim)", border: "1px solid var(--rim)", borderRadius: 4, padding: "4px 8px" }} />
+      </div>
+
       {/* Transaction History */}
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--text-dim)", marginBottom: 8, textTransform: "uppercase" }}>Transaction History</div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, marginBottom: 24 }}>
         <thead>
           <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-            <th style={{ textAlign: "left", padding: "8px 6px" }}>Date</th>
-            <th style={{ textAlign: "left", padding: "8px 6px" }}>Action</th>
-            <th style={{ textAlign: "right", padding: "8px 6px" }}>Shares</th>
-            <th style={{ textAlign: "right", padding: "8px 6px" }}>Price</th>
-            <th style={{ textAlign: "right", padding: "8px 6px" }}>Value £</th>
-            <th style={{ textAlign: "center", padding: "8px 6px" }}>Tranche</th>
-            <th style={{ textAlign: "center", padding: "8px 6px" }}>Account</th>
+            {([
+              ["date", "Date", "left"],
+              ["action", "Action", "left"],
+              ["shares", "Shares", "right"],
+              ["price", "Price", "right"],
+              ["valueGbp", "Value £", "right"],
+              ["tranche", "Tranche", "center"],
+              ["account", "Account", "center"],
+            ] as [DrillSortKey, string, string][]).map(([key, label, align]) => (
+              <th
+                key={key}
+                onClick={() => handleSort(key)}
+                style={{ textAlign: align as any, padding: "8px 6px", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                {label} {sortKey === key ? (sortDir === "asc" ? "▲" : "▼") : ""}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -405,6 +487,7 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
               <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Date</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Amount</th>
+                <th style={{ textAlign: "center", padding: "8px 6px" }}>Account</th>
               </tr>
             </thead>
             <tbody>
@@ -412,11 +495,16 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <td style={{ padding: "7px 6px", color: "var(--text-dim)" }}>{t.date}</td>
                   <td style={{ padding: "7px 6px", textAlign: "right" }}>{formatCurrency(t.valueGbp)}</td>
+                  <td style={{ padding: "7px 6px", textAlign: "center" }}><span style={{ ...badge, background: "rgba(255,255,255,0.06)", color: "var(--text-dim)", border: "1px solid var(--rim)" }}>{t.account}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </>
+      )}
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No transactions match filters</div>
       )}
     </div>
   );
