@@ -214,7 +214,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                       <tr key={`${group.child}-${h.ticker}-${i}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</td>
                         <td style={{ padding: "7px 6px", color: "var(--text)" }}>{h.name}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "center" }}><span style={typeBadgeStyle(h.type)}>{h.type}</span></td>
+                        
                         <td style={{ padding: "7px 6px" }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                             <span style={{ width: 7, height: 7, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
