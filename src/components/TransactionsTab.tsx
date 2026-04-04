@@ -58,6 +58,9 @@ const metaVal: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: "var(--gold)",
 };
 
+type SortKey = "date" | "ticker" | "action" | "shares" | "price" | "currency" | "valueGbp" | "tranche" | "layer" | "account" | "scoreAtEntry";
+type SortDir = "asc" | "desc";
+
 export default function TransactionsTab({ transactions, scores, layers }: Props) {
   const isMobile = useIsMobile();
   const [accountFilter, setAccountFilter] = useState("All");
@@ -66,6 +69,17 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [drillTicker, setDrillTicker] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+  };
 
   const layerHexMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -79,7 +93,7 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
   }, [transactions]);
 
   const filtered = useMemo(() => {
-    return transactions.filter(t => {
+    const base = transactions.filter(t => {
       if (accountFilter !== "All" && t.account.toUpperCase() !== accountFilter) return false;
       if (actionFilter !== "All") {
         if (actionFilter === "BUY" && !BUY_ACTIONS.includes(t.action)) return false;
@@ -90,8 +104,18 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
       if (dateFrom && t.date < dateFrom) return false;
       if (dateTo && t.date > dateTo) return false;
       return true;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [transactions, accountFilter, actionFilter, layerFilter, dateFrom, dateTo]);
+    });
+    const mul = sortDir === "asc" ? 1 : -1;
+    return base.sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul;
+      return String(av).localeCompare(String(bv)) * mul;
+    });
+  }, [transactions, accountFilter, actionFilter, layerFilter, dateFrom, dateTo, sortKey, sortDir]);
 
   // YTD summary
   const ytd = useMemo(() => filtered.filter(t => t.date >= `${currentYear}-01-01`), [filtered]);
@@ -175,17 +199,27 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Date</th>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Ticker</th>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Action</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Shares</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Price</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Ccy</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Value £</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Tranche</th>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Layer</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Account</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Score</th>
+                {([
+                  ["date", "Date", "left"],
+                  ["ticker", "Ticker", "left"],
+                  ["action", "Action", "left"],
+                  ["shares", "Shares", "right"],
+                  ["price", "Price", "right"],
+                  ["currency", "Ccy", "center"],
+                  ["valueGbp", "Value £", "right"],
+                  ["tranche", "Tranche", "center"],
+                  ["layer", "Layer", "left"],
+                  ["account", "Account", "center"],
+                  ["scoreAtEntry", "Score", "right"],
+                ] as [SortKey, string, string][]).map(([key, label, align]) => (
+                  <th
+                    key={key}
+                    onClick={() => handleSort(key)}
+                    style={{ textAlign: align as any, padding: "8px 6px", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                  >
+                    {label} {sortKey === key ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
