@@ -7,6 +7,7 @@ import LayersTab from "@/components/LayersTab";
 import ScoresTab from "@/components/ScoresTab";
 import ReturnsTab from "@/components/ReturnsTab";
 import HoldingsTab from "@/components/HoldingsTab";
+import TransactionsTab from "@/components/TransactionsTab";
 import EarningsCalendarTab from "@/components/EarningsCalendarTab";
 
 const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings", "Earnings Calendar"] as const;
