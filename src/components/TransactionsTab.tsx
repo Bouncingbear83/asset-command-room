@@ -199,17 +199,27 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
           <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Date</th>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Ticker</th>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Action</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Shares</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Price</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Ccy</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Value £</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Tranche</th>
-                <th style={{ textAlign: "left", padding: "8px 6px" }}>Layer</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Account</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>Score</th>
+                {([
+                  ["date", "Date", "left"],
+                  ["ticker", "Ticker", "left"],
+                  ["action", "Action", "left"],
+                  ["shares", "Shares", "right"],
+                  ["price", "Price", "right"],
+                  ["currency", "Ccy", "center"],
+                  ["valueGbp", "Value £", "right"],
+                  ["tranche", "Tranche", "center"],
+                  ["layer", "Layer", "left"],
+                  ["account", "Account", "center"],
+                  ["scoreAtEntry", "Score", "right"],
+                ] as [SortKey, string, string][]).map(([key, label, align]) => (
+                  <th
+                    key={key}
+                    onClick={() => handleSort(key)}
+                    style={{ textAlign: align as any, padding: "8px 6px", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                  >
+                    {label} {sortKey === key ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
