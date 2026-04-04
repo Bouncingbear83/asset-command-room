@@ -1,70 +1,58 @@
 
 
-## Update Transactions Tab + Add New JISAs Tab
+## Fix JISA Holdings — Sheet Structure Mismatch
 
-### Summary
-Two changes: (1) update the existing Transactions tab to match the spec (JISA account names, hover tooltips), and (2) build a new JISAs tab that fetches from a `JISA_HOLDINGS` sheet and displays three children's portfolios with summary cards, holdings table, layer allocation bars, and recent JISA transactions.
+### Problem
+The JISA_HOLDINGS sheet (GID 134287003) has a **wide/pivoted** layout, not the assumed per-child-per-row format. Each row is one stock, with child-specific data spread across columns:
 
----
+```text
+Col  Header                   Content
+A    Pillar (=Layer)          "Sovereignty", "Energy", etc.
+B    Target %                 4.00%, 5.00%, etc.
+C    Ticker                   RKLB, EXUS, etc.
+D    Name                     Rocket Lab Corp, etc.
+E    FX                       USD/GBP/GBX
+F-H  Lookup tickers           GF, FT, BV FX
+I    Price                    Live price
+J-L  TAR | JB/AB/EB           Target £ per child
+M-O  HOL | JB/AB/EB           Shares held per child
+P-R  ACT | JB/AB/EB           Actual value (local ccy)
+S-U  DEL | JB/AB/EB           Delta (target - actual)
+V-X  % JB/AB/EB               Portfolio weight %
+Y-AA BV | JB/AB/EB            Book cost per child
+AB-AD GL | JB/AB/EB           G/L local ccy
+AE-AG GL£ | JB/AB/EB          G/L in GBP
+AH-AJ GL% | JB/AB/EB          G/L %
+```
 
-### 1. Transactions Tab Updates (`src/components/TransactionsTab.tsx`)
+Current code fetches `A1:O` (15 cols) and tries to parse as if each row is one child+holding. Need to fetch the full range and unpivot per-child.
 
-**Account filter chips** — change from `["All", "SIPP", "ISA", "JISA-1", "JISA-2", "JISA-3"]` to `["All", "SIPP", "ISA", "JISA-Bear", "JISA-Alfie", "JISA-Edie"]` to match actual ACCOUNT values in the sheet.
+Row 17 = TOTAL row with portfolio totals per child.
 
-**Row hover tooltip** — Add a hover state or expandable row that shows TRIGGER (col K) and RATIONALE (col L). On desktop, show as a CSS tooltip on row hover. On mobile cards, show rationale inline if present.
+### Fix
 
----
+**File: `src/hooks/usePortfolioData.ts`**
 
-### 2. New JISA Holdings Data (`src/hooks/usePortfolioData.ts`)
+1. Change fetch range from `A1:O` to `A1:AJ` (all 36 columns)
+2. Rewrite `parseJisaHoldings` to use `fetchSheetGrid` instead of `fetchSheet` (cleaner for wide pivoted data with complex multi-line headers)
+3. For each data row (skip TOTAL, USD/GBP rows), emit **3 records** (one per child: Bear, Alfie, Edie) by reading the child-specific columns:
+   - `shares`: cols M/N/O (JB/AB/EB)
+   - `mvGbp`: cols P/Q/R (ACT values — but these are local ccy, so use GL£ cols AE/AF/AG + BV cols Y/Z/AA to get MV in GBP = cost + GL£)
+   - `weightPct`: cols V/W/X
+   - `costGbp`: cols Y/Z/AA
+   - `glPct`: cols AH/AI/AJ
+   - `targetPct`: col B (same for all children)
+   - `layer`: col A (Pillar)
+   - `ticker`: col C, `name`: col D, `currency`: col E
+4. Parse the TOTAL row (row 17) separately for portfolio totals per child
+5. Skip rows where shares=0 for a given child
 
-- Add `jisaHoldings: "XXXXXXXXX"` to `GIDS` (need the actual GID for JISA_HOLDINGS sheet — will use a placeholder and surface it for you to provide)
-- Add `fetchSheet({ gid: GIDS.jisaHoldings, range: "A1:O" })` to the Promise.all
-- Add `parseJisaHoldings()` mapping columns A-O:
-  - `child` (Bear/Alfie/Edie), `ticker`, `name`, `type` (ETF/SINGLE_STOCK/FUND), `layer`, `shares`, `priceLocal`, `currency`, `mvGbp`, `weightPct`, `costGbp`, `glPct`, `codeGf`, `targetPct`, `notes`
-- Add `jisaHoldings` to state and PortfolioData interface
+**File: `src/components/JisasTab.tsx`**
 
----
-
-### 3. New JISAs Tab Component (`src/components/JisasTab.tsx`)
-
-**Props**: `jisaHoldings`, `transactions`, `layers` (for hex colours)
-
-**Overview section** — Three summary cards side by side (Bear, Alfie, Edie):
-- MV = sum of mvGbp per child
-- G/L % = (sum MV - sum Cost) / sum Cost * 100
-- Combined total below the three cards
-
-**Filter chips** — `[All] [Bear] [Alfie] [Edie]`, default All
-
-**Holdings table** — Grouped by child (with child header row when "All" selected):
-- Columns: Ticker, Name, Type (badge), Layer (dot), Shares, MV £, Weight %, Target %, Drift (calculated: weight - target, colour-coded), G/L %
-- Sorted by MV descending within each group
-- Type badges: ETF = blue, SINGLE_STOCK = gold, FUND = gray
-
-**Layer allocation bars** — Per child (or selected child):
-- Simple horizontal stacked/segmented bar showing each layer's current % with a target marker
-- Reuse layer hex colours from the main Layers tab
-
-**Recent JISA transactions** — Filter main transactions where account starts with "JISA-", show most recent 10 in a compact table: Date, Child (extracted from account), Ticker, Action, Shares, Value £
-
-**Mobile** — Table collapses to card layout, summary cards stack vertically
-
----
-
-### 4. Wire Up in Index (`src/pages/Index.tsx`)
-
-- Import `JisasTab`
-- Add `"JISAs"` to TABS array after "Transactions"
-- Render `<JisasTab jisaHoldings={portfolio.jisaHoldings} transactions={portfolio.transactions} layers={portfolio.layers} />`
-
----
-
-### Question needed
-I need the **Google Sheet GID** for the `JISA_HOLDINGS` sheet to wire up the data fetch. If you can provide that, I can implement everything in one pass.
+6. Minor: the `type` field won't exist in this sheet — remove the TYPE column/badge or derive it from the ticker (ETF vs single stock)
+7. Update MV calculation: `mvGbp = costGbp + glGbp` (since the sheet provides both)
 
 ### Files changed
-- `src/hooks/usePortfolioData.ts` — add JISA_HOLDINGS GID, parse function, state
-- `src/components/TransactionsTab.tsx` — fix account filter names, add row hover tooltip
-- `src/components/JisasTab.tsx` — new component (~350 lines)
-- `src/pages/Index.tsx` — add JISAs tab
+- `src/hooks/usePortfolioData.ts` — rewrite JISA fetch range + parseJisaHoldings to handle wide/pivoted format
+- `src/components/JisasTab.tsx` — remove TYPE column, adjust for actual data shape
 
