@@ -17,6 +17,7 @@ export const GIDS = {
   narrative: "457911094",
   macroState: "448795117",
   earningsCalendar: "559427839",
+  transactions: "1970586669",
 } as const;
 
 /** Always treat numeric value as a fraction and scale by 100. For cumulative TWR fields where the sheet API always returns fractions (e.g. 1.294 = 129.4%). */
@@ -645,6 +646,47 @@ export type LiveRiskControl = ReturnType<typeof parseRiskControls>[number];
 export type LiveWeeklyTrigger = ReturnType<typeof parseWeeklyTriggers>[number];
 export type LiveEarningsCalendarItem = ReturnType<typeof parseEarningsCalendar>[number];
 
+function parseTransactions(rows: Record<string, any>[]) {
+  return rows
+    .map((row, idx) => {
+      const dateRaw = row["col_0"] ?? findCol(row, "date", "DATE", "Date");
+      const account = String(row["col_1"] ?? findCol(row, "account", "ACCOUNT", "Account") ?? "");
+      const ticker = String(row["col_2"] ?? findCol(row, "ticker", "TICKER", "Ticker") ?? "");
+      const action = String(row["col_3"] ?? findCol(row, "action", "ACTION", "Action") ?? "");
+      const shares = parseNum(row["col_4"] ?? findCol(row, "shares", "SHARES", "Shares"));
+      const price = parseNum(row["col_5"] ?? findCol(row, "price", "PRICE", "Price"));
+      const currency = String(row["col_6"] ?? findCol(row, "currency", "CURRENCY", "Ccy") ?? "USD");
+      const fxRate = parseNum(row["col_7"] ?? findCol(row, "fx_rate", "FX_RATE", "FX Rate"));
+      const valueGbp = parseNum(row["col_8"] ?? findCol(row, "value_gbp", "VALUE_GBP", "Value GBP", "Value (£)"));
+      const tranche = String(row["col_9"] ?? findCol(row, "tranche", "TRANCHE", "Tranche") ?? "");
+      const layerName = String(row["col_10"] ?? findCol(row, "layer", "LAYER", "Layer") ?? "");
+      const notes = String(row["col_11"] ?? findCol(row, "notes", "NOTES", "Notes") ?? "");
+      const scoreAtEntry = parseNum(row["col_12"] ?? findCol(row, "score_at_entry", "SCORE_AT_ENTRY", "Score"));
+      const name = String(row["col_13"] ?? findCol(row, "name", "NAME", "Name") ?? "");
+      const accountName = String(row["col_14"] ?? "");
+      return {
+        date: parseSheetDate(dateRaw),
+        account: account.trim(),
+        ticker: ticker.trim(),
+        action: action.trim().toUpperCase(),
+        shares,
+        price,
+        currency: currency.trim(),
+        fxRate,
+        valueGbp,
+        tranche: tranche.trim(),
+        layer: layerName.trim(),
+        notes: notes.trim(),
+        scoreAtEntry,
+        name: name.trim(),
+        accountName: accountName.trim(),
+      };
+    })
+    .filter((t) => t.ticker !== "" && t.action !== "" && t.date !== "");
+}
+
+export type LiveTransaction = ReturnType<typeof parseTransactions>[number];
+
 export interface PortfolioData {
   holdings: LiveHolding[];
   sipp: LiveHolding[];
@@ -663,6 +705,7 @@ export interface PortfolioData {
   riskControls: LiveRiskControl[];
   weeklyTriggers: LiveWeeklyTrigger[];
   earningsCalendar: LiveEarningsCalendarItem[];
+  transactions: LiveTransaction[];
   cashSipp: number;
   cashIsa: number;
   cashTotal: number;
@@ -691,6 +734,7 @@ export function usePortfolioData(): PortfolioData {
     riskControls: [],
     weeklyTriggers: [],
     earningsCalendar: [],
+    transactions: [],
     cashSipp: 0,
     cashIsa: 0,
     cashTotal: 0,
@@ -715,6 +759,7 @@ export function usePortfolioData(): PortfolioData {
         macroStateGrid,
         earningsCalendarRaw,
         cashGrid,
+        transactionsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
@@ -728,6 +773,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" }).catch(() => []),
+        fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);
@@ -789,6 +835,7 @@ export function usePortfolioData(): PortfolioData {
         riskControls: parseRiskControls(macroState),
         weeklyTriggers: parseWeeklyTriggers(macroStateRows),
         earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
+        transactions: parseTransactions(transactionsRaw),
         cashSipp,
         cashIsa,
         cashTotal,
