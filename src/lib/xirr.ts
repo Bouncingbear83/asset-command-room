@@ -50,7 +50,15 @@ export function calcHoldingReturns(
   const txns = transactions.filter(t => t.ticker === ticker && t.account.toUpperCase() === account.toUpperCase());
 
   const buys = txns.filter(t => (t.shares || 0) > 0 && t.action !== "DIVIDEND");
-  const totalCost = buys.reduce((sum, t) => sum + (t.valueGbp || 0), 0);
+  const totalBuyCost = buys.reduce((sum, t) => sum + (t.valueGbp || 0), 0);
+  const totalSharesBought = buys.reduce((sum, t) => sum + (t.shares || 0), 0);
+
+  // Net shares (buys minus sells, excluding dividends)
+  const netShares = txns.filter(t => t.action !== "DIVIDEND").reduce((sum, t) => sum + (t.shares || 0), 0);
+
+  // Average cost method: adjust cost basis for shares already sold
+  const avgCostPerShare = totalSharesBought > 0 ? totalBuyCost / totalSharesBought : 0;
+  const totalCost = netShares > 0 ? avgCostPerShare * Math.abs(netShares) : totalBuyCost;
 
   const dates = txns.map(t => t.date).filter(Boolean).sort();
   const entryDate = dates[0] || "";
