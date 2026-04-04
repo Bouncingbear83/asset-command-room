@@ -242,7 +242,7 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
 
   const currentScore = scores.find(s => s.ticker === ticker);
   const firstTxn = tickerTxns[tickerTxns.length - 1];
-  const name = firstTxn?.name || currentScore?.name || "";
+  const name = currentScore?.name || firstTxn?.ticker || "";
   const layer = firstTxn?.layer || currentScore?.layer || "";
   const tier = currentScore?.tier || "";
 
