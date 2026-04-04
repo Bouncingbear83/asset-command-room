@@ -731,6 +731,7 @@ export interface PortfolioData {
   weeklyTriggers: LiveWeeklyTrigger[];
   earningsCalendar: LiveEarningsCalendarItem[];
   transactions: LiveTransaction[];
+  jisaHoldings: LiveJisaHolding[];
   cashSipp: number;
   cashIsa: number;
   cashTotal: number;

@@ -183,3 +183,7 @@ nav::-webkit-scrollbar {
     font-size: 18px;
   }
 }
+
+/* Transaction row hover tooltip */
+.txn-row { position: relative; }
+.txn-row:hover .txn-tooltip { display: block !important; }
