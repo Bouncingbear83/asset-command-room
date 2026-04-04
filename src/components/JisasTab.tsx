@@ -200,7 +200,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                 <>
                   {childFilter === "All" && (
                     <tr key={`hdr-${group.child}`}>
-                      <td colSpan={10} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
+                      <td colSpan={9} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
                         {group.child}
                       </td>
                     </tr>
