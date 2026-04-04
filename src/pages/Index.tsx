@@ -9,8 +9,9 @@ import ReturnsTab from "@/components/ReturnsTab";
 import HoldingsTab from "@/components/HoldingsTab";
 import TransactionsTab from "@/components/TransactionsTab";
 import EarningsCalendarTab from "@/components/EarningsCalendarTab";
+import JisasTab from "@/components/JisasTab";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings", "Transactions", "Earnings Calendar"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>["macroBanner"]) {
