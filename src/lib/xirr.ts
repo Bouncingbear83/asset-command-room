@@ -128,7 +128,8 @@ export function calcTickerReturns(
     sharesByAccount[acct] = (sharesByAccount[acct] || 0) + (t.shares || 0);
   });
 
-  const totalCost = buyTxns.reduce((sum, t) => sum + (t.valueGbp || 0), 0);
+  const totalBuyCost = buyTxns.reduce((sum, t) => sum + (t.valueGbp || 0), 0);
+  const totalSharesBought = buyTxns.reduce((sum, t) => sum + (t.shares || 0), 0);
   const totalProceeds = sellTxns.reduce((sum, t) => sum + Math.abs(t.valueGbp || 0), 0);
 
   // Find current MV from holdings
@@ -137,6 +138,10 @@ export function calcTickerReturns(
 
   const netShares = Object.values(sharesByAccount).reduce((a, b) => a + b, 0);
   const isClosed = netShares <= 0;
+
+  // Average cost method
+  const avgCostPerShare = totalSharesBought > 0 ? totalBuyCost / totalSharesBought : 0;
+  const totalCost = netShares > 0 ? avgCostPerShare * Math.abs(netShares) : totalBuyCost;
 
   const totalPL = netShares > 0
     ? currentMV + totalProceeds - totalCost
