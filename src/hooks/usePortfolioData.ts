@@ -17,6 +17,7 @@ export const GIDS = {
   narrative: "457911094",
   macroState: "448795117",
   earningsCalendar: "559427839",
+  transactions: "1970586669",
 } as const;
 
 /** Always treat numeric value as a fraction and scale by 100. For cumulative TWR fields where the sheet API always returns fractions (e.g. 1.294 = 129.4%). */
