@@ -191,6 +191,12 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
                 {t.tranche && <span style={{ ...badge, ...trancheBadge(t.tranche) }}>{t.tranche}</span>}
                 <span>{t.account}</span>
               </div>
+              {(t.rationale || t.trigger) && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 6, opacity: 0.7 }}>
+                  {t.trigger && <div><span style={{ color: "var(--gold)" }}>Trigger:</span> {t.trigger}</div>}
+                  {t.rationale && <div><span style={{ color: "var(--gold)" }}>Rationale:</span> {t.rationale}</div>}
+                </div>
+              )}
             </div>
           ))}
         </div>
