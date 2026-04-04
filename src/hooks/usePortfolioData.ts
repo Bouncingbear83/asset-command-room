@@ -761,6 +761,7 @@ export function usePortfolioData(): PortfolioData {
     weeklyTriggers: [],
     earningsCalendar: [],
     transactions: [],
+    jisaHoldings: [],
     cashSipp: 0,
     cashIsa: 0,
     cashTotal: 0,
