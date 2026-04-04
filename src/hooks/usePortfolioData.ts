@@ -835,6 +835,7 @@ export function usePortfolioData(): PortfolioData {
         riskControls: parseRiskControls(macroState),
         weeklyTriggers: parseWeeklyTriggers(macroStateRows),
         earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
+        transactions: parseTransactions(transactionsRaw),
         cashSipp,
         cashIsa,
         cashTotal,
