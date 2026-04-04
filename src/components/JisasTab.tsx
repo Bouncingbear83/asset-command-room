@@ -162,7 +162,6 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
               <div key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
-                  <span style={typeBadgeStyle(h.type)}>{h.type}</span>
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{h.name}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
@@ -185,7 +184,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
               <tr style={{ borderBottom: "1px solid var(--rim)", color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase" }}>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Ticker</th>
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Name</th>
-                <th style={{ textAlign: "center", padding: "8px 6px" }}>Type</th>
+                
                 <th style={{ textAlign: "left", padding: "8px 6px" }}>Layer</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Shares</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>MV £</th>
@@ -200,7 +199,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                 <>
                   {childFilter === "All" && (
                     <tr key={`hdr-${group.child}`}>
-                      <td colSpan={10} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
+                      <td colSpan={9} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
                         {group.child}
                       </td>
                     </tr>
@@ -214,7 +213,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
                       <tr key={`${group.child}-${h.ticker}-${i}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</td>
                         <td style={{ padding: "7px 6px", color: "var(--text)" }}>{h.name}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "center" }}><span style={typeBadgeStyle(h.type)}>{h.type}</span></td>
+                        
                         <td style={{ padding: "7px 6px" }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                             <span style={{ width: 7, height: 7, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
