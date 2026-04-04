@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { LiveTransaction, LiveScore, LiveLayer } from "@/hooks/usePortfolioData";
+import { LiveTransaction, LiveScore, LiveLayer, LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { calcTickerReturns } from "@/lib/xirr";
 
 interface Props {
   transactions: LiveTransaction[];
   scores: LiveScore[];
   layers: LiveLayer[];
+  holdings?: LiveHolding[];
 }
 
 const BUY_ACTIONS = ["BUY", "SIZE_UP"];
@@ -26,6 +28,11 @@ function trancheBadge(tranche: string): React.CSSProperties {
 function formatCurrency(val: number | null, prefix = "£"): string {
   if (val === null || val === undefined) return "—";
   return `${prefix}${Math.abs(val).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
+}
+
+function formatSignedCurrency(val: number): string {
+  const sign = val >= 0 ? "+" : "-";
+  return `${sign}£${Math.abs(val).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 }
 
 function formatPrice(val: number | null, ccy: string): string {
@@ -61,7 +68,7 @@ const metaVal: React.CSSProperties = {
 type SortKey = "date" | "ticker" | "action" | "shares" | "price" | "currency" | "valueGbp" | "tranche" | "layer" | "account" | "scoreAtEntry";
 type SortDir = "asc" | "desc";
 
-export default function TransactionsTab({ transactions, scores, layers }: Props) {
+export default function TransactionsTab({ transactions, scores, layers, holdings = [] }: Props) {
   const isMobile = useIsMobile();
   const [accountFilter, setAccountFilter] = useState("All");
   const [actionFilter, setActionFilter] = useState("All");
@@ -117,18 +124,17 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
     });
   }, [transactions, accountFilter, actionFilter, layerFilter, dateFrom, dateTo, sortKey, sortDir]);
 
-  // YTD summary
   const ytd = useMemo(() => filtered.filter(t => t.date >= `${currentYear}-01-01`), [filtered]);
   const deployed = useMemo(() => ytd.filter(t => BUY_ACTIONS.includes(t.action)).reduce((s, t) => s + (t.valueGbp || 0), 0), [ytd]);
   const exited = useMemo(() => ytd.filter(t => SELL_ACTIONS.includes(t.action)).reduce((s, t) => s + Math.abs(t.valueGbp || 0), 0), [ytd]);
   const tradeCount = useMemo(() => ytd.filter(t => !DIV_ACTIONS.includes(t.action)).length, [ytd]);
 
-  // Drill-down
   if (drillTicker) {
     return <TickerDrillDown
       ticker={drillTicker}
       transactions={transactions}
       scores={scores}
+      holdings={holdings}
       layerHexMap={layerHexMap}
       onBack={() => setDrillTicker(null)}
       isMobile={isMobile}
@@ -145,7 +151,6 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
 
   return (
     <div>
-      {/* Summary Cards */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
         <div style={cardStyle}><div style={metaLabel}>DEPLOYED YTD</div><div style={metaVal}>{formatCurrency(deployed)}</div></div>
         <div style={cardStyle}><div style={metaLabel}>EXITED YTD</div><div style={metaVal}>{formatCurrency(exited)}</div></div>
@@ -153,7 +158,6 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
         <div style={cardStyle}><div style={metaLabel}>TRADES YTD</div><div style={metaVal}>{tradeCount}</div></div>
       </div>
 
-      {/* Filter Bar */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         {ACCOUNT_OPTIONS.map(a => (
           <button key={a} style={toggleBtn(a, accountFilter === a, () => setAccountFilter(a))} onClick={() => setAccountFilter(a)}>{a}</button>
@@ -175,7 +179,6 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--panel)", color: "var(--text-dim)", border: "1px solid var(--rim)", borderRadius: 4, padding: "4px 8px" }} />
       </div>
 
-      {/* Transaction Table / Cards */}
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {filtered.map((t, i) => (
@@ -287,6 +290,7 @@ interface DrillProps {
   ticker: string;
   transactions: LiveTransaction[];
   scores: LiveScore[];
+  holdings: LiveHolding[];
   layerHexMap: Record<string, string>;
   onBack: () => void;
   isMobile: boolean;
@@ -294,7 +298,7 @@ interface DrillProps {
 
 type DrillSortKey = "date" | "action" | "shares" | "price" | "valueGbp" | "tranche" | "account";
 
-function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, isMobile }: DrillProps) {
+function TickerDrillDown({ ticker, transactions, scores, holdings, layerHexMap, onBack, isMobile }: DrillProps) {
   const [accountFilter, setAccountFilter] = useState("All");
   const [actionFilter, setActionFilter] = useState("All");
   const [dateFrom, setDateFrom] = useState("");
@@ -351,20 +355,34 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
   const layer = firstTxn?.layer || currentScore?.layer || "";
   const tier = currentScore?.tier || "";
 
-  // Position summary (always from unfiltered data)
-  const allTrades = useMemo(() => tickerTxns.filter(t => !DIV_ACTIONS.includes(t.action)), [tickerTxns]);
-  const sharesByAccount: Record<string, number> = {};
-  allTrades.forEach(t => {
-    const acct = t.account;
-    sharesByAccount[acct] = (sharesByAccount[acct] || 0) + (t.shares || 0);
-  });
-
-  const buys = allTrades.filter(t => (t.shares || 0) > 0);
-  const totalCost = buys.reduce((s, t) => s + (t.valueGbp || 0), 0);
-  const totalSharesBought = buys.reduce((s, t) => s + (t.shares || 0), 0);
-  const avgPrice = totalSharesBought > 0 ? totalCost / totalSharesBought : 0;
+  // Returns calculation using XIRR
+  const returns = useMemo(() => calcTickerReturns(ticker, transactions, holdings), [ticker, transactions, holdings]);
 
   const hexColor = layerHexMap[layer.toLowerCase()] || "var(--text-dim)";
+
+  // Running cumulative shares and cost for trade history
+  const tradesChronological = useMemo(() => {
+    const allTrades = tickerTxns
+      .filter(t => !DIV_ACTIONS.includes(t.action))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    let cumShares = 0;
+    let cumCost = 0;
+    return allTrades.map(t => {
+      cumShares += (t.shares || 0);
+      if ((t.shares || 0) > 0) cumCost += (t.valueGbp || 0);
+      else cumCost -= Math.abs(t.valueGbp || 0);
+      return { ...t, cumShares, cumCost: Math.max(0, cumCost) };
+    });
+  }, [tickerTxns]);
+
+  // Map cumulative data to filtered trades
+  const tradesCumMap = useMemo(() => {
+    const map = new Map<string, { cumShares: number; cumCost: number }>();
+    tradesChronological.forEach((t, i) => {
+      map.set(`${t.date}-${t.action}-${t.shares}-${i}`, { cumShares: t.cumShares, cumCost: t.cumCost });
+    });
+    return map;
+  }, [tradesChronological]);
 
   const toggleBtn = (label: string, active: boolean): React.CSSProperties => ({
     fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em",
@@ -384,8 +402,11 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
       </button>
 
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 700, color: "var(--gold)" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 700, color: "var(--gold)", display: "flex", alignItems: "center", gap: 10 }}>
           {ticker} {name && <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-dim)" }}>— {name}</span>}
+          {returns.isClosed && (
+            <span style={{ ...badge, background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", fontSize: 9 }}>CLOSED</span>
+          )}
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", display: "flex", gap: 16, marginTop: 4, flexWrap: "wrap" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -397,20 +418,35 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
         </div>
       </div>
 
-      {/* Position Summary Cards */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+      {/* Enhanced Position Summary Cards — 6 cards */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
         <div style={cardStyle}>
           <div style={metaLabel}>NET SHARES</div>
           <div style={metaVal}>
-            {Object.entries(sharesByAccount).map(([acct, sh]) => (
-              <div key={acct} style={{ fontSize: 14 }}>{sh} <span style={{ fontSize: 9, color: "var(--text-dim)", fontWeight: 400 }}>({acct})</span></div>
+            {Object.entries(returns.sharesByAccount).map(([acct, sh]) => (
+              <div key={acct} style={{ fontSize: 14 }}>{Math.round(sh)} <span style={{ fontSize: 9, color: "var(--text-dim)", fontWeight: 400 }}>({acct})</span></div>
             ))}
           </div>
         </div>
-        <div style={cardStyle}><div style={metaLabel}>TOTAL COST</div><div style={metaVal}>{formatCurrency(totalCost)}</div></div>
         <div style={cardStyle}>
-          <div style={metaLabel}>AVG PRICE</div>
-          <div style={metaVal}>{avgPrice > 0 ? formatPrice(avgPrice, firstTxn?.currency || "USD") : "—"}</div>
+          <div style={metaLabel}>TOTAL COST</div>
+          <div style={metaVal}>{formatCurrency(returns.totalCost)}</div>
+        </div>
+        <div style={cardStyle}>
+          <div style={metaLabel}>{returns.isClosed ? "REALISED" : "CURRENT MV"}</div>
+          <div style={metaVal}>{returns.isClosed ? formatCurrency(returns.totalProceeds) : formatCurrency(returns.currentMV)}</div>
+        </div>
+        <div style={cardStyle}>
+          <div style={metaLabel}>P&L (£)</div>
+          <div style={{ ...metaVal, color: returns.totalPL >= 0 ? "var(--green)" : "var(--red)" }}>{formatSignedCurrency(returns.totalPL)}</div>
+        </div>
+        <div style={cardStyle}>
+          <div style={metaLabel}>TOTAL RETURN</div>
+          <div style={{ ...metaVal, color: returns.totalReturnPct >= 0 ? "var(--green)" : "var(--red)" }}>{returns.totalReturnPct >= 0 ? "+" : ""}{returns.totalReturnPct.toFixed(1)}%</div>
+        </div>
+        <div style={cardStyle}>
+          <div style={metaLabel}>ANN. RETURN</div>
+          <div style={{ ...metaVal, color: returns.annualisedReturn >= 0 ? "var(--green)" : "var(--red)", fontSize: 22 }}>{returns.annualisedReturn >= 0 ? "+" : ""}{returns.annualisedReturn.toFixed(1)}% pa</div>
         </div>
       </div>
 
@@ -439,7 +475,7 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--panel)", color: "var(--text-dim)", border: "1px solid var(--rim)", borderRadius: 4, padding: "4px 8px" }} />
       </div>
 
-      {/* Transaction History */}
+      {/* Transaction History with running P&L */}
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--text-dim)", marginBottom: 8, textTransform: "uppercase" }}>Transaction History</div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, marginBottom: 24 }}>
         <thead>
@@ -450,13 +486,14 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
               ["shares", "Shares", "right"],
               ["price", "Price", "right"],
               ["valueGbp", "Value £", "right"],
+              ...(isMobile ? [] : [["cumShares", "Cum. Shares", "right"], ["cumCost", "Cum. Cost £", "right"]]),
               ["tranche", "Tranche", "center"],
               ["account", "Account", "center"],
-            ] as [DrillSortKey, string, string][]).map(([key, label, align]) => (
+            ] as [string, string, string][]).map(([key, label, align]) => (
               <th
                 key={key}
-                onClick={() => handleSort(key)}
-                style={{ textAlign: align as any, padding: "8px 6px", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                onClick={() => ["date", "action", "shares", "price", "valueGbp", "tranche", "account"].includes(key) ? handleSort(key as DrillSortKey) : undefined}
+                style={{ textAlign: align as any, padding: "8px 6px", cursor: ["date", "action", "shares", "price", "valueGbp", "tranche", "account"].includes(key) ? "pointer" : "default", userSelect: "none", whiteSpace: "nowrap" }}
               >
                 {label} {sortKey === key ? (sortDir === "asc" ? "▲" : "▼") : ""}
               </th>
@@ -464,17 +501,24 @@ function TickerDrillDown({ ticker, transactions, scores, layerHexMap, onBack, is
           </tr>
         </thead>
         <tbody>
-          {trades.map((t, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
-              <td style={{ padding: "7px 6px", color: "var(--text-dim)" }}>{t.date}</td>
-              <td style={{ padding: "7px 6px" }}><span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span></td>
-              <td style={{ padding: "7px 6px", textAlign: "right", color: t.shares !== null && t.shares < 0 ? "var(--red)" : "var(--text)" }}>{t.shares ?? "—"}</td>
-              <td style={{ padding: "7px 6px", textAlign: "right" }}>{formatPrice(t.price, t.currency)}</td>
-              <td style={{ padding: "7px 6px", textAlign: "right" }}>{formatCurrency(t.valueGbp)}</td>
-              <td style={{ padding: "7px 6px", textAlign: "center" }}>{t.tranche ? <span style={{ ...badge, ...trancheBadge(t.tranche) }}>{t.tranche}</span> : "—"}</td>
-              <td style={{ padding: "7px 6px", textAlign: "center" }}><span style={{ ...badge, background: "rgba(255,255,255,0.06)", color: "var(--text-dim)", border: "1px solid var(--rim)" }}>{t.account}</span></td>
-            </tr>
-          ))}
+          {trades.map((t, i) => {
+            // Find cumulative from chronological data
+            const chronIdx = tradesChronological.findIndex(tc => tc.date === t.date && tc.action === t.action && tc.shares === t.shares && tc.account === t.account);
+            const cum = chronIdx >= 0 ? tradesChronological[chronIdx] : null;
+            return (
+              <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
+                <td style={{ padding: "7px 6px", color: "var(--text-dim)" }}>{t.date}</td>
+                <td style={{ padding: "7px 6px" }}><span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span></td>
+                <td style={{ padding: "7px 6px", textAlign: "right", color: t.shares !== null && t.shares < 0 ? "var(--red)" : "var(--text)" }}>{t.shares ?? "—"}</td>
+                <td style={{ padding: "7px 6px", textAlign: "right" }}>{formatPrice(t.price, t.currency)}</td>
+                <td style={{ padding: "7px 6px", textAlign: "right" }}>{formatCurrency(t.valueGbp)}</td>
+                {!isMobile && <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-mid)", fontSize: 10 }}>{cum ? Math.round(cum.cumShares) : "—"}</td>}
+                {!isMobile && <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-mid)", fontSize: 10 }}>{cum ? formatCurrency(cum.cumCost) : "—"}</td>}
+                <td style={{ padding: "7px 6px", textAlign: "center" }}>{t.tranche ? <span style={{ ...badge, ...trancheBadge(t.tranche) }}>{t.tranche}</span> : "—"}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center" }}><span style={{ ...badge, background: "rgba(255,255,255,0.06)", color: "var(--text-dim)", border: "1px solid var(--rim)" }}>{t.account}</span></td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
