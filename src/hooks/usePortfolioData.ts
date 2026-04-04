@@ -18,6 +18,7 @@ export const GIDS = {
   macroState: "448795117",
   earningsCalendar: "559427839",
   transactions: "1970586669",
+  jisaHoldings: "PLACEHOLDER_GID",
 } as const;
 
 /** Always treat numeric value as a fraction and scale by 100. For cumulative TWR fields where the sheet API always returns fractions (e.g. 1.294 = 129.4%). */
@@ -687,6 +688,30 @@ function parseTransactions(rows: Record<string, any>[]) {
 
 export type LiveTransaction = ReturnType<typeof parseTransactions>[number];
 
+function parseJisaHoldings(rows: Record<string, any>[]) {
+  return rows
+    .map((row) => ({
+      child: String(row["col_0"] ?? findCol(row, "child", "CHILD", "Child") ?? ""),
+      ticker: String(row["col_1"] ?? findCol(row, "ticker", "TICKER") ?? ""),
+      name: String(row["col_2"] ?? findCol(row, "name", "NAME") ?? ""),
+      type: String(row["col_3"] ?? findCol(row, "type", "TYPE") ?? ""),
+      layer: String(row["col_4"] ?? findCol(row, "layer", "LAYER") ?? ""),
+      shares: parseNum(row["col_5"] ?? findCol(row, "shares", "SHARES")),
+      priceLocal: parseNum(row["col_6"] ?? findCol(row, "price_local", "PRICE_LOCAL")),
+      currency: String(row["col_7"] ?? findCol(row, "currency", "CURRENCY") ?? "GBP"),
+      mvGbp: parseNum(row["col_8"] ?? findCol(row, "mv_gbp", "MV_GBP")),
+      weightPct: parseNum(row["col_9"] ?? findCol(row, "weight_pct", "WEIGHT_PCT")),
+      costGbp: parseNum(row["col_10"] ?? findCol(row, "cost_gbp", "COST_GBP")),
+      glPct: parseNum(row["col_11"] ?? findCol(row, "gl_pct", "GL_PCT")),
+      codeGf: String(row["col_12"] ?? ""),
+      targetPct: parseNum(row["col_13"] ?? findCol(row, "target_pct", "TARGET_PCT")),
+      notes: String(row["col_14"] ?? findCol(row, "notes", "NOTES") ?? ""),
+    }))
+    .filter((h) => h.ticker.trim() !== "" && h.child.trim() !== "");
+}
+
+export type LiveJisaHolding = ReturnType<typeof parseJisaHoldings>[number];
+
 export interface PortfolioData {
   holdings: LiveHolding[];
   sipp: LiveHolding[];
@@ -706,6 +731,7 @@ export interface PortfolioData {
   weeklyTriggers: LiveWeeklyTrigger[];
   earningsCalendar: LiveEarningsCalendarItem[];
   transactions: LiveTransaction[];
+  jisaHoldings: LiveJisaHolding[];
   cashSipp: number;
   cashIsa: number;
   cashTotal: number;
@@ -735,6 +761,7 @@ export function usePortfolioData(): PortfolioData {
     weeklyTriggers: [],
     earningsCalendar: [],
     transactions: [],
+    jisaHoldings: [],
     cashSipp: 0,
     cashIsa: 0,
     cashTotal: 0,
@@ -760,6 +787,7 @@ export function usePortfolioData(): PortfolioData {
         earningsCalendarRaw,
         cashGrid,
         transactionsRaw,
+        jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AF50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
@@ -774,6 +802,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" }).catch(() => []),
         fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
+        fetchSheet({ gid: GIDS.jisaHoldings, range: "A1:O" }).catch(() => []),
       ]);
 
       const allHoldings = parseHoldings(holdingsRaw);
@@ -836,6 +865,7 @@ export function usePortfolioData(): PortfolioData {
         weeklyTriggers: parseWeeklyTriggers(macroStateRows),
         earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
         transactions: parseTransactions(transactionsRaw),
+        jisaHoldings: parseJisaHoldings(jisaHoldingsRaw),
         cashSipp,
         cashIsa,
         cashTotal,

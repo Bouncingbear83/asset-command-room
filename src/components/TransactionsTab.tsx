@@ -36,7 +36,7 @@ function formatPrice(val: number | null, ccy: string): string {
 
 const currentYear = new Date().getFullYear();
 
-const ACCOUNT_OPTIONS = ["All", "SIPP", "ISA", "JISA-1", "JISA-2", "JISA-3"];
+const ACCOUNT_OPTIONS = ["All", "SIPP", "ISA", "JISA-Bear", "JISA-Alfie", "JISA-Edie"];
 const ACTION_OPTIONS = ["All", "BUY", "SELL", "DIVIDEND"];
 
 const badge: React.CSSProperties = {
@@ -191,6 +191,12 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
                 {t.tranche && <span style={{ ...badge, ...trancheBadge(t.tranche) }}>{t.tranche}</span>}
                 <span>{t.account}</span>
               </div>
+              {(t.rationale || t.trigger) && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 6, opacity: 0.7 }}>
+                  {t.trigger && <div><span style={{ color: "var(--gold)" }}>Trigger:</span> {t.trigger}</div>}
+                  {t.rationale && <div><span style={{ color: "var(--gold)" }}>Rationale:</span> {t.rationale}</div>}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -225,8 +231,13 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
             <tbody>
               {filtered.map((t, i) => {
                 const hexColor = layerHexMap[t.layer.toLowerCase()] || "var(--text-dim)";
+                const hasTooltip = t.trigger || t.rationale;
                 return (
-                  <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
+                  <tr
+                    key={i}
+                    className="txn-row"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", position: "relative" }}
+                  >
                     <td style={{ padding: "7px 6px", color: "var(--text-dim)" }}>{t.date}</td>
                     <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)", cursor: "pointer" }} onClick={() => setDrillTicker(t.ticker)}>{t.ticker}</td>
                     <td style={{ padding: "7px 6px" }}><span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span></td>
@@ -245,6 +256,18 @@ export default function TransactionsTab({ transactions, scores, layers }: Props)
                       <span style={{ ...badge, background: "rgba(255,255,255,0.06)", color: "var(--text-dim)", border: "1px solid var(--rim)" }}>{t.account}</span>
                     </td>
                     <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{t.scoreAtEntry ?? "—"}</td>
+                    {hasTooltip && (
+                      <td className="txn-tooltip" style={{
+                        position: "absolute", left: 0, top: "100%", zIndex: 20,
+                        background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 4,
+                        padding: "6px 10px", maxWidth: 500, whiteSpace: "normal",
+                        fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)",
+                        pointerEvents: "none", display: "none",
+                      }}>
+                        {t.trigger && <div style={{ marginBottom: 2 }}><span style={{ color: "var(--gold)" }}>Trigger:</span> {t.trigger}</div>}
+                        {t.rationale && <div><span style={{ color: "var(--gold)" }}>Rationale:</span> {t.rationale}</div>}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
