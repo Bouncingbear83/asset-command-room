@@ -181,6 +181,7 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
   }
 
   return results;
+}
 
 function toPolyline(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
