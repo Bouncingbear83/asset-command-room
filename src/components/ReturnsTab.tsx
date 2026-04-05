@@ -125,7 +125,7 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
 
   const oldest = new Date(sortedNewestFirst[sortedNewestFirst.length - 1].date);
 
-  return periods.map(({ label, start, end }) => {
+  const results = periods.map(({ label, start, end }) => {
     if (start.getTime() < oldest.getTime() - 45 * 86400000) {
       return { label, total: null, sipp: null, isa: null, sp500: null, alpha: null };
     }
@@ -143,7 +143,44 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
       alpha: sp500Rtn != null ? totalRtn - sp500Rtn : null,
     };
   });
-}
+
+  // "Since Stellar" — chain sub-period returns from 05/04/2025
+  const sortedOldestFirst = [...sortedNewestFirst].reverse();
+  const stellarIdx = sortedOldestFirst.findIndex(r => {
+    const d = new Date(r.date);
+    return d.getFullYear() === 2025 && d.getMonth() === 3 && d.getDate() === 5;
+  });
+
+  if (stellarIdx >= 0) {
+    const chainField = (rows: LivePerformance[], startIdx: number, field: keyof LivePerformance) => {
+      let cum = 1;
+      for (let i = startIdx + 1; i < rows.length; i++) {
+        const rtn = (rows[i][field] as number) || 0;
+        cum *= (1 + rtn / 100);
+      }
+      return (cum - 1) * 100;
+    };
+
+    const stellarStartRow = sortedOldestFirst[stellarIdx];
+    const sippRtn = chainField(sortedOldestFirst, stellarIdx, "subPeriodRtnSipp");
+    const isaRtn = chainField(sortedOldestFirst, stellarIdx, "subPeriodRtnIsa");
+    const totalRtn = chainField(sortedOldestFirst, stellarIdx, "subPeriodRtnTotal");
+    // S&P from cumulative values
+    const sp500Rtn = (latest.sp500Tr != null && stellarStartRow.sp500Tr != null)
+      ? calcReturn(latest.sp500Tr, stellarStartRow.sp500Tr) : null;
+    const alpha = sp500Rtn != null ? totalRtn - sp500Rtn : null;
+
+    // Insert after "Last 1Y" (index 3)
+    const insertIdx = results.findIndex(r => r.label === "Last 3Y");
+    const stellarRow: PeriodReturn = { label: "Since Stellar (Apr '25)", total: totalRtn, sipp: sippRtn, isa: isaRtn, sp500: sp500Rtn, alpha };
+    if (insertIdx >= 0) {
+      results.splice(insertIdx, 0, stellarRow);
+    } else {
+      results.push(stellarRow);
+    }
+  }
+
+  return results;
 
 function toPolyline(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
