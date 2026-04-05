@@ -14,7 +14,582 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts_log: {
+        Row: {
+          alert_type: string
+          created_at: string
+          id: number
+          new_status: string
+          note: string | null
+          previous_status: string | null
+          source: string
+          threshold: string | null
+          ticker: string
+          trigger_value: string | null
+          triggered_at: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          id?: never
+          new_status: string
+          note?: string | null
+          previous_status?: string | null
+          source?: string
+          threshold?: string | null
+          ticker: string
+          trigger_value?: string | null
+          triggered_at?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          id?: never
+          new_status?: string
+          note?: string | null
+          previous_status?: string | null
+          source?: string
+          threshold?: string | null
+          ticker?: string
+          trigger_value?: string | null
+          triggered_at?: string
+        }
+        Relationships: []
+      }
+      daily_prices: {
+        Row: {
+          created_at: string
+          currency: string
+          day_change_pct: number | null
+          high_52w: number | null
+          id: number
+          low_52w: number | null
+          ma60: number | null
+          prev_close_local: number | null
+          price_gbp: number
+          price_local: number
+          snapshot_date: string
+          source: string
+          ticker: string
+        }
+        Insert: {
+          created_at?: string
+          currency: string
+          day_change_pct?: number | null
+          high_52w?: number | null
+          id?: never
+          low_52w?: number | null
+          ma60?: number | null
+          prev_close_local?: number | null
+          price_gbp: number
+          price_local: number
+          snapshot_date: string
+          source?: string
+          ticker: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          day_change_pct?: number | null
+          high_52w?: number | null
+          id?: never
+          low_52w?: number | null
+          ma60?: number | null
+          prev_close_local?: number | null
+          price_gbp?: number
+          price_local?: number
+          snapshot_date?: string
+          source?: string
+          ticker?: string
+        }
+        Relationships: []
+      }
+      disruption_rationales: {
+        Row: {
+          amber_trigger: string | null
+          change_note: string | null
+          created_at: string
+          demand_vuln_rationale: string | null
+          demand_vuln_score: number | null
+          disruption_score: number
+          economics_rationale: string | null
+          economics_score: number | null
+          evidence: string | null
+          govt_support_rationale: string | null
+          govt_support_score: number | null
+          id: number
+          red_trigger: string | null
+          scored_at: string
+          scored_by: string
+          status: string | null
+          sub_avail_rationale: string | null
+          sub_avail_score: number | null
+          ticker: string
+          time_viability_rationale: string | null
+          time_viability_score: number | null
+        }
+        Insert: {
+          amber_trigger?: string | null
+          change_note?: string | null
+          created_at?: string
+          demand_vuln_rationale?: string | null
+          demand_vuln_score?: number | null
+          disruption_score: number
+          economics_rationale?: string | null
+          economics_score?: number | null
+          evidence?: string | null
+          govt_support_rationale?: string | null
+          govt_support_score?: number | null
+          id?: never
+          red_trigger?: string | null
+          scored_at: string
+          scored_by: string
+          status?: string | null
+          sub_avail_rationale?: string | null
+          sub_avail_score?: number | null
+          ticker: string
+          time_viability_rationale?: string | null
+          time_viability_score?: number | null
+        }
+        Update: {
+          amber_trigger?: string | null
+          change_note?: string | null
+          created_at?: string
+          demand_vuln_rationale?: string | null
+          demand_vuln_score?: number | null
+          disruption_score?: number
+          economics_rationale?: string | null
+          economics_score?: number | null
+          evidence?: string | null
+          govt_support_rationale?: string | null
+          govt_support_score?: number | null
+          id?: never
+          red_trigger?: string | null
+          scored_at?: string
+          scored_by?: string
+          status?: string | null
+          sub_avail_rationale?: string | null
+          sub_avail_score?: number | null
+          ticker?: string
+          time_viability_rationale?: string | null
+          time_viability_score?: number | null
+        }
+        Relationships: []
+      }
+      disruption_snapshot: {
+        Row: {
+          created_at: string
+          demand_vuln: number | null
+          disruption_score: number
+          economics: number | null
+          govt_support: number | null
+          id: number
+          snapshot_date: string
+          source: string
+          status: string | null
+          sub_avail: number | null
+          ticker: string
+          time_viability: number | null
+        }
+        Insert: {
+          created_at?: string
+          demand_vuln?: number | null
+          disruption_score: number
+          economics?: number | null
+          govt_support?: number | null
+          id?: never
+          snapshot_date: string
+          source?: string
+          status?: string | null
+          sub_avail?: number | null
+          ticker: string
+          time_viability?: number | null
+        }
+        Update: {
+          created_at?: string
+          demand_vuln?: number | null
+          disruption_score?: number
+          economics?: number | null
+          govt_support?: number | null
+          id?: never
+          snapshot_date?: string
+          source?: string
+          status?: string | null
+          sub_avail?: number | null
+          ticker?: string
+          time_viability?: number | null
+        }
+        Relationships: []
+      }
+      fx_rates: {
+        Row: {
+          created_at: string
+          id: number
+          pair: string
+          rate: number
+          snapshot_date: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          pair: string
+          rate: number
+          snapshot_date: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          pair?: string
+          rate?: number
+          snapshot_date?: string
+          source?: string
+        }
+        Relationships: []
+      }
+      holdings_snapshot: {
+        Row: {
+          account: string
+          action: string | null
+          alert_status: string | null
+          aum_pct: number | null
+          cost_gbp: number | null
+          created_at: string
+          currency: string
+          deploy_target_gbp: number | null
+          gl_pct: number | null
+          id: number
+          layer: string
+          mv_gbp: number
+          price_local: number
+          shares: number
+          snapshot_date: string
+          source: string
+          ticker: string
+        }
+        Insert: {
+          account: string
+          action?: string | null
+          alert_status?: string | null
+          aum_pct?: number | null
+          cost_gbp?: number | null
+          created_at?: string
+          currency: string
+          deploy_target_gbp?: number | null
+          gl_pct?: number | null
+          id?: never
+          layer: string
+          mv_gbp: number
+          price_local: number
+          shares: number
+          snapshot_date: string
+          source?: string
+          ticker: string
+        }
+        Update: {
+          account?: string
+          action?: string | null
+          alert_status?: string | null
+          aum_pct?: number | null
+          cost_gbp?: number | null
+          created_at?: string
+          currency?: string
+          deploy_target_gbp?: number | null
+          gl_pct?: number | null
+          id?: never
+          layer?: string
+          mv_gbp?: number
+          price_local?: number
+          shares?: number
+          snapshot_date?: string
+          source?: string
+          ticker?: string
+        }
+        Relationships: []
+      }
+      jisa_snapshot: {
+        Row: {
+          child: string
+          cost_gbp: number | null
+          created_at: string
+          currency: string
+          gl_pct: number | null
+          id: number
+          layer: string
+          mv_gbp: number
+          price_local: number
+          shares: number
+          snapshot_date: string
+          source: string
+          target_pct: number | null
+          ticker: string
+          type: string
+          weight_pct: number | null
+        }
+        Insert: {
+          child: string
+          cost_gbp?: number | null
+          created_at?: string
+          currency: string
+          gl_pct?: number | null
+          id?: never
+          layer: string
+          mv_gbp: number
+          price_local: number
+          shares: number
+          snapshot_date: string
+          source?: string
+          target_pct?: number | null
+          ticker: string
+          type: string
+          weight_pct?: number | null
+        }
+        Update: {
+          child?: string
+          cost_gbp?: number | null
+          created_at?: string
+          currency?: string
+          gl_pct?: number | null
+          id?: never
+          layer?: string
+          mv_gbp?: number
+          price_local?: number
+          shares?: number
+          snapshot_date?: string
+          source?: string
+          target_pct?: number | null
+          ticker?: string
+          type?: string
+          weight_pct?: number | null
+        }
+        Relationships: []
+      }
+      layer_weights_snapshot: {
+        Row: {
+          created_at: string
+          current_pct: number
+          gap_pct: number | null
+          id: number
+          layer: string
+          mv_gbp: number | null
+          priority: string | null
+          snapshot_date: string
+          source: string
+          target_pct: number
+        }
+        Insert: {
+          created_at?: string
+          current_pct: number
+          gap_pct?: number | null
+          id?: never
+          layer: string
+          mv_gbp?: number | null
+          priority?: string | null
+          snapshot_date: string
+          source?: string
+          target_pct: number
+        }
+        Update: {
+          created_at?: string
+          current_pct?: number
+          gap_pct?: number | null
+          id?: never
+          layer?: string
+          mv_gbp?: number | null
+          priority?: string | null
+          snapshot_date?: string
+          source?: string
+          target_pct?: number
+        }
+        Relationships: []
+      }
+      macro_snapshot: {
+        Row: {
+          brent_usd: number | null
+          copper_spot_usd_lb: number | null
+          created_at: string
+          gbpusd: number | null
+          gold_usd: number | null
+          id: number
+          pause_active: boolean | null
+          snapshot_date: string
+          source: string
+          sp500_ytd_pct: number | null
+          uranium_spot_usd: number | null
+          vix: number | null
+        }
+        Insert: {
+          brent_usd?: number | null
+          copper_spot_usd_lb?: number | null
+          created_at?: string
+          gbpusd?: number | null
+          gold_usd?: number | null
+          id?: never
+          pause_active?: boolean | null
+          snapshot_date: string
+          source?: string
+          sp500_ytd_pct?: number | null
+          uranium_spot_usd?: number | null
+          vix?: number | null
+        }
+        Update: {
+          brent_usd?: number | null
+          copper_spot_usd_lb?: number | null
+          created_at?: string
+          gbpusd?: number | null
+          gold_usd?: number | null
+          id?: never
+          pause_active?: boolean | null
+          snapshot_date?: string
+          source?: string
+          sp500_ytd_pct?: number | null
+          uranium_spot_usd?: number | null
+          vix?: number | null
+        }
+        Relationships: []
+      }
+      score_rationales: {
+        Row: {
+          action: string
+          change_note: string | null
+          created_at: string
+          demand_rationale: string
+          demand_score: number
+          disruption_rationale: string
+          disruption_score: number
+          id: number
+          mgmt_rationale: string
+          mgmt_score: number
+          moat_rationale: string
+          moat_score: number
+          mv_gbp_at_scoring: number | null
+          price_at_scoring: number | null
+          scored_at: string
+          scored_by: string
+          substrate_rationale: string
+          substrate_score: number
+          thesis_summary: string | null
+          ticker: string
+          tier: string | null
+          total_score: number
+          valuation_rationale: string
+          valuation_score: number
+        }
+        Insert: {
+          action: string
+          change_note?: string | null
+          created_at?: string
+          demand_rationale: string
+          demand_score: number
+          disruption_rationale: string
+          disruption_score: number
+          id?: never
+          mgmt_rationale: string
+          mgmt_score: number
+          moat_rationale: string
+          moat_score: number
+          mv_gbp_at_scoring?: number | null
+          price_at_scoring?: number | null
+          scored_at: string
+          scored_by: string
+          substrate_rationale: string
+          substrate_score: number
+          thesis_summary?: string | null
+          ticker: string
+          tier?: string | null
+          total_score: number
+          valuation_rationale: string
+          valuation_score: number
+        }
+        Update: {
+          action?: string
+          change_note?: string | null
+          created_at?: string
+          demand_rationale?: string
+          demand_score?: number
+          disruption_rationale?: string
+          disruption_score?: number
+          id?: never
+          mgmt_rationale?: string
+          mgmt_score?: number
+          moat_rationale?: string
+          moat_score?: number
+          mv_gbp_at_scoring?: number | null
+          price_at_scoring?: number | null
+          scored_at?: string
+          scored_by?: string
+          substrate_rationale?: string
+          substrate_score?: number
+          thesis_summary?: string | null
+          ticker?: string
+          tier?: string | null
+          total_score?: number
+          valuation_rationale?: string
+          valuation_score?: number
+        }
+        Relationships: []
+      }
+      scores_snapshot: {
+        Row: {
+          action: string | null
+          buy_high: number | null
+          buy_low: number | null
+          created_at: string
+          demand: number
+          disruption: number
+          id: number
+          layer: string
+          mgmt: number
+          moat: number
+          score: number
+          snapshot_date: string
+          source: string
+          substrate: number
+          ticker: string
+          tier: string | null
+          valuation: number
+        }
+        Insert: {
+          action?: string | null
+          buy_high?: number | null
+          buy_low?: number | null
+          created_at?: string
+          demand: number
+          disruption: number
+          id?: never
+          layer: string
+          mgmt: number
+          moat: number
+          score: number
+          snapshot_date: string
+          source?: string
+          substrate: number
+          ticker: string
+          tier?: string | null
+          valuation: number
+        }
+        Update: {
+          action?: string | null
+          buy_high?: number | null
+          buy_low?: number | null
+          created_at?: string
+          demand?: number
+          disruption?: number
+          id?: never
+          layer?: string
+          mgmt?: number
+          moat?: number
+          score?: number
+          snapshot_date?: string
+          source?: string
+          substrate?: number
+          ticker?: string
+          tier?: string | null
+          valuation?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
