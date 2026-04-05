@@ -1,33 +1,36 @@
-## Holdings Cost Basis + Transaction Returns
 
-### 1. Create shared XIRR utility (`src/lib/xirr.ts`)
-- Newton-Raphson XIRR solver
-- Helper to build cashflow arrays from transactions
-- Per-holding calculation helper (totalCost, truePL, annualisedReturn, entryDate, trancheCount)
 
-### 2. Holdings Tab — Add Cost Basis & True Returns
-- Import transactions data (already fetched in usePortfolioData)
-- Pass transactions to HoldingsTab component
-- For each holding row, calculate cost basis, P&L, return %, ann. return, entry date, tranche count
-- Add 6 new columns: Cost (£), P&L (£), Return %, Ann. Return, Entry, Tranches
-- Add sort toggle for annualised return (default remains MV desc)
-- Mobile: hide new columns, show in expanded detail
+## Improve JISA "All" View — Child Section Separators
 
-### 3. Transactions Tab — Enhanced Drill-Down
-- Replace 3 summary cards with 6: Net Shares, Total Cost, Current MV, P&L (£), Total Return, Ann. Return
-- Add "CLOSED" badge for exited positions
-- Add running Cum. Shares and Cum. Cost columns to trade history table
-- Use holdings data for current MV lookup
+### Problem
+When viewing "All" children, the transition between Bear → Alfie → Edie is a single small gold text label in a table row that visually blends into the data. It's too subtle to act as a section boundary.
 
-### 4. JISA Tab — Cost Basis from Transactions
-- For each JISA holding, calculate cost/PL/return/ann. return from transactions
-- Add Cost, P&L, Return %, Ann. Return columns to JISA holdings table
+### Solution
+Replace the minimal text-only header row with a visually distinct section divider:
 
-### Files to create
-- `src/lib/xirr.ts` — shared XIRR utility + helpers
+1. **Sticky section header row** with:
+   - Larger top margin/padding (20px top gap before each child after the first)
+   - Full-width background stripe (`rgba(200,169,110,0.08)` — subtle gold tint)
+   - Child name in bolder, slightly larger text (12px instead of 10px)
+   - A summary stat inline: total MV and G/L % for that child (pulled from `childSummaries`)
+   - Left gold accent border (3px solid var(--gold)) for scanability
 
-### Files to modify
-- `src/components/HoldingsTab.tsx` — add columns, sort toggle
-- `src/components/TransactionsTab.tsx` — enhanced drill-down cards + running P&L
-- `src/components/JisasTab.tsx` — add cost basis columns
-- `src/pages/Index.tsx` — pass transactions to HoldingsTab and JisasTab
+2. **Mobile card view**: Insert a similar divider banner between child groups — a full-width bar with the child's name and MV total.
+
+### Visual result
+```text
+───────────────────────────────────────────────────
+▌ BEAR                              £69,811  +25.1%
+───────────────────────────────────────────────────
+  VWRL   Vanguard FTSE...   158   £19,402 ...
+  TWST   Twist Bioscience   130   £7,478  ...
+
+───────────────────────────────────────────────────
+▌ ALFIE                             £58,299  +25.2%
+───────────────────────────────────────────────────
+  VWRL   Vanguard FTSE...   132   £16,210 ...
+```
+
+### Files changed
+- `src/components/JisasTab.tsx` — restyle the child header `<tr>` in the "All" view (desktop table + mobile cards)
+
