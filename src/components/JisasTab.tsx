@@ -237,37 +237,66 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
       {/* Holdings Table */}
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-          {filteredHoldings.map((h, i) => {
-            const drift = (h.weightPct || 0) - (h.targetPct || 0);
-            const hexColor = layerHexMap[h.layer.toLowerCase()] || "var(--text-dim)";
-            const r = h.returns;
-            const hasReturns = r && r.totalCost > 0;
+          {groupedHoldings.map((group, gi) => {
+            const summary = childSummaries.find(c => c.child === group.child);
             return (
-              <div key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
-                  {hasReturns && (
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
-                      {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% pa
+              <div key={group.child}>
+                {childFilter === "All" && (
+                  <div style={{
+                    marginTop: gi > 0 ? 20 : 0,
+                    marginBottom: 8,
+                    padding: "10px 12px",
+                    background: "rgba(200,169,110,0.08)",
+                    borderLeft: "3px solid var(--gold)",
+                    borderRadius: "0 6px 6px 0",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)" }}>
+                      {group.child}
                     </span>
-                  )}
-                </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{h.name}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-                  <span>{formatCurrency(h.mvGbp)}</span>
-                  <span>{h.weightPct?.toFixed(1)}%</span>
-                  <span style={{ color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
-                    {h.layer}
-                  </span>
-                </div>
-                {hasReturns && (
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    <span>Cost: {formatCurrency(r!.totalCost)}</span>
-                    <span style={{ color: r!.truePL >= 0 ? "var(--green)" : "var(--red)" }}>P&L: {r!.truePL >= 0 ? "+" : ""}£{Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span>
+                    {summary && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, display: "flex", gap: 10 }}>
+                        <span style={{ color: "var(--text)" }}>{formatCurrency(summary.mv)}</span>
+                        <span style={{ color: summary.gl >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(summary.gl)}</span>
+                      </span>
+                    )}
                   </div>
                 )}
+                {group.holdings.map((h, i) => {
+                  const hexColor = layerHexMap[h.layer.toLowerCase()] || "var(--text-dim)";
+                  const r = h.returns;
+                  const hasReturns = r && r.totalCost > 0;
+                  return (
+                    <div key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12, marginBottom: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                        {hasReturns && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
+                            {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% pa
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{h.name}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+                        <span>{formatCurrency(h.mvGbp)}</span>
+                        <span>{h.weightPct?.toFixed(1)}%</span>
+                        <span style={{ color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
+                          {h.layer}
+                        </span>
+                      </div>
+                      {hasReturns && (
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          <span>Cost: {formatCurrency(r!.totalCost)}</span>
+                          <span style={{ color: r!.truePL >= 0 ? "var(--green)" : "var(--red)" }}>P&L: {r!.truePL >= 0 ? "+" : ""}£{Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -295,13 +324,34 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
             <tbody>
               {groupedHoldings.map(group => (
                 <>
-                  {childFilter === "All" && (
-                    <tr key={`hdr-${group.child}`}>
-                      <td colSpan={13} style={{ padding: "10px 6px 4px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--gold)", textTransform: "uppercase", borderBottom: "1px solid var(--rim)" }}>
-                        {group.child}
-                      </td>
-                    </tr>
-                  )}
+                  {childFilter === "All" && (() => {
+                    const summary = childSummaries.find(c => c.child === group.child);
+                    const isFirst = groupedHoldings[0]?.child === group.child;
+                    return (
+                      <tr key={`hdr-${group.child}`}>
+                        <td colSpan={13} style={{
+                          padding: "12px 12px 10px",
+                          paddingTop: isFirst ? 12 : 28,
+                          fontFamily: "var(--font-mono)",
+                          background: "rgba(200,169,110,0.08)",
+                          borderBottom: "1px solid var(--rim)",
+                          borderLeft: "3px solid var(--gold)",
+                        }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)" }}>
+                              {group.child}
+                            </span>
+                            {summary && (
+                              <span style={{ fontSize: 11, display: "flex", gap: 14, alignItems: "center" }}>
+                                <span style={{ color: "var(--text)" }}>{formatCurrency(summary.mv)}</span>
+                                <span style={{ color: summary.gl >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>{formatPct(summary.gl)}</span>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })()}
                   {group.holdings.map((h, i) => {
                     const drift = (h.weightPct || 0) - (h.targetPct || 0);
                     const driftAbs = Math.abs(drift);
