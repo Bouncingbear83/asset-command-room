@@ -84,6 +84,61 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
     });
   }, [holdingsWithReturns]);
 
+  // JISA performance metrics from PERFORMANCE sheet
+  const childPerfMetrics = useMemo(() => {
+    if (!performance || performance.length === 0) return {} as Record<string, { inception: number; stellar: number; ytd: number; m12: number }>;
+
+    const SUB_RTN_KEY: Record<string, keyof LivePerformance> = {
+      Bear: "subPeriodRtnJb", Alfie: "subPeriodRtnAb", Edie: "subPeriodRtnEb",
+    };
+    const CUM_TWR_KEY: Record<string, keyof LivePerformance> = {
+      Bear: "cumulativeTwrJb", Alfie: "cumulativeTwrAb", Edie: "cumulativeTwrEb",
+    };
+
+    const sorted = [...performance].sort((a, b) => a.date.localeCompare(b.date));
+    const latest = sorted[sorted.length - 1];
+
+    const findRowIndex = (target: string) => {
+      // Find exact or nearest row
+      let best = -1;
+      let bestDiff = Infinity;
+      sorted.forEach((r, i) => {
+        const diff = Math.abs(new Date(r.date).getTime() - new Date(target).getTime());
+        if (diff < bestDiff) { bestDiff = diff; best = i; }
+      });
+      return best;
+    };
+
+    const chainReturn = (child: string, startIdx: number) => {
+      const key = SUB_RTN_KEY[child];
+      let cum = 1;
+      for (let i = startIdx + 1; i < sorted.length; i++) {
+        const rtn = (sorted[i][key] as number) || 0;
+        cum *= (1 + rtn / 100);
+      }
+      return (cum - 1) * 100;
+    };
+
+    const stellarIdx = findRowIndex("2025-04-05");
+    const ytdIdx = findRowIndex("2025-12-31");
+    const now = new Date();
+    const m12Ago = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().slice(0, 10);
+    const m12Idx = findRowIndex(m12Ago);
+
+    const result: Record<string, { inception: number; stellar: number; ytd: number; m12: number }> = {};
+    for (const child of CHILDREN) {
+      const twrKey = CUM_TWR_KEY[child];
+      const inception = (latest[twrKey] as number) || 0;
+      result[child] = {
+        inception,
+        stellar: stellarIdx >= 0 ? chainReturn(child, stellarIdx) : 0,
+        ytd: ytdIdx >= 0 ? chainReturn(child, ytdIdx) : 0,
+        m12: m12Idx >= 0 ? chainReturn(child, m12Idx) : 0,
+      };
+    }
+    return result;
+  }, [performance]);
+
   const combinedMv = childSummaries.reduce((s, c) => s + c.mv, 0);
 
   // Filtered holdings
