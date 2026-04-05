@@ -193,15 +193,35 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
     <div>
       {/* Summary Cards */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        {childSummaries.map(c => (
-          <div key={c.child} style={cardStyle}>
-            <div style={metaLabel}>{c.child.toUpperCase()}</div>
-            <div style={metaVal}>{formatCurrency(c.mv)}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: c.gl >= 0 ? "var(--green)" : "var(--red)", marginTop: 2 }}>
-              {formatPct(c.gl)} G/L
+        {childSummaries.map(c => {
+          const perf = childPerfMetrics[c.child];
+          const pColor = (v: number) => v >= 0 ? "var(--green)" : "var(--red)";
+          return (
+            <div key={c.child} style={cardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div style={metaLabel}>{c.child.toUpperCase()}</div>
+                <div style={metaVal}>{formatCurrency(c.mv)}</div>
+              </div>
+              {perf && (
+                <>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: pColor(perf.inception), marginTop: 6 }}>
+                    Inception: {formatPct(perf.inception)}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <span>Stellar: <span style={{ color: pColor(perf.stellar) }}>{formatPct(perf.stellar)}</span></span>
+                    <span>YTD: <span style={{ color: pColor(perf.ytd) }}>{formatPct(perf.ytd)}</span></span>
+                    <span>12m: <span style={{ color: pColor(perf.m12) }}>{formatPct(perf.m12)}</span></span>
+                  </div>
+                </>
+              )}
+              {!perf && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: c.gl >= 0 ? "var(--green)" : "var(--red)", marginTop: 2 }}>
+                  {formatPct(c.gl)} G/L
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 20, letterSpacing: "0.1em" }}>
         Combined: <span style={{ color: "var(--gold)", fontWeight: 700 }}>{formatCurrency(combinedMv)}</span>
