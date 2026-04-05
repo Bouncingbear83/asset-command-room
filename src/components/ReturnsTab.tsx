@@ -396,6 +396,25 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
 
               <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
 
+              {/* Stellar vertical marker */}
+              {(() => {
+                const stellarDate = new Date(2025, 3, 5).getTime();
+                const stellarPoint = chartRows.reduce((best, row, i) => {
+                  const diff = Math.abs(new Date(row.date).getTime() - stellarDate);
+                  return diff < best.diff ? { diff, i } : best;
+                }, { diff: Infinity, i: -1 });
+                if (stellarPoint.i >= 0 && chartGeometry.points[stellarPoint.i]) {
+                  const sx = chartGeometry.points[stellarPoint.i].x;
+                  return (
+                    <g>
+                      <line x1={sx} y1={CHART_PADDING.top} x2={sx} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="#C8A96E" strokeWidth="1" strokeDasharray="4 3" opacity="0.7" />
+                      <text x={sx} y={CHART_PADDING.top - 4} fill="#C8A96E" fontFamily="var(--font-mono)" fontSize="9" textAnchor="middle" opacity="0.8">Stellar</text>
+                    </g>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Benchmark dashed lines — subtle reference */}
               <polyline fill="none" stroke="#888780" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.5"
                 points={toPolyline(chartGeometry.points.map((p) => ({ x: p.x, y: p.sp500Y })))} />
