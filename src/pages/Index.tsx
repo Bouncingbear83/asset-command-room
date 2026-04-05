@@ -118,7 +118,7 @@ export default function Index() {
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} />}
         {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa]} />}
-        {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} transactions={portfolio.transactions} layers={portfolio.layers} />}
+        {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
         {active === "Earnings Calendar" && <EarningsCalendarTab items={portfolio.earningsCalendar} />}
       </div>
     </div>

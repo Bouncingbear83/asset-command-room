@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { LiveJisaHolding, LiveTransaction, LiveLayer } from "@/hooks/usePortfolioData";
+import { LiveJisaHolding, LiveTransaction, LiveLayer, LivePerformance } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 
@@ -7,6 +7,7 @@ interface Props {
   jisaHoldings: LiveJisaHolding[];
   transactions: LiveTransaction[];
   layers: LiveLayer[];
+  performance: LivePerformance[];
 }
 
 const CHILDREN = ["Bear", "Alfie", "Edie"] as const;
@@ -51,7 +52,7 @@ const metaVal: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: "var(--gold)",
 };
 
-export default function JisasTab({ jisaHoldings, transactions, layers }: Props) {
+export default function JisasTab({ jisaHoldings, transactions, layers, performance }: Props) {
   const isMobile = useIsMobile();
   const [childFilter, setChildFilter] = useState<string>("All");
 
@@ -82,6 +83,61 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
       return { child, mv, cost, gl, count: holdings.length };
     });
   }, [holdingsWithReturns]);
+
+  // JISA performance metrics from PERFORMANCE sheet
+  const childPerfMetrics = useMemo(() => {
+    if (!performance || performance.length === 0) return {} as Record<string, { inception: number; stellar: number; ytd: number; m12: number }>;
+
+    const SUB_RTN_KEY: Record<string, keyof LivePerformance> = {
+      Bear: "subPeriodRtnJb", Alfie: "subPeriodRtnAb", Edie: "subPeriodRtnEb",
+    };
+    const CUM_TWR_KEY: Record<string, keyof LivePerformance> = {
+      Bear: "cumulativeTwrJb", Alfie: "cumulativeTwrAb", Edie: "cumulativeTwrEb",
+    };
+
+    const sorted = [...performance].sort((a, b) => a.date.localeCompare(b.date));
+    const latest = sorted[sorted.length - 1];
+
+    const findRowIndex = (target: string) => {
+      // Find exact or nearest row
+      let best = -1;
+      let bestDiff = Infinity;
+      sorted.forEach((r, i) => {
+        const diff = Math.abs(new Date(r.date).getTime() - new Date(target).getTime());
+        if (diff < bestDiff) { bestDiff = diff; best = i; }
+      });
+      return best;
+    };
+
+    const chainReturn = (child: string, startIdx: number) => {
+      const key = SUB_RTN_KEY[child];
+      let cum = 1;
+      for (let i = startIdx + 1; i < sorted.length; i++) {
+        const rtn = (sorted[i][key] as number) || 0;
+        cum *= (1 + rtn / 100);
+      }
+      return (cum - 1) * 100;
+    };
+
+    const stellarIdx = findRowIndex("2025-04-05");
+    const ytdIdx = findRowIndex("2025-12-31");
+    const now = new Date();
+    const m12Ago = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().slice(0, 10);
+    const m12Idx = findRowIndex(m12Ago);
+
+    const result: Record<string, { inception: number; stellar: number; ytd: number; m12: number }> = {};
+    for (const child of CHILDREN) {
+      const twrKey = CUM_TWR_KEY[child];
+      const inception = (latest[twrKey] as number) || 0;
+      result[child] = {
+        inception,
+        stellar: stellarIdx >= 0 ? chainReturn(child, stellarIdx) : 0,
+        ytd: ytdIdx >= 0 ? chainReturn(child, ytdIdx) : 0,
+        m12: m12Idx >= 0 ? chainReturn(child, m12Idx) : 0,
+      };
+    }
+    return result;
+  }, [performance]);
 
   const combinedMv = childSummaries.reduce((s, c) => s + c.mv, 0);
 
@@ -137,15 +193,35 @@ export default function JisasTab({ jisaHoldings, transactions, layers }: Props) 
     <div>
       {/* Summary Cards */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        {childSummaries.map(c => (
-          <div key={c.child} style={cardStyle}>
-            <div style={metaLabel}>{c.child.toUpperCase()}</div>
-            <div style={metaVal}>{formatCurrency(c.mv)}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: c.gl >= 0 ? "var(--green)" : "var(--red)", marginTop: 2 }}>
-              {formatPct(c.gl)} G/L
+        {childSummaries.map(c => {
+          const perf = childPerfMetrics[c.child];
+          const pColor = (v: number) => v >= 0 ? "var(--green)" : "var(--red)";
+          return (
+            <div key={c.child} style={cardStyle}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div style={metaLabel}>{c.child.toUpperCase()}</div>
+                <div style={metaVal}>{formatCurrency(c.mv)}</div>
+              </div>
+              {perf && (
+                <>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: pColor(perf.inception), marginTop: 6 }}>
+                    Inception: {formatPct(perf.inception)}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <span>Stellar: <span style={{ color: pColor(perf.stellar) }}>{formatPct(perf.stellar)}</span></span>
+                    <span>YTD: <span style={{ color: pColor(perf.ytd) }}>{formatPct(perf.ytd)}</span></span>
+                    <span>12m: <span style={{ color: pColor(perf.m12) }}>{formatPct(perf.m12)}</span></span>
+                  </div>
+                </>
+              )}
+              {!perf && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: c.gl >= 0 ? "var(--green)" : "var(--red)", marginTop: 2 }}>
+                  {formatPct(c.gl)} G/L
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 20, letterSpacing: "0.1em" }}>
         Combined: <span style={{ color: "var(--gold)", fontWeight: 700 }}>{formatCurrency(combinedMv)}</span>
