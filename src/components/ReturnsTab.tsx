@@ -125,7 +125,7 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
 
   const oldest = new Date(sortedNewestFirst[sortedNewestFirst.length - 1].date);
 
-  return periods.map(({ label, start, end }) => {
+  const results = periods.map(({ label, start, end }) => {
     if (start.getTime() < oldest.getTime() - 45 * 86400000) {
       return { label, total: null, sipp: null, isa: null, sp500: null, alpha: null };
     }
@@ -143,6 +143,44 @@ function computePeriodReturns(sortedNewestFirst: LivePerformance[]): PeriodRetur
       alpha: sp500Rtn != null ? totalRtn - sp500Rtn : null,
     };
   });
+
+  // "Since Stellar" — chain sub-period returns from 05/04/2025
+  const sortedOldestFirst = [...sortedNewestFirst].reverse();
+  const stellarIdx = sortedOldestFirst.findIndex(r => {
+    const d = new Date(r.date);
+    return d.getFullYear() === 2025 && d.getMonth() === 3 && d.getDate() === 5;
+  });
+
+  if (stellarIdx >= 0) {
+    const chainField = (rows: LivePerformance[], startIdx: number, field: keyof LivePerformance) => {
+      let cum = 1;
+      for (let i = startIdx + 1; i < rows.length; i++) {
+        const rtn = (rows[i][field] as number) || 0;
+        cum *= (1 + rtn / 100);
+      }
+      return (cum - 1) * 100;
+    };
+
+    const stellarStartRow = sortedOldestFirst[stellarIdx];
+    const sippRtn = chainField(sortedOldestFirst, stellarIdx, "subPeriodRtnSipp");
+    const isaRtn = chainField(sortedOldestFirst, stellarIdx, "subPeriodRtnIsa");
+    const totalRtn = chainField(sortedOldestFirst, stellarIdx, "subPeriodRtnTotal");
+    // S&P from cumulative values
+    const sp500Rtn = (latest.sp500Tr != null && stellarStartRow.sp500Tr != null)
+      ? calcReturn(latest.sp500Tr, stellarStartRow.sp500Tr) : null;
+    const alpha = sp500Rtn != null ? totalRtn - sp500Rtn : null;
+
+    // Insert after "Last 1Y" (index 3)
+    const insertIdx = results.findIndex(r => r.label === "Last 3Y");
+    const stellarRow: PeriodReturn = { label: "Since Stellar (Apr '25)", total: totalRtn, sipp: sippRtn, isa: isaRtn, sp500: sp500Rtn, alpha };
+    if (insertIdx >= 0) {
+      results.splice(insertIdx, 0, stellarRow);
+    } else {
+      results.push(stellarRow);
+    }
+  }
+
+  return results;
 }
 
 function toPolyline(points: Array<{ x: number; y: number }>) {
@@ -357,6 +395,25 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
               ))}
 
               <line x1={CHART_PADDING.left} y1={CHART_HEIGHT - CHART_PADDING.bottom} x2={CHART_WIDTH - CHART_PADDING.right} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="var(--rim)" />
+
+              {/* Stellar vertical marker */}
+              {(() => {
+                const stellarDate = new Date(2025, 3, 5).getTime();
+                const stellarPoint = chartRows.reduce((best, row, i) => {
+                  const diff = Math.abs(new Date(row.date).getTime() - stellarDate);
+                  return diff < best.diff ? { diff, i } : best;
+                }, { diff: Infinity, i: -1 });
+                if (stellarPoint.i >= 0 && chartGeometry.points[stellarPoint.i]) {
+                  const sx = chartGeometry.points[stellarPoint.i].x;
+                  return (
+                    <g>
+                      <line x1={sx} y1={CHART_PADDING.top} x2={sx} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke="#C8A96E" strokeWidth="1" strokeDasharray="4 3" opacity="0.7" />
+                      <text x={sx} y={CHART_PADDING.top - 4} fill="#C8A96E" fontFamily="var(--font-mono)" fontSize="9" textAnchor="middle" opacity="0.8">Stellar</text>
+                    </g>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Benchmark dashed lines — subtle reference */}
               <polyline fill="none" stroke="#888780" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.5"
