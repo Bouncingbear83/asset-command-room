@@ -1,36 +1,42 @@
 
 
-## Improve JISA "All" View — Child Section Separators
+## Create Historical Database Tables
 
-### Problem
-When viewing "All" children, the transition between Bear → Alfie → Edie is a single small gold text label in a table row that visually blends into the data. It's too subtle to act as a section boundary.
+### Summary
+Create 11 database tables to store nightly snapshots of portfolio data, enabling historical analysis, sparklines, drift tracking, and audit trails. All tables are append-only (no updates needed from the app) and will be populated by the existing n8n automation workflow.
 
-### Solution
-Replace the minimal text-only header row with a visually distinct section divider:
+### Tables to Create (single migration)
 
-1. **Sticky section header row** with:
-   - Larger top margin/padding (20px top gap before each child after the first)
-   - Full-width background stripe (`rgba(200,169,110,0.08)` — subtle gold tint)
-   - Child name in bolder, slightly larger text (12px instead of 10px)
-   - A summary stat inline: total MV and G/L % for that child (pulled from `childSummaries`)
-   - Left gold accent border (3px solid var(--gold)) for scanability
+All 11 tables in one migration, in dependency order (no cross-references):
 
-2. **Mobile card view**: Insert a similar divider banner between child groups — a full-width bar with the child's name and MV total.
+1. **daily_prices** — EOD prices per ticker (~53 rows/day)
+2. **fx_rates** — Daily FX rates (~5 rows/day)
+3. **holdings_snapshot** — Nightly SIPP/ISA portfolio snapshot (~35 rows/day)
+4. **jisa_snapshot** — Nightly JISA holdings snapshot (~33 rows/day)
+5. **layer_weights_snapshot** — Nightly layer allocations (~8 rows/day)
+6. **scores_snapshot** — Nightly scoring snapshot (~35 rows/day)
+7. **disruption_snapshot** — Nightly disruption sub-scores (~35 rows/day)
+8. **score_rationales** — Event-driven scoring reasoning (~100-300 rows/year)
+9. **disruption_rationales** — Event-driven disruption reasoning (~100-300 rows/year)
+10. **macro_snapshot** — Daily macro indicators (1 row/day)
+11. **alerts_log** — Immutable alert audit trail (~5-20 rows/week)
 
-### Visual result
-```text
-───────────────────────────────────────────────────
-▌ BEAR                              £69,811  +25.1%
-───────────────────────────────────────────────────
-  VWRL   Vanguard FTSE...   158   £19,402 ...
-  TWST   Twist Bioscience   130   £7,478  ...
+### Technical details
 
-───────────────────────────────────────────────────
-▌ ALFIE                             £58,299  +25.2%
-───────────────────────────────────────────────────
-  VWRL   Vanguard FTSE...   132   £16,210 ...
-```
+- Single SQL migration containing all `CREATE TABLE`, `CREATE INDEX`, and unique constraint statements exactly as specified in the user's schemas
+- Use validation triggers instead of CHECK constraints (per guidelines)
+- No CHECK constraints needed — the schemas use only UNIQUE constraints and defaults
+- Enable RLS on all tables but with permissive read policies (data is portfolio-level, not multi-tenant; n8n writes via service role key)
+- RLS policies: `SELECT` for `anon` and `authenticated` roles (read-only app); writes happen via service role from n8n
+- No code changes needed — these tables support future features and n8n ingestion
+
+### RLS Strategy
+
+Each table gets:
+- RLS enabled
+- A single `SELECT` policy for `authenticated` (the app user can read)
+- Writes are done by n8n using the service role key, which bypasses RLS
 
 ### Files changed
-- `src/components/JisasTab.tsx` — restyle the child header `<tr>` in the "All" view (desktop table + mobile cards)
+- Database migration only (no application code changes)
 
