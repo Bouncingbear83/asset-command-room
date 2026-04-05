@@ -52,7 +52,7 @@ const metaVal: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: "var(--gold)",
 };
 
-export default function JisasTab({ jisaHoldings, transactions, layers }: Props) {
+export default function JisasTab({ jisaHoldings, transactions, layers, performance }: Props) {
   const isMobile = useIsMobile();
   const [childFilter, setChildFilter] = useState<string>("All");
 
