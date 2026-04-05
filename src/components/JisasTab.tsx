@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { LiveJisaHolding, LiveTransaction, LiveLayer } from "@/hooks/usePortfolioData";
+import { LiveJisaHolding, LiveTransaction, LiveLayer, LivePerformance } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 
@@ -7,6 +7,7 @@ interface Props {
   jisaHoldings: LiveJisaHolding[];
   transactions: LiveTransaction[];
   layers: LiveLayer[];
+  performance: LivePerformance[];
 }
 
 const CHILDREN = ["Bear", "Alfie", "Edie"] as const;
