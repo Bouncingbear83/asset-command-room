@@ -22,6 +22,13 @@ const CLAUDE_COMMANDS = [
     prompt:
       "Review all current holdings and identify which have had their reclassification premium fully priced in by the market. For each, assess: has the label already changed? Is the multiple already re-rated? Where is the easy money done and capital should rotate to the next unlabelled substrate?",
   },
+  {
+    label: "Log Trades",
+    prompt:
+      "I have new trades to log. Ready for CSV or screenshot.",
+    icon: "📝",
+    subtitle: "CSV or screenshot → Claude",
+  },
 ];
 
 const SIGNAL_KEYS = ["VIX", "SP500_YTD_PCT", "GOLD_USD", "PAUSE_ACTIVE", "EARNINGS_BLACKOUT"] as const;
