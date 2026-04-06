@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Shield, RefreshCw } from "lucide-react";
-import { LiveScore, LiveScoreLog, LiveDisruption } from "@/hooks/usePortfolioData";
-import { triggerWebhook } from "@/lib/webhooks";
+import { ChevronRight, ChevronDown, Shield, Microscope } from "lucide-react";
+import { LiveScore, LiveScoreLog, LiveDisruption, LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
 interface Props {
   scores: LiveScore[];
   scoreLog: LiveScoreLog[];
   disruptionData?: LiveDisruption[];
+  holdings?: LiveHolding[];
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
@@ -188,7 +190,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Props) {
+export default function ScoresTab({ scores, scoreLog, disruptionData = [], holdings = [] }: Props) {
   const isMobile = useIsMobile();
   const [activeView, setActiveView] = useState<TabView>("scores");
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
@@ -302,14 +304,19 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [] }: Pro
           {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>}
           <td style={{ padding: p }}><span style={{ ...tierStyle, ...badgeBase }}>{tier}</span></td>
           <td style={{ padding: p }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
               {!isMobile && <button
-                title={`Rescore ${s.ticker}`}
-                onClick={(e) => { e.stopPropagation(); triggerWebhook("stellar-rescore", { ticker: s.ticker }, `Rescore triggered for ${s.ticker}. Check email.`); }}
-                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+                title={`Deep dive ${s.ticker}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const prompt = `Deep dive rescore on ${s.ticker}. Layer: ${s.layer}. Current score: ${s.score}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`;
+                  const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                  (window.top || window).open(url, '_blank');
+                }}
+                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
               >
-                <RefreshCw size={11} />
+                <Microscope size={11} />
               </button>}
             </div>
           </td>
