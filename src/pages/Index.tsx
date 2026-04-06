@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import CommandTab from "@/components/CommandTab";
 import MonitorTab from "@/components/MonitorTab";
@@ -25,12 +25,26 @@ function formatPercent(value: number) {
 
 export default function Index() {
   const [active, setActive] = useState<Tab>("Command");
-  const [macroBannerOpen, setMacroBannerOpen] = useState(true);
+  const [macroBannerOpen, setMacroBannerOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const portfolio = usePortfolioData();
   const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
   const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
   const total = sippTotal + isaTotal;
   const showMacroBanner = hasMacroBannerContent(portfolio.macroBanner);
+
+  const perf = portfolio.performance;
+  const latestPerf = perf.length > 0 ? perf[perf.length - 1] : null;
+  const prevPerf = perf.length > 1 ? perf[perf.length - 2] : null;
+  const dailyChangePct = latestPerf && prevPerf && prevPerf.totalValue > 0
+    ? ((latestPerf.totalValue - prevPerf.totalValue) / prevPerf.totalValue * 100)
+    : null;
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 400);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const s: Record<string, React.CSSProperties> = {
     app: { minHeight: "100vh", background: "var(--void)" },
@@ -53,6 +67,13 @@ export default function Index() {
     val: { color: "var(--gold)", fontWeight: 700 },
   };
 
+  const changeArrow = dailyChangePct !== null
+    ? dailyChangePct >= 0 ? "▲" : "▼"
+    : null;
+  const changeColor = dailyChangePct !== null
+    ? dailyChangePct >= 0 ? "var(--green)" : "var(--red)"
+    : "var(--text-dim)";
+
   return (
     <div style={s.app}>
       <header className="stellar-header">
@@ -62,7 +83,7 @@ export default function Index() {
           <span style={s.sub}>Portfolio Command</span>
         </div>
         <div className="stellar-header-stats">
-          <div style={s.meta}>AUM<br /><span style={s.val}>£{(total / 1000).toFixed(0)}k</span></div>
+          <div style={s.meta}>AUM<br /><span style={s.val}>£{(total / 1000).toFixed(0)}k</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}</div>
           <div style={s.meta}>SIPP<br /><span style={s.val}>£{(sippTotal / 1000).toFixed(0)}k</span></div>
           <div style={s.meta}>ISA<br /><span style={s.val}>£{(isaTotal / 1000).toFixed(0)}k</span></div>
           <div style={s.meta}>TARGET<br /><span style={s.val}>15–20% PA</span></div>
@@ -121,6 +142,12 @@ export default function Index() {
         {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
         {active === "Earnings Calendar" && <EarningsCalendarTab items={portfolio.earningsCalendar} />}
       </div>
+
+      <button
+        className={`back-to-top${showBackToTop ? " visible" : ""}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="Back to top"
+      >↑</button>
     </div>
   );
 }
