@@ -83,22 +83,24 @@ const statusSeverity = (s: string): number => {
   return 0;
 };
 
-const worstStatus = (items: { status?: string }[]): string => {
+const worstStatus = (items: { current: any; amberThreshold: any; redThreshold?: any; status?: string }[]): string => {
   if (items.length === 0) return "CLEAR";
   let worst = 0;
   let worstLabel = "GREEN";
   for (const item of items) {
-    const sev = statusSeverity(item.status || "GREEN");
-    if (sev > worst) { worst = sev; worstLabel = (item.status || "GREEN").toUpperCase(); }
+    const derived = deriveStatus(item);
+    const sev = statusSeverity(derived);
+    if (sev > worst) { worst = sev; worstLabel = derived; }
   }
   return worstLabel;
 };
 
-const headerLabel = (items: { status?: string }[]): string => {
+const headerLabel = (items: { current: any; amberThreshold: any; redThreshold?: any; status?: string }[]): string => {
   if (items.length === 0) return "NO LIVE DATA";
   const counts: Record<string, number> = {};
   for (const item of items) {
-    const sev = statusSeverity(item.status || "GREEN");
+    const derived = deriveStatus(item);
+    const sev = statusSeverity(derived);
     const label = sev === 3 ? "RED" : sev === 2 ? "AMBER" : sev === 1 ? "WATCH" : "GREEN";
     counts[label] = (counts[label] || 0) + 1;
   }
