@@ -432,7 +432,41 @@ export default function CommandTab() {
     .map((item) => item?.trim() ?? "")
     .filter(Boolean);
 
-  const alertedHoldings = holdings.filter((holding) => holding.alert_status.trim().toUpperCase() !== "CLEAR");
+  // Dynamic zone detection: compare live price to buy/exit thresholds
+  const computeZoneStatus = (holding: typeof holdings[0]) => {
+    // If spreadsheet already has a non-CLEAR status, trust it
+    const sheetStatus = holding.alert_status.trim().toUpperCase();
+    if (sheetStatus !== "CLEAR" && sheetStatus !== "") return sheetStatus;
+
+    const price = holding.price;
+    if (!price || price <= 0) return "CLEAR";
+
+    // Get score thresholds for this ticker
+    const scoreMatch = scores.find(s => s.ticker === holding.ticker);
+    const buyHigh = scoreMatch?.buyHigh ?? null;
+    const buyLow = scoreMatch?.buyLow ?? null;
+
+    // Parse trigger prices from holdings
+    const triggerAdd = parseFloat(String(holding.trigger_price_add));
+    const triggerExit = parseFloat(String(holding.trigger_price_exit));
+
+    // EXIT ZONE check first (higher priority)
+    if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit) return "EXIT_ZONE";
+
+    // BUY ZONE (ADD_ZONE)
+    if (buyHigh !== null && buyHigh > 0 && price <= buyHigh) return "ADD_ZONE";
+    if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd) return "ADD_ZONE";
+
+    // REVIEW: approaching zones (within 5%)
+    if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit * 0.95) return "REVIEW";
+    if (buyHigh !== null && buyHigh > 0 && price <= buyHigh * 1.05) return "REVIEW";
+
+    return "CLEAR";
+  };
+
+  const alertedHoldings = holdings
+    .map(h => ({ ...h, alert_status: computeZoneStatus(h) }))
+    .filter(h => h.alert_status !== "CLEAR");
   const weeklyActions = alertedHoldings.map((holding) => {
     const normalizedTicker = normalizeForMatch(holding.ticker);
     const matchedPriority = priorityNarratives.find((item) => normalizeForMatch(item).includes(normalizedTicker));
