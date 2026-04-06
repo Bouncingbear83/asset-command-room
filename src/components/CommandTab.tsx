@@ -204,6 +204,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
   const [webhookTarget, setWebhookTarget] = useState("");
   const [deepDiveTarget, setDeepDiveTarget] = useState("");
   const [webhookLoading, setWebhookLoading] = useState(false);
+  const [webhookFired, setWebhookFired] = useState("");
 
   const tickers = holdings.map(h => h.ticker).filter(Boolean);
   const watchlistTickers = (watchlist || []).map(w => w.ticker).filter(Boolean);
@@ -212,9 +213,12 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
 
   const handleWebhook = async (endpoint: string, body: object, msg: string) => {
     setWebhookLoading(true);
+    setWebhookFired("");
     await triggerWebhook(endpoint, body, msg);
     setWebhookLoading(false);
+    setWebhookFired("✓ Fired");
     setWebhookTarget("");
+    setTimeout(() => setWebhookFired(""), 3000);
   };
 
   const handleDeepDive = () => {
