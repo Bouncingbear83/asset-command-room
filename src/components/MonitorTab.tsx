@@ -210,7 +210,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
                 {metric.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {metric.notes}</div>}
                 {metric.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {metric.lastUpdated}</div>}
               </div>
-              <span style={rag(metric.status)}>{metric.status || "MONITOR"}</span>
+              <span style={rag(deriveStatus(metric))}>{deriveStatus(metric)}</span>
             </div>
           ))}
         </div>
