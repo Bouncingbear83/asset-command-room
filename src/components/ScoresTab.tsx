@@ -288,6 +288,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>
                   {s.ticker}
+                  {reviewFlagMap.has(s.ticker) && <span title={`Review: ${reviewFlagMap.get(s.ticker)}`} style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: reviewDotColor(reviewFlagMap.get(s.ticker)!), marginLeft: 5, verticalAlign: "middle" }} />}
                   {s.disruption != null && s.disruption < 8 && <span title="Disruption risk" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12 }}>⚠</span>}
                 </span>
                 {s.name && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1 }}>{s.name}</span>}
