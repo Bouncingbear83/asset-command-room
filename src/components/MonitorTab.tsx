@@ -48,6 +48,41 @@ const proximityIndicator = (metric: { current: any; amberThreshold: any; unit?: 
   return { arrow, color, label };
 };
 
+const statusSeverity = (s: string): number => {
+  const upper = (s || "").toUpperCase();
+  if (["RED", "TRIGGERED", "FIRED", "BREACH", "BREACHED"].includes(upper)) return 3;
+  if (["AMBER", "WARNING"].includes(upper)) return 2;
+  if (["WATCH", "MONITOR"].includes(upper)) return 1;
+  return 0;
+};
+
+const worstStatus = (items: { status?: string }[]): string => {
+  if (items.length === 0) return "CLEAR";
+  let worst = 0;
+  let worstLabel = "GREEN";
+  for (const item of items) {
+    const sev = statusSeverity(item.status || "GREEN");
+    if (sev > worst) { worst = sev; worstLabel = (item.status || "GREEN").toUpperCase(); }
+  }
+  return worstLabel;
+};
+
+const headerLabel = (items: { status?: string }[]): string => {
+  if (items.length === 0) return "NO LIVE DATA";
+  const counts: Record<string, number> = {};
+  for (const item of items) {
+    const sev = statusSeverity(item.status || "GREEN");
+    const label = sev === 3 ? "RED" : sev === 2 ? "AMBER" : sev === 1 ? "WATCH" : "GREEN";
+    counts[label] = (counts[label] || 0) + 1;
+  }
+  if (Object.keys(counts).length === 1 && counts["GREEN"]) return "ALL GREEN";
+  const parts: string[] = [];
+  for (const level of ["RED", "AMBER", "WATCH"]) {
+    if (counts[level]) parts.push(`${counts[level]} ${level}`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "ALL GREEN";
+};
+
 const rag = (status: string): React.CSSProperties => {
   const upper = (status ?? "").toUpperCase();
   const solidMap: Record<string, { bg: string; color: string; pulse?: boolean }> = {
@@ -124,8 +159,8 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Cost Curve Metrics</span>
-          <span style={rag(liveCostCurves.length > 0 ? "MONITOR" : "CLEAR")}>
-            {liveCostCurves.length > 0 ? `${liveCostCurves.length} METRICS` : "NO LIVE DATA"}
+          <span style={rag(worstStatus(liveCostCurves))}>
+            {headerLabel(liveCostCurves)}
           </span>
         </div>
         <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
@@ -155,8 +190,8 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Structural Triggers</span>
-          <span style={rag(liveStructural.length > 0 ? "MONITOR" : "CLEAR")}>
-            {liveStructural.length > 0 ? `${liveStructural.length} TRIGGERS` : "NO LIVE DATA"}
+          <span style={rag(worstStatus(liveStructural))}>
+            {headerLabel(liveStructural)}
           </span>
         </div>
         <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
