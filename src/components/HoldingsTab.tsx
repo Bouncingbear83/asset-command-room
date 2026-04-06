@@ -389,6 +389,13 @@ function HoldingsTable({ holdings, disruptionMap, transactions }: { holdings: Li
                   <td style={{ padding: isMobile ? "10px 6px" : "10px 12px", color: "var(--gold)", fontWeight: 700 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span>{h.ticker}</span>
+                      {(() => {
+                        if (!h.trigger_review_note?.startsWith('Q_REVIEW')) return null;
+                        const m = h.trigger_review_note.match(/^Q_REVIEW\s+\S+\s+(HIGH|MEDIUM|LOW)/);
+                        if (!m) return null;
+                        const c = m[1] === 'HIGH' ? 'var(--red)' : m[1] === 'MEDIUM' ? 'var(--amber)' : 'var(--green)';
+                        return <span title={`Review: ${m[1]}`} style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: c, flexShrink: 0, cursor: "pointer" }} />;
+                      })()}
                       <AlertBadge status={h.alert_status} />
                     </div>
                   </td>
