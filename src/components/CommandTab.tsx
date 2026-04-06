@@ -574,8 +574,77 @@ export default function CommandTab() {
   const mp = isMobile ? "10px 12px" : "14px 20px";
   const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: mp };
 
+  // --- Zone Alert Banner ---
+  const zoneGroups: Record<string, typeof holdings> = {};
+  alertedHoldings.forEach((h) => {
+    const status = h.alert_status.trim().toUpperCase();
+    if (!zoneGroups[status]) zoneGroups[status] = [];
+    zoneGroups[status].push(h);
+  });
+  const zoneOrder = ["ADD_ZONE", "EXIT_ZONE", "REVIEW"];
+  const activeZones = zoneOrder.filter((z) => zoneGroups[z]?.length);
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
+        {/* Zone Alert Banner */}
+        {activeZones.length > 0 && (
+          <div style={{ ...card, borderLeft: "3px solid var(--gold)", overflow: "hidden" }}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>⚡ Zone Alerts</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{alertedHoldings.length} active</span>
+            </div>
+            <div style={{ padding: mp }}>
+              {activeZones.map((zone) => {
+                const items = zoneGroups[zone];
+                const zoneColor = zone === "ADD_ZONE" ? "var(--green)" : zone === "EXIT_ZONE" ? "var(--red)" : "var(--amber)";
+                const zoneBg = zone === "ADD_ZONE" ? "var(--green-dim)" : zone === "EXIT_ZONE" ? "var(--red-dim)" : "var(--amber-dim)";
+                const zoneLabel = zone === "ADD_ZONE" ? "🟢 ADD ZONE" : zone === "EXIT_ZONE" ? "🔴 EXIT ZONE" : "🟡 REVIEW";
+                return (
+                  <div key={zone} style={{ marginBottom: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: zoneColor, animation: "pulse-alert 2s ease-in-out infinite", flexShrink: 0 }} />
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: zoneColor }}>{zoneLabel}</span>
+                    </div>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {items.map((h) => {
+                        const triggerPrice = zone === "EXIT_ZONE" ? h.trigger_price_exit : h.trigger_price_add;
+                        const pctFromTrigger = triggerPrice && triggerPrice > 0
+                          ? ((h.price - triggerPrice) / triggerPrice * 100)
+                          : null;
+                        const currencySymbol = h.currency === "GBP" || h.currency === "GBX" ? "£" : h.currency === "EUR" ? "€" : h.currency === "SEK" ? "kr" : "$";
+                        const triggerNote = zone === "EXIT_ZONE"
+                          ? (h.exit_trigger || (triggerPrice ? `Exit @ ${currencySymbol}${triggerPrice}` : "—"))
+                          : (h.add_trigger || (triggerPrice ? `Add @ ${currencySymbol}${triggerPrice}` : "—"));
+                        return (
+                          <div key={h.ticker} style={{
+                            display: "flex",
+                            alignItems: isMobile ? "flex-start" : "center",
+                            flexDirection: isMobile ? "column" : "row",
+                            gap: isMobile ? 4 : 12,
+                            padding: "8px 12px",
+                            borderLeft: `3px solid ${zoneColor}`,
+                            background: zoneBg,
+                            borderRadius: 2,
+                          }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 55 }}>{h.ticker}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{currencySymbol}{h.price.toFixed(2)}</span>
+                            {pctFromTrigger !== null && (
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: zoneColor, minWidth: 90 }}>
+                                {pctFromTrigger > 0 ? "↑" : "↓"}{Math.abs(pctFromTrigger).toFixed(1)}% from trigger
+                              </span>
+                            )}
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{triggerNote}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Next Actions card */}
         <div style={{ ...card, borderLeft: "3px solid var(--gold)" }}>
           <div style={cardHeader}>
