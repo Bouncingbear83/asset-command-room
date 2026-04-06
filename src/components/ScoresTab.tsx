@@ -317,7 +317,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
           <td style={{ padding: p }}>
              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
-              {!isMobile && <button
+              {<button
                 title={`Deep dive ${s.ticker}`}
                 onClick={(e) => {
                   e.stopPropagation();
