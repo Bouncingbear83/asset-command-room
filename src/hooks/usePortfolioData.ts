@@ -336,6 +336,8 @@ function parseHoldings(rows: Record<string, any>[]) {
       low_52w: parseNum(findCol(row, "LOW_52w", "LOW_52W", "low_52w", "Low_52w")),
       deploy_target_gbp: parseNum(findCol(row, "deploy_target_gbp", "DEPLOY_TARGET_GBP", "Deploy_Target_GBP")),
       deploy_note: String(findCol(row, "deploy_note", "DEPLOY_NOTE", "Deploy_Note") ?? ""),
+      trigger_review_date: String(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE") ?? ""),
+      trigger_review_note: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
     }));
 }
 
@@ -853,7 +855,7 @@ export function usePortfolioData(): PortfolioData {
         transactionsRaw,
         jisaHoldingsRaw,
       ] = await Promise.all([
-        fetchSheet({ gid: GIDS.holdings, range: "A1:AF50" }),
+        fetchSheet({ gid: GIDS.holdings, range: "A1:AJ35" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores }).catch(() => []),
