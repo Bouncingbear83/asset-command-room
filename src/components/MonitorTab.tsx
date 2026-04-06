@@ -190,8 +190,8 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Structural Triggers</span>
-          <span style={rag(liveStructural.length > 0 ? "MONITOR" : "CLEAR")}>
-            {liveStructural.length > 0 ? `${liveStructural.length} TRIGGERS` : "NO LIVE DATA"}
+          <span style={rag(worstStatus(liveStructural))}>
+            {headerLabel(liveStructural)}
           </span>
         </div>
         <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
