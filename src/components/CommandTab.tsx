@@ -654,7 +654,10 @@ export default function CommandTab() {
           </div>
           <div style={{ padding: mp }}>
             {displayActions.length === 0 ? (
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No actions required</div>
+              <div className="empty-state">
+                <span className="empty-state-icon">✓</span>
+                <span className="empty-state-text">No actions required</span>
+              </div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {displayActions.map((a, i) => (
@@ -745,7 +748,10 @@ export default function CommandTab() {
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--amber)", marginBottom: 12, lineHeight: 1.5 }}>When pause lifts, deploy in this order:</div>
             )}
             {deployQueue.length === 0 ? (
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>No deployments queued</div>
+              <div className="empty-state">
+                <span className="empty-state-icon">📦</span>
+                <span className="empty-state-text">No deployments queued</span>
+              </div>
             ) : (
               <div style={{ display: "grid", gap: isMobile ? 0 : 8 }}>
                 {deployQueue.map((d, i) => {
@@ -796,7 +802,10 @@ export default function CommandTab() {
           </div>
           <div style={{ padding: isMobile ? "0 12px 8px" : "0 20px 8px" }}>
             {earningsThisWeek.length === 0 ? (
-              <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No earnings this week</div>
+              <div className="empty-state">
+                <span className="empty-state-icon">📅</span>
+                <span className="empty-state-text">No earnings this week</span>
+              </div>
             ) : (
               earningsThisWeek.map((item) => {
                 const isUrgent = item.daysUntil <= 2;
