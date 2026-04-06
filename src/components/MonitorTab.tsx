@@ -252,8 +252,8 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
         <div style={{ ...card, gridColumn: "1 / -1" }}>
           <div style={cardHeader}>
             <span style={{ ...cardTitle, color: "var(--amber)" }}>Disruption Watch</span>
-            <span style={rag("AMBER")}>
-              {`${liveDisruption.length} RISK${liveDisruption.length !== 1 ? "S" : ""}`}
+            <span style={rag(worstStatus(liveDisruption))}>
+              {headerLabel(liveDisruption)}
             </span>
           </div>
           <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
@@ -274,7 +274,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
                   {item.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {item.notes}</div>}
                   {item.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {item.lastUpdated}</div>}
                 </div>
-                <span style={rag(item.status)}>{item.status || "MONITOR"}</span>
+                <span style={rag(deriveStatus(item))}>{deriveStatus(item)}</span>
               </div>
             ))}
           </div>
