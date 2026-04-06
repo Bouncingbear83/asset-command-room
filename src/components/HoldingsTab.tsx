@@ -1,16 +1,18 @@
-import { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, Shield, RefreshCw, Microscope } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { ChevronRight, ChevronDown, Shield, Microscope, AlertTriangle } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding, LiveDisruption, LiveTransaction } from "@/hooks/usePortfolioData";
-import { triggerWebhook } from "@/lib/webhooks";
+import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
+
+const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
   disruption?: LiveDisruption[];
   transactions?: LiveTransaction[];
+  scores?: LiveScore[];
 }
 
 type ViewMode = "layer" | "account" | "pricemap";
@@ -407,18 +409,11 @@ function HoldingsTable({ holdings, disruptionMap, transactions }: { holdings: Li
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
                       <button
-                        title={`Rescore ${h.ticker}`}
-                        onClick={(e) => { e.stopPropagation(); triggerWebhook("stellar-rescore", { ticker: h.ticker }, `Rescore triggered for ${h.ticker}. Check email.`); }}
-                        style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
-                      >
-                        <RefreshCw size={11} />
-                      </button>
-                      <button
                         title={`Deep dive ${h.ticker} (opens Claude project)`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const prompt = `Deep dive on ${h.ticker}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`;
-                          const url = `https://claude.ai/new?q=${encodeURIComponent(prompt)}&project_uuid=019ca3a9-aefe-77ea-af76-db62fd96f4e1`;
+                          const prompt = `Deep dive rescore on ${h.ticker}. Layer: ${h.layer}. Current score: ${h.gl}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`;
+                          const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                           (window.top || window).open(url, '_blank');
                         }}
                         style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
@@ -769,8 +764,10 @@ function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" 
   };
 }
 
-export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [] }: Props) {
+export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [] }: Props) {
   const [view, setView] = useState<ViewMode>("layer");
+  const [reviewExpanded, setReviewExpanded] = useState(false);
+  const reviewBannerRef = useRef<HTMLDivElement>(null);
 
   const disruptionMap = new Map<string, LiveDisruption>();
   for (const d of disruption) {
@@ -785,8 +782,121 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   const sippTotal = sippData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
   const isaTotal = isaData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
 
+  // Build scores map for cross-referencing
+  const scoresMap = new Map(scores.map(s => [s.ticker, s]));
+
+  // Parse review flags
+  const parseReviewFlag = (note: string) => {
+    if (!note || !note.startsWith('Q_REVIEW')) return null;
+    const match = note.match(/^Q_REVIEW\s+(\S+)\s+(HIGH|MEDIUM|LOW)\s+\[(\w+)\]\s+(.+)$/);
+    if (!match) return null;
+    return { quarter: match[1], priority: match[2] as 'HIGH' | 'MEDIUM' | 'LOW', flagType: match[3], reason: match[4] };
+  };
+
+  type ReviewFlag = NonNullable<ReturnType<typeof parseReviewFlag>>;
+
+  const flaggedHoldings = allHoldings
+    .map(h => {
+      const flag = parseReviewFlag(h.trigger_review_note);
+      if (!flag) return null;
+      const scoreData = scoresMap.get(h.ticker);
+      return { holding: h, flag, score: scoreData?.score ?? null, scoreDate: scoreData?.scoreDate ?? null };
+    })
+    .filter(Boolean) as { holding: LiveHolding; flag: ReviewFlag; score: number | null; scoreDate: string | null }[];
+
+  // Deduplicate by ticker (SIPP+ISA may have same ticker)
+  const uniqueFlagged = Array.from(new Map(flaggedHoldings.map(f => [f.holding.ticker, f])).values());
+
+  const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+  uniqueFlagged.sort((a, b) => priorityOrder[a.flag.priority] - priorityOrder[b.flag.priority]);
+
+  const highCount = uniqueFlagged.filter(f => f.flag.priority === 'HIGH').length;
+  const medCount = uniqueFlagged.filter(f => f.flag.priority === 'MEDIUM').length;
+  const lowCount = uniqueFlagged.filter(f => f.flag.priority === 'LOW').length;
+
+  const priorityDotColor = (p: string) => p === 'HIGH' ? 'var(--red)' : p === 'MEDIUM' ? 'var(--amber)' : 'var(--green)';
+  const priorityEmoji = (p: string) => p === 'HIGH' ? '🔴' : p === 'MEDIUM' ? '🟡' : '🟢';
+
+  const daysSince = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  };
+
+  // Build review flag map for dot badges
+  const reviewFlagMap = new Map(uniqueFlagged.map(f => [f.holding.ticker, f.flag]));
+
+  const scrollToReviewBanner = () => {
+    setReviewExpanded(true);
+    reviewBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div>
+      {/* Review Queue Banner */}
+      {uniqueFlagged.length > 0 && (
+        <div ref={reviewBannerRef} style={{ ...card, marginBottom: 20, borderLeft: "3px solid var(--gold)" }}>
+          <div
+            onClick={() => setReviewExpanded(!reviewExpanded)}
+            style={{ ...cardHeader, cursor: "pointer" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={14} style={{ color: "var(--gold)" }} />
+              <span style={{ ...cardTitle, color: "var(--gold)" }}>
+                ⚠️ {uniqueFlagged.length} position{uniqueFlagged.length !== 1 ? "s" : ""} flagged for review
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                ({[highCount > 0 && `${highCount} HIGH`, medCount > 0 && `${medCount} MEDIUM`, lowCount > 0 && `${lowCount} LOW`].filter(Boolean).join(", ")})
+              </span>
+            </div>
+            <div style={{ color: "var(--text-dim)" }}>{reviewExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
+          </div>
+          {reviewExpanded && (
+            <div style={{ padding: "0 20px 16px" }}>
+              {(['HIGH', 'MEDIUM', 'LOW'] as const).map(priority => {
+                const items = uniqueFlagged.filter(f => f.flag.priority === priority);
+                if (items.length === 0) return null;
+                return (
+                  <div key={priority} style={{ marginTop: 12 }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: priorityDotColor(priority), marginBottom: 6 }}>
+                      {priorityEmoji(priority)} {priority}
+                    </div>
+                    {items.map(({ holding, flag, score, scoreDate }) => {
+                      const days = daysSince(scoreDate as string);
+                      return (
+                        <div key={holding.ticker} style={{ background: "rgba(20,20,40,0.4)", border: "1px solid var(--rim)", borderLeft: `3px solid ${priorityDotColor(flag.priority)}`, padding: "10px 14px", marginBottom: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+                            <div>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{holding.ticker}</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--accent)", marginLeft: 8, padding: "1px 6px", background: "var(--accent-dim)", border: "1px solid rgba(110,142,200,0.2)", borderRadius: 2, letterSpacing: "0.08em" }}>[{flag.flagType}]</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", marginLeft: 8 }}>{flag.reason}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const prompt = `Deep dive rescore on ${holding.ticker}. Quarterly flagged ${flag.flagType}: ${flag.reason}. Current score ${score ?? "N/A"} scored ${scoreDate ?? "N/A"}. Run full 6D assessment and Research Commit when done.`;
+                                const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                                (window.top || window).open(url, '_blank');
+                              }}
+                              style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", background: "none", border: "1px solid var(--accent)", color: "var(--accent)", cursor: "pointer", padding: "3px 10px", borderRadius: 2, whiteSpace: "nowrap", transition: "all 0.15s" }}
+                            >
+                              Review ➜
+                            </button>
+                          </div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 4 }}>
+                            Score: {score ?? "—"} · Scored: {scoreDate ?? "—"}{days != null ? ` (${days} days ago)` : ""}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ ...card, marginBottom: 20 }}>
         <div style={cardHeader}>
           <span style={cardTitle}>Holdings</span>
