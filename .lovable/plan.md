@@ -1,28 +1,31 @@
 
 
-## Hardcode Test Q_REVIEW Flags on Sample Holdings
+## Fix: Monitor Tab Card Headers Should Reflect Worst Child Status
 
-### Summary
-Inject test review flags into the holdings data after it's parsed from the spreadsheet, so the Review Queue banner and priority dots become visible for verification. This is a temporary change — easy to remove after testing.
+### Problem
+The "Cost Curve Metrics" and "Structural Triggers" card header badges are hardcoded to show "MONITOR" (amber) whenever any rows exist, regardless of their actual statuses. If all metrics are GREEN, the header still shows amber. If any are RED, the header still shows amber. The header should reflect the worst status among its children.
 
-### Approach
-In `src/hooks/usePortfolioData.ts`, after the `parseHoldings()` call returns the array (~line 341), add a post-processing step that injects `trigger_review_date` and `trigger_review_note` on the first 5 holdings (or by known tickers if available). This ensures the data flows through all downstream components without modifying parsing logic.
+### Current behavior (lines 127, 158)
+- Cost Curves: always shows `"MONITOR"` if `liveCostCurves.length > 0`
+- Structural Triggers: always shows `"MONITOR"` if `liveStructural.length > 0`
 
-### Test data to inject (on first 5 holdings with tickers)
-| Index | Priority | Flag | Note |
-|-------|----------|------|------|
-| 0 | HIGH | EARNINGS | Revenue miss 15% vs consensus |
-| 1 | HIGH | COMPETITOR | Starlink Direct-to-Cell launch |
-| 2 | HIGH | KILL_CONDITION | Thesis invalidated by merger |
-| 3 | MEDIUM | STALE | Score date >90 days old |
-| 4 | LOW | PRICE_MOVE | Price moved >30% since last scored |
+### Fix
+Add a helper function that scans an array of monitor items and returns the worst status using priority: RED/TRIGGERED/FIRED > AMBER > WATCH/MONITOR > GREEN/CLEAR/PASS/NORMAL.
+
+Then replace the hardcoded `"MONITOR"` in both card headers with the result of this function. The header label text should also update accordingly (e.g., "2 RED" or "ALL CLEAR" instead of just "3 METRICS").
 
 ### Technical detail
 
-**File**: `src/hooks/usePortfolioData.ts`
+**File**: `src/components/MonitorTab.tsx`
 
-After the `parseHoldings()` function returns the mapped array (line ~341), add a clearly marked `// TEST: inject review flags` block that overwrites `trigger_review_date` and `trigger_review_note` on holdings at indices 0–4 (only if the array has that many items). Use today's date for the review date.
+1. Add a `worstStatus(items)` helper that iterates items, maps each `item.status` to a severity level (RED=3, AMBER=2, WATCH/MONITOR=1, GREEN=0), and returns the status string with the highest severity. Defaults to "CLEAR" for empty arrays.
+
+2. Add a `headerLabel(items)` helper that counts items by RAG level and returns a summary like "2 RED, 1 AMBER" or "ALL GREEN".
+
+3. Line 127: replace `liveCostCurves.length > 0 ? "MONITOR" : "CLEAR"` with `worstStatus(liveCostCurves)`
+4. Line 158: replace `liveStructural.length > 0 ? "MONITOR" : "CLEAR"` with `worstStatus(liveStructural)`
+5. Update the label text on lines 128 and 159 to use `headerLabel()` instead of just showing the count.
 
 ### Files changed
-- `src/hooks/usePortfolioData.ts` — temporary test injection after parseHoldings return
+- `src/components/MonitorTab.tsx` — add `worstStatus` + `headerLabel` helpers; update two card header badges
 
