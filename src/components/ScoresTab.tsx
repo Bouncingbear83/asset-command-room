@@ -9,7 +9,7 @@ interface Props {
   scores: LiveScore[];
   scoreLog: LiveScoreLog[];
   disruptionData?: LiveDisruption[];
-  holdings?: LiveHolding[];
+  allHoldings?: LiveHolding[];
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
@@ -190,7 +190,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-export default function ScoresTab({ scores, scoreLog, disruptionData = [], holdings = [] }: Props) {
+export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHoldings = [] }: Props) {
   const isMobile = useIsMobile();
   const [activeView, setActiveView] = useState<TabView>("scores");
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
