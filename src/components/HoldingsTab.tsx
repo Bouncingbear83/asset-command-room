@@ -764,6 +764,8 @@ function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" 
     low_52w: null,
     deploy_target_gbp: 0,
     deploy_note: "",
+    trigger_review_date: "",
+    trigger_review_note: "",
   };
 }
 
