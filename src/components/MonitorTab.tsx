@@ -6,27 +6,29 @@ interface Props {
   weeklyTriggers: LiveWeeklyTrigger[];
 }
 
+const parseThreshold = (val: any): { num: number; isFloor: boolean; isCeiling: boolean } | null => {
+  const str = String(val).trim();
+  const isFloor = str.startsWith("<") || str.startsWith("≤");
+  const isCeiling = str.startsWith(">") || str.startsWith("≥");
+  const num = parseFloat(str.replace(/[^0-9.\-]/g, ""));
+  if (isNaN(num)) return null;
+  return { num, isFloor, isCeiling };
+};
+
 const proximityIndicator = (metric: { current: any; amberThreshold: any; unit?: string }) => {
   const cur = parseFloat(String(metric.current).replace(/[^0-9.\-]/g, ""));
-  const amber = parseFloat(String(metric.amberThreshold).replace(/[^0-9.\-]/g, ""));
-  if (isNaN(cur) || isNaN(amber) || amber === 0) return null;
+  const parsed = parseThreshold(metric.amberThreshold);
+  if (isNaN(cur) || !parsed || parsed.num === 0) return null;
 
-  // For cost curves, lower current = more disruptive, amber is the "danger" floor
-  // Check if amber threshold uses "<" logic (current should stay above amber)
-  const amberStr = String(metric.amberThreshold).trim();
-  const isFloor = amberStr.startsWith("<") || amberStr.startsWith("≤");
-  // For ">" thresholds (e.g., humanoid cost > 50000), invert
-  const isCeiling = amberStr.startsWith(">") || amberStr.startsWith("≥");
+  const { num: amber, isCeiling } = parsed;
 
   let ratio: number;
   let pctToAmber: number;
 
   if (isCeiling) {
-    // Current should stay below amber (e.g., humanoid cost)
     ratio = amber / cur;
     pctToAmber = Math.round(((amber - cur) / cur) * 100);
   } else {
-    // Default: current above amber is safe (cost curves — lower is disruptive)
     ratio = cur / amber;
     pctToAmber = Math.round(((cur - amber) / amber) * 100);
   }
@@ -48,6 +50,31 @@ const proximityIndicator = (metric: { current: any; amberThreshold: any; unit?: 
   return { arrow, color, label };
 };
 
+const deriveStatus = (metric: { current: any; amberThreshold: any; redThreshold?: any; status?: string }): string => {
+  const cur = parseFloat(String(metric.current).replace(/[^0-9.\-]/g, ""));
+  if (isNaN(cur)) return (metric.status || "MONITOR").toUpperCase();
+
+  // Check red threshold first
+  const red = parseThreshold(metric.redThreshold);
+  if (red) {
+    const breached = red.isCeiling ? cur >= red.num : cur <= red.num;
+    if (breached) return "RED";
+  }
+
+  // Check amber threshold
+  const amber = parseThreshold(metric.amberThreshold);
+  if (amber) {
+    const breached = amber.isCeiling ? cur >= amber.num : cur <= amber.num;
+    if (breached) return "AMBER";
+
+    // Within 30% of amber → WATCH
+    const ratio = amber.isCeiling ? amber.num / cur : cur / amber.num;
+    if (ratio <= 1.3) return "WATCH";
+  }
+
+  return "GREEN";
+};
+
 const statusSeverity = (s: string): number => {
   const upper = (s || "").toUpperCase();
   if (["RED", "TRIGGERED", "FIRED", "BREACH", "BREACHED"].includes(upper)) return 3;
@@ -56,22 +83,24 @@ const statusSeverity = (s: string): number => {
   return 0;
 };
 
-const worstStatus = (items: { status?: string }[]): string => {
+const worstStatus = (items: { current: any; amberThreshold: any; redThreshold?: any; status?: string }[]): string => {
   if (items.length === 0) return "CLEAR";
   let worst = 0;
   let worstLabel = "GREEN";
   for (const item of items) {
-    const sev = statusSeverity(item.status || "GREEN");
-    if (sev > worst) { worst = sev; worstLabel = (item.status || "GREEN").toUpperCase(); }
+    const derived = deriveStatus(item);
+    const sev = statusSeverity(derived);
+    if (sev > worst) { worst = sev; worstLabel = derived; }
   }
   return worstLabel;
 };
 
-const headerLabel = (items: { status?: string }[]): string => {
+const headerLabel = (items: { current: any; amberThreshold: any; redThreshold?: any; status?: string }[]): string => {
   if (items.length === 0) return "NO LIVE DATA";
   const counts: Record<string, number> = {};
   for (const item of items) {
-    const sev = statusSeverity(item.status || "GREEN");
+    const derived = deriveStatus(item);
+    const sev = statusSeverity(derived);
     const label = sev === 3 ? "RED" : sev === 2 ? "AMBER" : sev === 1 ? "WATCH" : "GREEN";
     counts[label] = (counts[label] || 0) + 1;
   }
@@ -181,7 +210,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
                 {metric.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {metric.notes}</div>}
                 {metric.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {metric.lastUpdated}</div>}
               </div>
-              <span style={rag(metric.status)}>{metric.status || "MONITOR"}</span>
+              <span style={rag(deriveStatus(metric))}>{deriveStatus(metric)}</span>
             </div>
           ))}
         </div>
@@ -213,7 +242,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
                 {trigger.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {trigger.notes}</div>}
                 {trigger.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {trigger.lastUpdated}</div>}
               </div>
-              <span style={rag(trigger.status)}>{trigger.status || "MONITOR"}</span>
+              <span style={rag(deriveStatus(trigger))}>{deriveStatus(trigger)}</span>
             </div>
           ))}
         </div>
