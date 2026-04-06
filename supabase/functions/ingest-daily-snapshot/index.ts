@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
       .upsert(rows, { onConflict: conflict, ignoreDuplicates: false });
 
     if (error) {
+      console.error(`${table} error:`, JSON.stringify(error));
       results[key] = { rows: rows.length, status: "error", error: error.message };
     } else {
       results[key] = { rows: rows.length, status: "ok" };
