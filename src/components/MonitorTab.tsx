@@ -159,8 +159,8 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Cost Curve Metrics</span>
-          <span style={rag(liveCostCurves.length > 0 ? "MONITOR" : "CLEAR")}>
-            {liveCostCurves.length > 0 ? `${liveCostCurves.length} METRICS` : "NO LIVE DATA"}
+          <span style={rag(worstStatus(liveCostCurves))}>
+            {headerLabel(liveCostCurves)}
           </span>
         </div>
         <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px" }}>
