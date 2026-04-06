@@ -295,7 +295,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
             <option value="">Select ticker…</option>
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-rescore", { ticker: webhookTarget }, `Rescore triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>Fire</button>
+          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-rescore", { ticker: webhookTarget }, `Rescore triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>{webhookLoading ? "…" : "Fire"}</button>
         </div>
         {/* Earnings Prep */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -304,7 +304,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
             <option value="">Select ticker…</option>
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-earnings-prep", { ticker: webhookTarget }, `Earnings prep triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>Fire</button>
+          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-earnings-prep", { ticker: webhookTarget }, `Earnings prep triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>{webhookLoading ? "…" : "Fire"}</button>
         </div>
         {/* Layer Scan */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -313,8 +313,9 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
             <option value="">Select layer…</option>
             {layerNames.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
-          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-layer-scan", { layer: webhookTarget }, `Layer scan triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>Fire</button>
+          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-layer-scan", { layer: webhookTarget }, `Layer scan triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>{webhookLoading ? "…" : "Fire"}</button>
         </div>
+        {webhookFired && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--green)", marginTop: 6, letterSpacing: "0.1em" }}>{webhookFired}</div>}
       </div>
     </div>
   );
