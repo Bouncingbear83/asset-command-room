@@ -204,6 +204,16 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   const sorted = sortScores(data, sortKey, sortDir);
   const isLive = scores.length > 0;
 
+  // Build review flag map from holdings data
+  const reviewFlagMap = new Map<string, 'HIGH' | 'MEDIUM' | 'LOW'>();
+  for (const h of allHoldings) {
+    if (h.trigger_review_note?.startsWith('Q_REVIEW')) {
+      const match = h.trigger_review_note.match(/^Q_REVIEW\s+\S+\s+(HIGH|MEDIUM|LOW)/);
+      if (match) reviewFlagMap.set(h.ticker, match[1] as 'HIGH' | 'MEDIUM' | 'LOW');
+    }
+  }
+  const reviewDotColor = (p: string) => p === 'HIGH' ? 'var(--red)' : p === 'MEDIUM' ? 'var(--amber)' : 'var(--green)';
+
   const holdings = sorted.filter((s) => s.rowType !== "watchlist");
   const watchlist = sorted.filter((s) => s.rowType === "watchlist");
 
