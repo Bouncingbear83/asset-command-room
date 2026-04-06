@@ -242,7 +242,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
                 {trigger.notes && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>→ {trigger.notes}</div>}
                 {trigger.lastUpdated && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, opacity: 0.6 }}>Updated: {trigger.lastUpdated}</div>}
               </div>
-              <span style={rag(trigger.status)}>{trigger.status || "MONITOR"}</span>
+              <span style={rag(deriveStatus(trigger))}>{deriveStatus(trigger)}</span>
             </div>
           ))}
         </div>
