@@ -381,7 +381,9 @@ function UnifiedView({
   }, [holdingsWithReturns, groupMode, totalAum]);
 
   const visibleCols = UNIFIED_COLUMNS.filter(c => !(isMobile && c.hideMobile));
-  const totalCols = visibleCols.length + 2; // +notes(desktop) +action +chevron
+  // Extra cols after Price: 30D, MA20, MA50, Cost, P&L, Ann.Ret, Notes, Action, chevron
+  const extraDesktopCols = 6; // 30D, MA20, MA50, Cost, P&L, Ann.Ret
+  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3); // +Notes +Action +chevron on desktop
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
   const pad = isMobile ? "8px 6px" : "8px 12px";
   const cellPad = isMobile ? "10px 6px" : "10px 12px";
@@ -411,6 +413,12 @@ function UnifiedView({
                 {col.label}{col.sortable !== false ? arrow(col.key) : ""}
               </th>
             ))}
+            {!isMobile && <th style={{ ...thS, cursor: "default" }} title="30-day price trend · Updated nightly">30D</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA20</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA50</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("cost")}>Cost £{arrow("cost")}</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("truePL")}>P&L £{arrow("truePL")}</th>}
+            <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("annReturn")}>Ann. Ret{arrow("annReturn")}</th>
             {!isMobile && <th style={{ ...thS, cursor: "default" }}>Notes</th>}
             <th style={{ ...thS, cursor: "pointer" }} onClick={() => handleSort("action")}>Action{arrow("action")}</th>
             <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
