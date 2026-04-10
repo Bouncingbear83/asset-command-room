@@ -475,6 +475,22 @@ function UnifiedView({
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+                        {!isMobile && (() => {
+                          const pd = priceData?.get(h.ticker);
+                          return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
+                        })()}
+                        {!isMobile && (() => {
+                          const pd = priceData?.get(h.ticker);
+                          const ma20 = pd?.ma20;
+                          const maColor = ma20 != null && h.price != null ? (h.price > ma20 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
+                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma20 != null ? ma20.toFixed(2) : "—"}</td>;
+                        })()}
+                        {!isMobile && (() => {
+                          const pd = priceData?.get(h.ticker);
+                          const ma50 = pd?.ma50;
+                          const maColor = ma50 != null && h.price != null ? (h.price > ma50 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
+                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma50 != null ? ma50.toFixed(2) : "—"}</td>;
+                        })()}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", textAlign: "right", fontSize: 10 }}>{hasReturns ? `£${r!.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
                         {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
                         <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>
