@@ -534,31 +534,31 @@ function UnifiedView({
   );
 }
 
-// ── Price Map (unchanged) ──
+// ── Price Map (updated with MA20/MA50) ──
 
 type PriceMapSort = "ma_dist" | "pct_above_low" | "pct_below_high";
 
-function getPriceMapSortValue(h: LiveHolding, sort: PriceMapSort): number {
+function getPriceMapSortValue(h: LiveHolding, sort: PriceMapSort, ma20: number | null): number {
   const price = h.price!;
   const low = h.low_52w!;
   const high = h.high_52w!;
-  const ma60 = h.ma60!;
+  const ref = ma20 ?? h.ma60 ?? price;
   switch (sort) {
     case "pct_above_low": return ((price - low) / low) * 100;
     case "pct_below_high": return ((high - price) / high) * 100;
-    case "ma_dist": return Math.abs(((price - ma60) / ma60) * 100);
+    case "ma_dist": return Math.abs(((price - ref) / ref) * 100);
   }
 }
 
-function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
+function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; priceData?: PriceDataMap }) {
   const [sortMode, setSortMode] = useState<PriceMapSort>("ma_dist");
   const deduped = new Map<string, LiveHolding>();
   for (const h of allHoldings) {
     const key = h.ticker || h.name;
-    if (!deduped.has(key) || (h.ma60 && !deduped.get(key)!.ma60)) deduped.set(key, h);
+    if (!deduped.has(key) || (h.high_52w && !deduped.get(key)!.high_52w)) deduped.set(key, h);
   }
 
-  const valid = Array.from(deduped.values()).filter((h) => h.ma60 && h.high_52w && h.low_52w && h.price != null);
+  const valid = Array.from(deduped.values()).filter((h) => h.high_52w && h.low_52w && h.price != null);
   const grouped = new Map<string, LiveHolding[]>();
   for (const h of valid) {
     const key = h.layer || "Uncategorised";
@@ -572,11 +572,11 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   });
 
   if (valid.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No price map data — populate MA60, HIGH_52w, LOW_52w columns in holdings sheets.</div>;
+    return <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No price map data — populate HIGH_52w, LOW_52w columns in holdings sheets.</div>;
   }
 
   const SORT_OPTIONS: { key: PriceMapSort; label: string }[] = [
-    { key: "ma_dist", label: "60d MA Dist" },
+    { key: "ma_dist", label: "MA20 Dist" },
     { key: "pct_above_low", label: "% Above 52W Low" },
     { key: "pct_below_high", label: "% Below 52W High" },
   ];
@@ -588,7 +588,11 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
         {SORT_OPTIONS.map((opt) => <ToggleButton key={opt.key} active={sortMode === opt.key} label={opt.label} onClick={() => setSortMode(opt.key)} />)}
       </div>
       {layers.map(([layer, holdings]) => {
-        const sorted = [...holdings].sort((a, b) => getPriceMapSortValue(a, sortMode) - getPriceMapSortValue(b, sortMode));
+        const sorted = [...holdings].sort((a, b) => {
+          const pdA = priceData?.get(a.ticker);
+          const pdB = priceData?.get(b.ticker);
+          return getPriceMapSortValue(a, sortMode, pdA?.ma20 ?? null) - getPriceMapSortValue(b, sortMode, pdB?.ma20 ?? null);
+        });
         return (
           <div key={layer} style={{ marginBottom: 20 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>{layer}</div>
@@ -596,18 +600,19 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
               const low = h.low_52w!;
               const high = h.high_52w!;
               const price = h.price!;
-              const ma60 = h.ma60!;
+              const pd = priceData?.get(h.ticker);
+              const ma20 = pd?.ma20 ?? null;
+              const ma50 = pd?.ma50 ?? null;
               const range = high - low;
               if (range <= 0) return null;
 
               const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
-              const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
-              const distFromMa = ((price - ma60) / ma60) * 100;
-              const sortVal = getPriceMapSortValue(h, sortMode);
+              const refMa = ma20 ?? h.ma60;
+              const distFromMa = refMa ? ((price - refMa) / refMa) * 100 : 0;
 
               let statusColor: string;
               let statusLabel: string;
-              if (price < ma60) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
+              if (refMa && price < refMa) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
               else if (pricePct >= 80) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
               else { statusColor = "var(--green)"; statusLabel = "Healthy"; }
 
@@ -622,10 +627,27 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
                   </div>
                   <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
                     <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
-                    <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
-                      <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
-                    </div>
+                    {/* MA20 marker */}
+                    {ma20 != null && (() => {
+                      const maPct = Math.max(0, Math.min(100, ((ma20 - low) / range) * 100));
+                      return (
+                        <div style={{ position: "absolute", left: `${maPct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--accent)", whiteSpace: "nowrap", marginBottom: 1 }}>20d</span>
+                          <div style={{ width: 0, flex: 1, borderLeft: "1.5px solid var(--accent)" }} />
+                        </div>
+                      );
+                    })()}
+                    {/* MA50 marker */}
+                    {ma50 != null && (() => {
+                      const maPct = Math.max(0, Math.min(100, ((ma50 - low) / range) * 100));
+                      return (
+                        <div style={{ position: "absolute", left: `${maPct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>50d</span>
+                          <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+                        </div>
+                      );
+                    })()}
+                    {/* Price marker */}
                     <div style={{ position: "absolute", left: `${pricePct}%`, top: 2, bottom: 2, width: 3, background: statusColor, borderRadius: 1 }} />
                     <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
                     <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
@@ -637,7 +659,6 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
                   <div style={{ width: 140, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)", color: statusColor, border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`, padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{statusLabel}</span>
                     <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>{distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%</span>
-                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 8, color: "var(--text-dim)", whiteSpace: "nowrap" }}>({sortVal.toFixed(1)}%)</span>
                   </div>
                 </div>
               );
