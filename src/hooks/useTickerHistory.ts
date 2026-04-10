@@ -19,27 +19,47 @@ export function useTickerHistory() {
     setLoading(prev => new Set(prev).add(ticker));
 
     try {
-      const { data, error } = await supabase
+      // Fetch newest first to prioritise recent data (PostgREST caps at 1000 rows)
+      const { data: batch1, error } = await supabase
         .from("daily_prices")
         .select("snapshot_date, price_local, price_gbp")
         .eq("ticker", ticker)
-        .order("snapshot_date", { ascending: true })
-        .limit(5000);
+        .order("snapshot_date", { ascending: false })
+        .limit(1000);
 
       if (error) {
         console.error(`ticker history fetch error for ${ticker}:`, error.message);
         return;
       }
 
-      console.log(`[useTickerHistory] ${ticker}: ${(data || []).length} rows, last=${data?.length ? data[data.length - 1].snapshot_date : "none"}`);
-      const points: DailyPricePoint[] = (data || []).map(row => ({
+      let allRows = batch1 || [];
+
+      // If we hit the 1000-row cap, paginate to get older data
+      if (allRows.length === 1000) {
+        const { data: batch2 } = await supabase
+          .from("daily_prices")
+          .select("snapshot_date, price_local, price_gbp")
+          .eq("ticker", ticker)
+          .order("snapshot_date", { ascending: false })
+          .range(1000, 1999);
+
+        if (batch2 && batch2.length > 0) {
+          allRows = [...allRows, ...batch2];
+        }
+      }
+
+      // Reverse to chronological order
+      allRows.reverse();
+
+      console.log(`[useTickerHistory] ${ticker}: ${allRows.length} rows, last=${allRows.length ? allRows[allRows.length - 1].snapshot_date : "none"}`);
+      const points: DailyPricePoint[] = allRows.map(row => ({
         date: row.snapshot_date,
         priceLocal: Number(row.price_local),
         priceGbp: Number(row.price_gbp),
       }));
 
       cacheRef.current.set(ticker, points);
-      setTick(t => t + 1); // trigger re-render
+      setTick(t => t + 1);
     } finally {
       inflight.current.delete(ticker);
       setLoading(prev => {
