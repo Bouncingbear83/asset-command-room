@@ -29,12 +29,19 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
     );
   }
 
+  const btnStyle = (active: boolean): React.CSSProperties => ({
+    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
+    padding: "3px 10px", border: "1px solid var(--rim)", cursor: "pointer",
+    background: active ? "rgba(90,160,255,0.15)" : "rgba(140,140,170,0.06)",
+    color: active ? "var(--accent)" : "var(--text-mid)",
+    borderRadius: 3,
+    transition: "all 0.15s ease",
+  });
+
   const sliceCount = RANGE_DAYS[range];
   const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
 
-  const tooFew = data.length < 10;
-
-  if (tooFew) {
+  if (data.length < 10) {
     return (
       <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
