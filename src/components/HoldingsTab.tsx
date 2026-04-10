@@ -8,6 +8,8 @@ import { useRationales } from "@/hooks/useRationales";
 import { ThesisCard, RationaleLoading } from "@/components/RationalePanels";
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
+import { useTickerHistory } from "@/hooks/useTickerHistory";
+import { PriceChart } from "@/components/PriceChart";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -205,7 +207,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null }) {
+function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale, tickerHistory }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null; tickerHistory?: { points: import("@/hooks/useDailyPrices").DailyPricePoint[]; loading: boolean } }) {
   const addVal = h.trigger_price_add || h.add_trigger || "—";
   const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
@@ -215,6 +217,10 @@ function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRat
       {thesisLoading && <tr><td colSpan={colSpan}><RationaleLoading /></td></tr>}
       {!thesisLoading && thesisRationale && (
         <tr><td colSpan={colSpan} style={{ padding: 0 }}><ThesisCard rationale={thesisRationale} /></td></tr>
+      )}
+      {/* Price chart */}
+      {tickerHistory && (tickerHistory.loading || tickerHistory.points.length >= 10) && (
+        <tr><td colSpan={colSpan} style={{ padding: 0 }}><PriceChart points={tickerHistory.points} loading={tickerHistory.loading} /></td></tr>
       )}
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--green)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>ADD</span><span style={{ color: "var(--text-mid)" }}>{addVal}</span></td></tr>
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--red)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>EXIT</span><span style={{ color: "var(--text-mid)" }}>{exitVal}</span></td></tr>
@@ -316,6 +322,7 @@ function UnifiedView({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const { scoreCache, fetchScoreRationales, isLoading: isRatLoading } = useRationales();
+  const { fetchHistory, getHistory } = useTickerHistory();
 
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
     return allHoldings.map(h => ({
@@ -332,6 +339,7 @@ function UnifiedView({
       } else {
         next.add(key);
         fetchScoreRationales(ticker);
+        fetchHistory(ticker);
       }
       return next;
     });
@@ -514,7 +522,7 @@ function UnifiedView({
                         </td>
                         <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                       </tr>
-                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} />}
+                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} tickerHistory={getHistory(h.ticker)} />}
                     </>
                   );
                 })}

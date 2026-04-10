@@ -374,7 +374,18 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
             <DisruptionRationalePanel rationale={disruptionRat.latest} showHistory={true} history={disruptionRat.history} />
           </td></tr>
         )}
-        {isExpanded && !loading && !scoreRat?.latest && !dd && <tr key={`${s.ticker}-no-data`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No rationale data for {s.ticker}</span></td></tr>}
+        {isExpanded && !loading && !scoreRat?.latest && !dd && (
+          <tr key={`${s.ticker}-sheet-fallback`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+            {(s.fullThesis || s.changeNote) ? (
+              <div>
+                {s.fullThesis && <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", lineHeight: 1.6, marginBottom: s.changeNote ? 6 : 0 }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--accent)", fontWeight: 700, letterSpacing: "0.1em", marginRight: 8 }}>THESIS</span>{s.fullThesis}</div>}
+                {s.changeNote && <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-dim)", lineHeight: 1.6 }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--amber)", fontWeight: 700, letterSpacing: "0.1em", marginRight: 8 }}>CHANGE</span>{s.changeNote}</div>}
+              </div>
+            ) : (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No rationale data for {s.ticker}</span>
+            )}
+          </td></tr>
+        )}
       </>
     );
   };
