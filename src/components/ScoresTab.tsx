@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronRight, ChevronDown, Shield, Microscope } from "lucide-react";
 import { LiveScore, LiveScoreLog, LiveDisruption, LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRationales } from "@/hooks/useRationales";
+import { ScoreRationalePanel, DisruptionRationalePanel, RationaleLoading } from "@/components/RationalePanels";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -13,8 +15,7 @@ interface Props {
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
-  if (value == null)
-    return <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>;
+  if (value == null) return <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>;
   const pct = Math.min((value / max) * 100, 100);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -199,12 +200,13 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   const [dSortDir, setDSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const { scoreCache, disruptionCache, fetchScoreRationales, fetchDisruptionRationales, isLoading } = useRationales();
+
   const data = scores.length > 0 ? scores : [];
   const disruptionMap = new Map(disruptionData.map((d) => [d.ticker, d]));
   const sorted = sortScores(data, sortKey, sortDir);
   const isLive = scores.length > 0;
 
-  // Build review flag map from holdings data
   const reviewFlagMap = new Map<string, 'HIGH' | 'MEDIUM' | 'LOW'>();
   for (const h of allHoldings) {
     if (h.trigger_review_note?.startsWith('Q_REVIEW')) {
@@ -230,8 +232,27 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   const toggleExpand = (ticker: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(ticker)) next.delete(ticker);
-      else next.add(ticker);
+      if (next.has(ticker)) {
+        next.delete(ticker);
+      } else {
+        next.add(ticker);
+        // Fetch rationales on expand
+        fetchScoreRationales(ticker);
+        fetchDisruptionRationales(ticker);
+      }
+      return next;
+    });
+  };
+
+  const toggleDisruptionExpand = (ticker: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticker)) {
+        next.delete(ticker);
+      } else {
+        next.add(ticker);
+        fetchDisruptionRationales(ticker);
+      }
       return next;
     });
   };
@@ -256,16 +277,11 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   const badgeBase: React.CSSProperties = { padding: "2px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", whiteSpace: "nowrap" as const };
 
   const tabStyle = (isActive: boolean): React.CSSProperties => ({
-    background: "transparent",
-    border: "none",
+    background: "transparent", border: "none",
     borderBottom: isActive ? "2px solid var(--gold)" : "2px solid transparent",
     color: isActive ? "var(--gold)" : "var(--text-dim)",
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-    fontSize: 10,
-    letterSpacing: "0.15em",
-    textTransform: "uppercase",
-    padding: "12px 20px 10px",
+    cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 10,
+    letterSpacing: "0.15em", textTransform: "uppercase", padding: "12px 20px 10px",
   });
 
   const MOBILE_COLUMNS = ["ticker", "layer", "score", "tier", "action"];
@@ -278,6 +294,10 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
     const isExpanded = expanded.has(s.ticker);
     const dd = disruptionMap.get(s.ticker);
     const p = isMobile ? "10px 6px" : "10px 12px";
+
+    const scoreRat = scoreCache.get(s.ticker);
+    const disruptionRat = disruptionCache.get(s.ticker);
+    const loading = isLoading(s.ticker);
 
     return (
       <>
@@ -315,9 +335,9 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
           {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", whiteSpace: "nowrap" }}>{buyRange}</td>}
           <td style={{ padding: p }}><span style={{ ...tierStyle, ...badgeBase }}>{tier}</span></td>
           <td style={{ padding: p }}>
-             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {s.action && s.action.trim() ? <span style={{ ...actionStyle, ...badgeBase }}>{s.action.toUpperCase()}</span> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>—</span>}
-              {<button
+              <button
                 title={`Deep dive ${s.ticker}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -328,13 +348,26 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
                 style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
               >
                 <Microscope size={11} />
-              </button>}
+              </button>
             </div>
           </td>
           {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.changeNote || s.fullThesis}</td>}
         </tr>
+        {/* Expanded: Score rationale section */}
+        {isExpanded && loading && <tr><td colSpan={COLUMNS.length + 1}><RationaleLoading /></td></tr>}
+        {isExpanded && !loading && scoreRat?.latest && (
+          <tr key={`${s.ticker}-score-rationale`}><td colSpan={COLUMNS.length + 1} style={{ padding: 0 }}>
+            <ScoreRationalePanel rationale={scoreRat.latest} showHistory={true} history={scoreRat.history} />
+          </td></tr>
+        )}
+        {/* Expanded: Disruption section (existing numeric + enhanced with rationales) */}
         {isExpanded && dd && <tr key={`${s.ticker}-disruption`}><td colSpan={COLUMNS.length + 1}><DisruptionPanel d={dd} /></td></tr>}
-        {isExpanded && !dd && <tr key={`${s.ticker}-no-disruption`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No disruption data for {s.ticker}</span></td></tr>}
+        {isExpanded && !loading && disruptionRat?.latest && (
+          <tr key={`${s.ticker}-disruption-rationale`}><td colSpan={COLUMNS.length + 1} style={{ padding: 0 }}>
+            <DisruptionRationalePanel rationale={disruptionRat.latest} showHistory={true} history={disruptionRat.history} />
+          </td></tr>
+        )}
+        {isExpanded && !loading && !scoreRat?.latest && !dd && <tr key={`${s.ticker}-no-data`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No rationale data for {s.ticker}</span></td></tr>}
       </>
     );
   };
@@ -385,6 +418,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
               ))}
               <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Triggers</th>
               <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Evidence</th>
+              <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
             </tr>
           </thead>
           <tbody>
@@ -392,28 +426,49 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
               const scoreColor = d.disruptionScore != null ? (d.disruptionScore >= 70 ? "var(--green)" : d.disruptionScore >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-dim)";
               const st = d.status.toUpperCase();
               const statusStyle = DISRUPTION_STATUS_STYLE[st] ?? DISRUPTION_STATUS_STYLE.MONITOR;
+              const isExp = expanded.has(`d-${d.ticker}`);
+              const dRat = disruptionCache.get(d.ticker);
+              const dLoading = isLoading(d.ticker);
+
               return (
-                <tr key={d.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                  <td style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>{d.ticker}</span>
-                      {d.name && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{d.name}</span>}
-                    </div>
-                  </td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 700, color: scoreColor }}>{d.disruptionScore ?? "—"}</td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.subAvail ?? "—"}</td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.economics ?? "—"}</td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.govtSupport ?? "—"}</td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.demandVuln ?? "—"}</td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.timeViability ?? "—"}</td>
-                  <td style={{ padding: "10px 12px" }}><span style={{ ...statusStyle, ...badgeBase, padding: "2px 8px" }}>{st}</span></td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", maxWidth: 150 }}>
-                    {d.amberTrigger && <div style={{ color: "var(--amber)", marginBottom: 2 }}>⚠ {d.amberTrigger}</div>}
-                    {d.redTrigger && <div style={{ color: "var(--red)" }}>🔴 {d.redTrigger}</div>}
-                    {!d.amberTrigger && !d.redTrigger && "—"}
-                  </td>
-                  <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.evidence || "—"}</td>
-                </tr>
+                <>
+                  <tr key={d.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }} onClick={() => toggleDisruptionExpand(`d-${d.ticker}`)}>
+                    <td style={{ padding: "10px 12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {isExp ? <ChevronDown size={12} style={{ color: "var(--text-dim)" }} /> : <ChevronRight size={12} style={{ color: "var(--text-dim)" }} />}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>{d.ticker}</span>
+                          {d.name && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>{d.name}</span>}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 700, color: scoreColor }}>{d.disruptionScore ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.subAvail ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.economics ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.govtSupport ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.demandVuln ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)" }}>{d.timeViability ?? "—"}</td>
+                    <td style={{ padding: "10px 12px" }}><span style={{ ...statusStyle, ...badgeBase, padding: "2px 8px" }}>{st}</span></td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", maxWidth: 150 }}>
+                      {d.amberTrigger && <div style={{ color: "var(--amber)", marginBottom: 2 }}>⚠ {d.amberTrigger}</div>}
+                      {d.redTrigger && <div style={{ color: "var(--red)" }}>🔴 {d.redTrigger}</div>}
+                      {!d.amberTrigger && !d.redTrigger && "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.evidence || "—"}</td>
+                    <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isExp ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
+                  </tr>
+                  {isExp && dLoading && <tr><td colSpan={DISRUPTION_COLUMNS.length + 3}><RationaleLoading /></td></tr>}
+                  {isExp && !dLoading && dRat?.latest && (
+                    <tr><td colSpan={DISRUPTION_COLUMNS.length + 3} style={{ padding: 0 }}>
+                      <DisruptionRationalePanel rationale={dRat.latest} showHistory={true} history={dRat.history} />
+                    </td></tr>
+                  )}
+                  {isExp && !dLoading && !dRat?.latest && (
+                    <tr><td colSpan={DISRUPTION_COLUMNS.length + 3} style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>No disruption rationale data for {d.ticker}</span>
+                    </td></tr>
+                  )}
+                </>
               );
             })}
           </tbody>
@@ -424,7 +479,6 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
 
   return (
     <div>
-      {/* Tab switcher */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--rim)", marginBottom: 20 }}>
         <button style={tabStyle(activeView === "scores")} onClick={() => setActiveView("scores")}>Scores</button>
         <button style={tabStyle(activeView === "disruption")} onClick={() => setActiveView("disruption")}>Disruption</button>
@@ -432,7 +486,6 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
 
       {activeView === "scores" && (
         <>
-          {/* Summary row */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: isMobile ? 8 : 16, marginBottom: 20 }}>
             {[
               { label: "Holdings", value: String(holdings.length), color: "var(--text)" },

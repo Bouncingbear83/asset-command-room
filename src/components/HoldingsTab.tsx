@@ -4,6 +4,8 @@ import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
+import { useRationales } from "@/hooks/useRationales";
+import { ThesisCard, RationaleLoading } from "@/components/RationalePanels";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -200,12 +202,17 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-function TriggerRows({ h, colSpan, disruption, returns }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns }) {
+function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null }) {
   const addVal = h.trigger_price_add || h.add_trigger || "—";
   const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
   return (
     <>
+      {/* Thesis card — at top of expanded content */}
+      {thesisLoading && <tr><td colSpan={colSpan}><RationaleLoading /></td></tr>}
+      {!thesisLoading && thesisRationale && (
+        <tr><td colSpan={colSpan} style={{ padding: 0 }}><ThesisCard rationale={thesisRationale} /></td></tr>
+      )}
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--green)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>ADD</span><span style={{ color: "var(--text-mid)" }}>{addVal}</span></td></tr>
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--red)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>EXIT</span><span style={{ color: "var(--text-mid)" }}>{exitVal}</span></td></tr>
       {h.trigger_type && (
@@ -304,6 +311,8 @@ function UnifiedView({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const { scoreCache, fetchScoreRationales, isLoading: isRatLoading } = useRationales();
+
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
     return allHoldings.map(h => ({
       ...h,
@@ -311,10 +320,15 @@ function UnifiedView({
     }));
   }, [allHoldings, transactions]);
 
-  const toggle = (key: string) => {
+  const toggle = (key: string, ticker: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        fetchScoreRationales(ticker);
+      }
       return next;
     });
   };
@@ -435,7 +449,7 @@ function UnifiedView({
                   const hasReturns = r && r.totalCost > 0;
                   return (
                     <>
-                      <tr key={rowKey} onClick={() => toggle(rowKey)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
+                      <tr key={rowKey} onClick={() => toggle(rowKey, h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
                         <td style={{ padding: groupMode !== "none" && !isMobile ? "10px 12px 10px 24px" : cellPad, color: "var(--gold)", fontWeight: 700 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span>{h.ticker}</span>
@@ -472,7 +486,7 @@ function UnifiedView({
                         </td>
                         <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                       </tr>
-                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} />}
+                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} />}
                     </>
                   );
                 })}
