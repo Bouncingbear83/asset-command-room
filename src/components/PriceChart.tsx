@@ -32,7 +32,23 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const sliceCount = RANGE_DAYS[range];
   const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
 
-  if (data.length < 10) return null;
+  const tooFew = data.length < 10;
+
+  if (tooFew) {
+    return (
+      <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)" }}>PRICE HISTORY</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>Not enough data for {range}</span>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+            {RANGE_KEYS.map(k => (
+              <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const pad = { top: 16, right: 60, bottom: 24, left: 8 };
   const width = 800;
