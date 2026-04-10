@@ -735,7 +735,7 @@ function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: 
 
 // ── Main Component ──
 
-export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [] }: Props) {
+export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [], priceData }: Props) {
   const [showPriceMap, setShowPriceMap] = useState(false);
   const [groupMode, setGroupMode] = useState<GroupMode>("layer");
   const [reviewExpanded, setReviewExpanded] = useState(false);
@@ -862,7 +862,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         </div>
 
         {showPriceMap ? (
-          <PriceMapView allHoldings={allHoldings} />
+          <PriceMapView allHoldings={allHoldings} priceData={priceData} />
         ) : (
           <UnifiedView
             allHoldings={allHoldings}
@@ -872,6 +872,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
             groupMode={groupMode}
             sippTotal={sippTotal}
             isaTotal={isaTotal}
+            priceData={priceData}
           />
         )}
       </div>
