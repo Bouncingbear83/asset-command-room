@@ -341,6 +341,7 @@ function UnifiedView({
   sippTotal,
   isaTotal,
   priceData,
+  scores,
 }: {
   allHoldings: LiveHolding[];
   totalAum: number;
@@ -350,6 +351,7 @@ function UnifiedView({
   sippTotal: number;
   isaTotal: number;
   priceData?: PriceDataMap;
+  scores?: LiveScore[];
 }) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("mv");
@@ -557,7 +559,7 @@ function UnifiedView({
                         </td>
                         <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                       </tr>
-                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} tickerHistory={getHistory(h.ticker)} score={(function(){ const ss = (window as any).__holdingsScores as LiveScore[] | undefined; return ss?.find(s => s.ticker === h.ticker); })()} />}
+                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} tickerHistory={getHistory(h.ticker)} score={scores?.find(s => s.ticker === h.ticker)} />}
                     </>
                   );
                 })}
@@ -916,6 +918,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
             sippTotal={sippTotal}
             isaTotal={isaTotal}
             priceData={priceData}
+            scores={scores}
           />
         )}
       </div>
