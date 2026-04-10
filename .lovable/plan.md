@@ -1,37 +1,24 @@
 
 
-## Plan: Improve PriceChart x-axis clarity and add hover crosshair
+## Plan: Fix chart text legibility and verify data completeness
 
-### Problem 1 — X-axis appears to end at 2024
-The x-axis only shows labels at year boundaries (where the year digit changes). For the 5Y view ending in 2025/2026, the last year label ("2025" or "2026") renders at the far right edge where it collides with the y-axis price labels (right padding = 60px). The data IS there (header shows the full range), but the axis labeling makes it look truncated.
+### Problem 1 — Text is unreadable in the chart
+The SVG uses `preserveAspectRatio="none"` which stretches the chart to fill its container width. This distorts all text (x-axis labels, y-axis prices, hover tooltip) — squashing them vertically or stretching horizontally, making them illegible.
 
-**Fix:** Improve x-axis labeling strategy:
-- For 1W/1M: show individual dates (e.g. "Apr 3", "Apr 7")
-- For 1Y: show month labels ("Jan", "Apr", "Jul", "Oct")  
-- For 5Y/MAX: keep year labels but also add the final date as a label at the right edge
-- Ensure the last label never overlaps the y-axis by shifting it left if needed
+**Fix:** Change the SVG to `preserveAspectRatio="xMidYMid meet"` and set an explicit `aspect-ratio` on the container so the chart maintains proper proportions. Alternatively (and better), render all text labels as HTML overlays positioned absolutely outside the SVG, so they're never distorted by the SVG scaling. The SVG would only contain the lines/paths.
 
-### Problem 2 — No hover price indicator
-Currently the chart is a static SVG with no interactivity beyond range buttons.
+The recommended approach: use a wrapper `div` with `position: relative`, render the SVG paths inside it, and render x-axis labels, y-axis labels, and hover tooltip as absolutely-positioned HTML `<span>` elements. This guarantees crisp, readable text at any container width.
 
-**Fix:** Add a vertical crosshair + tooltip on mouse hover:
-- Track mouse position over the SVG using `onMouseMove` / `onMouseLeave`
-- Map x-position to nearest data point index
-- Draw a thin vertical line at that x position
-- Show a small floating label with the date and price (e.g. "2024-06-15 · $294.96")
-- Also show a small horizontal dot on the price line at that point
-- Use React state for hover index; null when mouse leaves
+### Problem 2 — Data appears to end in early 2025
+The DB confirms ASML has 1,260 rows through 2026-04-09. The `.limit(5000)` fix is in the code. The user may be seeing cached/stale data from before the fix was deployed. However, there could also be a race condition — the `cacheRef` check `if (cacheRef.current.has(ticker))` would skip re-fetching if old data was cached in a previous render cycle.
 
-### Problem 3 — Y-axis labels too subtle
-The right-side price labels exist (fontSize 7) but are very small.
+**Fix:** Add a cache-busting mechanism: clear ticker from cache when the component unmounts or when the limit was previously hit. Also add a visible "last date" indicator on the chart itself (not just the header) so truncation is immediately obvious.
 
-**Fix:** Increase y-axis label font size to 8-9px and add currency formatting.
-
-### Files to modify
+### Changes
 
 | File | Change |
 |------|--------|
-| `src/components/PriceChart.tsx` | Smarter x-axis labels based on range; hover crosshair with date+price tooltip; larger y-axis labels |
+| `src/components/PriceChart.tsx` | Remove `preserveAspectRatio="none"`; render all text (x-axis, y-axis, hover tooltip) as HTML elements positioned over the SVG; keep SVG for paths/lines only; increase font sizes to 11-12px for labels |
 
-Single file change. No database or data changes needed.
+Single file change. No database modifications.
 
