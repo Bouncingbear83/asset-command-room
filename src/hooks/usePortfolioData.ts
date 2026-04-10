@@ -913,10 +913,17 @@ export function usePortfolioData(): PortfolioData {
         // Fallback: row-based layout (col A = label, col B/C = values)
         if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0) {
           for (const row of cashGrid) {
-            const label = normalizeToken(row[0]);
-            if (label.includes("sipp")) cashSipp = parseMv(row[1]) || parseMv(row[2]);
-            else if (label.includes("isa")) cashIsa = parseMv(row[1]) || parseMv(row[2]);
-            else if (label.includes("total")) cashTotal = parseMv(row[1]) || parseMv(row[2]);
+            const labelA = normalizeToken(row[0]);
+            const labelB = normalizeToken(row[1]);
+            const label = labelA || labelB;
+            const valueCol = labelB && !labelA ? 2 : 1;
+            if (label.includes("sipp")) {
+              cashSipp = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
+            } else if (label.includes("isa") && !label.includes("jisa")) {
+              cashIsa = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
+            } else if (label.includes("total")) {
+              cashTotal = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
+            }
           }
           if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
         }
