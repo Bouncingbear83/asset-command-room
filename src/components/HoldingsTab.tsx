@@ -522,7 +522,7 @@ function UnifiedView({
                         </td>
                         <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                       </tr>
-                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} />}
+                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} tickerHistory={getHistory(h.ticker)} />}
                     </>
                   );
                 })}
