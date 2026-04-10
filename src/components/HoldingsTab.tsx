@@ -311,6 +311,8 @@ function UnifiedView({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const { scoreCache, fetchScoreRationales, isLoading: isRatLoading } = useRationales();
+
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
     return allHoldings.map(h => ({
       ...h,
