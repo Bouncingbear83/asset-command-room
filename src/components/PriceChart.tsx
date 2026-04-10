@@ -26,20 +26,20 @@ function formatPrice(v: number): string {
   return v.toFixed(3);
 }
 
-function buildXLabels(data: DailyPricePoint[], range: RangeKey, toX: (i: number) => number, maxX: number): { x: number; label: string }[] {
+function buildXLabels(data: DailyPricePoint[], range: RangeKey, toPct: (i: number) => number): { pct: number; label: string }[] {
   if (data.length < 2) return [];
-  const labels: { x: number; label: string }[] = [];
+  const labels: { pct: number; label: string }[] = [];
 
   if (range === "1W" || range === "1M") {
     const step = Math.max(1, Math.floor(data.length / 5));
     for (let i = 0; i < data.length; i += step) {
       const d = data[i].date;
-      labels.push({ x: toX(i), label: `${MONTHS[parseInt(d.slice(5, 7)) - 1]} ${parseInt(d.slice(8, 10))}` });
+      labels.push({ pct: toPct(i), label: `${MONTHS[parseInt(d.slice(5, 7)) - 1]} ${parseInt(d.slice(8, 10))}` });
     }
-    const lastX = toX(data.length - 1);
-    if (!labels.length || lastX - labels[labels.length - 1].x > 30) {
+    const lastPct = toPct(data.length - 1);
+    if (!labels.length || lastPct - labels[labels.length - 1].pct > 5) {
       const d = data[data.length - 1].date;
-      labels.push({ x: lastX, label: `${MONTHS[parseInt(d.slice(5, 7)) - 1]} ${parseInt(d.slice(8, 10))}` });
+      labels.push({ pct: lastPct, label: `${MONTHS[parseInt(d.slice(5, 7)) - 1]} ${parseInt(d.slice(8, 10))}` });
     }
   } else if (range === "1Y") {
     let lastMonth = "";
@@ -48,7 +48,7 @@ function buildXLabels(data: DailyPricePoint[], range: RangeKey, toX: (i: number)
       if (m !== lastMonth) {
         const monthNum = parseInt(m.slice(5, 7));
         if (monthNum % 2 === 1 || data.length < 150) {
-          labels.push({ x: toX(i), label: MONTHS[monthNum - 1] });
+          labels.push({ pct: toPct(i), label: MONTHS[monthNum - 1] });
         }
         lastMonth = m;
       }
@@ -57,42 +57,48 @@ function buildXLabels(data: DailyPricePoint[], range: RangeKey, toX: (i: number)
     let lastYear = "";
     for (let i = 0; i < data.length; i++) {
       const y = data[i].date.slice(0, 4);
-      if (y !== lastYear) { labels.push({ x: toX(i), label: y }); lastYear = y; }
+      if (y !== lastYear) { labels.push({ pct: toPct(i), label: y }); lastYear = y; }
     }
-    const finalX = toX(data.length - 1);
+    const finalPct = toPct(data.length - 1);
     const last = labels[labels.length - 1];
-    if (!last || finalX - last.x > 40) {
+    if (!last || finalPct - last.pct > 5) {
       const d = data[data.length - 1].date;
-      labels.push({ x: finalX, label: `${MONTHS[parseInt(d.slice(5, 7)) - 1]}'${d.slice(2, 4)}` });
+      labels.push({ pct: finalPct, label: `${MONTHS[parseInt(d.slice(5, 7)) - 1]}'${d.slice(2, 4)}` });
     }
   }
 
-  return labels.map(l => ({ ...l, x: Math.min(l.x, maxX - 20) }));
+  return labels.map(l => ({ ...l, pct: Math.min(l.pct, 95) }));
 }
 
-export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
+export function PriceChart({ points, loading, height = 140 }: PriceChartProps) {
   const [range, setRange] = useState<RangeKey>("1Y");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const sliceCount = RANGE_DAYS[range];
   const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
 
-  const pad = { top: 16, right: 60, bottom: 24, left: 8 };
-  const width = 800;
-  const innerW = width - pad.left - pad.right;
-  const innerH = height - pad.top - pad.bottom;
+  // Percentages for padding within the chart area
+  const padLeft = 1; // % 
+  const padRight = 8; // % for y-axis labels
+  const padTop = 10; // % 
+  const padBottom = 18; // %
+  const chartW = 100 - padLeft - padRight; // % of container
+  const chartH = 100 - padTop - padBottom; // %
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    const svg = svgRef.current;
-    if (!svg || data.length < 2) return;
-    const rect = svg.getBoundingClientRect();
-    const svgX = ((e.clientX - rect.left) / rect.width) * width;
-    const dataX = svgX - pad.left;
-    if (dataX < 0 || dataX > innerW) { setHoverIdx(null); return; }
-    const idx = Math.round((dataX / innerW) * (data.length - 1));
+  const toPctX = useCallback((i: number) => padLeft + (i / Math.max(1, data.length - 1)) * chartW, [data.length, chartW]);
+  const toPctY = useCallback((v: number, minP: number, range_: number) => padTop + chartH - ((v - minP) / range_) * chartH, [chartH]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = containerRef.current;
+    if (!el || data.length < 2) return;
+    const rect = el.getBoundingClientRect();
+    const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+    const dataXPct = xPct - padLeft;
+    if (dataXPct < 0 || dataXPct > chartW) { setHoverIdx(null); return; }
+    const idx = Math.round((dataXPct / chartW) * (data.length - 1));
     setHoverIdx(Math.max(0, Math.min(data.length - 1, idx)));
-  }, [data.length, innerW]);
+  }, [data.length, chartW]);
 
   const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
 
@@ -137,40 +143,44 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const maxP = Math.max(...prices);
   const range_ = maxP - minP || 1;
 
-  const toX = (i: number) => pad.left + (i / (data.length - 1)) * innerW;
-  const toY = (v: number) => pad.top + innerH - ((v - minP) / range_) * innerH;
-
-  const pricePath = data.map((_, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(prices[i]).toFixed(1)}`).join(" ");
+  // Build SVG path using percentage-based viewBox (0-100 x 0-100)
+  const pricePath = data.map((_, i) => {
+    const x = toPctX(i);
+    const y = toPctY(prices[i], minP, range_);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
 
   const ma20Points: string[] = [];
   const ma50Points: string[] = [];
   for (let i = 0; i < prices.length; i++) {
     const m20 = computeMA(prices, 20, i);
     const m50 = computeMA(prices, 50, i);
-    if (m20 != null) ma20Points.push(`${ma20Points.length === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(m20).toFixed(1)}`);
-    if (m50 != null) ma50Points.push(`${ma50Points.length === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(m50).toFixed(1)}`);
+    const x = toPctX(i);
+    if (m20 != null) ma20Points.push(`${ma20Points.length === 0 ? "M" : "L"}${x.toFixed(2)},${toPctY(m20, minP, range_).toFixed(2)}`);
+    if (m50 != null) ma50Points.push(`${ma50Points.length === 0 ? "M" : "L"}${x.toFixed(2)},${toPctY(m50, minP, range_).toFixed(2)}`);
   }
 
   const trendColor = prices[prices.length - 1] >= prices[0] ? "var(--green)" : "var(--red)";
-  const fillPath = `${pricePath} L${toX(data.length - 1).toFixed(1)},${(pad.top + innerH).toFixed(1)} L${toX(0).toFixed(1)},${(pad.top + innerH).toFixed(1)} Z`;
+  const bottomY = padTop + chartH;
+  const fillPath = `${pricePath} L${toPctX(data.length - 1).toFixed(2)},${bottomY.toFixed(2)} L${toPctX(0).toFixed(2)},${bottomY.toFixed(2)} Z`;
   const fillColor = prices[prices.length - 1] >= prices[0] ? "rgba(90,191,160,0.08)" : "rgba(200,90,90,0.08)";
 
-  // Year boundaries for vertical lines
-  const yearBoundaries: { x: number }[] = [];
+  // Year boundaries
+  const yearBoundaries: number[] = [];
   let lastYr = "";
   for (let i = 0; i < data.length; i++) {
     const y = data[i].date.slice(0, 4);
-    if (y !== lastYr) { yearBoundaries.push({ x: toX(i) }); lastYr = y; }
+    if (y !== lastYr) { yearBoundaries.push(toPctX(i)); lastYr = y; }
   }
 
-  const xLabels = buildXLabels(data, range, toX, width - pad.right);
+  const xLabels = buildXLabels(data, range, toPctX);
 
   const niceStep = range_ / 4;
   const yLabels = [minP, minP + niceStep, minP + 2 * niceStep, minP + 3 * niceStep, maxP];
 
   const hoverPoint = hoverIdx != null ? data[hoverIdx] : null;
-  const hoverX = hoverIdx != null ? toX(hoverIdx) : 0;
-  const hoverY = hoverIdx != null ? toY(prices[hoverIdx]) : 0;
+  const hoverXPct = hoverIdx != null ? toPctX(hoverIdx) : 0;
+  const hoverYPct = hoverIdx != null ? toPctY(prices[hoverIdx], minP, range_) : 0;
 
   return (
     <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
@@ -181,50 +191,110 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)" }}>-- MA50</span>
       </div>
       {rangeRow}
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`}
-        style={{ width: "100%", height: "auto", maxHeight: height, display: "block", cursor: "crosshair" }}
-        preserveAspectRatio="none"
+
+      {/* Chart container: SVG for paths, HTML for labels */}
+      <div
+        ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        style={{ position: "relative", width: "100%", height, cursor: "crosshair", userSelect: "none" }}
       >
-        <path d={fillPath} fill={fillColor} />
-        {yLabels.map((v, i) => (
-          <line key={`h${i}`} x1={pad.left} x2={width - pad.right} y1={toY(v)} y2={toY(v)} stroke="rgba(140,140,170,0.1)" strokeWidth="0.5" />
-        ))}
-        {yearBoundaries.slice(1).map((yb, i) => (
-          <line key={`yv${i}`} x1={yb.x} x2={yb.x} y1={pad.top} y2={pad.top + innerH} stroke="rgba(140,140,170,0.18)" strokeWidth="0.7" strokeDasharray="3,3" />
-        ))}
-        {ma50Points.length > 1 && <path d={ma50Points.join(" ")} fill="none" stroke="var(--gold)" strokeWidth="1" strokeDasharray="4,3" opacity="0.6" />}
-        {ma20Points.length > 1 && <path d={ma20Points.join(" ")} fill="none" stroke="#7bb8ff" strokeWidth="1" opacity="0.7" />}
-        <path d={pricePath} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinejoin="round" />
-        {xLabels.map((xl, i) => (
-          <text key={`xl${i}`} x={xl.x} y={height - 4} fill="var(--text-dim)" fontSize="8" fontFamily="var(--font-mono)">{xl.label}</text>
-        ))}
-        {yLabels.map((v, i) => (
-          <text key={`yp${i}`} x={width - pad.right + 4} y={toY(v) + 3} fill="rgba(180,180,200,0.8)" fontSize="9" fontFamily="var(--font-mono)">{formatPrice(v)}</text>
-        ))}
+        {/* SVG for lines/paths only */}
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        >
+          <path d={fillPath} fill={fillColor} />
+          {/* Horizontal grid lines */}
+          {yLabels.map((v, i) => {
+            const y = toPctY(v, minP, range_);
+            return <line key={`h${i}`} x1={padLeft} x2={padLeft + chartW} y1={y} y2={y} stroke="rgba(140,140,170,0.1)" strokeWidth="0.15" vectorEffect="non-scaling-stroke" />;
+          })}
+          {/* Year boundary lines */}
+          {yearBoundaries.slice(1).map((xPct, i) => (
+            <line key={`yv${i}`} x1={xPct} x2={xPct} y1={padTop} y2={bottomY} stroke="rgba(140,140,170,0.18)" strokeWidth="0.5" strokeDasharray="0.5,0.5" vectorEffect="non-scaling-stroke" />
+          ))}
+          {ma50Points.length > 1 && <path d={ma50Points.join(" ")} fill="none" stroke="var(--gold)" strokeWidth="0.5" strokeDasharray="1,0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />}
+          {ma20Points.length > 1 && <path d={ma20Points.join(" ")} fill="none" stroke="#7bb8ff" strokeWidth="0.5" opacity="0.7" vectorEffect="non-scaling-stroke" />}
+          <path d={pricePath} fill="none" stroke={trendColor} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {/* Hover crosshair line */}
+          {hoverIdx != null && (
+            <line x1={hoverXPct} x2={hoverXPct} y1={padTop} y2={bottomY} stroke="rgba(200,200,220,0.4)" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+          )}
+        </svg>
+
+        {/* Hover dot */}
         {hoverIdx != null && hoverPoint && (
-          <>
-            <line x1={hoverX} x2={hoverX} y1={pad.top} y2={pad.top + innerH} stroke="rgba(200,200,220,0.4)" strokeWidth="0.7" />
-            <circle cx={hoverX} cy={hoverY} r="3" fill={trendColor} stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" />
-            <rect
-              x={hoverX + (hoverX > width / 2 ? -130 : 8)}
-              y={Math.max(pad.top, hoverY - 20)}
-              width="122" height="18" rx="3"
-              fill="rgba(10,10,30,0.85)" stroke="rgba(140,140,170,0.3)" strokeWidth="0.5"
-            />
-            <text
-              x={hoverX + (hoverX > width / 2 ? -124 : 14)}
-              y={Math.max(pad.top + 12, hoverY - 7)}
-              fill="rgba(220,220,240,0.95)" fontSize="9" fontFamily="var(--font-mono)"
-            >
-              {hoverPoint.date} · {formatPrice(hoverPoint.priceLocal)}
-            </text>
-          </>
+          <div style={{
+            position: "absolute",
+            left: `${hoverXPct}%`,
+            top: `${hoverYPct}%`,
+            transform: "translate(-50%, -50%)",
+            width: 7, height: 7,
+            borderRadius: "50%",
+            background: trendColor,
+            border: "1.5px solid rgba(255,255,255,0.7)",
+            pointerEvents: "none",
+          }} />
         )}
-      </svg>
+
+        {/* Hover tooltip */}
+        {hoverIdx != null && hoverPoint && (
+          <div style={{
+            position: "absolute",
+            left: hoverXPct > 60 ? `${hoverXPct - 1}%` : `${hoverXPct + 1}%`,
+            top: `${Math.max(padTop, hoverYPct - 8)}%`,
+            transform: hoverXPct > 60 ? "translateX(-100%)" : "none",
+            background: "rgba(10,10,30,0.9)",
+            border: "1px solid rgba(140,140,170,0.35)",
+            borderRadius: 4,
+            padding: "3px 8px",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "rgba(220,220,240,0.95)",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}>
+            {hoverPoint.date} · {formatPrice(hoverPoint.priceLocal)}
+          </div>
+        )}
+
+        {/* X-axis labels (HTML) */}
+        {xLabels.map((xl, i) => (
+          <span key={`xl${i}`} style={{
+            position: "absolute",
+            left: `${xl.pct}%`,
+            bottom: 2,
+            transform: "translateX(-50%)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--text-dim)",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}>
+            {xl.label}
+          </span>
+        ))}
+
+        {/* Y-axis labels (HTML) */}
+        {yLabels.map((v, i) => (
+          <span key={`yp${i}`} style={{
+            position: "absolute",
+            right: 2,
+            top: `${toPctY(v, minP, range_)}%`,
+            transform: "translateY(-50%)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "rgba(180,180,200,0.8)",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}>
+            {formatPrice(v)}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
