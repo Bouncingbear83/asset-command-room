@@ -95,15 +95,6 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const niceStep = range_ / 4;
   const yLabels = [minP, minP + niceStep, minP + 2 * niceStep, minP + 3 * niceStep, maxP];
 
-  const btnStyle = (active: boolean): React.CSSProperties => ({
-    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
-    padding: "3px 10px", border: "1px solid var(--rim)", cursor: "pointer",
-    background: active ? "rgba(90,160,255,0.15)" : "rgba(140,140,170,0.06)",
-    color: active ? "var(--accent)" : "var(--text-mid)",
-    borderRadius: 3,
-    transition: "all 0.15s ease",
-  });
-
   return (
     <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
