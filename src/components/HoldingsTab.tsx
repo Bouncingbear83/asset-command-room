@@ -6,6 +6,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { useRationales } from "@/hooks/useRationales";
 import { ThesisCard, RationaleLoading } from "@/components/RationalePanels";
+import { PriceDataMap } from "@/hooks/useDailyPrices";
+import { Sparkline } from "@/components/Sparkline";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -15,6 +17,7 @@ interface Props {
   disruption?: LiveDisruption[];
   transactions?: LiveTransaction[];
   scores?: LiveScore[];
+  priceData?: PriceDataMap;
 }
 
 type GroupMode = "layer" | "account" | "none";
