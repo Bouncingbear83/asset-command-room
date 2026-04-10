@@ -449,7 +449,7 @@ function UnifiedView({
                   const hasReturns = r && r.totalCost > 0;
                   return (
                     <>
-                      <tr key={rowKey} onClick={() => toggle(rowKey)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
+                      <tr key={rowKey} onClick={() => toggle(rowKey, h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
                         <td style={{ padding: groupMode !== "none" && !isMobile ? "10px 12px 10px 24px" : cellPad, color: "var(--gold)", fontWeight: 700 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span>{h.ticker}</span>
@@ -486,7 +486,7 @@ function UnifiedView({
                         </td>
                         <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                       </tr>
-                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} />}
+                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} />}
                     </>
                   );
                 })}
