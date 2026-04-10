@@ -1,0 +1,1 @@
+CREATE POLICY "Anon can read daily_prices" ON public.daily_prices FOR SELECT TO anon USING (true);
