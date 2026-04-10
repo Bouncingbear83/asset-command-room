@@ -320,10 +320,15 @@ function UnifiedView({
     }));
   }, [allHoldings, transactions]);
 
-  const toggle = (key: string) => {
+  const toggle = (key: string, ticker: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        fetchScoreRationales(ticker);
+      }
       return next;
     });
   };
