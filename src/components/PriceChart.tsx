@@ -29,10 +29,33 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
     );
   }
 
+  const btnStyle = (active: boolean): React.CSSProperties => ({
+    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
+    padding: "3px 10px", border: "1px solid var(--rim)", cursor: "pointer",
+    background: active ? "rgba(90,160,255,0.15)" : "rgba(140,140,170,0.06)",
+    color: active ? "var(--accent)" : "var(--text-mid)",
+    borderRadius: 3,
+    transition: "all 0.15s ease",
+  });
+
   const sliceCount = RANGE_DAYS[range];
   const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
 
-  if (data.length < 10) return null;
+  if (data.length < 10) {
+    return (
+      <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)" }}>PRICE HISTORY</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>Not enough data for {range}</span>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+            {RANGE_KEYS.map(k => (
+              <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const pad = { top: 16, right: 60, bottom: 24, left: 8 };
   const width = 800;
@@ -71,15 +94,6 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
 
   const niceStep = range_ / 4;
   const yLabels = [minP, minP + niceStep, minP + 2 * niceStep, minP + 3 * niceStep, maxP];
-
-  const btnStyle = (active: boolean): React.CSSProperties => ({
-    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
-    padding: "3px 10px", border: "1px solid var(--rim)", cursor: "pointer",
-    background: active ? "rgba(90,160,255,0.15)" : "rgba(140,140,170,0.06)",
-    color: active ? "var(--accent)" : "var(--text-mid)",
-    borderRadius: 3,
-    transition: "all 0.15s ease",
-  });
 
   return (
     <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
