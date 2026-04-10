@@ -202,12 +202,17 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-function TriggerRows({ h, colSpan, disruption, returns }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns }) {
+function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null }) {
   const addVal = h.trigger_price_add || h.add_trigger || "—";
   const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
   return (
     <>
+      {/* Thesis card — at top of expanded content */}
+      {thesisLoading && <tr><td colSpan={colSpan}><RationaleLoading /></td></tr>}
+      {!thesisLoading && thesisRationale && (
+        <tr><td colSpan={colSpan} style={{ padding: 0 }}><ThesisCard rationale={thesisRationale} /></td></tr>
+      )}
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--green)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>ADD</span><span style={{ color: "var(--text-mid)" }}>{addVal}</span></td></tr>
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--red)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>EXIT</span><span style={{ color: "var(--text-mid)" }}>{exitVal}</span></td></tr>
       {h.trigger_type && (
