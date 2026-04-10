@@ -1,62 +1,57 @@
 
 
-## Plan: Fix rationale access, add pricing chart to Holdings expanded row, surface Sheet thesis/notes
+## Plan: Fix Returns AUM, show scores in Holdings, fix sparklines, add chart time ranges
 
-### Current State
+### Issue 1 — Returns tab AUM excludes cash
 
-1. **Rationale data exists** in `score_rationales` and `disruption_rationales` tables (populated by Research Commit workflow)
-2. **RLS blocks access**: Both tables only allow SELECT for `authenticated` role. The app uses the `anon` key without authentication, so rationale queries silently return empty arrays. This is why expanded rows show no rationale data.
-3. **Scores tab** already shows `changeNote || fullThesis` from Google Sheets in a Notes column, and the expanded row code already calls `fetchScoreRationales` / `fetchDisruptionRationales` — it just gets nothing back due to RLS.
-4. **Holdings expanded row** already has `ThesisCard` from DB (also blocked by RLS), plus disruption panel from Sheets (amber/red triggers, evidence).
-5. **daily_prices** has ~1,260 data points per ticker going back to April 2021 — excellent for a long-term pricing chart.
+The Returns tab calculates AUM as `sipp.reduce(mv) + isa.reduce(mv)` — pure holdings market value. But the PERFORMANCE sheet already has `cashSipp`, `cashIsa`, `totalSipp`, `totalIsa`, `totalValue` columns that are parsed into `LivePerformance`. The hero cards should use the latest performance row's `totalSipp` / `totalIsa` / `totalValue` (which include cash), or fall back to holdings MV + cash from the CASH sheet.
 
-### Changes
+**Fix in `ReturnsTab.tsx`:**
+- Pass `cashSipp` and `cashIsa` as props (already available from `usePortfolioData`)
+- Add cash to `sippTotal`, `isaTotal`, `total` in the hero cards
+- Alternatively, use the latest PERFORMANCE row's `totalSipp`/`totalIsa`/`totalValue` directly, which already include cash
 
-#### 1. Database migration: Add anon SELECT policies to rationale tables
+### Issue 2 — Holdings expanded row missing wider scores
 
-Add `anon` read policies to both `score_rationales` and `disruption_rationales` (same pattern used for `daily_prices`).
+Currently, the expanded row shows `ThesisCard` (DB rationale) and `DisruptionPanel` (Sheet disruption), but NOT the numeric score breakdown (Total, Substrate, Demand, Moat, Valuation, Mgmt, Disruption). The `scores` prop is passed to `HoldingsTab` but never used in the expanded view.
 
-```sql
-CREATE POLICY "Anon can read score_rationales"
-  ON public.score_rationales FOR SELECT TO anon USING (true);
+**Fix in `HoldingsTab.tsx`:**
+- Accept and pass `scores` data into `TriggerRows`
+- Find the matching `LiveScore` for the ticker
+- Add a compact score card showing all 7 dimensions with their numeric values and color coding
+- Place it below the ThesisCard and above the price chart
+- Style: horizontal bar or compact grid matching the existing dim/accent aesthetic
 
-CREATE POLICY "Anon can read disruption_rationales"
-  ON public.disruption_rationales FOR SELECT TO anon USING (true);
-```
+### Issue 3 — Sparklines showing exaggerated movements
 
-This is the primary fix — once applied, all existing rationale UI code will start working immediately.
+The sparkline for ASML shows a dramatic crash because the Y-axis auto-scales to `min/max` of the 30-day window. A 7% dip (1125→963→1020) fills the entire vertical range, making it look catastrophic. The `priceGbp` values also appear to have a large drop on one day that dominates the visual.
 
-#### 2. Holdings expanded row: Add a pricing chart
+**Fix in `Sparkline.tsx`:**
+- Add padding to the Y-axis range: extend min/max by ~10-15% of the range so small movements don't fill the entire chart
+- Alternatively, floor the range to at least 10% of the mean price, so a 3-5% move appears proportional rather than extreme
+- This preserves readability for genuinely volatile stocks while taming flat-ish ones
 
-Create a new `PriceChart` component that renders an SVG line chart using `daily_prices` data for the expanded ticker. Features:
+### Issue 4 — Price chart time range selector
 
-- Uses the full historical range available (up to 5 years for most tickers)
-- Renders price_gbp as the main line (green/red based on overall trend)
-- Overlays MA20 and MA50 as thin dashed lines (computed client-side from the data)
-- X-axis: year labels. Y-axis: price range with min/max labels
-- Size: full width of expanded row, ~120px tall
-- Fetched on-demand when row expands (same lazy pattern as rationales)
+The PriceChart currently shows the full history (max). Add a selector for: 1W, 1M, 1Y, 5Y, MAX.
 
-Data strategy: The existing `useDailyPrices` hook only fetches 75 days. For the chart, we need the full history. Add a new function `fetchFullHistory(ticker)` to the hook (or a separate small hook) that queries all `daily_prices` rows for a specific ticker on expand. Cache per ticker.
+**Fix in `PriceChart.tsx`:**
+- Add a row of toggle buttons: `1W | 1M | 1Y | 5Y | MAX`
+- Default to `1Y` (most useful view)
+- Filter `points` array based on selected range before rendering
+- 1W = last 5 trading days, 1M = last 22 trading days, 1Y = last ~252 trading days, 5Y = last ~1260 days, MAX = all
+- Use the same `ToggleButton` style as elsewhere (mono font, accent when active)
+- MA overlays adjust naturally since they compute from filtered data
 
-Place the chart between the ThesisCard and the ADD/EXIT trigger rows in the expanded content.
+### Files to modify
 
-#### 3. Scores tab: Surface Sheet thesis & change_note in expanded view
+| File | Change |
+|------|--------|
+| `src/components/ReturnsTab.tsx` | Add `cashSipp`/`cashIsa` to AUM calculations in hero cards |
+| `src/pages/Index.tsx` | Pass cash values as props to ReturnsTab |
+| `src/components/HoldingsTab.tsx` | Add score breakdown card to expanded row using `scores` prop |
+| `src/components/Sparkline.tsx` | Add Y-axis padding to prevent exaggerated movement visuals |
+| `src/components/PriceChart.tsx` | Add time range selector (1W/1M/1Y/5Y/MAX) |
 
-The expanded row already shows the DB rationale panel. Add a fallback: if the DB has no `score_rationales` for a ticker, display the Google Sheets `fullThesis` and `changeNote` fields instead (already available on the `LiveScore` object). This ensures every position shows *something* when expanded, even if the Research Commit workflow hasn't scored it yet.
-
-#### 4. Holdings expanded row: Merge Sheet + DB disruption data
-
-The disruption panel currently shows Sheet data (amber/red triggers, evidence, sub-scores). The DB `disruption_rationales` adds per-component rationale text. When both exist for the same ticker, merge them: keep the Sheet's numeric sub-scores and triggers as the compact row, and append the DB's rationale text below each component. This is already what `DisruptionRationalePanel` does — it just needs the RLS fix to receive data.
-
-### Technical Details
-
-**Files to modify:**
-- New migration SQL (RLS policies for anon on 2 tables)
-- `src/hooks/useDailyPrices.ts` — add `fetchTickerFullHistory(ticker)` function that queries all daily_prices for one ticker, cached in state
-- `src/components/PriceChart.tsx` — new component: full-history SVG line chart with MA overlays
-- `src/components/HoldingsTab.tsx` — integrate PriceChart in expanded row; call `fetchTickerFullHistory` on expand
-- `src/components/ScoresTab.tsx` — add Sheet thesis/changeNote fallback when DB rationale is empty
-
-**No changes to:** data fetching from Sheets, Price Map view, macro bar, navigation, edge functions.
+No database changes required. No new files needed.
 
