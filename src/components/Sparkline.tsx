@@ -28,9 +28,16 @@ export function Sparkline({ points, color, width = 80, height = 24 }: SparklineP
   }
 
   const prices = data.map(p => p.priceGbp);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const range = max - min || 1;
+  const rawMin = Math.min(...prices);
+  const rawMax = Math.max(...prices);
+  const rawRange = rawMax - rawMin;
+  // Floor range to 10% of mean so small moves don't look extreme
+  const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+  const minRange = mean * 0.10;
+  const range = Math.max(rawRange, minRange);
+  const mid = (rawMin + rawMax) / 2;
+  const min = mid - range / 2;
+  const max = mid + range / 2;
 
   const pad = 1;
   const innerW = width - pad * 2;

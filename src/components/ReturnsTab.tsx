@@ -7,6 +7,8 @@ interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
   performance: LivePerformance[];
+  cashSipp?: number;
+  cashIsa?: number;
 }
 
 const CHART_WIDTH = 960;
@@ -187,7 +189,7 @@ function toPolyline(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
-export default function ReturnsTab({ sipp, isa, performance }: Props) {
+export default function ReturnsTab({ sipp, isa, performance, cashSipp = 0, cashIsa = 0 }: Props) {
   const isMobile = useIsMobile();
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
@@ -198,8 +200,8 @@ export default function ReturnsTab({ sipp, isa, performance }: Props) {
     isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
   const all = [...sippData, ...isaData];
 
-  const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0);
-  const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0);
+  const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0) + cashSipp;
+  const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0) + cashIsa;
   const total = sippTotal + isaTotal;
 
   const sortedPerf = [...performance].sort((a, b) => {

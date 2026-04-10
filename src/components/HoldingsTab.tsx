@@ -207,7 +207,40 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale, tickerHistory }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null; tickerHistory?: { points: import("@/hooks/useDailyPrices").DailyPricePoint[]; loading: boolean } }) {
+function ScoreCard({ score }: { score: LiveScore }) {
+  const dims = [
+    { label: "TOTAL", val: score.score, max: 30 },
+    { label: "SUBSTRATE", val: score.substrate },
+    { label: "DEMAND", val: score.demand },
+    { label: "MOAT", val: score.moat },
+    { label: "VALUATION", val: score.valuation },
+    { label: "MGMT", val: score.mgmt },
+    { label: "DISRUPTION", val: score.disruption },
+  ];
+  const dimColor = (v: number, isTotal?: boolean) => {
+    if (isTotal) return v >= 22 ? "var(--green)" : v >= 15 ? "var(--amber)" : "var(--red)";
+    return v >= 4 ? "var(--green)" : v >= 3 ? "var(--amber)" : "var(--red)";
+  };
+  return (
+    <div style={{ padding: "8px 12px 8px 36px", background: "rgba(20,20,40,0.5)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <Microscope size={12} style={{ color: "var(--gold)" }} />
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: "var(--gold)" }}>SCORES</span>
+        {score.tier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>TIER {score.tier}</span>}
+      </div>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+        {dims.map((d, i) => (
+          <div key={d.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em" }}>{d.label}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: i === 0 ? 14 : 11, fontWeight: i === 0 ? 700 : 600, color: dimColor(d.val, i === 0) }}>{d.val}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale, tickerHistory, score }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null; tickerHistory?: { points: import("@/hooks/useDailyPrices").DailyPricePoint[]; loading: boolean }; score?: LiveScore }) {
   const addVal = h.trigger_price_add || h.add_trigger || "—";
   const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
   const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
@@ -218,6 +251,8 @@ function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRat
       {!thesisLoading && thesisRationale && (
         <tr><td colSpan={colSpan} style={{ padding: 0 }}><ThesisCard rationale={thesisRationale} /></td></tr>
       )}
+      {/* Score card */}
+      {score && <tr><td colSpan={colSpan} style={{ padding: 0 }}><ScoreCard score={score} /></td></tr>}
       {/* Price chart */}
       {tickerHistory && (tickerHistory.loading || tickerHistory.points.length >= 10) && (
         <tr><td colSpan={colSpan} style={{ padding: 0 }}><PriceChart points={tickerHistory.points} loading={tickerHistory.loading} /></td></tr>
@@ -306,6 +341,7 @@ function UnifiedView({
   sippTotal,
   isaTotal,
   priceData,
+  scores,
 }: {
   allHoldings: LiveHolding[];
   totalAum: number;
@@ -315,6 +351,7 @@ function UnifiedView({
   sippTotal: number;
   isaTotal: number;
   priceData?: PriceDataMap;
+  scores?: LiveScore[];
 }) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("mv");
@@ -522,7 +559,7 @@ function UnifiedView({
                         </td>
                         <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                       </tr>
-                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} tickerHistory={getHistory(h.ticker)} />}
+                      {isOpen && <TriggerRows h={h} colSpan={totalCols + 1} disruption={disruptionMap.get(h.ticker)} returns={r} thesisLoading={isRatLoading(h.ticker)} thesisRationale={scoreCache.get(h.ticker)?.latest} tickerHistory={getHistory(h.ticker)} score={scores?.find(s => s.ticker === h.ticker)} />}
                     </>
                   );
                 })}
@@ -881,6 +918,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
             sippTotal={sippTotal}
             isaTotal={isaTotal}
             priceData={priceData}
+            scores={scores}
           />
         )}
       </div>
