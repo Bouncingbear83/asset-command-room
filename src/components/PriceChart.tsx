@@ -75,8 +75,9 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const btnStyle = (active: boolean): React.CSSProperties => ({
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
     padding: "3px 10px", border: "1px solid var(--rim)", cursor: "pointer",
-    background: active ? "var(--accent-dim)" : "transparent",
-    color: active ? "var(--accent)" : "var(--text-dim)",
+    background: active ? "rgba(90,160,255,0.15)" : "rgba(140,140,170,0.06)",
+    color: active ? "var(--accent)" : "var(--text-mid)",
+    borderRadius: 3,
     transition: "all 0.15s ease",
   });
 
