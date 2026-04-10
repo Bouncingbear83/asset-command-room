@@ -1,57 +1,67 @@
 
 
-## Plan: Fix Returns AUM, show scores in Holdings, fix sparklines, add chart time ranges
+## Plan: Fix 5 remaining issues
 
-### Issue 1 — Returns tab AUM excludes cash
+### Issue 1 — CASH parser still broken (AUM excludes cash)
 
-The Returns tab calculates AUM as `sipp.reduce(mv) + isa.reduce(mv)` — pure holdings market value. But the PERFORMANCE sheet already has `cashSipp`, `cashIsa`, `totalSipp`, `totalIsa`, `totalValue` columns that are parsed into `LivePerformance`. The hero cards should use the latest performance row's `totalSipp` / `totalIsa` / `totalValue` (which include cash), or fall back to holdings MV + cash from the CASH sheet.
+The row-based fallback on line 917-918 does:
+```
+const label = labelA || labelB;
+```
+Column A contains `"Date(2026,3,7)"` which normalizes to `"date(2026,3,7)"` — this is truthy, so it always wins over column B's `"sipp"` / `"isa"`. The `label.includes("sipp")` check never matches.
 
-**Fix in `ReturnsTab.tsx`:**
-- Pass `cashSipp` and `cashIsa` as props (already available from `usePortfolioData`)
-- Add cash to `sippTotal`, `isaTotal`, `total` in the hero cards
-- Alternatively, use the latest PERFORMANCE row's `totalSipp`/`totalIsa`/`totalValue` directly, which already include cash
+**Fix:** Change the label selection logic to prefer whichever column contains a known keyword (sipp, isa, total, jisa), regardless of position:
+```typescript
+const labelA = normalizeToken(row[0]);
+const labelB = normalizeToken(row[1]);
+const KNOWN = ["sipp", "isa", "total", "jisa"];
+const aIsLabel = KNOWN.some(k => labelA.includes(k));
+const bIsLabel = KNOWN.some(k => labelB.includes(k));
+const label = aIsLabel ? labelA : bIsLabel ? labelB : "";
+const valueCol = bIsLabel && !aIsLabel ? 2 : 1;
+```
 
-### Issue 2 — Holdings expanded row missing wider scores
+**File:** `src/hooks/usePortfolioData.ts` lines 915-919
 
-Currently, the expanded row shows `ThesisCard` (DB rationale) and `DisruptionPanel` (Sheet disruption), but NOT the numeric score breakdown (Total, Substrate, Demand, Moat, Valuation, Mgmt, Disruption). The `scores` prop is passed to `HoldingsTab` but never used in the expanded view.
+### Issue 2 — No thesis/change rationale in Holdings expanded row
 
-**Fix in `HoldingsTab.tsx`:**
-- Accept and pass `scores` data into `TriggerRows`
-- Find the matching `LiveScore` for the ticker
-- Add a compact score card showing all 7 dimensions with their numeric values and color coding
-- Place it below the ThesisCard and above the price chart
-- Style: horizontal bar or compact grid matching the existing dim/accent aesthetic
+Only 4 tickers have DB rationales. For the ~30 other holdings, `thesisRationale` is null so ThesisCard doesn't render. The Sheet's `fullThesis` and `changeNote` from `LiveScore` should display as fallback.
 
-### Issue 3 — Sparklines showing exaggerated movements
+**Fix:** In `TriggerRows`, when `thesisRationale` is null/missing, show the Sheet score's `fullThesis` and `changeNote` if available (from the `score` prop which is a `LiveScore`).
 
-The sparkline for ASML shows a dramatic crash because the Y-axis auto-scales to `min/max` of the 30-day window. A 7% dip (1125→963→1020) fills the entire vertical range, making it look catastrophic. The `priceGbp` values also appear to have a large drop on one day that dominates the visual.
+**File:** `src/components/HoldingsTab.tsx` — TriggerRows component (~line 249-253)
 
-**Fix in `Sparkline.tsx`:**
-- Add padding to the Y-axis range: extend min/max by ~10-15% of the range so small movements don't fill the entire chart
-- Alternatively, floor the range to at least 10% of the mean price, so a 3-5% move appears proportional rather than extreme
-- This preserves readability for genuinely volatile stocks while taming flat-ish ones
+### Issue 3 — Sparkline data disagreement
 
-### Issue 4 — Price chart time range selector
+The sparkline uses `priceGbp` from the last 30 data points of `useDailyPrices` (75-day window). The scaling fix IS applied. The user may be seeing correct data that looks unexpected due to FX-converted prices. Add a console log temporarily to debug, and also ensure the sparkline tooltip/title shows the date range being used.
 
-The PriceChart currently shows the full history (max). Add a selector for: 1W, 1M, 1Y, 5Y, MAX.
+**Fix:** Add a `title` attribute to the sparkline SVG showing the date range (first–last date of the 30 points), so the user can verify what data is being shown.
 
-**Fix in `PriceChart.tsx`:**
-- Add a row of toggle buttons: `1W | 1M | 1Y | 5Y | MAX`
-- Default to `1Y` (most useful view)
-- Filter `points` array based on selected range before rendering
-- 1W = last 5 trading days, 1M = last 22 trading days, 1Y = last ~252 trading days, 5Y = last ~1260 days, MAX = all
-- Use the same `ToggleButton` style as elsewhere (mono font, accent when active)
-- MA overlays adjust naturally since they compute from filtered data
+**File:** `src/components/Sparkline.tsx`
 
-### Files to modify
+### Issue 4 — Charts ending in 2025
+
+The `useTickerHistory` fetches all `daily_prices` for a ticker. Data runs to 2026-04-09. However, `useTickerHistory.fetchHistory` has `[cache]` in its dependency array, which is problematic — when a ticker is fetched and cache updates, the next call to `fetchHistory` for a different ticker creates a new function identity. More critically, if there's a stale closure, `cache.has(ticker)` might return false when it shouldn't, causing re-fetches, or vice versa. But the real issue is likely the default Supabase 1000-row limit — for tickers with 1200+ rows, the query is silently truncated at row 1000, cutting off 2025-2026 data.
+
+**Fix:** Add `.limit(5000)` to the `useTickerHistory` query. Also remove `cache` from the `useCallback` dependency array — use a ref instead to avoid stale closures.
+
+**File:** `src/hooks/useTickerHistory.ts`
+
+### Issue 5 — PriceChart toggle buttons not visible
+
+The buttons ARE in the code. They may be rendering but invisible due to CSS variable issues (`--rim`, `--accent-dim`). More likely the chart is rendering with `preserveAspectRatio="none"` which may squash the header. Check layout.
+
+**Fix:** Minor — ensure the button container renders outside the SVG and is clearly visible. The `btnStyle` uses `border: "1px solid var(--rim)"` which might be too subtle. Add slightly more contrast.
+
+**File:** `src/components/PriceChart.tsx`
+
+### Summary of file changes
 
 | File | Change |
 |------|--------|
-| `src/components/ReturnsTab.tsx` | Add `cashSipp`/`cashIsa` to AUM calculations in hero cards |
-| `src/pages/Index.tsx` | Pass cash values as props to ReturnsTab |
-| `src/components/HoldingsTab.tsx` | Add score breakdown card to expanded row using `scores` prop |
-| `src/components/Sparkline.tsx` | Add Y-axis padding to prevent exaggerated movement visuals |
-| `src/components/PriceChart.tsx` | Add time range selector (1W/1M/1Y/5Y/MAX) |
-
-No database changes required. No new files needed.
+| `src/hooks/usePortfolioData.ts` | Fix CASH label detection to prefer known keywords over date strings |
+| `src/components/HoldingsTab.tsx` | Add Sheet thesis/changeNote fallback in TriggerRows when DB rationale is missing |
+| `src/components/Sparkline.tsx` | Add title attribute showing date range for verification |
+| `src/hooks/useTickerHistory.ts` | Add `.limit(5000)` to query; use ref for cache to fix stale closure |
+| `src/components/PriceChart.tsx` | Improve toggle button visibility |
 
