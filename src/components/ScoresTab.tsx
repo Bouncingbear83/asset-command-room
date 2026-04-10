@@ -4,6 +4,8 @@ import { LiveScore, LiveScoreLog, LiveDisruption, LiveHolding } from "@/hooks/us
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRationales } from "@/hooks/useRationales";
 import { ScoreRationalePanel, DisruptionRationalePanel, RationaleLoading } from "@/components/RationalePanels";
+import { PriceDataMap } from "@/hooks/useDailyPrices";
+import { Sparkline } from "@/components/Sparkline";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -12,6 +14,7 @@ interface Props {
   scoreLog: LiveScoreLog[];
   disruptionData?: LiveDisruption[];
   allHoldings?: LiveHolding[];
+  priceData?: PriceDataMap;
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
@@ -191,7 +194,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHoldings = [] }: Props) {
+export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHoldings = [], priceData }: Props) {
   const isMobile = useIsMobile();
   const [activeView, setActiveView] = useState<TabView>("scores");
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
@@ -315,6 +318,10 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
               </div>
             </div>
           </td>
+          {!isMobile && (() => {
+            const pd = priceData?.get(s.ticker);
+            return <td style={{ padding: p }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
+          })()}
           {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-mid)", letterSpacing: "0.08em" }}>{s.layer || "—"}</td>}
           <td style={{ padding: p }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: isMobile ? 14 : 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
@@ -385,8 +392,11 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {COLUMNS.filter(col => !isMobile || MOBILE_COLUMNS.includes(col.key)).map((col) => (
-                <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, padding: isMobile ? "8px 6px" : "8px 12px", color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
+              {COLUMNS.filter(col => !isMobile || MOBILE_COLUMNS.includes(col.key)).map((col, i) => (
+                <>
+                  <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, padding: isMobile ? "8px 6px" : "8px 12px", color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
+                  {i === 0 && !isMobile && <th key="30d" style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }} title="30-day price trend · Updated nightly">30D</th>}
+                </>
               ))}
               {!isMobile && <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Notes</th>}
             </tr>

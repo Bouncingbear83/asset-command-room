@@ -6,6 +6,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { useRationales } from "@/hooks/useRationales";
 import { ThesisCard, RationaleLoading } from "@/components/RationalePanels";
+import { PriceDataMap } from "@/hooks/useDailyPrices";
+import { Sparkline } from "@/components/Sparkline";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -15,6 +17,7 @@ interface Props {
   disruption?: LiveDisruption[];
   transactions?: LiveTransaction[];
   scores?: LiveScore[];
+  priceData?: PriceDataMap;
 }
 
 type GroupMode = "layer" | "account" | "none";
@@ -273,10 +276,9 @@ const UNIFIED_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobil
   { label: "G/L %", key: "gl", align: "right", sortable: true },
   { label: "Day %", key: "day", align: "right", sortable: true },
   { label: "Price", key: "price", align: "right", sortable: false },
-  { label: "Cost £", key: "cost", align: "right", hideMobile: true, sortable: true },
-  { label: "P&L £", key: "truePL", align: "right", hideMobile: true, sortable: true },
-  { label: "Ann. Ret", key: "annReturn", align: "right", sortable: true },
 ];
+
+// Extra columns rendered manually after Price: 30D sparkline, MA20, MA50, then Cost/P&L/Ann.Ret/Notes/Action
 
 // ── Unified View ──
 
@@ -297,6 +299,7 @@ function UnifiedView({
   groupMode,
   sippTotal,
   isaTotal,
+  priceData,
 }: {
   allHoldings: LiveHolding[];
   totalAum: number;
@@ -305,6 +308,7 @@ function UnifiedView({
   groupMode: GroupMode;
   sippTotal: number;
   isaTotal: number;
+  priceData?: PriceDataMap;
 }) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("mv");
@@ -377,7 +381,9 @@ function UnifiedView({
   }, [holdingsWithReturns, groupMode, totalAum]);
 
   const visibleCols = UNIFIED_COLUMNS.filter(c => !(isMobile && c.hideMobile));
-  const totalCols = visibleCols.length + 2; // +notes(desktop) +action +chevron
+  // Extra cols after Price: 30D, MA20, MA50, Cost, P&L, Ann.Ret, Notes, Action, chevron
+  const extraDesktopCols = 6; // 30D, MA20, MA50, Cost, P&L, Ann.Ret
+  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3); // +Notes +Action +chevron on desktop
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
   const pad = isMobile ? "8px 6px" : "8px 12px";
   const cellPad = isMobile ? "10px 6px" : "10px 12px";
@@ -407,6 +413,12 @@ function UnifiedView({
                 {col.label}{col.sortable !== false ? arrow(col.key) : ""}
               </th>
             ))}
+            {!isMobile && <th style={{ ...thS, cursor: "default" }} title="30-day price trend · Updated nightly">30D</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA20</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA50</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("cost")}>Cost £{arrow("cost")}</th>}
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("truePL")}>P&L £{arrow("truePL")}</th>}
+            <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("annReturn")}>Ann. Ret{arrow("annReturn")}</th>
             {!isMobile && <th style={{ ...thS, cursor: "default" }}>Notes</th>}
             <th style={{ ...thS, cursor: "pointer" }} onClick={() => handleSort("action")}>Action{arrow("action")}</th>
             <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
@@ -463,6 +475,22 @@ function UnifiedView({
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+                        {!isMobile && (() => {
+                          const pd = priceData?.get(h.ticker);
+                          return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
+                        })()}
+                        {!isMobile && (() => {
+                          const pd = priceData?.get(h.ticker);
+                          const ma20 = pd?.ma20;
+                          const maColor = ma20 != null && h.price != null ? (h.price > ma20 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
+                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma20 != null ? ma20.toFixed(2) : "—"}</td>;
+                        })()}
+                        {!isMobile && (() => {
+                          const pd = priceData?.get(h.ticker);
+                          const ma50 = pd?.ma50;
+                          const maColor = ma50 != null && h.price != null ? (h.price > ma50 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
+                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma50 != null ? ma50.toFixed(2) : "—"}</td>;
+                        })()}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", textAlign: "right", fontSize: 10 }}>{hasReturns ? `£${r!.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
                         {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
                         <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>
@@ -506,31 +534,31 @@ function UnifiedView({
   );
 }
 
-// ── Price Map (unchanged) ──
+// ── Price Map (updated with MA20/MA50) ──
 
 type PriceMapSort = "ma_dist" | "pct_above_low" | "pct_below_high";
 
-function getPriceMapSortValue(h: LiveHolding, sort: PriceMapSort): number {
+function getPriceMapSortValue(h: LiveHolding, sort: PriceMapSort, ma20: number | null): number {
   const price = h.price!;
   const low = h.low_52w!;
   const high = h.high_52w!;
-  const ma60 = h.ma60!;
+  const ref = ma20 ?? h.ma60 ?? price;
   switch (sort) {
     case "pct_above_low": return ((price - low) / low) * 100;
     case "pct_below_high": return ((high - price) / high) * 100;
-    case "ma_dist": return Math.abs(((price - ma60) / ma60) * 100);
+    case "ma_dist": return Math.abs(((price - ref) / ref) * 100);
   }
 }
 
-function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
+function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; priceData?: PriceDataMap }) {
   const [sortMode, setSortMode] = useState<PriceMapSort>("ma_dist");
   const deduped = new Map<string, LiveHolding>();
   for (const h of allHoldings) {
     const key = h.ticker || h.name;
-    if (!deduped.has(key) || (h.ma60 && !deduped.get(key)!.ma60)) deduped.set(key, h);
+    if (!deduped.has(key) || (h.high_52w && !deduped.get(key)!.high_52w)) deduped.set(key, h);
   }
 
-  const valid = Array.from(deduped.values()).filter((h) => h.ma60 && h.high_52w && h.low_52w && h.price != null);
+  const valid = Array.from(deduped.values()).filter((h) => h.high_52w && h.low_52w && h.price != null);
   const grouped = new Map<string, LiveHolding[]>();
   for (const h of valid) {
     const key = h.layer || "Uncategorised";
@@ -544,11 +572,11 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
   });
 
   if (valid.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No price map data — populate MA60, HIGH_52w, LOW_52w columns in holdings sheets.</div>;
+    return <div style={{ padding: 40, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No price map data — populate HIGH_52w, LOW_52w columns in holdings sheets.</div>;
   }
 
   const SORT_OPTIONS: { key: PriceMapSort; label: string }[] = [
-    { key: "ma_dist", label: "60d MA Dist" },
+    { key: "ma_dist", label: "MA20 Dist" },
     { key: "pct_above_low", label: "% Above 52W Low" },
     { key: "pct_below_high", label: "% Below 52W High" },
   ];
@@ -560,7 +588,11 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
         {SORT_OPTIONS.map((opt) => <ToggleButton key={opt.key} active={sortMode === opt.key} label={opt.label} onClick={() => setSortMode(opt.key)} />)}
       </div>
       {layers.map(([layer, holdings]) => {
-        const sorted = [...holdings].sort((a, b) => getPriceMapSortValue(a, sortMode) - getPriceMapSortValue(b, sortMode));
+        const sorted = [...holdings].sort((a, b) => {
+          const pdA = priceData?.get(a.ticker);
+          const pdB = priceData?.get(b.ticker);
+          return getPriceMapSortValue(a, sortMode, pdA?.ma20 ?? null) - getPriceMapSortValue(b, sortMode, pdB?.ma20 ?? null);
+        });
         return (
           <div key={layer} style={{ marginBottom: 20 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", padding: "8px 0", borderBottom: "1px solid var(--rim)", marginBottom: 8 }}>{layer}</div>
@@ -568,18 +600,19 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
               const low = h.low_52w!;
               const high = h.high_52w!;
               const price = h.price!;
-              const ma60 = h.ma60!;
+              const pd = priceData?.get(h.ticker);
+              const ma20 = pd?.ma20 ?? null;
+              const ma50 = pd?.ma50 ?? null;
               const range = high - low;
               if (range <= 0) return null;
 
               const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
-              const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
-              const distFromMa = ((price - ma60) / ma60) * 100;
-              const sortVal = getPriceMapSortValue(h, sortMode);
+              const refMa = ma20 ?? h.ma60;
+              const distFromMa = refMa ? ((price - refMa) / refMa) * 100 : 0;
 
               let statusColor: string;
               let statusLabel: string;
-              if (price < ma60) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
+              if (refMa && price < refMa) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
               else if (pricePct >= 80) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
               else { statusColor = "var(--green)"; statusLabel = "Healthy"; }
 
@@ -594,10 +627,27 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
                   </div>
                   <div style={{ flex: 1, position: "relative", height: 28, display: "flex", alignItems: "center" }}>
                     <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
-                    <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
-                      <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
-                    </div>
+                    {/* MA20 marker */}
+                    {ma20 != null && (() => {
+                      const maPct = Math.max(0, Math.min(100, ((ma20 - low) / range) * 100));
+                      return (
+                        <div style={{ position: "absolute", left: `${maPct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--accent)", whiteSpace: "nowrap", marginBottom: 1 }}>20d</span>
+                          <div style={{ width: 0, flex: 1, borderLeft: "1.5px solid var(--accent)" }} />
+                        </div>
+                      );
+                    })()}
+                    {/* MA50 marker */}
+                    {ma50 != null && (() => {
+                      const maPct = Math.max(0, Math.min(100, ((ma50 - low) / range) * 100));
+                      return (
+                        <div style={{ position: "absolute", left: `${maPct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>50d</span>
+                          <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
+                        </div>
+                      );
+                    })()}
+                    {/* Price marker */}
                     <div style={{ position: "absolute", left: `${pricePct}%`, top: 2, bottom: 2, width: 3, background: statusColor, borderRadius: 1 }} />
                     <span style={{ position: "absolute", left: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
                     <span style={{ position: "absolute", right: 0, bottom: -2, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
@@ -609,7 +659,6 @@ function PriceMapView({ allHoldings }: { allHoldings: LiveHolding[] }) {
                   <div style={{ width: 140, flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)", color: statusColor, border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`, padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{statusLabel}</span>
                     <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>{distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%</span>
-                    <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 8, color: "var(--text-dim)", whiteSpace: "nowrap" }}>({sortVal.toFixed(1)}%)</span>
                   </div>
                 </div>
               );
@@ -686,7 +735,7 @@ function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: 
 
 // ── Main Component ──
 
-export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [] }: Props) {
+export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [], priceData }: Props) {
   const [showPriceMap, setShowPriceMap] = useState(false);
   const [groupMode, setGroupMode] = useState<GroupMode>("layer");
   const [reviewExpanded, setReviewExpanded] = useState(false);
@@ -813,7 +862,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         </div>
 
         {showPriceMap ? (
-          <PriceMapView allHoldings={allHoldings} />
+          <PriceMapView allHoldings={allHoldings} priceData={priceData} />
         ) : (
           <UnifiedView
             allHoldings={allHoldings}
@@ -823,6 +872,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
             groupMode={groupMode}
             sippTotal={sippTotal}
             isaTotal={isaTotal}
+            priceData={priceData}
           />
         )}
       </div>

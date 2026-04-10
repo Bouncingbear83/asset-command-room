@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { useDailyPrices } from "@/hooks/useDailyPrices";
 import CommandTab from "@/components/CommandTab";
 import MonitorTab from "@/components/MonitorTab";
 import WatchlistTab from "@/components/WatchlistTab";
@@ -28,6 +29,7 @@ export default function Index() {
   const [macroBannerOpen, setMacroBannerOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const portfolio = usePortfolioData();
+  const { priceData } = useDailyPrices();
   const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
   const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
   const total = sippTotal + isaTotal;
@@ -135,9 +137,9 @@ export default function Index() {
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} />}
         {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrativeData} />}
-        {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} allHoldings={[...portfolio.sipp, ...portfolio.isa]} />}
+        {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} allHoldings={[...portfolio.sipp, ...portfolio.isa]} priceData={priceData} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} />}
-        {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} />}
+        {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
         {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa]} />}
         {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
         {active === "Earnings Calendar" && <EarningsCalendarTab items={portfolio.earningsCalendar} />}
