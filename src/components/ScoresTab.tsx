@@ -4,6 +4,8 @@ import { LiveScore, LiveScoreLog, LiveDisruption, LiveHolding } from "@/hooks/us
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRationales } from "@/hooks/useRationales";
 import { ScoreRationalePanel, DisruptionRationalePanel, RationaleLoading } from "@/components/RationalePanels";
+import { PriceDataMap } from "@/hooks/useDailyPrices";
+import { Sparkline } from "@/components/Sparkline";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -12,6 +14,7 @@ interface Props {
   scoreLog: LiveScoreLog[];
   disruptionData?: LiveDisruption[];
   allHoldings?: LiveHolding[];
+  priceData?: PriceDataMap;
 }
 
 function ScoreBar({ value, max, color }: { value: number | null; max: number; color: string }) {
