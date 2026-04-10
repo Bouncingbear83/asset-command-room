@@ -1,67 +1,27 @@
 
 
-## Plan: Fix 5 remaining issues
+## Fix: Chart time range buttons not rendering, data truncation, add year-end lines
 
-### Issue 1 — CASH parser still broken (AUM excludes cash)
+### What's wrong
 
-The row-based fallback on line 917-918 does:
-```
-const label = labelA || labelB;
-```
-Column A contains `"Date(2026,3,7)"` which normalizes to `"date(2026,3,7)"` — this is truthy, so it always wins over column B's `"sipp"` / `"isa"`. The `label.includes("sipp")` check never matches.
+1. **Toggle buttons invisible**: The buttons exist in code but the header row uses `display: flex` with `gap: 12` and `marginLeft: auto` — on narrow expanded rows the buttons may overflow or get clipped. The screenshot confirms they're absent from the visible area.
 
-**Fix:** Change the label selection logic to prefer whichever column contains a known keyword (sipp, isa, total, jisa), regardless of position:
-```typescript
-const labelA = normalizeToken(row[0]);
-const labelB = normalizeToken(row[1]);
-const KNOWN = ["sipp", "isa", "total", "jisa"];
-const aIsLabel = KNOWN.some(k => labelA.includes(k));
-const bIsLabel = KNOWN.some(k => labelB.includes(k));
-const label = aIsLabel ? labelA : bIsLabel ? labelB : "";
-const valueCol = bIsLabel && !aIsLabel ? 2 : 1;
-```
+2. **Data ending in 2025**: Despite `.limit(5000)` being in the code, the chart shows `2024-02-27 → 2025-03-28`. This is exactly ~252 trading days — meaning the `1Y` default IS working, but the date range label shows 2025 not 2026. The actual issue is likely that the `useTickerHistory` cached stale data from before the limit fix was deployed, or the component is receiving the wrong points. Need to add a console log or verify the data is actually arriving with 2026 dates.
 
-**File:** `src/hooks/usePortfolioData.ts` lines 915-919
+3. **No year-end vertical lines**: The chart currently shows year labels at the x-axis where each new year starts. Adding subtle vertical lines at Dec 31 / Jan 1 boundaries would improve readability.
 
-### Issue 2 — No thesis/change rationale in Holdings expanded row
+### Changes
 
-Only 4 tickers have DB rationales. For the ~30 other holdings, `thesisRationale` is null so ThesisCard doesn't render. The Sheet's `fullThesis` and `changeNote` from `LiveScore` should display as fallback.
+**`src/components/PriceChart.tsx`**
+- Move the range toggle buttons to their own row below the header label, with larger font (10px) and more padding so they're unmissable
+- Add vertical dashed lines at year-end boundaries (where year changes in the data) — subtle `rgba(140,140,170,0.15)` stroke
+- Add `console.log` of the full points array length and last date on render (temporary debug) to verify data completeness
 
-**Fix:** In `TriggerRows`, when `thesisRationale` is null/missing, show the Sheet score's `fullThesis` and `changeNote` if available (from the `score` prop which is a `LiveScore`).
+**`src/hooks/useTickerHistory.ts`**
+- Add a `console.log` after fetch showing `ticker`, `data.length`, and last row's `snapshot_date` — to confirm 2026 data is arriving from the database
 
-**File:** `src/components/HoldingsTab.tsx` — TriggerRows component (~line 249-253)
-
-### Issue 3 — Sparkline data disagreement
-
-The sparkline uses `priceGbp` from the last 30 data points of `useDailyPrices` (75-day window). The scaling fix IS applied. The user may be seeing correct data that looks unexpected due to FX-converted prices. Add a console log temporarily to debug, and also ensure the sparkline tooltip/title shows the date range being used.
-
-**Fix:** Add a `title` attribute to the sparkline SVG showing the date range (first–last date of the 30 points), so the user can verify what data is being shown.
-
-**File:** `src/components/Sparkline.tsx`
-
-### Issue 4 — Charts ending in 2025
-
-The `useTickerHistory` fetches all `daily_prices` for a ticker. Data runs to 2026-04-09. However, `useTickerHistory.fetchHistory` has `[cache]` in its dependency array, which is problematic — when a ticker is fetched and cache updates, the next call to `fetchHistory` for a different ticker creates a new function identity. More critically, if there's a stale closure, `cache.has(ticker)` might return false when it shouldn't, causing re-fetches, or vice versa. But the real issue is likely the default Supabase 1000-row limit — for tickers with 1200+ rows, the query is silently truncated at row 1000, cutting off 2025-2026 data.
-
-**Fix:** Add `.limit(5000)` to the `useTickerHistory` query. Also remove `cache` from the `useCallback` dependency array — use a ref instead to avoid stale closures.
-
-**File:** `src/hooks/useTickerHistory.ts`
-
-### Issue 5 — PriceChart toggle buttons not visible
-
-The buttons ARE in the code. They may be rendering but invisible due to CSS variable issues (`--rim`, `--accent-dim`). More likely the chart is rendering with `preserveAspectRatio="none"` which may squash the header. Check layout.
-
-**Fix:** Minor — ensure the button container renders outside the SVG and is clearly visible. The `btnStyle` uses `border: "1px solid var(--rim)"` which might be too subtle. Add slightly more contrast.
-
-**File:** `src/components/PriceChart.tsx`
-
-### Summary of file changes
-
-| File | Change |
-|------|--------|
-| `src/hooks/usePortfolioData.ts` | Fix CASH label detection to prefer known keywords over date strings |
-| `src/components/HoldingsTab.tsx` | Add Sheet thesis/changeNote fallback in TriggerRows when DB rationale is missing |
-| `src/components/Sparkline.tsx` | Add title attribute showing date range for verification |
-| `src/hooks/useTickerHistory.ts` | Add `.limit(5000)` to query; use ref for cache to fix stale closure |
-| `src/components/PriceChart.tsx` | Improve toggle button visibility |
+### Visual result
+- Clear row of 5 toggle buttons: `[1W] [1M] [1Y] [5Y] [MAX]` — visible and clickable
+- Thin vertical dashed lines at each Dec→Jan transition
+- Year labels positioned at those same boundaries
 
