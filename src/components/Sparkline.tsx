@@ -54,7 +54,7 @@ export function Sparkline({ points, color, width = 80, height = 24 }: SparklineP
   const fillStr = `${pts[0].split(",")[0]},${(height - pad).toFixed(1)} ${lineStr} ${pts[pts.length - 1].split(",")[0]},${(height - pad).toFixed(1)}`;
 
   return (
-    <svg width={width} height={height} style={{ display: "block", flexShrink: 0 }}>
+    <svg width={width} height={height} style={{ display: "block", flexShrink: 0 }} title={`${data[0].date} → ${data[data.length - 1].date}`}>
       <polygon points={fillStr} fill={FILL_MAP[color]} />
       <polyline points={lineStr} fill="none" stroke={COLOR_MAP[color]} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>

@@ -912,11 +912,14 @@ export function usePortfolioData(): PortfolioData {
         if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
         // Fallback: row-based layout (col A = label, col B/C = values)
         if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0) {
+          const CASH_KNOWN = ["sipp", "isa", "total", "jisa"];
           for (const row of cashGrid) {
             const labelA = normalizeToken(row[0]);
             const labelB = normalizeToken(row[1]);
-            const label = labelA || labelB;
-            const valueCol = labelB && !labelA ? 2 : 1;
+            const aIsLabel = CASH_KNOWN.some(k => labelA.includes(k));
+            const bIsLabel = CASH_KNOWN.some(k => labelB.includes(k));
+            const label = aIsLabel ? labelA : bIsLabel ? labelB : "";
+            const valueCol = bIsLabel && !aIsLabel ? 2 : 1;
             if (label.includes("sipp")) {
               cashSipp = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
             } else if (label.includes("isa") && !label.includes("jisa")) {

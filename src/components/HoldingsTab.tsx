@@ -251,6 +251,16 @@ function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRat
       {!thesisLoading && thesisRationale && (
         <tr><td colSpan={colSpan} style={{ padding: 0 }}><ThesisCard rationale={thesisRationale} /></td></tr>
       )}
+      {!thesisLoading && !thesisRationale && score && (score.fullThesis || score.changeNote) && (
+        <tr><td colSpan={colSpan} style={{ padding: "8px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+          {score.fullThesis && <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", lineHeight: 1.6, marginBottom: score.changeNote ? 8 : 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--accent)", marginRight: 8 }}>THESIS</span>{score.fullThesis}
+          </div>}
+          {score.changeNote && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)", lineHeight: 1.5 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)", marginRight: 8 }}>CHANGE</span>{score.changeNote}
+          </div>}
+        </td></tr>
+      )}
       {/* Score card */}
       {score && <tr><td colSpan={colSpan} style={{ padding: 0 }}><ScoreCard score={score} /></td></tr>}
       {/* Price chart */}

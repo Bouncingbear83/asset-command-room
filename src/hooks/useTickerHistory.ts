@@ -8,12 +8,13 @@ export interface TickerHistory {
 }
 
 export function useTickerHistory() {
-  const [cache, setCache] = useState<Map<string, DailyPricePoint[]>>(new Map());
+  const [, setTick] = useState(0);
   const [loading, setLoading] = useState<Set<string>>(new Set());
+  const cacheRef = useRef<Map<string, DailyPricePoint[]>>(new Map());
   const inflight = useRef<Set<string>>(new Set());
 
   const fetchHistory = useCallback(async (ticker: string) => {
-    if (cache.has(ticker) || inflight.current.has(ticker)) return;
+    if (cacheRef.current.has(ticker) || inflight.current.has(ticker)) return;
     inflight.current.add(ticker);
     setLoading(prev => new Set(prev).add(ticker));
 
@@ -22,7 +23,8 @@ export function useTickerHistory() {
         .from("daily_prices")
         .select("snapshot_date, price_local, price_gbp")
         .eq("ticker", ticker)
-        .order("snapshot_date", { ascending: true });
+        .order("snapshot_date", { ascending: true })
+        .limit(5000);
 
       if (error) {
         console.error(`ticker history fetch error for ${ticker}:`, error.message);
@@ -35,7 +37,8 @@ export function useTickerHistory() {
         priceGbp: Number(row.price_gbp),
       }));
 
-      setCache(prev => new Map(prev).set(ticker, points));
+      cacheRef.current.set(ticker, points);
+      setTick(t => t + 1); // trigger re-render
     } finally {
       inflight.current.delete(ticker);
       setLoading(prev => {
@@ -44,14 +47,14 @@ export function useTickerHistory() {
         return next;
       });
     }
-  }, [cache]);
+  }, []);
 
   const getHistory = useCallback((ticker: string): TickerHistory => {
     return {
-      points: cache.get(ticker) || [],
+      points: cacheRef.current.get(ticker) || [],
       loading: loading.has(ticker),
     };
-  }, [cache, loading]);
+  }, [loading]);
 
   return { fetchHistory, getHistory };
 }
