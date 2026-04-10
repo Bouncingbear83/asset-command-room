@@ -318,6 +318,10 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
               </div>
             </div>
           </td>
+          {!isMobile && (() => {
+            const pd = priceData?.get(s.ticker);
+            return <td style={{ padding: p }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
+          })()}
           {!isMobile && <td style={{ padding: p, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-mid)", letterSpacing: "0.08em" }}>{s.layer || "—"}</td>}
           <td style={{ padding: p }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: isMobile ? 14 : 18, fontWeight: 700, color: (s.score ?? 0) >= 80 ? "var(--green)" : (s.score ?? 0) >= 60 ? "var(--accent)" : (s.score ?? 0) >= 40 ? "var(--amber)" : "var(--red)", display: "inline-flex", alignItems: "center" }}>
@@ -388,8 +392,11 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {COLUMNS.filter(col => !isMobile || MOBILE_COLUMNS.includes(col.key)).map((col) => (
-                <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, padding: isMobile ? "8px 6px" : "8px 12px", color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
+              {COLUMNS.filter(col => !isMobile || MOBILE_COLUMNS.includes(col.key)).map((col, i) => (
+                <>
+                  <th key={col.key} onClick={() => handleSort(col.key)} style={{ ...thBase, padding: isMobile ? "8px 6px" : "8px 12px", color: sortKey === col.key ? "var(--gold)" : "var(--text-dim)" }}>{col.label}{arrow(col.key, sortKey)}</th>
+                  {i === 0 && !isMobile && <th key="30d" style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }} title="30-day price trend · Updated nightly">30D</th>}
+                </>
               ))}
               {!isMobile && <th style={{ ...thBase, cursor: "default", color: "var(--text-dim)" }}>Notes</th>}
             </tr>
