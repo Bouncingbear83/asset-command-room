@@ -194,7 +194,7 @@ function DisruptionPanel({ d }: { d: LiveDisruption }) {
   );
 }
 
-export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHoldings = [] }: Props) {
+export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHoldings = [], priceData }: Props) {
   const isMobile = useIsMobile();
   const [activeView, setActiveView] = useState<TabView>("scores");
   const [sortKey, setSortKey] = useState<ScoreSortKey>("score");
