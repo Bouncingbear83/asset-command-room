@@ -95,6 +95,25 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
+  const sliceCount = RANGE_DAYS[range];
+  const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || data.length < 2) return;
+    const rect = svg.getBoundingClientRect();
+    const pad_ = { left: 8, right: 60 };
+    const w = 800;
+    const iW = w - pad_.left - pad_.right;
+    const svgX = ((e.clientX - rect.left) / rect.width) * w;
+    const dataX = svgX - pad_.left;
+    if (dataX < 0 || dataX > iW) { setHoverIdx(null); return; }
+    const idx = Math.round((dataX / iW) * (data.length - 1));
+    setHoverIdx(Math.max(0, Math.min(data.length - 1, idx)));
+  }, [data.length]);
+
+  const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
+
   if (loading) {
     return (
       <div style={{ padding: "12px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
