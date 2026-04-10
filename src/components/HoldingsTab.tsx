@@ -322,6 +322,7 @@ function UnifiedView({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const { scoreCache, fetchScoreRationales, isLoading: isRatLoading } = useRationales();
+  const { fetchHistory, getHistory } = useTickerHistory();
 
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
     return allHoldings.map(h => ({
@@ -338,6 +339,7 @@ function UnifiedView({
       } else {
         next.add(key);
         fetchScoreRationales(ticker);
+        fetchHistory(ticker);
       }
       return next;
     });
