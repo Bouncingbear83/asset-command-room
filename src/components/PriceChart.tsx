@@ -21,6 +21,9 @@ function computeMA(prices: number[], period: number, index: number): number | nu
 export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const [range, setRange] = useState<RangeKey>("1Y");
 
+  // Debug: log points length and last date
+  console.log(`[PriceChart] points=${points.length}, last=${points.length ? points[points.length - 1].date : "none"}`);
+
   if (loading) {
     return (
       <div style={{ padding: "12px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
@@ -30,10 +33,10 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   }
 
   const btnStyle = (active: boolean): React.CSSProperties => ({
-    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
-    padding: "3px 10px", border: "1px solid var(--rim)", cursor: "pointer",
-    background: active ? "rgba(90,160,255,0.15)" : "rgba(140,140,170,0.06)",
-    color: active ? "var(--accent)" : "var(--text-mid)",
+    fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", fontWeight: active ? 700 : 500,
+    padding: "4px 12px", border: active ? "1px solid rgba(90,160,255,0.5)" : "1px solid rgba(140,140,170,0.25)", cursor: "pointer",
+    background: active ? "rgba(90,160,255,0.2)" : "rgba(140,140,170,0.08)",
+    color: active ? "#7bb8ff" : "rgba(180,180,200,0.7)",
     borderRadius: 3,
     transition: "all 0.15s ease",
   });
@@ -41,18 +44,23 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const sliceCount = RANGE_DAYS[range];
   const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
 
+  // Range buttons row — always visible
+  const rangeRow = (
+    <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+      {RANGE_KEYS.map(k => (
+        <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>
+      ))}
+    </div>
+  );
+
   if (data.length < 10) {
     return (
       <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)" }}>PRICE HISTORY</span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>Not enough data for {range}</span>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
-            {RANGE_KEYS.map(k => (
-              <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>
-            ))}
-          </div>
         </div>
+        {rangeRow}
       </div>
     );
   }
@@ -85,11 +93,12 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
   const fillPath = `${pricePath} L${toX(data.length - 1).toFixed(1)},${(pad.top + innerH).toFixed(1)} L${toX(0).toFixed(1)},${(pad.top + innerH).toFixed(1)} Z`;
   const fillColor = prices[prices.length - 1] >= prices[0] ? "rgba(90,191,160,0.08)" : "rgba(200,90,90,0.08)";
 
-  const yearLabels: { x: number; label: string }[] = [];
+  // Year boundaries — for labels AND vertical lines
+  const yearBoundaries: { x: number; label: string }[] = [];
   let lastYear = "";
   for (let i = 0; i < data.length; i++) {
     const y = data[i].date.slice(0, 4);
-    if (y !== lastYear) { yearLabels.push({ x: toX(i), label: y }); lastYear = y; }
+    if (y !== lastYear) { yearBoundaries.push({ x: toX(i), label: y }); lastYear = y; }
   }
 
   const niceStep = range_ / 4;
@@ -100,27 +109,27 @@ export function PriceChart({ points, loading, height = 120 }: PriceChartProps) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)" }}>PRICE HISTORY</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{data[0].date} → {data[data.length - 1].date}</span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--accent)" }}>— MA20</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#7bb8ff" }}>— MA20</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)" }}>-- MA50</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
-          {RANGE_KEYS.map(k => (
-            <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>
-          ))}
-        </div>
       </div>
+      {rangeRow}
       <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", maxHeight: height, display: "block" }} preserveAspectRatio="none">
         <path d={fillPath} fill={fillColor} />
         {yLabels.map((v, i) => (
-          <line key={i} x1={pad.left} x2={width - pad.right} y1={toY(v)} y2={toY(v)} stroke="rgba(140,140,170,0.1)" strokeWidth="0.5" />
+          <line key={`h${i}`} x1={pad.left} x2={width - pad.right} y1={toY(v)} y2={toY(v)} stroke="rgba(140,140,170,0.1)" strokeWidth="0.5" />
+        ))}
+        {/* Vertical year-end lines */}
+        {yearBoundaries.slice(1).map((yb, i) => (
+          <line key={`yv${i}`} x1={yb.x} x2={yb.x} y1={pad.top} y2={pad.top + innerH} stroke="rgba(140,140,170,0.18)" strokeWidth="0.7" strokeDasharray="3,3" />
         ))}
         {ma50Points.length > 1 && <path d={ma50Points.join(" ")} fill="none" stroke="var(--gold)" strokeWidth="1" strokeDasharray="4,3" opacity="0.6" />}
-        {ma20Points.length > 1 && <path d={ma20Points.join(" ")} fill="none" stroke="var(--accent)" strokeWidth="1" opacity="0.7" />}
+        {ma20Points.length > 1 && <path d={ma20Points.join(" ")} fill="none" stroke="#7bb8ff" strokeWidth="1" opacity="0.7" />}
         <path d={pricePath} fill="none" stroke={trendColor} strokeWidth="1.5" strokeLinejoin="round" />
-        {yearLabels.map((yl, i) => (
-          <text key={i} x={yl.x} y={height - 4} fill="var(--text-dim)" fontSize="8" fontFamily="var(--font-mono)">{yl.label}</text>
+        {yearBoundaries.map((yl, i) => (
+          <text key={`yl${i}`} x={yl.x} y={height - 4} fill="var(--text-dim)" fontSize="8" fontFamily="var(--font-mono)">{yl.label}</text>
         ))}
         {yLabels.map((v, i) => (
-          <text key={i} x={width - pad.right + 4} y={toY(v) + 3} fill="var(--text-dim)" fontSize="7" fontFamily="var(--font-mono)">{v.toFixed(v >= 100 ? 0 : 2)}</text>
+          <text key={`yp${i}`} x={width - pad.right + 4} y={toY(v) + 3} fill="var(--text-dim)" fontSize="7" fontFamily="var(--font-mono)">{v.toFixed(v >= 100 ? 0 : 2)}</text>
         ))}
       </svg>
     </div>

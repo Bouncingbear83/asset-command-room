@@ -31,6 +31,7 @@ export function useTickerHistory() {
         return;
       }
 
+      console.log(`[useTickerHistory] ${ticker}: ${(data || []).length} rows, last=${data?.length ? data[data.length - 1].snapshot_date : "none"}`);
       const points: DailyPricePoint[] = (data || []).map(row => ({
         date: row.snapshot_date,
         priceLocal: Number(row.price_local),
