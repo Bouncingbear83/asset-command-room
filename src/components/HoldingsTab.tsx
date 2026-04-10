@@ -8,6 +8,8 @@ import { useRationales } from "@/hooks/useRationales";
 import { ThesisCard, RationaleLoading } from "@/components/RationalePanels";
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
+import { useTickerHistory } from "@/hooks/useTickerHistory";
+import { PriceChart } from "@/components/PriceChart";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
