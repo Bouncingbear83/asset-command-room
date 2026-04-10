@@ -299,6 +299,7 @@ function UnifiedView({
   groupMode,
   sippTotal,
   isaTotal,
+  priceData,
 }: {
   allHoldings: LiveHolding[];
   totalAum: number;
@@ -307,6 +308,7 @@ function UnifiedView({
   groupMode: GroupMode;
   sippTotal: number;
   isaTotal: number;
+  priceData?: PriceDataMap;
 }) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("mv");
