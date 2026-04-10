@@ -1,27 +1,37 @@
 
 
-## Fix: Chart time range buttons not rendering, data truncation, add year-end lines
+## Plan: Improve PriceChart x-axis clarity and add hover crosshair
 
-### What's wrong
+### Problem 1 — X-axis appears to end at 2024
+The x-axis only shows labels at year boundaries (where the year digit changes). For the 5Y view ending in 2025/2026, the last year label ("2025" or "2026") renders at the far right edge where it collides with the y-axis price labels (right padding = 60px). The data IS there (header shows the full range), but the axis labeling makes it look truncated.
 
-1. **Toggle buttons invisible**: The buttons exist in code but the header row uses `display: flex` with `gap: 12` and `marginLeft: auto` — on narrow expanded rows the buttons may overflow or get clipped. The screenshot confirms they're absent from the visible area.
+**Fix:** Improve x-axis labeling strategy:
+- For 1W/1M: show individual dates (e.g. "Apr 3", "Apr 7")
+- For 1Y: show month labels ("Jan", "Apr", "Jul", "Oct")  
+- For 5Y/MAX: keep year labels but also add the final date as a label at the right edge
+- Ensure the last label never overlaps the y-axis by shifting it left if needed
 
-2. **Data ending in 2025**: Despite `.limit(5000)` being in the code, the chart shows `2024-02-27 → 2025-03-28`. This is exactly ~252 trading days — meaning the `1Y` default IS working, but the date range label shows 2025 not 2026. The actual issue is likely that the `useTickerHistory` cached stale data from before the limit fix was deployed, or the component is receiving the wrong points. Need to add a console log or verify the data is actually arriving with 2026 dates.
+### Problem 2 — No hover price indicator
+Currently the chart is a static SVG with no interactivity beyond range buttons.
 
-3. **No year-end vertical lines**: The chart currently shows year labels at the x-axis where each new year starts. Adding subtle vertical lines at Dec 31 / Jan 1 boundaries would improve readability.
+**Fix:** Add a vertical crosshair + tooltip on mouse hover:
+- Track mouse position over the SVG using `onMouseMove` / `onMouseLeave`
+- Map x-position to nearest data point index
+- Draw a thin vertical line at that x position
+- Show a small floating label with the date and price (e.g. "2024-06-15 · $294.96")
+- Also show a small horizontal dot on the price line at that point
+- Use React state for hover index; null when mouse leaves
 
-### Changes
+### Problem 3 — Y-axis labels too subtle
+The right-side price labels exist (fontSize 7) but are very small.
 
-**`src/components/PriceChart.tsx`**
-- Move the range toggle buttons to their own row below the header label, with larger font (10px) and more padding so they're unmissable
-- Add vertical dashed lines at year-end boundaries (where year changes in the data) — subtle `rgba(140,140,170,0.15)` stroke
-- Add `console.log` of the full points array length and last date on render (temporary debug) to verify data completeness
+**Fix:** Increase y-axis label font size to 8-9px and add currency formatting.
 
-**`src/hooks/useTickerHistory.ts`**
-- Add a `console.log` after fetch showing `ticker`, `data.length`, and last row's `snapshot_date` — to confirm 2026 data is arriving from the database
+### Files to modify
 
-### Visual result
-- Clear row of 5 toggle buttons: `[1W] [1M] [1Y] [5Y] [MAX]` — visible and clickable
-- Thin vertical dashed lines at each Dec→Jan transition
-- Year labels positioned at those same boundaries
+| File | Change |
+|------|--------|
+| `src/components/PriceChart.tsx` | Smarter x-axis labels based on range; hover crosshair with date+price tooltip; larger y-axis labels |
+
+Single file change. No database or data changes needed.
 
