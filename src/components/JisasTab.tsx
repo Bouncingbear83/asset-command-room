@@ -57,6 +57,16 @@ const metaVal: React.CSSProperties = {
 export default function JisasTab({ jisaHoldings, transactions, layers, performance }: Props) {
   const isMobile = useIsMobile();
   const [childFilter, setChildFilter] = useState<string>("All");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const { fetchHistory, getHistory } = useTickerHistory();
+
+  const toggleExpand = (key: string, ticker: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); fetchHistory(ticker); }
+      return next;
+    });
+  };
 
   const layerHexMap = useMemo(() => {
     const map: Record<string, string> = {};
