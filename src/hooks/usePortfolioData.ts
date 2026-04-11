@@ -856,7 +856,7 @@ export function usePortfolioData(): PortfolioData {
         jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AJ35" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:N40" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:N80" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
