@@ -23,7 +23,7 @@ export function useTickerHistory() {
       const { data: batch1, error } = await supabase
         .from("daily_prices")
         .select("snapshot_date, price_local, price_gbp")
-        .eq("ticker", ticker)
+        .ilike("ticker", ticker)
         .order("snapshot_date", { ascending: false })
         .limit(1000);
 
@@ -39,7 +39,7 @@ export function useTickerHistory() {
         const { data: batch2 } = await supabase
           .from("daily_prices")
           .select("snapshot_date, price_local, price_gbp")
-          .eq("ticker", ticker)
+          .ilike("ticker", ticker)
           .order("snapshot_date", { ascending: false })
           .range(1000, 1999);
 

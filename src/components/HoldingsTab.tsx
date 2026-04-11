@@ -264,7 +264,7 @@ function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRat
       {/* Score card */}
       {score && <tr><td colSpan={colSpan} style={{ padding: 0 }}><ScoreCard score={score} /></td></tr>}
       {/* Price chart */}
-      {tickerHistory && (tickerHistory.loading || tickerHistory.points.length >= 10) && (
+      {tickerHistory && (tickerHistory.loading || {tickerHistory && (tickerHistory.loading || tickerHistory.points.length >= 2) && () && (
         <tr><td colSpan={colSpan} style={{ padding: 0 }}><PriceChart points={tickerHistory.points} loading={tickerHistory.loading} /></td></tr>
       )}
       <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--green)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>ADD</span><span style={{ color: "var(--text-mid)" }}>{addVal}</span></td></tr>
