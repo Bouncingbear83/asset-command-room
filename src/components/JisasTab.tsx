@@ -3,7 +3,7 @@ import { LiveJisaHolding, LiveTransaction, LiveLayer, LivePerformance } from "@/
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { useTickerHistory } from "@/hooks/useTickerHistory";
-import PriceChart from "@/components/PriceChart";
+import { PriceChart } from "@/components/PriceChart";
 
 interface Props {
   jisaHoldings: LiveJisaHolding[];
