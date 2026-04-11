@@ -280,15 +280,21 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
                   const hexColor = layerHexMap[h.layer.toLowerCase()] || "var(--text-dim)";
                   const r = h.returns;
                   const hasReturns = r && r.totalCost > 0;
+                  const rowKey = `${group.child}-${h.ticker}`;
+                  const isExpanded = expanded.has(rowKey);
+                  const tickerHistory = isExpanded ? getHistory(h.ticker) : null;
                   return (
-                    <div key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12, marginBottom: 4 }}>
+                    <div key={i} onClick={() => toggleExpand(rowKey, h.ticker)} style={{ cursor: "pointer", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12, marginBottom: 4 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
-                        {hasReturns && (
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
-                            {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% pa
-                          </span>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {hasReturns && (
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
+                              {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% pa
+                            </span>
+                          )}
+                          <span style={{ fontSize: 10, color: "var(--text-dim)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+                        </div>
                       </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{h.name}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
@@ -305,6 +311,14 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
                           <span>Cost: {formatCurrency(r!.totalCost)}</span>
                           <span style={{ color: r!.truePL >= 0 ? "var(--green)" : "var(--red)" }}>P&L: {r!.truePL >= 0 ? "+" : ""}£{Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span>
                         </div>
+                      )}
+                      {isExpanded && tickerHistory && tickerHistory.points.length >= 2 && (
+                        <div style={{ marginTop: 8 }} onClick={e => e.stopPropagation()}>
+                          <PriceChart data={tickerHistory.points} height={120} />
+                        </div>
+                      )}
+                      {isExpanded && tickerHistory && tickerHistory.loading && (
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 8 }}>Loading chart…</div>
                       )}
                     </div>
                   );
