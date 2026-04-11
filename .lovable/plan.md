@@ -1,26 +1,30 @@
 
 
-## Plan: Fix data truncation — PostgREST 1000-row limit
+## Plan: Fix missing price charts for holdings
 
 ### Root cause
-Supabase PostgREST has a default server-side maximum of 1000 rows per response. The `.limit(5000)` in the JS client cannot exceed this cap. ASML has 1,260 rows ordered ascending — so only the first 1000 are returned, cutting off ~April 2025 through April 2026.
+
+Two issues prevent charts from appearing:
+
+1. **Case mismatch** — The holdings use `WINTON` and `RUFFER` (all-caps), but `daily_prices` has most data under `Winton` (234 rows) and `Ruffer` (310 rows). The `.eq("ticker", ticker)` query is case-sensitive, so `WINTON` only matches 3 rows instead of 234.
+
+2. **Minimum threshold too high** — Line 267 of `HoldingsTab.tsx` requires `points.length >= 10` to render a chart. Tickers like LEU (3 rows) genuinely have very few data points. With only 3 points the chart isn't useful, but the threshold should be lowered to 2 so any ticker with data at least shows something.
 
 ### Fix
 
 **`src/hooks/useTickerHistory.ts`**
-- Change query to order by `snapshot_date` **descending** so the most recent data is fetched first
-- Reverse the array client-side after fetching
-- This guarantees the latest prices are always included even if the 1000-row cap applies
-- For tickers with >1000 rows, paginate with a second request to get the remaining older data (fetch desc first 1000, then fetch the next batch if needed)
+- Use case-insensitive matching: query with `.ilike("ticker", ticker)` instead of `.eq("ticker", ticker)` to handle `WINTON` matching `Winton`, etc.
 
-Simple approach (covers all current tickers since max is ~1260 rows):
-1. First fetch: `order desc, limit 1000` → gets most recent 1000 rows
-2. If exactly 1000 rows returned, fetch again with `order desc, limit 1000, offset 1000` for remaining
-3. Combine and sort ascending client-side
+**`src/components/HoldingsTab.tsx`**
+- Lower the chart display threshold from `>= 10` to `>= 2` so tickers with limited history still show a chart (even a simple line between 2-3 points is informative)
 
-**`src/components/PriceChart.tsx`**
-- No changes needed — once the data arrives correctly, the chart will render through April 2026
+### Data cleanup (optional, recommended)
+- Run a migration to normalize all ticker casing in `daily_prices` to uppercase, matching the holdings data convention. This prevents the issue recurring and avoids needing case-insensitive queries long-term.
 
-### Result
-All tickers will show data through the present day. The most recent data is always prioritized even if pagination isn't needed.
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/hooks/useTickerHistory.ts` | Replace `.eq("ticker", ticker)` with `.ilike("ticker", ticker)` in both batch queries |
+| `src/components/HoldingsTab.tsx` | Change threshold from `>= 10` to `>= 2` on line 267 |
 
