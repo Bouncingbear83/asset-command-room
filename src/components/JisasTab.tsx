@@ -314,7 +314,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
                       )}
                       {isExpanded && tickerHistory && tickerHistory.points.length >= 2 && (
                         <div style={{ marginTop: 8 }} onClick={e => e.stopPropagation()}>
-                          <PriceChart data={tickerHistory.points} height={120} />
+                          <PriceChart points={tickerHistory.points} height={120} />
                         </div>
                       )}
                       {isExpanded && tickerHistory && tickerHistory.loading && (
