@@ -385,27 +385,50 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
                     const hexColor = layerHexMap[h.layer.toLowerCase()] || "var(--text-dim)";
                     const r = h.returns;
                     const hasReturns = r && r.totalCost > 0;
+                    const rowKey = `${group.child}-${h.ticker}`;
+                    const isExpanded = expanded.has(rowKey);
+                    const tickerHistory = isExpanded ? getHistory(h.ticker) : null;
                     return (
-                      <tr key={`${group.child}-${h.ticker}-${i}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
-                        <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</td>
-                        <td style={{ padding: "7px 6px", color: "var(--text)" }}>{h.name}</td>
-                        <td style={{ padding: "7px 6px" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
-                            <span style={{ color: "var(--text-dim)" }}>{h.layer}</span>
-                          </span>
-                        </td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{h.shares ?? "—"}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{formatCurrency(h.mvGbp)}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{h.weightPct?.toFixed(1) ?? "—"}%</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)" }}>{h.targetPct?.toFixed(1) ?? "—"}%</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: driftColor }}>{drift >= 0 ? "+" : ""}{drift.toFixed(1)}%</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)", fontSize: 10 }}>{hasReturns ? formatCurrency(r!.totalCost) : "—"}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePLpct >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePLpct >= 0 ? "+" : ""}${r!.truePLpct.toFixed(1)}%` : "—"}</td>
-                        <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}% pa` : "—"}</td>
-                      </tr>
+                      <React.Fragment key={`${group.child}-${h.ticker}-${i}`}>
+                        <tr onClick={() => toggleExpand(rowKey, h.ticker)} style={{ cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
+                          <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ fontSize: 8, color: "var(--text-dim)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)", display: "inline-block" }}>▼</span>
+                              {h.ticker}
+                            </span>
+                          </td>
+                          <td style={{ padding: "7px 6px", color: "var(--text)" }}>{h.name}</td>
+                          <td style={{ padding: "7px 6px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                              <span style={{ width: 7, height: 7, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
+                              <span style={{ color: "var(--text-dim)" }}>{h.layer}</span>
+                            </span>
+                          </td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{h.shares ?? "—"}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{formatCurrency(h.mvGbp)}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{h.weightPct?.toFixed(1) ?? "—"}%</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)" }}>{h.targetPct?.toFixed(1) ?? "—"}%</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: driftColor }}>{drift >= 0 ? "+" : ""}{drift.toFixed(1)}%</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)", fontSize: 10 }}>{hasReturns ? formatCurrency(r!.totalCost) : "—"}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePLpct >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePLpct >= 0 ? "+" : ""}${r!.truePLpct.toFixed(1)}%` : "—"}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}% pa` : "—"}</td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={13} style={{ padding: "8px 12px 12px", background: "rgba(200,169,110,0.04)" }}>
+                              {tickerHistory && tickerHistory.points.length >= 2 ? (
+                                <PriceChart points={tickerHistory.points} height={140} />
+                              ) : tickerHistory && tickerHistory.loading ? (
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>Loading chart…</div>
+                              ) : (
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>No price data available</div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </>
