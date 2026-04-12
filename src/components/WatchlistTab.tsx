@@ -510,7 +510,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <StatCard count={buyTargets.length} label="Buy Ready" color="var(--green)" glow="rgba(90, 191, 160, 0.5)" />
         <StatCard count={inZoneCount} label="In Zone" color="var(--amber)" glow="rgba(200, 146, 90, 0.5)" />
-        <StatCard count={staleCount} label="Stale Triggers" color="#EF9F27" glow="rgba(239, 159, 39, 0.4)" />
+        <StatCard count={staleCount} label="Overdue Reviews" color="#EF9F27" glow="rgba(239, 159, 39, 0.4)" />
         <StatCard count={liveData.length} label="Total Watching" color="var(--text-mid)" />
       </div>
 
