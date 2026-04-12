@@ -299,6 +299,9 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
   const [expanded, setExpanded] = useState(false);
   const { current, vsColor, vsLabel } = getPctInfo(item);
   const isMobile = useIsMobile();
+  const staleness = getStalenessIndicator(item.triggerReviewDate, item.status);
+  const staleDotColor = STALENESS_DOT_COLORS[staleness.color];
+  const isReviewFlagged = item.status.trim().toUpperCase() === 'REVIEW_FLAGGED';
 
   return (
     <div
