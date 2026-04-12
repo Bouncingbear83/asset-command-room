@@ -461,21 +461,21 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const activeMonitoring = useMemo(() =>
     liveData
       .filter((item) => ACTIVE_MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
     [liveData]
   );
 
   const monitoring = useMemo(() =>
     liveData
       .filter((item) => MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
     [liveData]
   );
 
   const research = useMemo(() =>
     liveData
       .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
     [liveData]
   );
 
