@@ -335,7 +335,7 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
             <StatusBadge status={item.status} />
           </div>
 
-          {/* Line 2: Target · Current · vs% */}
+          {/* Line 2: Target · Current · vs% · Reviewed */}
           <div style={{ display: "flex", gap: isMobile ? 8 : 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10, flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
             <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
@@ -343,7 +343,29 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
             {item.deploy_amount_gbp != null && item.deploy_amount_gbp > 0 && (
               <span style={{ color: "var(--text-dim)" }}>Deploy: <span style={{ color: "var(--accent)" }}>£{item.deploy_amount_gbp.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
             )}
+            {/* Staleness indicator */}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: staleDotColor, flexShrink: 0, boxShadow: staleness.color === 'red' ? `0 0 4px ${staleDotColor}` : undefined }} />
+              <span style={{ color: staleDotColor, fontWeight: staleness.color === 'red' ? 700 : 400 }}>{staleness.label}</span>
+            </span>
           </div>
+
+          {/* Review note subtitle for REVIEW_FLAGGED */}
+          {isReviewFlagged && item.triggerReviewNote && (
+            <div style={{
+              marginTop: 4,
+              padding: "4px 8px",
+              background: "rgba(239, 159, 39, 0.08)",
+              borderLeft: "2px solid #EF9F27",
+              borderRadius: "0 2px 2px 0",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "#EF9F27",
+              lineHeight: 1.4,
+            }}>
+              {item.triggerReviewNote}
+            </div>
+          )}
         </div>
 
         {/* Chevron */}
