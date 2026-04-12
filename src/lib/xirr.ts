@@ -47,7 +47,7 @@ export function calcHoldingReturns(
   currentMV: number,
   transactions: LiveTransaction[]
 ): HoldingReturns {
-  const txns = transactions.filter(t => t.ticker === ticker && t.account.toUpperCase() === account.toUpperCase());
+  const txns = transactions.filter(t => t.ticker.toUpperCase() === ticker.toUpperCase() && t.account.toUpperCase() === account.toUpperCase());
 
   const buys = txns.filter(t => (t.shares || 0) > 0 && t.action !== "DIVIDEND");
   const totalBuyCost = buys.reduce((sum, t) => sum + (t.valueGbp || 0), 0);
@@ -118,7 +118,7 @@ export function calcTickerReturns(
   entryDate: string;
   isClosed: boolean;
 } {
-  const txns = transactions.filter(t => t.ticker === ticker);
+  const txns = transactions.filter(t => t.ticker.toUpperCase() === ticker.toUpperCase());
   const buyTxns = txns.filter(t => (t.shares || 0) > 0 && t.action !== "DIVIDEND");
   const sellTxns = txns.filter(t => (t.shares || 0) < 0);
 
@@ -133,7 +133,7 @@ export function calcTickerReturns(
   const totalProceeds = sellTxns.reduce((sum, t) => sum + Math.abs(t.valueGbp || 0), 0);
 
   // Find current MV from holdings
-  const matchingHoldings = holdings.filter(h => h.ticker === ticker);
+  const matchingHoldings = holdings.filter(h => h.ticker.toUpperCase() === ticker.toUpperCase());
   const currentMV = matchingHoldings.reduce((sum, h) => sum + (h.mv || 0), 0);
 
   const netShares = Object.values(sharesByAccount).reduce((a, b) => a + b, 0);
