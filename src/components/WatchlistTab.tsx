@@ -66,6 +66,67 @@ function reviewAge(dateStr: string): number | null {
   return Math.floor((now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// ── Staleness indicator ──
+
+interface StalenessConfig {
+  amberDays: number;
+  redDays: number;
+  showStaleness: boolean;
+}
+
+const stalenessByStatus: Record<string, StalenessConfig> = {
+  'ACTIVE':           { amberDays: 14, redDays: 30, showStaleness: true },
+  'REVIEW_FLAGGED':   { amberDays: 14, redDays: 30, showStaleness: true },
+  'PENDING':          { amberDays: 14, redDays: 30, showStaleness: true },
+  'BUY NOW':          { amberDays: 14, redDays: 30, showStaleness: true },
+  'BUY T1':           { amberDays: 14, redDays: 30, showStaleness: true },
+  'BUY T2':           { amberDays: 14, redDays: 30, showStaleness: true },
+  'ACTIVE_MONITORING':{ amberDays: 14, redDays: 30, showStaleness: true },
+  'MONITOR':          { amberDays: 14, redDays: 30, showStaleness: true },
+  'WAIT':             { amberDays: 30, redDays: 60, showStaleness: true },
+  'WATCH':            { amberDays: 30, redDays: 60, showStaleness: true },
+  'RESEARCH':         { amberDays: 30, redDays: 60, showStaleness: true },
+  'PRE-IPO':          { amberDays: -1, redDays: -1, showStaleness: false },
+  'EXITED':           { amberDays: -1, redDays: -1, showStaleness: false },
+};
+
+type StalenessColor = 'green' | 'amber' | 'red' | 'grey';
+
+function getStalenessIndicator(
+  reviewDate: string | null | undefined,
+  status: string
+): { color: StalenessColor; label: string; sortWeight: number } {
+  const config = stalenessByStatus[status.trim().toUpperCase()] || stalenessByStatus['WAIT'];
+
+  if (!reviewDate) {
+    return { color: 'red', label: 'Never reviewed', sortWeight: 9999 };
+  }
+
+  const daysSince = reviewAge(reviewDate);
+  if (daysSince === null) {
+    return { color: 'red', label: 'Never reviewed', sortWeight: 9999 };
+  }
+
+  if (!config.showStaleness) {
+    return { color: 'grey', label: `Scanned ${daysSince}d ago`, sortWeight: -1 };
+  }
+
+  if (daysSince >= config.redDays) {
+    return { color: 'red', label: `${daysSince}d — overdue`, sortWeight: daysSince + 1000 };
+  }
+  if (daysSince >= config.amberDays) {
+    return { color: 'amber', label: `${daysSince}d`, sortWeight: daysSince + 500 };
+  }
+  return { color: 'green', label: `${daysSince}d`, sortWeight: daysSince };
+}
+
+const STALENESS_DOT_COLORS: Record<StalenessColor, string> = {
+  green: 'var(--green)',
+  amber: '#EF9F27',
+  red: 'var(--red)',
+  grey: 'var(--text-dim)',
+};
+
 function formatReviewDate(dateStr: string): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
