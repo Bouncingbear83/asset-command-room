@@ -66,6 +66,67 @@ function reviewAge(dateStr: string): number | null {
   return Math.floor((now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// ── Staleness indicator ──
+
+interface StalenessConfig {
+  amberDays: number;
+  redDays: number;
+  showStaleness: boolean;
+}
+
+const stalenessByStatus: Record<string, StalenessConfig> = {
+  'ACTIVE':           { amberDays: 14, redDays: 30, showStaleness: true },
+  'REVIEW_FLAGGED':   { amberDays: 14, redDays: 30, showStaleness: true },
+  'PENDING':          { amberDays: 14, redDays: 30, showStaleness: true },
+  'BUY NOW':          { amberDays: 14, redDays: 30, showStaleness: true },
+  'BUY T1':           { amberDays: 14, redDays: 30, showStaleness: true },
+  'BUY T2':           { amberDays: 14, redDays: 30, showStaleness: true },
+  'ACTIVE_MONITORING':{ amberDays: 14, redDays: 30, showStaleness: true },
+  'MONITOR':          { amberDays: 14, redDays: 30, showStaleness: true },
+  'WAIT':             { amberDays: 30, redDays: 60, showStaleness: true },
+  'WATCH':            { amberDays: 30, redDays: 60, showStaleness: true },
+  'RESEARCH':         { amberDays: 30, redDays: 60, showStaleness: true },
+  'PRE-IPO':          { amberDays: -1, redDays: -1, showStaleness: false },
+  'EXITED':           { amberDays: -1, redDays: -1, showStaleness: false },
+};
+
+type StalenessColor = 'green' | 'amber' | 'red' | 'grey';
+
+function getStalenessIndicator(
+  reviewDate: string | null | undefined,
+  status: string
+): { color: StalenessColor; label: string; sortWeight: number } {
+  const config = stalenessByStatus[status.trim().toUpperCase()] || stalenessByStatus['WAIT'];
+
+  if (!reviewDate) {
+    return { color: 'red', label: 'Never reviewed', sortWeight: 9999 };
+  }
+
+  const daysSince = reviewAge(reviewDate);
+  if (daysSince === null) {
+    return { color: 'red', label: 'Never reviewed', sortWeight: 9999 };
+  }
+
+  if (!config.showStaleness) {
+    return { color: 'grey', label: `Scanned ${daysSince}d ago`, sortWeight: -1 };
+  }
+
+  if (daysSince >= config.redDays) {
+    return { color: 'red', label: `${daysSince}d — overdue`, sortWeight: daysSince + 1000 };
+  }
+  if (daysSince >= config.amberDays) {
+    return { color: 'amber', label: `${daysSince}d`, sortWeight: daysSince + 500 };
+  }
+  return { color: 'green', label: `${daysSince}d`, sortWeight: daysSince };
+}
+
+const STALENESS_DOT_COLORS: Record<StalenessColor, string> = {
+  green: 'var(--green)',
+  amber: '#EF9F27',
+  red: 'var(--red)',
+  grey: 'var(--text-dim)',
+};
+
 function formatReviewDate(dateStr: string): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -238,6 +299,9 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
   const [expanded, setExpanded] = useState(false);
   const { current, vsColor, vsLabel } = getPctInfo(item);
   const isMobile = useIsMobile();
+  const staleness = getStalenessIndicator(item.triggerReviewDate, item.status);
+  const staleDotColor = STALENESS_DOT_COLORS[staleness.color];
+  const isReviewFlagged = item.status.trim().toUpperCase() === 'REVIEW_FLAGGED';
 
   return (
     <div
@@ -271,7 +335,7 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
             <StatusBadge status={item.status} />
           </div>
 
-          {/* Line 2: Target · Current · vs% */}
+          {/* Line 2: Target · Current · vs% · Reviewed */}
           <div style={{ display: "flex", gap: isMobile ? 8 : 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10, flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
             <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
@@ -279,7 +343,29 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
             {item.deploy_amount_gbp != null && item.deploy_amount_gbp > 0 && (
               <span style={{ color: "var(--text-dim)" }}>Deploy: <span style={{ color: "var(--accent)" }}>£{item.deploy_amount_gbp.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
             )}
+            {/* Staleness indicator */}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: staleDotColor, flexShrink: 0, boxShadow: staleness.color === 'red' ? `0 0 4px ${staleDotColor}` : undefined }} />
+              <span style={{ color: staleDotColor, fontWeight: staleness.color === 'red' ? 700 : 400 }}>{staleness.label}</span>
+            </span>
           </div>
+
+          {/* Review note subtitle for REVIEW_FLAGGED */}
+          {isReviewFlagged && item.triggerReviewNote && (
+            <div style={{
+              marginTop: 4,
+              padding: "4px 8px",
+              background: "rgba(239, 159, 39, 0.08)",
+              borderLeft: "2px solid #EF9F27",
+              borderRadius: "0 2px 2px 0",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "#EF9F27",
+              lineHeight: 1.4,
+            }}>
+              {item.triggerReviewNote}
+            </div>
+          )}
         </div>
 
         {/* Chevron */}
@@ -375,21 +461,21 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const activeMonitoring = useMemo(() =>
     liveData
       .filter((item) => ACTIVE_MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
     [liveData]
   );
 
   const monitoring = useMemo(() =>
     liveData
       .filter((item) => MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
     [liveData]
   );
 
   const research = useMemo(() =>
     liveData
       .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
     [liveData]
   );
 
@@ -409,7 +495,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   );
 
   const staleCount = useMemo(() =>
-    liveData.filter((item) => isStale(item.triggerReviewNote)).length,
+    liveData.filter((item) => getStalenessIndicator(item.triggerReviewDate, item.status).color === 'red').length,
     [liveData]
   );
 
@@ -424,7 +510,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <StatCard count={buyTargets.length} label="Buy Ready" color="var(--green)" glow="rgba(90, 191, 160, 0.5)" />
         <StatCard count={inZoneCount} label="In Zone" color="var(--amber)" glow="rgba(200, 146, 90, 0.5)" />
-        <StatCard count={staleCount} label="Stale Triggers" color="#EF9F27" glow="rgba(239, 159, 39, 0.4)" />
+        <StatCard count={staleCount} label="Overdue Reviews" color="#EF9F27" glow="rgba(239, 159, 39, 0.4)" />
         <StatCard count={liveData.length} label="Total Watching" color="var(--text-mid)" />
       </div>
 
