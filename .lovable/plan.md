@@ -1,30 +1,24 @@
 
 
-## Plan: Extend watchlist range and add expandable rows with price charts to JISA tab
+## Plan: Fix Current MV lookup in Transaction drill-down
 
-### 1. Extend watchlist fetch range
+### Problem
+The Transactions ticker drill-down shows "Current MV: £0" for HEXA-B (and likely other tickers) because `calcTickerReturns` in `src/lib/xirr.ts` matches holdings with strict case-sensitive equality (`h.ticker === ticker`). If the ticker casing differs between transactions and holdings, or if the holding exists but isn't found, MV defaults to zero — producing nonsensical -100% returns.
 
-The current fetch is `range: "A1:N40"` — capping at 40 rows. Extend to `"A1:N80"` to capture all watchlist entries.
+### Fix
 
-**File:** `src/hooks/usePortfolioData.ts` — change `range: "A1:N40"` to `range: "A1:N80"`
+**`src/lib/xirr.ts` — `calcTickerReturns` function**
+- Change the holdings lookup from `h.ticker === ticker` to a case-insensitive comparison: `h.ticker.toUpperCase() === ticker.toUpperCase()`
+- Same fix in `calcHoldingReturns` for consistency (line ~42: `t.ticker === ticker`)
 
-### 2. Add expandable holdings with price charts to JISA tab
-
-The JISA tab currently shows flat, non-interactive rows. We'll add the same expand-on-click pattern used in HoldingsTab: clicking a row toggles an expanded section showing a price chart (using `useTickerHistory` and `PriceChart`).
-
-**File:** `src/components/JisasTab.tsx`
-
-- Import `useTickerHistory` and `PriceChart`
-- Add `expanded` state (`Set<string>`) tracking which rows are open
-- On row click, toggle expansion and call `fetchHistory(ticker)`
-- Render a `PriceChart` below the clicked row when expanded (threshold >= 2 points, matching HoldingsTab)
-- Add a chevron indicator to show expand/collapse state
-- Works for both mobile card view and desktop table view
+**`src/lib/xirr.ts` — `calcHoldingReturns` function**  
+- Apply the same case-insensitive fix to the transaction filter: `t.ticker.toUpperCase() === ticker.toUpperCase()`
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/usePortfolioData.ts` | Watchlist range `N40` → `N80` |
-| `src/components/JisasTab.tsx` | Add expand/collapse with `useTickerHistory` + `PriceChart` per holding |
+| `src/lib/xirr.ts` | Case-insensitive ticker matching in both `calcTickerReturns` (holdings filter) and `calcHoldingReturns` (transaction filter) |
+
+Single file, two line changes.
 
