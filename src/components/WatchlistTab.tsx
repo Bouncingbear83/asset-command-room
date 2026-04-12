@@ -495,7 +495,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   );
 
   const staleCount = useMemo(() =>
-    liveData.filter((item) => isStale(item.triggerReviewNote)).length,
+    liveData.filter((item) => getStalenessIndicator(item.triggerReviewDate, item.status).color === 'red').length,
     [liveData]
   );
 
