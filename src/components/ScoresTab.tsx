@@ -6,6 +6,7 @@ import { useRationales } from "@/hooks/useRationales";
 import { ScoreRationalePanel, DisruptionRationalePanel, RationaleLoading } from "@/components/RationalePanels";
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
+import { parseReviewFlag } from "@/components/ReviewQueue";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -210,12 +211,10 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   const sorted = sortScores(data, sortKey, sortDir);
   const isLive = scores.length > 0;
 
-  const reviewFlagMap = new Map<string, 'HIGH' | 'MEDIUM' | 'LOW'>();
+  const reviewFlagMap = new Map<string, { priority: 'HIGH' | 'MEDIUM' | 'LOW'; prefix: string }>();
   for (const h of allHoldings) {
-    if (h.trigger_review_note?.startsWith('Q_REVIEW')) {
-      const match = h.trigger_review_note.match(/^Q_REVIEW\s+\S+\s+(HIGH|MEDIUM|LOW)/);
-      if (match) reviewFlagMap.set(h.ticker, match[1] as 'HIGH' | 'MEDIUM' | 'LOW');
-    }
+    const flag = parseReviewFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
+    if (flag) reviewFlagMap.set(h.ticker, { priority: flag.priority, prefix: flag.prefix });
   }
   const reviewDotColor = (p: string) => p === 'HIGH' ? 'var(--red)' : p === 'MEDIUM' ? 'var(--amber)' : 'var(--green)';
 
@@ -311,7 +310,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 12 }}>
                   {s.ticker}
-                  {reviewFlagMap.has(s.ticker) && <span title={`Review: ${reviewFlagMap.get(s.ticker)}`} style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: reviewDotColor(reviewFlagMap.get(s.ticker)!), marginLeft: 5, verticalAlign: "middle" }} />}
+                  {reviewFlagMap.has(s.ticker) && <span title={`Review: ${reviewFlagMap.get(s.ticker)!.prefix} (${reviewFlagMap.get(s.ticker)!.priority})`} style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: reviewDotColor(reviewFlagMap.get(s.ticker)!.priority), marginLeft: 5, verticalAlign: "middle" }} />}
                   {s.disruption != null && s.disruption < 8 && <span title="Disruption risk" style={{ color: "var(--red)", marginLeft: 4, fontSize: 12 }}>⚠</span>}
                 </span>
                 {s.name && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1 }}>{s.name}</span>}

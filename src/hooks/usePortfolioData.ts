@@ -873,22 +873,7 @@ export function usePortfolioData(): PortfolioData {
 
       const allHoldings = parseHoldings(holdingsRaw);
 
-      // TEST: inject review flags — REMOVE after testing
-      const testFlags = [
-        { priority: 'HIGH', flag: 'EARNINGS', reason: 'Revenue miss 15% vs consensus' },
-        { priority: 'HIGH', flag: 'COMPETITOR', reason: 'Starlink Direct-to-Cell launch' },
-        { priority: 'HIGH', flag: 'KILL_CONDITION', reason: 'Thesis invalidated by merger' },
-        { priority: 'MEDIUM', flag: 'STALE', reason: 'Score date >90 days old' },
-        { priority: 'LOW', flag: 'PRICE_MOVE', reason: 'Price moved >30% since last scored' },
-      ];
-      const today = new Date().toISOString().slice(0, 10);
-      testFlags.forEach((tf, i) => {
-        if (allHoldings[i]) {
-          allHoldings[i].trigger_review_date = today;
-          allHoldings[i].trigger_review_note = `Q_REVIEW Q2 ${tf.priority} [${tf.flag}] ${tf.reason}`;
-        }
-      });
-      // END TEST
+      
       const sipp = allHoldings.filter((holding) => holding.account.toUpperCase() === "SIPP");
       const isa = allHoldings.filter((holding) => holding.account.toUpperCase() === "ISA");
       const narrativeData = parseNarrativeData(narrativeGrid);
