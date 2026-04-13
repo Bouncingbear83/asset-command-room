@@ -801,8 +801,6 @@ function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: 
 export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [], priceData }: Props) {
   const [showPriceMap, setShowPriceMap] = useState(false);
   const [groupMode, setGroupMode] = useState<GroupMode>("layer");
-  const [reviewExpanded, setReviewExpanded] = useState(false);
-  const reviewBannerRef = useRef<HTMLDivElement>(null);
 
   const disruptionMap = new Map<string, LiveDisruption>();
   for (const d of disruption) {
