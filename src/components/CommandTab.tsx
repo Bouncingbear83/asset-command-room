@@ -3,6 +3,7 @@ import { GOLDEN_RULES } from "@/data/portfolio";
 import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
+import ReviewQueue from "@/components/ReviewQueue";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -625,6 +626,9 @@ export default function CommandTab() {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
+        {/* Review Queue Banner */}
+        <ReviewQueue holdings={holdings} compact />
+
         {/* Zone Alert Banner */}
         {activeZones.length > 0 && (
           <div style={{ ...card, borderLeft: "3px solid var(--gold)", overflow: "hidden" }}>
