@@ -385,6 +385,36 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
             )}
           </td></tr>
         )}
+        {/* Action section at bottom of expanded panel */}
+        {isExpanded && (
+          <tr key={`${s.ticker}-actions`}><td colSpan={COLUMNS.length + 1} style={{ padding: "8px 16px 12px 36px", background: "rgba(20,20,40,0.3)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {s.buyLow && s.buyHigh && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                  Buy range: <span style={{ color: "var(--green)", fontWeight: 700 }}>{s.currency} {s.buyLow}–{s.buyHigh}</span>
+                </span>
+              )}
+              <a
+                href={`${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(`Deep dive rescore on ${s.ticker}. Layer: ${s.layer}. Current score: ${s.score}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ background: "var(--accent)", color: "#fff", border: "none", padding: "4px 12px", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", textDecoration: "none", borderRadius: 2 }}
+              >
+                Deep Dive ➜
+              </a>
+              <a
+                href={`https://drive.google.com/drive/search?q=${s.ticker}_research.md`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "4px 12px", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", textDecoration: "none", borderRadius: 2 }}
+              >
+                View Archive ➜
+              </a>
+            </div>
+          </td></tr>
+        )}
       </>
     );
   };

@@ -4,6 +4,7 @@ import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/useP
 import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
+import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -424,6 +425,7 @@ export default function CommandTab() {
   const isMobile = useIsMobile();
   const [moverSort, setMoverSort] = useState<"abs" | "gainers" | "losers">("abs");
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, scores, loading, error } = usePortfolioData();
+  const { recentResearch } = useResearchSummary();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")

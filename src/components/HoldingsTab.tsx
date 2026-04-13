@@ -11,6 +11,8 @@ import { Sparkline } from "@/components/Sparkline";
 import { useTickerHistory } from "@/hooks/useTickerHistory";
 import { PriceChart } from "@/components/PriceChart";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
+import { useResearchSummary } from "@/hooks/useResearchSummary";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -371,6 +373,7 @@ function UnifiedView({
 
   const { scoreCache, fetchScoreRationales, isLoading: isRatLoading } = useRationales();
   const { fetchHistory, getHistory } = useTickerHistory();
+  const { getSummary, getResearchFreshness } = useResearchSummary();
 
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
     return allHoldings.map(h => ({
@@ -520,12 +523,39 @@ function UnifiedView({
                       <tr key={rowKey} onClick={() => toggle(rowKey, h.ticker)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
                         <td style={{ padding: groupMode !== "none" && !isMobile ? "10px 12px 10px 24px" : cellPad, color: "var(--gold)", fontWeight: 700 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <span>{h.ticker}</span>
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span style={{ cursor: "default" }}>{h.ticker}</span>
+                                </TooltipTrigger>
+                                {(() => {
+                                  const summary = getSummary(h.ticker);
+                                  if (!summary?.thesis_summary) return null;
+                                  return (
+                                    <TooltipContent side="bottom" style={{ maxWidth: 320, background: "var(--panel)", border: "1px solid var(--rim)", color: "var(--text-mid)", fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.5 }}>
+                                      {summary.thesis_summary.length > 200 ? summary.thesis_summary.slice(0, 200) + "…" : summary.thesis_summary}
+                                    </TooltipContent>
+                                  );
+                                })()}
+                              </Tooltip>
+                            </TooltipProvider>
+                            {/* Score mini-badge */}
+                            {(() => {
+                              const summary = getSummary(h.ticker);
+                              if (!summary) return null;
+                              const sc = summary.total_score;
+                              const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
+                              return <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: badgeColor, background: `color-mix(in srgb, ${badgeColor} 15%, transparent)`, padding: "1px 5px", borderRadius: 8, lineHeight: 1 }}>{sc}</span>;
+                            })()}
+                            {/* Research freshness dot */}
+                            {(() => {
+                              const freshness = getResearchFreshness(h.ticker);
+                              return <span title={`Research: ${freshness.label}`} style={{ width: 6, height: 6, borderRadius: "50%", background: freshness.color, flexShrink: 0 }} />;
+                            })()}
                             <AlertBadge status={h.alert_status} />
                             {(() => {
                               const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
                               if (!flag) return null;
-                              const color = flag.priority === "HIGH" ? "var(--red)" : flag.priority === "MEDIUM" ? "var(--amber)" : "#666";
                               const emoji = flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢";
                               return <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 8, cursor: "help" }}>{emoji}</span>;
                             })()}
