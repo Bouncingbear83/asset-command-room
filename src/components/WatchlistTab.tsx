@@ -258,14 +258,6 @@ function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
       <button
-        onClick={() => triggerWebhook("stellar-rescore", { ticker }, `Rescore triggered for ${ticker}`)}
-        style={btnStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
-      >
-        🔄 Rescore
-      </button>
-      <button
         onClick={() => triggerWebhook("stellar-earnings-prep", { ticker }, `Earnings prep triggered for ${ticker}`)}
         style={btnStyle}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}

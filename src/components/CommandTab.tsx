@@ -290,15 +290,6 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
       {/* Webhook commands */}
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Webhook Actions</div>
       <div style={{ display: "grid", gap: 10 }}>
-        {/* Rescore */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔄 Rescore</span>
-          <select style={selectStyle} value={webhookTarget} onChange={e => setWebhookTarget(e.target.value)}>
-            <option value="">Select ticker…</option>
-            {tickers.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-rescore", { ticker: webhookTarget }, `Rescore triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>{webhookLoading ? "…" : "Fire"}</button>
-        </div>
         {/* Earnings Prep */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: isMobile ? 70 : 90, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
