@@ -298,17 +298,23 @@ function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 
 
 function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimmed?: boolean; hideActions?: boolean }) {
   const [expanded, setExpanded] = useState(false);
-  const { current, vsColor, vsLabel } = getPctInfo(item);
+  const { current, vsColor, vsLabel, pctDist } = getPctInfo(item);
   const isMobile = useIsMobile();
   const staleness = getStalenessIndicator(item.triggerReviewDate, item.status);
   const staleDotColor = STALENESS_DOT_COLORS[staleness.color];
   const isReviewFlagged = item.status.trim().toUpperCase() === 'REVIEW_FLAGGED';
+  const { getSummary } = useResearchSummary();
+  const summary = getSummary(item.ticker);
+
+  // Entry zone highlight: price at or below target
+  const inEntryZone = pctDist !== null && pctDist <= 0;
 
   return (
     <div
       style={{
         padding: isMobile ? "10px 12px" : "14px 20px",
         borderBottom: "1px solid rgba(28,28,48,0.3)",
+        borderLeft: inEntryZone ? "3px solid var(--gold)" : "3px solid transparent",
         opacity: dimmed ? 0.6 : 1,
         transition: "background 0.15s",
       }}
@@ -321,9 +327,15 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
         onClick={() => setExpanded((v) => !v)}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Line 1: Ticker · Name · Layer · Status */}
+          {/* Line 1: Ticker · Score pill · Name · Layer · Status */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.ticker || "—"}</span>
+            {/* Score pill */}
+            {summary && (() => {
+              const sc = summary.total_score;
+              const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
+              return <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: badgeColor, background: `color-mix(in srgb, ${badgeColor} 15%, transparent)`, padding: "1px 6px", borderRadius: 8, lineHeight: 1 }}>{sc}</span>;
+            })()}
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{item.name}</span>
             {item.layer && (
               <span style={{
@@ -335,6 +347,13 @@ function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimm
             )}
             <StatusBadge status={item.status} />
           </div>
+
+          {/* Thesis subtitle */}
+          {summary?.thesis_summary && (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1.4, marginBottom: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" as const }}>
+              {summary.thesis_summary.length > 100 ? summary.thesis_summary.slice(0, 100) + "…" : summary.thesis_summary}
+            </div>
+          )}
 
           {/* Line 2: Target · Current · vs% · Reviewed */}
           <div style={{ display: "flex", gap: isMobile ? 8 : 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10, flexWrap: "wrap" }}>
