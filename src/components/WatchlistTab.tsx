@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useResearchSummary } from "@/hooks/useResearchSummary";
 
 interface Props {
   liveData: LiveWatchItem[];
