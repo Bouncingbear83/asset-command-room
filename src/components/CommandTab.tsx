@@ -4,6 +4,7 @@ import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/useP
 import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
+import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -424,6 +425,7 @@ export default function CommandTab() {
   const isMobile = useIsMobile();
   const [moverSort, setMoverSort] = useState<"abs" | "gainers" | "losers">("abs");
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, scores, loading, error } = usePortfolioData();
+  const { recentResearch } = useResearchSummary();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")
@@ -629,7 +631,37 @@ export default function CommandTab() {
         {/* Review Queue Banner */}
         <ReviewQueue holdings={holdings} compact />
 
-        {/* Zone Alert Banner */}
+        {/* Latest Research Cards */}
+        {recentResearch.length > 0 && (
+          <div style={card}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Latest Research</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>{recentResearch.length} RECENT</span>
+            </div>
+            <div style={{ padding: mp, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+              {recentResearch.map((r, i) => {
+                const sc = r.total_score;
+                const scoreColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
+                const tierUpper = (r.tier || "").toUpperCase();
+                const tierColor = tierUpper === "CORE" ? "var(--gold)" : tierUpper === "ANCHOR" ? "var(--accent)" : tierUpper === "SATELLITE" ? "var(--amber)" : "var(--text-dim)";
+                const dateStr = (() => { try { return new Date(r.scored_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }); } catch { return ""; } })();
+                return (
+                  <div key={`${r.ticker}-${i}`} style={{ padding: "10px 12px", background: "var(--surface)", border: "1px solid var(--rim)", borderRadius: 2 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{r.ticker}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: scoreColor }}>{sc}</span>
+                      {r.tier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.1em", padding: "1px 5px", borderRadius: 2, color: tierColor, background: `color-mix(in srgb, ${tierColor} 12%, transparent)` }}>{tierUpper}</span>}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", color: "var(--accent)", textTransform: "uppercase", marginBottom: 4 }}>{r.action}</div>
+                    {r.change_note && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1.4, marginBottom: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>{r.change_note}</div>}
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{dateStr} · {r.scored_by}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {activeZones.length > 0 && (
           <div style={{ ...card, borderLeft: "3px solid var(--gold)", overflow: "hidden" }}>
             <div style={cardHeader}>
