@@ -8,11 +8,12 @@ const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db
 export interface ReviewFlag {
   ticker: string;
   date: string;
-  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "RESEARCH" | "UNKNOWN";
+  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "RESEARCH" | "W_FACTOR" | "W_STALE" | "UNKNOWN";
   priority: "HIGH" | "MEDIUM" | "LOW";
   flagType: string;
   reason: string;
   isStale: boolean;
+  isConsolidated?: boolean; // W_STALE flags show as a consolidated card
 }
 
 const FLAG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -28,6 +29,9 @@ const FLAG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   STALE: { label: "STALE", color: "var(--amber)" },
   PRICE_MOVE: { label: "PRICE", color: "var(--amber)" },
   DISRUPTION: { label: "DISRUPTION", color: "var(--amber)" },
+  FACTOR_HARD: { label: "FACTOR ⚠️", color: "var(--red)" },
+  FACTOR_SOFT: { label: "FACTOR", color: "var(--amber)" },
+  STALE_WATCHLIST: { label: "STALE", color: "var(--amber)" },
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -54,6 +58,8 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
 
   let prefix: ReviewFlag["prefix"] = "UNKNOWN";
   if (note.startsWith("W_EXIT")) prefix = "W_EXIT";
+  else if (note.startsWith("W_FACTOR")) prefix = "W_FACTOR";
+  else if (note.startsWith("W_STALE")) prefix = "W_STALE";
   else if (note.startsWith("Q_REVIEW")) prefix = "Q_REVIEW";
   else if (note.startsWith("M_REVIEW")) prefix = "M_REVIEW";
   else if (note.startsWith("Research Commit:")) prefix = "RESEARCH";
@@ -84,7 +90,8 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
     }
   }
 
-  return { ticker, date: triggerDate, prefix, priority, flagType, reason, isStale };
+  const isConsolidated = prefix === "W_STALE";
+  return { ticker, date: triggerDate, prefix, priority, flagType, reason, isStale, isConsolidated };
 }
 
 export function parseAllFlags(holdings: LiveHolding[]): ReviewFlag[] {
@@ -225,12 +232,13 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   {items.map(flag => {
-                    const isReasonExpanded = expandedReasons.has(flag.ticker);
+                    const isReasonExpanded = expandedReasons.has(flag.ticker + flag.prefix);
                     const reasonTruncated = flag.reason.length > 80;
                     const displayReason = reasonTruncated && !isReasonExpanded ? flag.reason.slice(0, 80) + "…" : flag.reason;
+                    const cardTicker = flag.isConsolidated ? "Stale watchlist" : flag.ticker;
 
                     return (
-                      <div key={flag.ticker} style={{
+                      <div key={flag.ticker + flag.prefix} style={{
                         background: PRIORITY_BG[flag.priority],
                         border: "1px solid var(--rim)",
                         borderLeft: `3px solid ${PRIORITY_COLOR[flag.priority]}`,
@@ -240,7 +248,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                       }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1 }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{flag.ticker}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{cardTicker}</span>
                             <FlagTypeBadge flagType={flag.flagType} />
                             {flag.isStale && (
                               <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em", opacity: 0.7 }}>STALE</span>
@@ -248,7 +256,9 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </div>
                           <button
                             onClick={() => {
-                              const prompt = `Deep dive on ${flag.ticker}. Review flag: [${flag.flagType}] ${flag.reason}. Run full assessment and produce research commit JSON.`;
+                              const prompt = flag.isConsolidated
+                                ? `Review stale watchlist entries. Flag: [${flag.flagType}] ${flag.reason}. Check if any WAIT entries need updating or removal.`
+                                : `Deep dive on ${flag.ticker}. Review flag: [${flag.flagType}] ${flag.reason}. Run full assessment and produce research commit JSON.`;
                               const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                               (window.top || window).open(url, "_blank");
                             }}
@@ -262,7 +272,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </button>
                         </div>
                         <div
-                          onClick={() => reasonTruncated && toggleReason(flag.ticker)}
+                          onClick={() => reasonTruncated && toggleReason(flag.ticker + flag.prefix)}
                           style={{
                             fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)",
                             marginTop: 4, lineHeight: 1.5, cursor: reasonTruncated ? "pointer" : "default",
