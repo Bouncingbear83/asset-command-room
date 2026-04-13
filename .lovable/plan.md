@@ -1,24 +1,18 @@
 
 
-## Plan: Fix Current MV lookup in Transaction drill-down
+## Plan: Extend HOLDINGS fetch range to include all rows
 
 ### Problem
-The Transactions ticker drill-down shows "Current MV: £0" for HEXA-B (and likely other tickers) because `calcTickerReturns` in `src/lib/xirr.ts` matches holdings with strict case-sensitive equality (`h.ticker === ticker`). If the ticker casing differs between transactions and holdings, or if the holding exists but isn't found, MV defaults to zero — producing nonsensical -100% returns.
+The HOLDINGS sheet fetch range is hardcoded to `A1:AK35`, which cuts off at row 35. HEXA-B sits in row 36 and is excluded from the dashboard.
 
-### Fix
-
-**`src/lib/xirr.ts` — `calcTickerReturns` function**
-- Change the holdings lookup from `h.ticker === ticker` to a case-insensitive comparison: `h.ticker.toUpperCase() === ticker.toUpperCase()`
-- Same fix in `calcHoldingReturns` for consistency (line ~42: `t.ticker === ticker`)
-
-**`src/lib/xirr.ts` — `calcHoldingReturns` function**  
-- Apply the same case-insensitive fix to the transaction filter: `t.ticker.toUpperCase() === ticker.toUpperCase()`
+### Solution
+Change the range from `A1:AK35` to `A1:AK50` in `src/hooks/usePortfolioData.ts`. Using 50 rows provides headroom for future additions without fetching excessive empty rows. The existing row-filtering logic (checking for valid ticker/name) already skips empty rows, so extra blank rows won't cause issues.
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `src/lib/xirr.ts` | Case-insensitive ticker matching in both `calcTickerReturns` (holdings filter) and `calcHoldingReturns` (transaction filter) |
+| `src/hooks/usePortfolioData.ts` | `"A1:AK35"` → `"A1:AK50"` |
 
-Single file, two line changes.
+One-line change.
 
