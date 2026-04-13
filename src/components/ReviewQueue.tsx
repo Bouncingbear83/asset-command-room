@@ -8,11 +8,12 @@ const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db
 export interface ReviewFlag {
   ticker: string;
   date: string;
-  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "RESEARCH" | "UNKNOWN";
+  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "RESEARCH" | "W_FACTOR" | "W_STALE" | "UNKNOWN";
   priority: "HIGH" | "MEDIUM" | "LOW";
   flagType: string;
   reason: string;
   isStale: boolean;
+  isConsolidated?: boolean; // W_STALE flags show as a consolidated card
 }
 
 const FLAG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -28,6 +29,9 @@ const FLAG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   STALE: { label: "STALE", color: "var(--amber)" },
   PRICE_MOVE: { label: "PRICE", color: "var(--amber)" },
   DISRUPTION: { label: "DISRUPTION", color: "var(--amber)" },
+  FACTOR_HARD: { label: "FACTOR ⚠️", color: "var(--red)" },
+  FACTOR_SOFT: { label: "FACTOR", color: "var(--amber)" },
+  STALE_WATCHLIST: { label: "STALE", color: "var(--amber)" },
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -54,6 +58,8 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
 
   let prefix: ReviewFlag["prefix"] = "UNKNOWN";
   if (note.startsWith("W_EXIT")) prefix = "W_EXIT";
+  else if (note.startsWith("W_FACTOR")) prefix = "W_FACTOR";
+  else if (note.startsWith("W_STALE")) prefix = "W_STALE";
   else if (note.startsWith("Q_REVIEW")) prefix = "Q_REVIEW";
   else if (note.startsWith("M_REVIEW")) prefix = "M_REVIEW";
   else if (note.startsWith("Research Commit:")) prefix = "RESEARCH";
@@ -84,7 +90,8 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
     }
   }
 
-  return { ticker, date: triggerDate, prefix, priority, flagType, reason, isStale };
+  const isConsolidated = prefix === "W_STALE";
+  return { ticker, date: triggerDate, prefix, priority, flagType, reason, isStale, isConsolidated };
 }
 
 export function parseAllFlags(holdings: LiveHolding[]): ReviewFlag[] {
