@@ -10,6 +10,7 @@ import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 import { useTickerHistory } from "@/hooks/useTickerHistory";
 import { PriceChart } from "@/components/PriceChart";
+import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -521,6 +522,13 @@ function UnifiedView({
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span>{h.ticker}</span>
                             <AlertBadge status={h.alert_status} />
+                            {(() => {
+                              const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
+                              if (!flag) return null;
+                              const color = flag.priority === "HIGH" ? "var(--red)" : flag.priority === "MEDIUM" ? "var(--amber)" : "#666";
+                              const emoji = flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢";
+                              return <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 8, cursor: "help" }}>{emoji}</span>;
+                            })()}
                           </div>
                         </td>
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>}
