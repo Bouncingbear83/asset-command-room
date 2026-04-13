@@ -139,6 +139,7 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("last checked") || labelLower.includes("last_checked")) return "last_checked";
   if (labelLower.includes("trigger review date") || labelLower.includes("trigger_review_date")) return "trigger_review_date";
   if (labelLower.includes("trigger review note") || labelLower.includes("trigger_review_note")) return "trigger_review_note";
+  if (labelLower.includes("factor primary") || labelLower.includes("factor_primary")) return "factor_primary";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
@@ -338,6 +339,7 @@ function parseHoldings(rows: Record<string, any>[]) {
       deploy_note: String(findCol(row, "deploy_note", "DEPLOY_NOTE", "Deploy_Note") ?? ""),
       trigger_review_date: String(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE") ?? ""),
       trigger_review_note: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
+      factor_primary: String(findCol(row, "factor_primary", "FACTOR_PRIMARY", "Factor_Primary") ?? ""),
     }));
 }
 
