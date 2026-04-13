@@ -232,12 +232,13 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                 </div>
                 <div style={{ display: "grid", gap: 6 }}>
                   {items.map(flag => {
-                    const isReasonExpanded = expandedReasons.has(flag.ticker);
+                    const isReasonExpanded = expandedReasons.has(flag.ticker + flag.prefix);
                     const reasonTruncated = flag.reason.length > 80;
                     const displayReason = reasonTruncated && !isReasonExpanded ? flag.reason.slice(0, 80) + "…" : flag.reason;
+                    const cardTicker = flag.isConsolidated ? "Stale watchlist" : flag.ticker;
 
                     return (
-                      <div key={flag.ticker} style={{
+                      <div key={flag.ticker + flag.prefix} style={{
                         background: PRIORITY_BG[flag.priority],
                         border: "1px solid var(--rim)",
                         borderLeft: `3px solid ${PRIORITY_COLOR[flag.priority]}`,
@@ -247,7 +248,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                       }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1 }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{flag.ticker}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>{cardTicker}</span>
                             <FlagTypeBadge flagType={flag.flagType} />
                             {flag.isStale && (
                               <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em", opacity: 0.7 }}>STALE</span>
@@ -255,7 +256,9 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </div>
                           <button
                             onClick={() => {
-                              const prompt = `Deep dive on ${flag.ticker}. Review flag: [${flag.flagType}] ${flag.reason}. Run full assessment and produce research commit JSON.`;
+                              const prompt = flag.isConsolidated
+                                ? `Review stale watchlist entries. Flag: [${flag.flagType}] ${flag.reason}. Check if any WAIT entries need updating or removal.`
+                                : `Deep dive on ${flag.ticker}. Review flag: [${flag.flagType}] ${flag.reason}. Run full assessment and produce research commit JSON.`;
                               const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                               (window.top || window).open(url, "_blank");
                             }}
@@ -269,7 +272,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </button>
                         </div>
                         <div
-                          onClick={() => reasonTruncated && toggleReason(flag.ticker)}
+                          onClick={() => reasonTruncated && toggleReason(flag.ticker + flag.prefix)}
                           style={{
                             fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)",
                             marginTop: 4, lineHeight: 1.5, cursor: reasonTruncated ? "pointer" : "default",
