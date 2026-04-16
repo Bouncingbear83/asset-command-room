@@ -426,6 +426,9 @@ export default function CommandTab() {
     .map((item) => item?.trim() ?? "")
     .filter(Boolean);
 
+  // Proximity threshold — only surface alerts when price is within this % of trigger
+  const ZONE_PROXIMITY_THRESHOLD = 0.15;
+
   // Dynamic zone detection: compare live price to trigger price columns
   // IMPORTANT: Never trust sheet alert_status alone — always validate against trigger prices
   const computeZoneStatus = (holding: typeof holdings[0]) => {
@@ -440,15 +443,11 @@ export default function CommandTab() {
     const triggerExit = (rawExit !== null && rawExit !== undefined && String(rawExit).trim() !== "")
       ? parseFloat(String(rawExit)) : NaN;
 
-    // EXIT ZONE: TRIGGER_PRICE_EXIT must be > 0 AND current price >= it
-    if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit) return "EXIT_ZONE";
+    // EXIT ZONE: TRIGGER_PRICE_EXIT > 0 AND price >= EXIT * (1 - threshold)
+    if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit * (1 - ZONE_PROXIMITY_THRESHOLD)) return "EXIT_ZONE";
 
-    // ADD ZONE: TRIGGER_PRICE_ADD must be > 0 AND current price <= it
-    if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd) return "ADD_ZONE";
-
-    // REVIEW: approaching zones (within 5%) — same strict > 0 checks
-    if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit * 0.95) return "REVIEW";
-    if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * 1.05) return "REVIEW";
+    // ADD ZONE: TRIGGER_PRICE_ADD > 0 AND price <= ADD * (1 + threshold)
+    if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * (1 + ZONE_PROXIMITY_THRESHOLD)) return "ADD_ZONE";
 
     return "CLEAR";
   };
