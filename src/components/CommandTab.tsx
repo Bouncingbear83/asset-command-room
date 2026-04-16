@@ -597,7 +597,7 @@ export default function CommandTab() {
     if (!zoneGroups[status]) zoneGroups[status] = [];
     zoneGroups[status].push(h);
   });
-  const zoneOrder = ["ADD_ZONE", "EXIT_ZONE", "REVIEW"];
+  const zoneOrder = ["ADD_ZONE", "EXIT_ZONE"];
   const activeZones = zoneOrder.filter((z) => zoneGroups[z]?.length);
 
   return (
