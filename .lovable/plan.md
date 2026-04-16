@@ -1,18 +1,24 @@
 
 
-## Plan: Extend HOLDINGS fetch range to include all rows
+## Fix: Zone Alerts EXIT ZONE logic is inverted
 
 ### Problem
-The HOLDINGS sheet fetch range is hardcoded to `A1:AK35`, which cuts off at row 35. HEXA-B sits in row 36 and is excluded from the dashboard.
+`TRIGGER_PRICE_EXIT` represents a **stop-loss floor** — the price at which you'd exit a losing position. The current code flags positions when `price >= triggerExit`, which catches every position trading **above** its stop (i.e., nearly everything). The correct behavior is to flag only when price **drops to or near** the stop-loss.
 
-### Solution
-Change the range from `A1:AK35` to `A1:AK50` in `src/hooks/usePortfolioData.ts`. Using 50 rows provides headroom for future additions without fetching excessive empty rows. The existing row-filtering logic (checking for valid ticker/name) already skips empty rows, so extra blank rows won't cause issues.
+### Corrected rules
 
-### Files changed
+| Zone | Condition | Proximity (15%) | % from trigger |
+|------|-----------|-----------------|----------------|
+| **ADD ZONE** | `price <= triggerAdd * 1.15` | Price within 15% above buy target | `((triggerAdd - price) / triggerAdd) * 100` |
+| **EXIT ZONE** | `price <= triggerExit * 1.15` | Price within 15% above stop-loss | `((triggerExit - price) / triggerExit) * 100` (negative = breached) |
 
-| File | Change |
-|------|--------|
-| `src/hooks/usePortfolioData.ts` | `"A1:AK35"` → `"A1:AK50"` |
+Both zones trigger when price **falls toward** a target. ADD = buying opportunity approaching. EXIT = stop-loss approaching or breached.
 
-One-line change.
+### Changes
+
+**`src/components/CommandTab.tsx`** — `computeZoneStatus` function (line ~447):
+- Change EXIT_ZONE condition from `price >= triggerExit * 0.85` to `price <= triggerExit * (1 + ZONE_PROXIMITY_THRESHOLD)`
+- Update the `% from trigger` display for EXIT_ZONE rows to show distance above/below stop
+
+After this fix, EXIT ZONE should be empty or near-empty (only positions whose price has fallen close to their stop-loss floor). ADD ZONE remains unchanged (DHR should still appear).
 
