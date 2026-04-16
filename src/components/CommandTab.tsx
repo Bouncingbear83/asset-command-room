@@ -426,7 +426,7 @@ export default function CommandTab() {
     .map((item) => item?.trim() ?? "")
     .filter(Boolean);
 
-  // Dynamic zone detection: compare live price to buy/exit thresholds
+  // Dynamic zone detection: compare live price to trigger price columns
   const computeZoneStatus = (holding: typeof holdings[0]) => {
     // If spreadsheet already has a non-CLEAR status, trust it
     const sheetStatus = holding.alert_status.trim().toUpperCase();
@@ -435,25 +435,19 @@ export default function CommandTab() {
     const price = holding.price;
     if (!price || price <= 0) return "CLEAR";
 
-    // Get score thresholds for this ticker
-    const scoreMatch = scores.find(s => s.ticker === holding.ticker);
-    const buyHigh = scoreMatch?.buyHigh ?? null;
-    const buyLow = scoreMatch?.buyLow ?? null;
-
-    // Parse trigger prices from holdings
+    // Parse trigger prices from holdings sheet
     const triggerAdd = parseFloat(String(holding.trigger_price_add));
     const triggerExit = parseFloat(String(holding.trigger_price_exit));
 
-    // EXIT ZONE check first (higher priority)
+    // EXIT ZONE: only when TRIGGER_PRICE_EXIT is a positive number and price >= it
     if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit) return "EXIT_ZONE";
 
-    // BUY ZONE (ADD_ZONE)
-    if (buyHigh !== null && buyHigh > 0 && price <= buyHigh) return "ADD_ZONE";
+    // ADD ZONE: only when TRIGGER_PRICE_ADD is a positive number and price <= it
     if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd) return "ADD_ZONE";
 
     // REVIEW: approaching zones (within 5%)
     if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit * 0.95) return "REVIEW";
-    if (buyHigh !== null && buyHigh > 0 && price <= buyHigh * 1.05) return "REVIEW";
+    if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * 1.05) return "REVIEW";
 
     return "CLEAR";
   };
