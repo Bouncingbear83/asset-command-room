@@ -443,8 +443,8 @@ export default function CommandTab() {
     const triggerExit = (rawExit !== null && rawExit !== undefined && String(rawExit).trim() !== "")
       ? parseFloat(String(rawExit)) : NaN;
 
-    // EXIT ZONE: TRIGGER_PRICE_EXIT > 0 AND price >= EXIT * (1 - threshold)
-    if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit * (1 - ZONE_PROXIMITY_THRESHOLD)) return "EXIT_ZONE";
+    // EXIT ZONE: TRIGGER_PRICE_EXIT is a stop-loss floor — flag when price drops TO or NEAR the stop
+    if (!isNaN(triggerExit) && triggerExit > 0 && price <= triggerExit * (1 + ZONE_PROXIMITY_THRESHOLD)) return "EXIT_ZONE";
 
     // ADD ZONE: TRIGGER_PRICE_ADD > 0 AND price <= ADD * (1 + threshold)
     if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * (1 + ZONE_PROXIMITY_THRESHOLD)) return "ADD_ZONE";
