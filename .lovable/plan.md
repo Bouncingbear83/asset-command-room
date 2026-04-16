@@ -1,24 +1,26 @@
 
 
-## Fix: Zone Alerts EXIT ZONE logic is inverted
+## Update Cash Balance Fetch to Read from F2:F6
 
 ### Problem
-`TRIGGER_PRICE_EXIT` represents a **stop-loss floor** — the price at which you'd exit a losing position. The current code flags positions when `price >= triggerExit`, which catches every position trading **above** its stop (i.e., nearly everything). The correct behavior is to flag only when price **drops to or near** the stop-loss.
-
-### Corrected rules
-
-| Zone | Condition | Proximity (15%) | % from trigger |
-|------|-----------|-----------------|----------------|
-| **ADD ZONE** | `price <= triggerAdd * 1.15` | Price within 15% above buy target | `((triggerAdd - price) / triggerAdd) * 100` |
-| **EXIT ZONE** | `price <= triggerExit * 1.15` | Price within 15% above stop-loss | `((triggerExit - price) / triggerExit) * 100` (negative = breached) |
-
-Both zones trigger when price **falls toward** a target. ADD = buying opportunity approaching. EXIT = stop-loss approaching or breached.
+The CASH sheet has been restructured. Cash balances for each account are now in column F, rows 2–6. The current code fetches range `A1:C5` and parses a header+data layout that no longer matches the sheet structure.
 
 ### Changes
 
-**`src/components/CommandTab.tsx`** — `computeZoneStatus` function (line ~447):
-- Change EXIT_ZONE condition from `price >= triggerExit * 0.85` to `price <= triggerExit * (1 + ZONE_PROXIMITY_THRESHOLD)`
-- Update the `% from trigger` display for EXIT_ZONE rows to show distance above/below stop
+**`src/hooks/usePortfolioData.ts`**:
 
-After this fix, EXIT ZONE should be empty or near-empty (only positions whose price has fallen close to their stop-loss floor). ADD ZONE remains unchanged (DHR should still appear).
+1. **Update fetch range** — Change the CASH sheet fetch from `A1:C5` to `A1:F6` so the grid includes column F where balances live.
+
+2. **Update parsing logic** — After fetching, read account labels from column A (or whichever column holds "SIPP", "ISA", etc.) and their corresponding cash balances from column F (index 5 in zero-based). The parsing should:
+   - Iterate rows 2–6 (data rows after header)
+   - Match labels case-insensitively for "SIPP", "ISA", "Total" (and optionally "JISA")
+   - Read the numeric value from column F for each matched row
+   - Keep existing fallback logic in case the layout doesn't match
+
+3. **Update memory** — Record the new CASH sheet layout (A1:F6, balances in column F) in the data ownership memory file.
+
+### Technical detail
+- Current fetch: `fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" })`
+- New fetch: `fetchSheetGrid({ gid: GIDS.cash, range: "A1:F6" })`
+- Balance column index shifts from columns 0–2 to column 5 (F)
 
