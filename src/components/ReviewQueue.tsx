@@ -3,12 +3,15 @@ import { ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import { LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
+const CLAUDE_PROJECT_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
+
+const VALID_PREFIXES = ["W_EXIT", "W_FACTOR", "W_STALE", "M_REVIEW", "Q_REVIEW"] as const;
+type ValidPrefix = typeof VALID_PREFIXES[number];
 
 export interface ReviewFlag {
   ticker: string;
   date: string;
-  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "RESEARCH" | "W_FACTOR" | "W_STALE" | "UNKNOWN";
+  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "W_FACTOR" | "W_STALE";
   priority: "HIGH" | "MEDIUM" | "LOW";
   flagType: string;
   reason: string;
@@ -56,13 +59,13 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
   const note = (triggerNote || "").trim();
   if (!note) return null;
 
-  let prefix: ReviewFlag["prefix"] = "UNKNOWN";
+  let prefix: ReviewFlag["prefix"];
   if (note.startsWith("W_EXIT")) prefix = "W_EXIT";
   else if (note.startsWith("W_FACTOR")) prefix = "W_FACTOR";
   else if (note.startsWith("W_STALE")) prefix = "W_STALE";
   else if (note.startsWith("Q_REVIEW")) prefix = "Q_REVIEW";
   else if (note.startsWith("M_REVIEW")) prefix = "M_REVIEW";
-  else if (note.startsWith("Research Commit:")) prefix = "RESEARCH";
+  else return null; // Only valid prefixes pass through
 
   let priority: ReviewFlag["priority"] = "LOW";
   if (note.includes("HIGH")) priority = "HIGH";
@@ -76,8 +79,6 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
   const bracketEnd = note.lastIndexOf("]");
   if (bracketEnd >= 0) {
     reason = note.substring(bracketEnd + 1).trim();
-  } else if (prefix === "RESEARCH") {
-    reason = note.replace(/^Research Commit:\s*/, "");
   }
 
   // Staleness: >14 days
@@ -256,10 +257,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </div>
                           <button
                             onClick={() => {
-                              const prompt = flag.isConsolidated
-                                ? `Review stale watchlist entries. Flag: [${flag.flagType}] ${flag.reason}. Check if any WAIT entries need updating or removal.`
-                                : `Deep dive on ${flag.ticker}. Review flag: [${flag.flagType}] ${flag.reason}. Run full assessment and produce research commit JSON.`;
-                              const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                              const url = `${CLAUDE_PROJECT_URL}#${encodeURIComponent(flag.ticker)}-${flag.prefix}`;
                               (window.top || window).open(url, "_blank");
                             }}
                             style={{
