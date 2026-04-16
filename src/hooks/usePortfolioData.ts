@@ -868,7 +868,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
-        fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5" }).catch(() => []),
+        fetchSheetGrid({ gid: GIDS.cash, range: "A1:F6" }).catch(() => []),
         fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }).catch(() => []),
       ]);
@@ -883,46 +883,27 @@ export function usePortfolioData(): PortfolioData {
       const macroStateRows = parseMacroStateRows(macroState);
 
       // Parse cash balances from CASH sheet
+      // Parse cash balances from CASH sheet — balances in column F (index 5), labels in column A
       let cashSipp = 0, cashIsa = 0, cashTotal = 0;
       console.log("[CASH] raw grid:", JSON.stringify(cashGrid));
+      const CASH_BALANCE_COL = 5; // Column F (zero-based)
       if (cashGrid.length >= 2) {
-        // Try header-based parsing: find columns by header row
-        const headers = cashGrid[0].map((h) => normalizeToken(h));
-        const sippIdx = headers.findIndex((h) => h.includes("sipp"));
-        const isaIdx = headers.findIndex((h) => h.includes("isa"));
-        const totalIdx = headers.findIndex((h) => h.includes("total"));
-        const dataRow = cashGrid[1];
-        if (sippIdx >= 0) cashSipp = parseMv(dataRow[sippIdx]);
-        if (isaIdx >= 0) cashIsa = parseMv(dataRow[isaIdx]);
-        if (totalIdx >= 0) cashTotal = parseMv(dataRow[totalIdx]);
-        // Fallback: if no total but have both, sum them
-        if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
-        // Fallback: row-based layout (col A = label, col B/C = values)
-        if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0) {
-          const CASH_KNOWN = ["sipp", "isa", "total", "jisa"];
-          for (const row of cashGrid) {
-            const labelA = normalizeToken(row[0]);
-            const labelB = normalizeToken(row[1]);
-            const aIsLabel = CASH_KNOWN.some(k => labelA.includes(k));
-            const bIsLabel = CASH_KNOWN.some(k => labelB.includes(k));
-            const label = aIsLabel ? labelA : bIsLabel ? labelB : "";
-            const valueCol = bIsLabel && !aIsLabel ? 2 : 1;
-            if (label.includes("sipp")) {
-              cashSipp = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
-            } else if (label.includes("isa") && !label.includes("jisa")) {
-              cashIsa = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
-            } else if (label.includes("total")) {
-              cashTotal = parseMv(row[valueCol]) || parseMv(row[valueCol + 1]) || 0;
-            }
+        // Primary: row-based layout — col A = account label, col F = balance
+        const CASH_KNOWN = ["sipp", "isa", "total", "jisa"];
+        for (let r = 1; r < cashGrid.length; r++) {
+          const row = cashGrid[r];
+          if (!row || row.length <= CASH_BALANCE_COL) continue;
+          const label = normalizeToken(row[0]);
+          const balance = parseMv(row[CASH_BALANCE_COL]);
+          if (label.includes("sipp")) {
+            cashSipp = balance;
+          } else if (label.includes("isa") && !label.includes("jisa")) {
+            cashIsa = balance;
+          } else if (label.includes("total")) {
+            cashTotal = balance;
           }
-          if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
         }
-        // Fallback: positional A=SIPP, B=ISA, C=Total
-        if (cashSipp === 0 && cashIsa === 0 && cashTotal === 0 && dataRow.length >= 2) {
-          cashSipp = parseMv(dataRow[0]);
-          cashIsa = parseMv(dataRow[1]);
-          cashTotal = dataRow.length >= 3 ? parseMv(dataRow[2]) : cashSipp + cashIsa;
-        }
+        if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
       }
       console.log("[CASH] parsed:", { cashSipp, cashIsa, cashTotal });
 
