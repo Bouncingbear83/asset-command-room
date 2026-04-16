@@ -427,25 +427,26 @@ export default function CommandTab() {
     .filter(Boolean);
 
   // Dynamic zone detection: compare live price to trigger price columns
+  // IMPORTANT: Never trust sheet alert_status alone — always validate against trigger prices
   const computeZoneStatus = (holding: typeof holdings[0]) => {
-    // If spreadsheet already has a non-CLEAR status, trust it
-    const sheetStatus = holding.alert_status.trim().toUpperCase();
-    if (sheetStatus !== "CLEAR" && sheetStatus !== "") return sheetStatus;
-
     const price = holding.price;
     if (!price || price <= 0) return "CLEAR";
 
-    // Parse trigger prices from holdings sheet
-    const triggerAdd = parseFloat(String(holding.trigger_price_add));
-    const triggerExit = parseFloat(String(holding.trigger_price_exit));
+    // Parse trigger prices — must be a real positive number to qualify
+    const rawAdd = holding.trigger_price_add;
+    const rawExit = holding.trigger_price_exit;
+    const triggerAdd = (rawAdd !== null && rawAdd !== undefined && String(rawAdd).trim() !== "")
+      ? parseFloat(String(rawAdd)) : NaN;
+    const triggerExit = (rawExit !== null && rawExit !== undefined && String(rawExit).trim() !== "")
+      ? parseFloat(String(rawExit)) : NaN;
 
-    // EXIT ZONE: only when TRIGGER_PRICE_EXIT is a positive number and price >= it
+    // EXIT ZONE: TRIGGER_PRICE_EXIT must be > 0 AND current price >= it
     if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit) return "EXIT_ZONE";
 
-    // ADD ZONE: only when TRIGGER_PRICE_ADD is a positive number and price <= it
+    // ADD ZONE: TRIGGER_PRICE_ADD must be > 0 AND current price <= it
     if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd) return "ADD_ZONE";
 
-    // REVIEW: approaching zones (within 5%)
+    // REVIEW: approaching zones (within 5%) — same strict > 0 checks
     if (!isNaN(triggerExit) && triggerExit > 0 && price >= triggerExit * 0.95) return "REVIEW";
     if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * 1.05) return "REVIEW";
 
