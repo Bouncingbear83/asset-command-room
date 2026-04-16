@@ -3,7 +3,10 @@ import { ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import { LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
+const CLAUDE_PROJECT_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
+
+const VALID_PREFIXES = ["W_EXIT", "W_FACTOR", "W_STALE", "M_REVIEW", "Q_REVIEW"] as const;
+type ValidPrefix = typeof VALID_PREFIXES[number];
 
 export interface ReviewFlag {
   ticker: string;
@@ -62,7 +65,7 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
   else if (note.startsWith("W_STALE")) prefix = "W_STALE";
   else if (note.startsWith("Q_REVIEW")) prefix = "Q_REVIEW";
   else if (note.startsWith("M_REVIEW")) prefix = "M_REVIEW";
-  else if (note.startsWith("Research Commit:")) prefix = "RESEARCH";
+  else return null; // Only valid prefixes pass through
 
   let priority: ReviewFlag["priority"] = "LOW";
   if (note.includes("HIGH")) priority = "HIGH";
@@ -256,10 +259,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </div>
                           <button
                             onClick={() => {
-                              const prompt = flag.isConsolidated
-                                ? `Review stale watchlist entries. Flag: [${flag.flagType}] ${flag.reason}. Check if any WAIT entries need updating or removal.`
-                                : `Deep dive on ${flag.ticker}. Review flag: [${flag.flagType}] ${flag.reason}. Run full assessment and produce research commit JSON.`;
-                              const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                              const url = `${CLAUDE_PROJECT_URL}#${encodeURIComponent(flag.ticker)}-${flag.prefix}`;
                               (window.top || window).open(url, "_blank");
                             }}
                             style={{
