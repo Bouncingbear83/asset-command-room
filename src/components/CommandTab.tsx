@@ -455,17 +455,6 @@ export default function CommandTab() {
   const alertedHoldings = holdings
     .map(h => ({ ...h, alert_status: computeZoneStatus(h) }))
     .filter(h => h.alert_status !== "CLEAR");
-  const weeklyActions = alertedHoldings.map((holding) => {
-    const normalizedTicker = normalizeForMatch(holding.ticker);
-    const matchedPriority = priorityNarratives.find((item) => normalizeForMatch(item).includes(normalizedTicker));
-    return {
-      ticker: holding.ticker,
-      action: holding.action || "MONITOR",
-      alertStatus: holding.alert_status,
-      sizeContext: `${formatCurrency(holding.mv)} · Add @ ${holding.trigger_price_add || "—"}`,
-      rationale: matchedPriority || holding.add_trigger || holding.notes || "—",
-    };
-  });
 
   const macroSignals = SIGNAL_KEYS
     .map((key) => ({ key, row: macroState[key] }))
