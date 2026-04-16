@@ -950,87 +950,27 @@ export default function CommandTab() {
           <QuickCommandsSection holdings={holdings} layers={layers} watchlist={watchlist} isMobile={isMobile} />
         </div>
 
-        <div style={card}>
-          <div style={cardHeader}>
-            <span style={cardTitle}>This Week&apos;s Actions</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              {alertedHoldings.length > 0 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", letterSpacing: "0.15em" }}>{alertedHoldings.length} ALERT{alertedHoldings.length !== 1 ? "S" : ""}</span>}
+        {/* Weekly Watch — compact monitor items from narrative */}
+        {weeklyWatch.length > 0 && (
+          <div style={{ ...card, borderLeft: "3px solid var(--rim)" }}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>Weekly Watch</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>{weeklyWatch.length} ITEMS</span>
+            </div>
+            <div style={{ padding: mp }}>
+              {weeklyWatch.map((item, index) => {
+                const tickerMatch = item.match(/^([A-Z]{2,6})\b/);
+                return (
+                  <div key={`watch-${index}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: index < weeklyWatch.length - 1 ? "1px solid rgba(28,28,48,0.3)" : "none" }}>
+                    {tickerMatch && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 44 }}>{tickerMatch[1]}</span>}
+                    <span style={statusChip("MONITOR")}>MONITOR</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{tickerMatch ? item.slice(tickerMatch[0].length).replace(/^[\s:–—-]+/, '') : item}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div style={{ padding: isMobile ? "0 12px 12px" : "0 20px 12px" }}>
-            {loading && weeklyActions.length === 0 && weeklyWatch.length === 0 ? (
-              <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Loading weekly actions…</div>
-            ) : (
-              <>
-                {weeklyActions.map((item, index) => (
-                  <div key={`${item.ticker}-${index}`} style={{ padding: "12px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{item.ticker}</span>
-                        <HoldingAlertBadge status={item.alertStatus} />
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                        <span style={actionBadge(item.action)}>{item.action.replace("_", " ")}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{item.sizeContext}</span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{item.rationale}</div>
-                  </div>
-                ))}
-
-                {/* Active Monitoring sub-section */}
-                {(() => {
-                  const monitorItems = watchlist.filter(w => w.status.trim().toUpperCase() === "ACTIVE_MONITORING");
-                  if (monitorItems.length === 0) return null;
-                  return (
-                    <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--amber)", marginBottom: 10 }}>Active Monitoring</div>
-                      {monitorItems.map((item, index) => {
-                        const current = typeof item.current === "number" ? item.current : null;
-                        const entryStr = item.entry;
-                        const parts = entryStr ? entryStr.split(/\s*[-–]\s*|\s+to\s+/i) : [];
-                        const nums = parts.map(p => parseFloat(p.replace(/[^0-9.]/g, ""))).filter(n => !isNaN(n) && n > 0);
-                        const midpoint = nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0] ?? null;
-                        const pctDist = current != null && midpoint != null && midpoint > 0 ? ((current - midpoint) / midpoint * 100) : null;
-                        const distLabel = pctDist !== null ? (pctDist <= 0 ? `${pctDist.toFixed(1)}%` : `+${pctDist.toFixed(1)}%`) : "";
-                        const distColor = pctDist !== null ? (pctDist <= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)";
-                        return (
-                          <div key={`monitor-${index}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "1px solid rgba(28,28,48,0.4)", flexWrap: "wrap" }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 44 }}>{item.ticker}</span>
-                            <span style={{ ...statusChip("MONITOR") }}>MONITOR</span>
-                            {current != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{current.toLocaleString("en-GB", { maximumFractionDigits: 2 })}</span>}
-                            {distLabel && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: distColor }}>{distLabel}</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-
-
-                {weeklyWatch.length > 0 && (
-                  <div style={{ paddingTop: weeklyActions.length > 0 ? 16 : 12 }}>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 10 }}>Watch this week</div>
-                    {weeklyWatch.map((item, index) => {
-                      const tickerMatch = item.match(/^([A-Z]{2,6})\b/);
-                      return (
-                        <div key={`watch-${index}`} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0", borderTop: "1px solid rgba(28,28,48,0.4)" }}>
-                          <span style={statusChip("MONITOR")}>MONITOR</span>
-                          <div>
-                            {tickerMatch && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", marginRight: 6 }}>{tickerMatch[1]}</span>}
-                            <span style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55 }}>{tickerMatch ? item.slice(tickerMatch[0].length).replace(/^[\s:–—-]+/, '') : item}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {!loading && weeklyActions.length === 0 && weeklyWatch.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>{error ? "Weekly actions unavailable" : "No actions this week"}</div>}
-              </>
-            )}
-          </div>
-        </div>
+        )}
         {/* Risk Controls — collapsible with RAG summary */}
         <details style={card}>
           <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
