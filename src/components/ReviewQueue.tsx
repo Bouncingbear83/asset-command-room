@@ -59,7 +59,7 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
   const note = (triggerNote || "").trim();
   if (!note) return null;
 
-  let prefix: ReviewFlag["prefix"] = "UNKNOWN";
+  let prefix: ReviewFlag["prefix"];
   if (note.startsWith("W_EXIT")) prefix = "W_EXIT";
   else if (note.startsWith("W_FACTOR")) prefix = "W_FACTOR";
   else if (note.startsWith("W_STALE")) prefix = "W_STALE";
@@ -79,8 +79,6 @@ export function parseReviewFlag(ticker: string, triggerDate: string, triggerNote
   const bracketEnd = note.lastIndexOf("]");
   if (bracketEnd >= 0) {
     reason = note.substring(bracketEnd + 1).trim();
-  } else if (prefix === "RESEARCH") {
-    reason = note.replace(/^Research Commit:\s*/, "");
   }
 
   // Staleness: >14 days
