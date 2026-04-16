@@ -671,7 +671,9 @@ export default function CommandTab() {
                         const triggerRaw = zone === "EXIT_ZONE" ? h.trigger_price_exit : h.trigger_price_add;
                         const triggerPrice = typeof triggerRaw === "number" ? triggerRaw : parseFloat(String(triggerRaw));
                         const pctFromTrigger = !isNaN(triggerPrice) && triggerPrice > 0
-                          ? ((h.price - triggerPrice) / triggerPrice * 100)
+                          ? zone === "ADD_ZONE"
+                            ? ((triggerPrice - h.price) / triggerPrice * 100)
+                            : ((h.price - triggerPrice) / triggerPrice * 100)
                           : null;
                         const currencySymbol = h.currency === "GBP" || h.currency === "GBX" ? "£" : h.currency === "EUR" ? "€" : h.currency === "SEK" ? "kr" : "$";
                         const triggerNote = zone === "EXIT_ZONE"
