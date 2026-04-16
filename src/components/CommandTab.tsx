@@ -684,6 +684,34 @@ export default function CommandTab() {
                         const pctFromTrigger = !isNaN(triggerPrice) && triggerPrice > 0
                           ? ((triggerPrice - h.price) / triggerPrice * 100)
                           : null;
+                        
+                        // Color logic based on position vs trigger
+                        let rowColor: string;
+                        let rowBg: string;
+                        if (zone === "ADD_ZONE") {
+                          // ADD ZONE: below trigger = green (actionable), above = amber (approaching)
+                          if (pctFromTrigger !== null && pctFromTrigger > 0) {
+                            // Price is below trigger (pctFromTrigger > 0 means trigger is above price)
+                            rowColor = "var(--green)";
+                            rowBg = "var(--green-dim)";
+                          } else {
+                            // Price is above trigger but within proximity
+                            rowColor = "var(--amber)";
+                            rowBg = "var(--amber-dim)";
+                          }
+                        } else {
+                          // EXIT ZONE: below trigger = red (breached), above = amber (approaching)
+                          if (pctFromTrigger !== null && pctFromTrigger < 0) {
+                            // Price is below exit trigger (breached stop-loss)
+                            rowColor = "var(--red)";
+                            rowBg = "var(--red-dim)";
+                          } else {
+                            // Price is above exit but within proximity
+                            rowColor = "var(--amber)";
+                            rowBg = "var(--amber-dim)";
+                          }
+                        }
+
                         const currencySymbol = h.currency === "GBP" || h.currency === "GBX" ? "£" : h.currency === "EUR" ? "€" : h.currency === "SEK" ? "kr" : "$";
                         const triggerNote = zone === "EXIT_ZONE"
                           ? (h.exit_trigger || (triggerPrice ? `Exit @ ${currencySymbol}${triggerPrice}` : "—"))
@@ -695,14 +723,14 @@ export default function CommandTab() {
                             flexDirection: isMobile ? "column" : "row",
                             gap: isMobile ? 4 : 12,
                             padding: "8px 12px",
-                            borderLeft: `3px solid ${zoneColor}`,
-                            background: zoneBg,
+                            borderLeft: `3px solid ${rowColor}`,
+                            background: rowBg,
                             borderRadius: 2,
                           }}>
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 55 }}>{h.ticker}</span>
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{currencySymbol}{h.price.toFixed(2)}</span>
                             {pctFromTrigger !== null && (
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: zoneColor, minWidth: 90 }}>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: rowColor, minWidth: 90 }}>
                                 {pctFromTrigger > 0 ? "↑" : "↓"}{Math.abs(pctFromTrigger).toFixed(1)}% from trigger
                               </span>
                             )}
