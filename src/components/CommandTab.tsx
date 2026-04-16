@@ -661,7 +661,6 @@ export default function CommandTab() {
                         const pctFromTrigger = !isNaN(triggerPrice) && triggerPrice > 0
                           ? ((triggerPrice - h.price) / triggerPrice * 100)
                           : null;
-                          : null;
                         const currencySymbol = h.currency === "GBP" || h.currency === "GBX" ? "£" : h.currency === "EUR" ? "€" : h.currency === "SEK" ? "kr" : "$";
                         const triggerNote = zone === "EXIT_ZONE"
                           ? (h.exit_trigger || (triggerPrice ? `Exit @ ${currencySymbol}${triggerPrice}` : "—"))
