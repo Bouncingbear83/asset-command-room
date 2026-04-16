@@ -11,7 +11,7 @@ type ValidPrefix = typeof VALID_PREFIXES[number];
 export interface ReviewFlag {
   ticker: string;
   date: string;
-  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "RESEARCH" | "W_FACTOR" | "W_STALE" | "UNKNOWN";
+  prefix: "W_EXIT" | "Q_REVIEW" | "M_REVIEW" | "W_FACTOR" | "W_STALE";
   priority: "HIGH" | "MEDIUM" | "LOW";
   flagType: string;
   reason: string;
