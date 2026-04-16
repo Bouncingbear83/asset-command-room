@@ -597,6 +597,29 @@ export default function CommandTab() {
     if (!zoneGroups[status]) zoneGroups[status] = [];
     zoneGroups[status].push(h);
   });
+
+  // Sort ADD_ZONE: furthest below trigger first (most negative % from trigger)
+  if (zoneGroups["ADD_ZONE"]) {
+    zoneGroups["ADD_ZONE"].sort((a, b) => {
+      const triggerA = parseFloat(String(a.trigger_price_add));
+      const triggerB = parseFloat(String(b.trigger_price_add));
+      const pctA = !isNaN(triggerA) && triggerA > 0 ? ((triggerA - a.price) / triggerA * 100) : 0;
+      const pctB = !isNaN(triggerB) && triggerB > 0 ? ((triggerB - b.price) / triggerB * 100) : 0;
+      return pctB - pctA; // Higher % = further below = more urgent
+    });
+  }
+
+  // Sort EXIT_ZONE: closest to breach first (least distance above exit, or already below)
+  if (zoneGroups["EXIT_ZONE"]) {
+    zoneGroups["EXIT_ZONE"].sort((a, b) => {
+      const triggerA = parseFloat(String(a.trigger_price_exit));
+      const triggerB = parseFloat(String(b.trigger_price_exit));
+      const pctA = !isNaN(triggerA) && triggerA > 0 ? ((triggerA - a.price) / triggerA * 100) : 0;
+      const pctB = !isNaN(triggerB) && triggerB > 0 ? ((triggerB - b.price) / triggerB * 100) : 0;
+      return pctA - pctB; // Lower % = closer to breach = more urgent
+    });
+  }
+
   const zoneOrder = ["ADD_ZONE", "EXIT_ZONE"];
   const activeZones = zoneOrder.filter((z) => zoneGroups[z]?.length);
 
