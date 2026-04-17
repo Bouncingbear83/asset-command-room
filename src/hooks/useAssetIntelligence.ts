@@ -217,10 +217,39 @@ function buildPosition(rows: LiveHolding[], ticker: string): AssetPosition | nul
   };
 }
 
+function buildScoreRationales(row: ScoreRationaleRow | undefined): ScoreRationales {
+  if (!row) return { ...EMPTY_SCORE_RATIONALES };
+  return {
+    substrate: row.substrate_rationale ?? "",
+    demand: row.demand_rationale ?? "",
+    moat: row.moat_rationale ?? "",
+    valuation: row.valuation_rationale ?? "",
+    mgmt: row.mgmt_rationale ?? "",
+    disruption: row.disruption_rationale ?? "",
+  };
+}
+
+function buildDisruptionRationales(
+  row: DisruptionRationaleRow | undefined,
+  hasDisruption: boolean,
+): DisruptionRationales | null {
+  if (!hasDisruption) return null;
+  if (!row) return { ...EMPTY_DISRUPTION_RATIONALES };
+  return {
+    sub_avail: row.sub_avail_rationale ?? "",
+    economics: row.economics_rationale ?? "",
+    govt_support: row.govt_support_rationale ?? "",
+    demand_vuln: row.demand_vuln_rationale ?? "",
+    time_viability: row.time_viability_rationale ?? "",
+  };
+}
+
 function buildOne(
   s: LiveScore,
   disruptionByTicker: Map<string, LiveDisruption>,
   holdingsByTicker: Map<string, LiveHolding[]>,
+  scoreRationaleByTicker: Map<string, ScoreRationaleRow>,
+  disruptionRationaleByTicker: Map<string, DisruptionRationaleRow>,
 ): AssetIntelligence {
   const ticker = canonTicker(s.ticker);
   const held_status = normalizeHeldStatus(s.heldStatus, ticker);
@@ -237,6 +266,12 @@ function buildOne(
       `[useAssetIntelligence] ${ticker} marked HELD in SCORES but no HOLDINGS row — rendering as unheld.`,
     );
   }
+
+  const disruptionData = buildDisruption(disruptionByTicker.get(ticker));
+  const rationales: AssetRationales = {
+    score: buildScoreRationales(scoreRationaleByTicker.get(ticker)),
+    disruption: buildDisruptionRationales(disruptionRationaleByTicker.get(ticker), disruptionData !== null),
+  };
 
   return {
     ticker,
@@ -264,9 +299,40 @@ function buildOne(
       currency: String(s.currency ?? "USD"),
     },
     action: String(s.action ?? ""),
-    disruption: buildDisruption(disruptionByTicker.get(ticker)),
+    disruption: disruptionData,
     position,
+    rationales,
   };
+}
+
+// ── Rationale fetcher (latest row per ticker) ───────────────────────────────
+
+async function fetchLatestRationales<T extends { ticker: string; scored_at: string }>(
+  table: "score_rationales" | "disruption_rationales",
+): Promise<Map<string, T>> {
+  const { data, error } = await supabase
+    .from(table)
+    .select("*")
+    .order("scored_at", { ascending: false })
+    .range(0, 999);
+
+  if (error) {
+    console.error(`[useAssetIntelligence] ${table} fetch error:`, error);
+    return new Map();
+  }
+  if ((data?.length ?? 0) === 1000) {
+    console.warn(
+      `[useAssetIntelligence] ${table} returned 1000 rows — pagination cap hit. Add keyset pagination if growth continues.`,
+    );
+  }
+
+  const map = new Map<string, T>();
+  for (const raw of (data ?? []) as T[]) {
+    const t = canonTicker(raw.ticker);
+    if (!t) continue;
+    if (!map.has(t)) map.set(t, raw); // first wins = newest (ordered desc)
+  }
+  return map;
 }
 
 // ── Public hook ─────────────────────────────────────────────────────────────
@@ -278,7 +344,40 @@ export interface UseAssetIntelligenceResult {
 }
 
 export function useAssetIntelligence(): UseAssetIntelligenceResult {
-  const { scores, disruption, holdings, loading, error } = usePortfolioData();
+  const { scores, disruption, holdings, loading: sheetsLoading, error: sheetsError } = usePortfolioData();
+
+  const [scoreRationaleByTicker, setScoreRationaleByTicker] = useState<Map<string, ScoreRationaleRow>>(new Map());
+  const [disruptionRationaleByTicker, setDisruptionRationaleByTicker] = useState<Map<string, DisruptionRationaleRow>>(new Map());
+  const [rationalesLoading, setRationalesLoading] = useState(true);
+  const [rationalesError, setRationalesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setRationalesLoading(true);
+    setRationalesError(null);
+
+    Promise.all([
+      fetchLatestRationales<ScoreRationaleRow>("score_rationales"),
+      fetchLatestRationales<DisruptionRationaleRow>("disruption_rationales"),
+    ])
+      .then(([scoreMap, disruptionMap]) => {
+        if (cancelled) return;
+        setScoreRationaleByTicker(scoreMap);
+        setDisruptionRationaleByTicker(disruptionMap);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        console.error("[useAssetIntelligence] rationale fetch failed:", e);
+        setRationalesError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setRationalesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const data = useMemo<AssetIntelligence[]>(() => {
     if (!scores || scores.length === 0) return [];
@@ -300,10 +399,29 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
       else holdingsByTicker.set(t, [h]);
     }
 
-    return scores.map((s) => buildOne(s, disruptionByTicker, holdingsByTicker));
-  }, [scores, disruption, holdings]);
+    // Warn about orphan rationales (ticker not in SCORES)
+    const knownTickers = new Set(scores.map((s) => canonTicker(s.ticker)));
+    for (const t of scoreRationaleByTicker.keys()) {
+      if (!knownTickers.has(t)) {
+        console.warn(`[useAssetIntelligence] orphan score_rationales row for ${t} (not in SCORES) — dropped.`);
+      }
+    }
+    for (const t of disruptionRationaleByTicker.keys()) {
+      if (!knownTickers.has(t)) {
+        console.warn(`[useAssetIntelligence] orphan disruption_rationales row for ${t} (not in SCORES) — dropped.`);
+      }
+    }
 
-  return { data, loading, error };
+    return scores.map((s) =>
+      buildOne(s, disruptionByTicker, holdingsByTicker, scoreRationaleByTicker, disruptionRationaleByTicker),
+    );
+  }, [scores, disruption, holdings, scoreRationaleByTicker, disruptionRationaleByTicker]);
+
+  return {
+    data,
+    loading: sheetsLoading || rationalesLoading,
+    error: sheetsError ?? rationalesError,
+  };
 }
 
 /** Lookup helper for a single ticker. */
@@ -312,3 +430,4 @@ export function useAssetIntelligenceByTicker(ticker: string) {
   const canonical = canonTicker(ticker);
   return { data: data.find((a) => a.ticker === canonical), ...rest };
 }
+
