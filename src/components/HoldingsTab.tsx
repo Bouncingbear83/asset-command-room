@@ -890,6 +890,8 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               layerFilter={state.layerFilter}
               search={state.search}
               groupBy={state.groupBy}
+              sortField={state.sortField}
+              sortDir={state.sortDir}
               onToggleAccount={toggleAccount}
               onResetAccount={() => update({ accountFilter: [] })}
               onToggleAction={toggleAction}
@@ -900,6 +902,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               onResetLayer={() => update({ layerFilter: [] })}
               onSearchChange={(v) => update({ search: v })}
               onGroupChange={(g) => update({ groupBy: g })}
+              onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}
             />
             {filteredPositionCount === 0 ? (
               <div style={{ padding: 40, textAlign: "center" }}>
