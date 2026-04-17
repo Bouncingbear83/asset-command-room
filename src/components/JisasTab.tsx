@@ -313,7 +313,6 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
                         <span>{formatCurrency(h.mvGbp)}</span>
                         <span>{h.weightPct?.toFixed(1)}%</span>
-                        <span style={{ color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                           <span style={{ width: 6, height: 6, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
                           {h.layer}
@@ -353,7 +352,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Weight %</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Target %</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Drift</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>G/L %</th>
+                
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Cost £</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>P&L £</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Return %</th>
@@ -422,7 +421,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                           <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{h.weightPct?.toFixed(1) ?? "—"}%</td>
                           <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)" }}>{h.targetPct?.toFixed(1) ?? "—"}%</td>
                           <td style={{ padding: "7px 6px", textAlign: "right", color: driftColor }}>{drift >= 0 ? "+" : ""}{drift.toFixed(1)}%</td>
-                          <td style={{ padding: "7px 6px", textAlign: "right", color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</td>
+                          
                           <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)", fontSize: 10 }}>{hasReturns ? formatCurrency(r!.totalCost) : "—"}</td>
                           <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                           <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePLpct >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePLpct >= 0 ? "+" : ""}${r!.truePLpct.toFixed(1)}%` : "—"}</td>
