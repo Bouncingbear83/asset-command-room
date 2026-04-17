@@ -248,12 +248,13 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   };
 
   const toggleDisruptionExpand = (ticker: string) => {
+    const key = `d-${ticker}`;
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(ticker)) {
-        next.delete(ticker);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(ticker);
+        next.add(key);
         fetchDisruptionRationales(ticker);
       }
       return next;
@@ -483,7 +484,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
 
               return (
                 <>
-                  <tr key={d.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }} onClick={() => toggleDisruptionExpand(`d-${d.ticker}`)}>
+                  <tr key={d.ticker} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)", cursor: "pointer" }} onClick={() => toggleDisruptionExpand(d.ticker)}>
                     <td style={{ padding: "10px 12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         {isExp ? <ChevronDown size={12} style={{ color: "var(--text-dim)" }} /> : <ChevronRight size={12} style={{ color: "var(--text-dim)" }} />}
