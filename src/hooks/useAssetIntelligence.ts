@@ -455,7 +455,15 @@ export interface UseAssetIntelligenceResult {
 }
 
 export function useAssetIntelligence(): UseAssetIntelligenceResult {
-  const { scores, disruption, holdings, loading: sheetsLoading, error: sheetsError } = usePortfolioData();
+  const {
+    scores,
+    disruption,
+    holdings,
+    scoreLog,
+    watchlist,
+    loading: sheetsLoading,
+    error: sheetsError,
+  } = usePortfolioData();
 
   const [scoreRationaleByTicker, setScoreRationaleByTicker] = useState<Map<string, ScoreRationaleRow>>(new Map());
   const [disruptionRationaleByTicker, setDisruptionRationaleByTicker] = useState<Map<string, DisruptionRationaleRow>>(new Map());
@@ -510,6 +518,36 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
       else holdingsByTicker.set(t, [h]);
     }
 
+    // Build trend context: latest+prior SCORE_LOG row per ticker (UK-date sorted desc)
+    const logsByTicker = new Map<string, LiveScoreLog[]>();
+    for (const row of scoreLog ?? []) {
+      const t = canonTicker(row.ticker);
+      if (!t) continue;
+      const list = logsByTicker.get(t);
+      if (list) list.push(row);
+      else logsByTicker.set(t, [row]);
+    }
+    const trendByTicker = new Map<string, TrendBuildContext>();
+    for (const [t, rows] of logsByTicker) {
+      const sorted = [...rows].sort((a, b) => {
+        const da = parseUkDate(a.date)?.getTime() ?? 0;
+        const db = parseUkDate(b.date)?.getTime() ?? 0;
+        return db - da; // desc
+      });
+      trendByTicker.set(t, { latest: sorted[0], prior: sorted[1] ?? null });
+    }
+
+    // Watchlist current price (lenient parse on raw cell)
+    const watchlistPriceByTicker = new Map<string, number | null>();
+    for (const w of (watchlist ?? []) as LiveWatchItem[]) {
+      const t = canonTicker(w.ticker);
+      if (!t) continue;
+      const parsed = w.current !== null && w.current !== undefined && w.current > 0
+        ? w.current
+        : parseLenientPrice(w.currentRaw);
+      watchlistPriceByTicker.set(t, parsed);
+    }
+
     // Warn about orphan rationales (ticker not in SCORES)
     const knownTickers = new Set(scores.map((s) => canonTicker(s.ticker)));
     for (const t of scoreRationaleByTicker.keys()) {
@@ -524,9 +562,17 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     }
 
     return scores.map((s) =>
-      buildOne(s, disruptionByTicker, holdingsByTicker, scoreRationaleByTicker, disruptionRationaleByTicker),
+      buildOne(
+        s,
+        disruptionByTicker,
+        holdingsByTicker,
+        scoreRationaleByTicker,
+        disruptionRationaleByTicker,
+        trendByTicker,
+        watchlistPriceByTicker,
+      ),
     );
-  }, [scores, disruption, holdings, scoreRationaleByTicker, disruptionRationaleByTicker]);
+  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker]);
 
   return {
     data,
