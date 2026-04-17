@@ -737,10 +737,11 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
   // A=Pillar/Layer, B=Target%, C=Ticker, D=Name, E=FX (currency code), I=price_local
   // M/N/O = Shares (JB/AB/EB), V/W/X = Weight%, Y/Z/AA = Cost (LOCAL ccy)
   // AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
+  // Cols P/Q/R (indexes 15/16/17) = Current MV per child in LOCAL currency
   const CHILDREN_MAP = [
-    { child: "Bear", sharesCol: 12, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33, totalCol: 0, cashCol: 0, portfolioCol: 0 },
-    { child: "Alfie", sharesCol: 13, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34, totalCol: 1, cashCol: 1, portfolioCol: 1 },
-    { child: "Edie", sharesCol: 14, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35, totalCol: 2, cashCol: 2, portfolioCol: 2 },
+    { child: "Bear",  sharesCol: 12, mvLocalCol: 15, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33 },
+    { child: "Alfie", sharesCol: 13, mvLocalCol: 16, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34 },
+    { child: "Edie",  sharesCol: 14, mvLocalCol: 17, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35 },
   ];
 
   // Locate FX rates (rows with currency labels in col A and rates somewhere on the row)
