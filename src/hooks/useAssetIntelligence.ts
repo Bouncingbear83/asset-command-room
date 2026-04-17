@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePortfolioData, type LiveScore, type LiveDisruption, type LiveHolding } from "./usePortfolioData";
+import {
+  usePortfolioData,
+  type LiveScore,
+  type LiveDisruption,
+  type LiveHolding,
+  type LiveScoreLog,
+  type LiveWatchItem,
+} from "./usePortfolioData";
 import {
   AssetIntelligence,
   AssetDisruption,
@@ -15,6 +22,11 @@ import {
   Tier,
   DisruptionStatus,
   AssetAccount,
+  AssetIntelligenceTrend,
+  ScoreTrend,
+  EMPTY_TREND,
+  EMPTY_SCORE_TREND,
+  BuyDistance,
 } from "@/types/intelligence";
 
 // ── Rationale row shapes (subset of Supabase tables) ────────────────────────
@@ -125,6 +137,86 @@ function parseSheetDateLike(val: unknown): string {
     return val;
   }
   return String(val ?? "");
+}
+
+/**
+ * Parse a UK-format date "DD/MM/YYYY" → Date (local). Falls back to new Date(str) on failure.
+ * Returns null if completely unparseable. Sheet API may return raw "Date(yyyy,m,d)" strings —
+ * handle those too.
+ */
+function parseUkDate(raw: unknown): Date | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const gviz = s.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+  if (gviz) {
+    const d = new Date(+gviz[1], +gviz[2], +gviz[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const uk = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (uk) {
+    const d = new Date(+uk[3], +uk[2] - 1, +uk[1]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const iso = new Date(s);
+  return isNaN(iso.getTime()) ? null : iso;
+}
+
+/** Lenient price parser — strips ~, currency symbols, takes midpoint of ranges. */
+function parseLenientPrice(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  // Strip ~, currency symbols, GBX trailing 'p', spaces, commas
+  const cleaned = s.replace(/[~£$€¥₹\s,]/g, "").replace(/p$/i, "");
+  const rangeMatch = cleaned.match(/^(\d+(?:\.\d+)?)[\-–](\d+(?:\.\d+)?)$/);
+  if (rangeMatch) {
+    const lo = Number(rangeMatch[1]);
+    const hi = Number(rangeMatch[2]);
+    if (Number.isFinite(lo) && Number.isFinite(hi)) return (lo + hi) / 2;
+  }
+  const numMatch = cleaned.match(/^(\d+(?:\.\d+)?)/);
+  if (numMatch) {
+    const n = Number(numMatch[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function computeBuyDistance(price: number | null, low: number | null, high: number | null): BuyDistance {
+  if (low === null || high === null) return { status: "NO_RANGE", pct_from_zone: null };
+  if (price === null) return { status: "NO_PRICE", pct_from_zone: null };
+  if (price >= low && price <= high) return { status: "IN_ZONE", pct_from_zone: 0 };
+  if (price > high) return { status: "ABOVE", pct_from_zone: ((price - high) / high) * 100 };
+  return { status: "BELOW", pct_from_zone: ((price - low) / low) * 100 };
+}
+
+function makeTrend(latest: number | null, prior: number | null): ScoreTrend {
+  if (latest === null || prior === null) return { ...EMPTY_SCORE_TREND, prior_value: prior };
+  const delta = latest - prior;
+  const direction: ScoreTrend["direction"] = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  return { delta, direction, prior_value: prior };
+}
+
+interface TrendBuildContext {
+  latest: LiveScoreLog;
+  prior: LiveScoreLog | null;
+}
+
+function buildTrend(ctx: TrendBuildContext | undefined): AssetIntelligenceTrend {
+  if (!ctx) return EMPTY_TREND;
+  const { latest, prior } = ctx;
+  const priorDate = prior?.date ? String(prior.date) : null;
+  return {
+    score:      makeTrend(latest.score      ?? null, prior?.score      ?? null),
+    substrate:  makeTrend(latest.substrate  ?? null, prior?.substrate  ?? null),
+    demand:     makeTrend(latest.demand     ?? null, prior?.demand     ?? null),
+    moat:       makeTrend(latest.moat       ?? null, prior?.moat       ?? null),
+    valuation:  makeTrend(latest.valuation  ?? null, prior?.valuation  ?? null),
+    mgmt:       makeTrend(latest.mgmt       ?? null, prior?.mgmt       ?? null),
+    disruption: makeTrend(latest.disruption ?? null, prior?.disruption ?? null),
+    prior_score_date: priorDate,
+  };
 }
 
 // ── Joiners ─────────────────────────────────────────────────────────────────
@@ -250,6 +342,8 @@ function buildOne(
   holdingsByTicker: Map<string, LiveHolding[]>,
   scoreRationaleByTicker: Map<string, ScoreRationaleRow>,
   disruptionRationaleByTicker: Map<string, DisruptionRationaleRow>,
+  trendByTicker: Map<string, TrendBuildContext>,
+  watchlistPriceByTicker: Map<string, number | null>,
 ): AssetIntelligence {
   const ticker = canonTicker(s.ticker);
   const held_status = normalizeHeldStatus(s.heldStatus, ticker);
@@ -273,6 +367,20 @@ function buildOne(
     disruption: buildDisruptionRationales(disruptionRationaleByTicker.get(ticker), disruptionData !== null),
   };
 
+  const trend = buildTrend(trendByTicker.get(ticker));
+
+  // Current price preference: held → position.price_local; else watchlist parsed
+  const lowFinal = buyLow && buyLow > 0 ? buyLow : null;
+  const highFinal = buyHigh && buyHigh > 0 ? buyHigh : null;
+  let current_price: number | null = null;
+  if (position && position.price_local > 0) {
+    current_price = position.price_local;
+  } else {
+    const w = watchlistPriceByTicker.get(ticker);
+    if (w !== undefined && w !== null) current_price = w;
+  }
+  const buy_distance = computeBuyDistance(current_price, lowFinal, highFinal);
+
   return {
     ticker,
     name: String(s.name ?? ""),
@@ -294,14 +402,17 @@ function buildOne(
     reclass_status: String(s.reclassStatus ?? ""),
     thesis_age_months: toNum0(s.thesisAgeMonths),
     buy_range: {
-      low: buyLow && buyLow > 0 ? buyLow : null,
-      high: buyHigh && buyHigh > 0 ? buyHigh : null,
+      low: lowFinal,
+      high: highFinal,
       currency: String(s.currency ?? "USD"),
     },
     action: String(s.action ?? ""),
     disruption: disruptionData,
     position,
     rationales,
+    trend,
+    current_price,
+    buy_distance,
   };
 }
 
@@ -344,7 +455,15 @@ export interface UseAssetIntelligenceResult {
 }
 
 export function useAssetIntelligence(): UseAssetIntelligenceResult {
-  const { scores, disruption, holdings, loading: sheetsLoading, error: sheetsError } = usePortfolioData();
+  const {
+    scores,
+    disruption,
+    holdings,
+    scoreLog,
+    watchlist,
+    loading: sheetsLoading,
+    error: sheetsError,
+  } = usePortfolioData();
 
   const [scoreRationaleByTicker, setScoreRationaleByTicker] = useState<Map<string, ScoreRationaleRow>>(new Map());
   const [disruptionRationaleByTicker, setDisruptionRationaleByTicker] = useState<Map<string, DisruptionRationaleRow>>(new Map());
@@ -399,6 +518,36 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
       else holdingsByTicker.set(t, [h]);
     }
 
+    // Build trend context: latest+prior SCORE_LOG row per ticker (UK-date sorted desc)
+    const logsByTicker = new Map<string, LiveScoreLog[]>();
+    for (const row of scoreLog ?? []) {
+      const t = canonTicker(row.ticker);
+      if (!t) continue;
+      const list = logsByTicker.get(t);
+      if (list) list.push(row);
+      else logsByTicker.set(t, [row]);
+    }
+    const trendByTicker = new Map<string, TrendBuildContext>();
+    for (const [t, rows] of logsByTicker) {
+      const sorted = [...rows].sort((a, b) => {
+        const da = parseUkDate(a.date)?.getTime() ?? 0;
+        const db = parseUkDate(b.date)?.getTime() ?? 0;
+        return db - da; // desc
+      });
+      trendByTicker.set(t, { latest: sorted[0], prior: sorted[1] ?? null });
+    }
+
+    // Watchlist current price (lenient parse on raw cell)
+    const watchlistPriceByTicker = new Map<string, number | null>();
+    for (const w of (watchlist ?? []) as LiveWatchItem[]) {
+      const t = canonTicker(w.ticker);
+      if (!t) continue;
+      const parsed = w.current !== null && w.current !== undefined && w.current > 0
+        ? w.current
+        : parseLenientPrice(w.currentRaw);
+      watchlistPriceByTicker.set(t, parsed);
+    }
+
     // Warn about orphan rationales (ticker not in SCORES)
     const knownTickers = new Set(scores.map((s) => canonTicker(s.ticker)));
     for (const t of scoreRationaleByTicker.keys()) {
@@ -413,9 +562,17 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     }
 
     return scores.map((s) =>
-      buildOne(s, disruptionByTicker, holdingsByTicker, scoreRationaleByTicker, disruptionRationaleByTicker),
+      buildOne(
+        s,
+        disruptionByTicker,
+        holdingsByTicker,
+        scoreRationaleByTicker,
+        disruptionRationaleByTicker,
+        trendByTicker,
+        watchlistPriceByTicker,
+      ),
     );
-  }, [scores, disruption, holdings, scoreRationaleByTicker, disruptionRationaleByTicker]);
+  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker]);
 
   return {
     data,

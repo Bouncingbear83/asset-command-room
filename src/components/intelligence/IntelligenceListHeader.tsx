@@ -81,8 +81,8 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
       <div style={{ width: COL.disruption, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
         {sortBtn("Disruption", "disruption", "right")}
       </div>
-      <div className="asset-row-buy-range" style={{ width: COL.buyRange, flexShrink: 0, textAlign: "right" }}>
-        <span style={{ ...labelBase, cursor: "default" }}>Buy Range</span>
+      <div className="asset-row-buy-range" style={{ width: COL.buyRange, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        {sortBtn("Buy Range", "buy_distance", "right")}
       </div>
       <div style={{ width: COL.status, flexShrink: 0, textAlign: "right" }}>
         <span style={{ ...labelBase, cursor: "default" }}>Status</span>

@@ -48,6 +48,20 @@ function compareAssets(a: AssetIntelligence, b: AssetIntelligence, field: SortFi
       if (bv === undefined) return -1;
       return sign * (av - bv);
     }
+    case "buy_distance": {
+      // Closest-to-zone first when asc; NO_PRICE/NO_RANGE always last.
+      const rank = (s: AssetIntelligence) => {
+        const st = s.buy_distance.status;
+        if (st === "NO_PRICE" || st === "NO_RANGE") return Number.POSITIVE_INFINITY;
+        return Math.abs(s.buy_distance.pct_from_zone ?? 0);
+      };
+      const ar = rank(a);
+      const br = rank(b);
+      if (!Number.isFinite(ar) && !Number.isFinite(br)) return 0;
+      if (!Number.isFinite(ar)) return 1;
+      if (!Number.isFinite(br)) return -1;
+      return sign * (ar - br);
+    }
   }
 }
 

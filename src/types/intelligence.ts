@@ -125,6 +125,48 @@ export interface AssetRationales {
   disruption: DisruptionRationales | null;
 }
 
+// ── Score trend (period-over-period delta from SCORE_LOG) ───────────────────
+
+export interface ScoreTrend {
+  delta: number | null;
+  direction: "up" | "down" | "flat" | null;
+  prior_value: number | null;
+}
+
+export interface AssetIntelligenceTrend {
+  score: ScoreTrend;
+  substrate: ScoreTrend;
+  demand: ScoreTrend;
+  moat: ScoreTrend;
+  valuation: ScoreTrend;
+  mgmt: ScoreTrend;
+  disruption: ScoreTrend;
+  prior_score_date: string | null;
+}
+
+export const EMPTY_SCORE_TREND: ScoreTrend = { delta: null, direction: null, prior_value: null };
+
+export const EMPTY_TREND: AssetIntelligenceTrend = {
+  score: EMPTY_SCORE_TREND,
+  substrate: EMPTY_SCORE_TREND,
+  demand: EMPTY_SCORE_TREND,
+  moat: EMPTY_SCORE_TREND,
+  valuation: EMPTY_SCORE_TREND,
+  mgmt: EMPTY_SCORE_TREND,
+  disruption: EMPTY_SCORE_TREND,
+  prior_score_date: null,
+};
+
+// ── Buy-zone distance ───────────────────────────────────────────────────────
+
+export type BuyDistanceStatus = "IN_ZONE" | "ABOVE" | "BELOW" | "NO_PRICE" | "NO_RANGE";
+
+export interface BuyDistance {
+  status: BuyDistanceStatus;
+  /** 0 if in zone; positive if above high; negative if below low; null when not computable. */
+  pct_from_zone: number | null;
+}
+
 export interface AssetIntelligence {
   // Identity
   ticker: string;
@@ -152,4 +194,12 @@ export interface AssetIntelligence {
 
   // Rationales loaded from Supabase (score_rationales + disruption_rationales)
   rationales: AssetRationales;
+
+  // Score trend deltas vs prior SCORE_LOG row (null when no prior entry)
+  trend: AssetIntelligenceTrend;
+
+  // Live current price (numeric). Held → position.price_local; unheld → parsed WATCHLIST.
+  current_price: number | null;
+  // Distance from buy_low/high; always present (status NO_PRICE / NO_RANGE if not computable)
+  buy_distance: BuyDistance;
 }

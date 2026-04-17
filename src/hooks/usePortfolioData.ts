@@ -349,22 +349,26 @@ function parseHoldings(rows: Record<string, any>[]) {
 
 function parseWatchlist(rows: Record<string, any>[]) {
   return rows
-    .map((row) => ({
-      name: String(findCol(row, "name", "NAME", "Name") ?? ""),
-      ticker: String(findCol(row, "ticker", "TICKER", "Ticker") ?? ""),
-      layer: String(findCol(row, "layer", "LAYER", "Layer") ?? ""),
-      entry: String(findCol(row, "entry target", "ENTRY TARGET", "Entry Target") ?? ""),
-      current: parseNum(findCol(row, "current price", "CURRENT PRICE", "Current Price")),
-      trigger: String(findCol(row, "trigger condition", "TRIGGER CONDITION", "Trigger Condition") ?? ""),
-      rationale: String(findCol(row, "thesis / rationale", "THESIS / RATIONALE", "Thesis / Rationale") ?? ""),
-      status: String(findCol(row, "status", "STATUS", "Status") ?? "WATCH"),
-      triggerPriceNumeric: parseNum(findCol(row, "trigger_price_numeric", "TRIGGER_PRICE_NUMERIC")),
-      alertStatus: String(findCol(row, "alert_status", "ALERT_STATUS") ?? "WAITING"),
-      lastChecked: parseSheetDate(findCol(row, "last_checked", "LAST_CHECKED")),
-      triggerReviewDate: parseSheetDate(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE")) ?? "",
-      triggerReviewNote: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
-      deploy_amount_gbp: parseNum(findCol(row, "deploy_amount_gbp", "DEPLOY_AMOUNT_GBP", "Deploy_Amount_GBP")),
-    }))
+    .map((row) => {
+      const currentRawVal = findCol(row, "current price", "CURRENT PRICE", "Current Price");
+      return {
+        name: String(findCol(row, "name", "NAME", "Name") ?? ""),
+        ticker: String(findCol(row, "ticker", "TICKER", "Ticker") ?? ""),
+        layer: String(findCol(row, "layer", "LAYER", "Layer") ?? ""),
+        entry: String(findCol(row, "entry target", "ENTRY TARGET", "Entry Target") ?? ""),
+        current: parseNum(currentRawVal),
+        currentRaw: currentRawVal === null || currentRawVal === undefined ? "" : String(currentRawVal),
+        trigger: String(findCol(row, "trigger condition", "TRIGGER CONDITION", "Trigger Condition") ?? ""),
+        rationale: String(findCol(row, "thesis / rationale", "THESIS / RATIONALE", "Thesis / Rationale") ?? ""),
+        status: String(findCol(row, "status", "STATUS", "Status") ?? "WATCH"),
+        triggerPriceNumeric: parseNum(findCol(row, "trigger_price_numeric", "TRIGGER_PRICE_NUMERIC")),
+        alertStatus: String(findCol(row, "alert_status", "ALERT_STATUS") ?? "WAITING"),
+        lastChecked: parseSheetDate(findCol(row, "last_checked", "LAST_CHECKED")),
+        triggerReviewDate: parseSheetDate(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE")) ?? "",
+        triggerReviewNote: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
+        deploy_amount_gbp: parseNum(findCol(row, "deploy_amount_gbp", "DEPLOY_AMOUNT_GBP", "Deploy_Amount_GBP")),
+      };
+    })
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
 }
 
@@ -436,6 +440,7 @@ function parseScoreLog(rows: Record<string, any>[]) {
     moat: typeof row["moat"] === "number" ? row["moat"] : null,
     valuation: typeof row["valuation"] === "number" ? row["valuation"] : null,
     mgmt: typeof row["mgmt"] === "number" ? row["mgmt"] : null,
+    disruption: typeof row["disruption"] === "number" ? row["disruption"] : null,
     changeNote: String(row["change_note"] ?? row["CHANGE_NOTE"] ?? ""),
   }));
 }
