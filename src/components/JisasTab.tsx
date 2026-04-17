@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { LiveJisaHolding, LiveTransaction, LiveLayer, LivePerformance } from "@/hooks/usePortfolioData";
+import { LiveJisaHolding, LiveJisaTotals, LiveTransaction, LiveLayer, LivePerformance } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { useTickerHistory } from "@/hooks/useTickerHistory";
@@ -7,6 +7,7 @@ import { PriceChart } from "@/components/PriceChart";
 
 interface Props {
   jisaHoldings: LiveJisaHolding[];
+  jisaTotals: LiveJisaTotals;
   transactions: LiveTransaction[];
   layers: LiveLayer[];
   performance: LivePerformance[];
@@ -54,7 +55,7 @@ const metaVal: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: "var(--gold)",
 };
 
-export default function JisasTab({ jisaHoldings, transactions, layers, performance }: Props) {
+export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layers, performance }: Props) {
   const isMobile = useIsMobile();
   const [childFilter, setChildFilter] = useState<string>("All");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -85,16 +86,20 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
     });
   }, [jisaHoldings, transactions]);
 
-  // Summary per child
+  // Summary per child — uses authoritative totals from JISA_HOLDINGS sheet (Holdings MV + Cash)
   const childSummaries = useMemo(() => {
     return CHILDREN.map(child => {
       const holdings = holdingsWithReturns.filter(h => h.child === child);
-      const mv = holdings.reduce((s, h) => s + (h.mvGbp || 0), 0);
+      const totals = jisaTotals?.[child] ?? { mv: 0, cash: 0, portfolio: 0 };
+      // Prefer authoritative MV from sheet TOTAL row; fall back to row sum
+      const mv = totals.mv > 0 ? totals.mv : holdings.reduce((s, h) => s + (h.mvGbp || 0), 0);
+      const cash = totals.cash;
+      const portfolio = totals.portfolio > 0 ? totals.portfolio : (mv + cash);
       const cost = holdings.reduce((s, h) => s + (h.returns?.totalCost || h.costGbp || 0), 0);
       const gl = cost > 0 ? ((mv - cost) / cost) * 100 : 0;
-      return { child, mv, cost, gl, count: holdings.length };
+      return { child, mv, cash, portfolio, cost, gl, count: holdings.length };
     });
-  }, [holdingsWithReturns]);
+  }, [holdingsWithReturns, jisaTotals]);
 
   // JISA performance metrics from PERFORMANCE sheet
   const childPerfMetrics = useMemo(() => {
@@ -151,7 +156,7 @@ export default function JisasTab({ jisaHoldings, transactions, layers, performan
     return result;
   }, [performance]);
 
-  const combinedMv = childSummaries.reduce((s, c) => s + c.mv, 0);
+  const combinedMv = childSummaries.reduce((s, c) => s + c.portfolio, 0);
 
   // Filtered holdings
   const filteredHoldings = useMemo(() => {
