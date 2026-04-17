@@ -42,8 +42,8 @@ interface Props {
   priceData?: PriceDataMap;
 }
 
-type GroupMode = "layer" | "account" | "none";
-type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action" | "annReturn" | "cost" | "truePL" | "account";
+type GroupMode = HoldingsGroupBy;
+type SortKey = HoldingsSortField;
 type SortDir = "asc" | "desc";
 
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
