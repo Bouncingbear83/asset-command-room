@@ -217,7 +217,10 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
             <div key={c.child} style={cardStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <div style={metaLabel}>{c.child.toUpperCase()}</div>
-                <div style={metaVal}>{formatCurrency(c.mv)}</div>
+                <div style={metaVal}>{formatCurrency(c.portfolio)}</div>
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2, letterSpacing: "0.05em" }}>
+                Holdings {formatCurrency(c.mv)} · Cash {formatCurrency(c.cash)}
               </div>
               {perf && (
                 <>
