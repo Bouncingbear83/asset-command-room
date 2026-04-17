@@ -337,6 +337,7 @@ export function AssetExpansion({ asset }: Props) {
           {[
             asset.change_note ? `Last change: ${asset.change_note}` : null,
             asset.score_date ? `Scored: ${asset.score_date}` : null,
+            asset.trend.prior_score_date ? `Prior scored: ${asset.trend.prior_score_date}` : null,
             `Reclass: ${asset.reclass_status || "PENDING"}`,
             `Age: ${asset.thesis_age_months}mo`,
           ].filter(Boolean).join("  ·  ")}
@@ -347,12 +348,12 @@ export function AssetExpansion({ asset }: Props) {
       <div style={SECTION_STYLE}>
         <div style={LABEL_STYLE}><span>6D Rationales</span></div>
         <div className="aex-grid-6d">
-          <RationaleCard label="Substrate"  score={asset.sub_scores.substrate}        max={25} rationale={asset.rationales.score.substrate} />
-          <RationaleCard label="Demand"     score={asset.sub_scores.demand}           max={22} rationale={asset.rationales.score.demand} />
-          <RationaleCard label="Moat"       score={asset.sub_scores.moat}             max={18} rationale={asset.rationales.score.moat} />
-          <RationaleCard label="Valuation"  score={asset.sub_scores.valuation}        max={13} rationale={asset.rationales.score.valuation} />
-          <RationaleCard label="Management" score={asset.sub_scores.mgmt}             max={7}  rationale={asset.rationales.score.mgmt} />
-          <RationaleCard label="Disruption" score={asset.sub_scores.disruption_score} max={15} rationale={asset.rationales.score.disruption} />
+          <RationaleCard label="Substrate"  score={asset.sub_scores.substrate}        max={25} rationale={asset.rationales.score.substrate}  trend={asset.trend.substrate} />
+          <RationaleCard label="Demand"     score={asset.sub_scores.demand}           max={22} rationale={asset.rationales.score.demand}     trend={asset.trend.demand} />
+          <RationaleCard label="Moat"       score={asset.sub_scores.moat}             max={18} rationale={asset.rationales.score.moat}       trend={asset.trend.moat} />
+          <RationaleCard label="Valuation"  score={asset.sub_scores.valuation}        max={13} rationale={asset.rationales.score.valuation}  trend={asset.trend.valuation} />
+          <RationaleCard label="Management" score={asset.sub_scores.mgmt}             max={7}  rationale={asset.rationales.score.mgmt}       trend={asset.trend.mgmt} />
+          <RationaleCard label="Disruption" score={asset.sub_scores.disruption_score} max={15} rationale={asset.rationales.score.disruption} trend={asset.trend.disruption} />
         </div>
       </div>
 
