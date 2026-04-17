@@ -180,6 +180,12 @@ function UnifiedView({
   isaTotal,
   priceData,
   scores,
+  sortKey,
+  sortDir,
+  onSortChange,
+  layerWeights,
+  tierByTicker,
+  onLayerGroupClick,
 }: {
   allHoldings: LiveHolding[];
   totalAum: number;
@@ -190,10 +196,14 @@ function UnifiedView({
   isaTotal: number;
   priceData?: PriceDataMap;
   scores?: LiveScore[];
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSortChange: (key: SortKey) => void;
+  layerWeights: Map<string, { actual: number; target: number }>;
+  tierByTicker: Map<string, string>;
+  onLayerGroupClick: (layer: Layer) => void;
 }) {
   const isMobile = useIsMobile();
-  const [sortKey, setSortKey] = useState<SortKey>("mv");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Note: useRationales / useTickerHistory were removed when Holdings switched
@@ -217,26 +227,33 @@ function UnifiedView({
     });
   };
 
-  const handleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("desc"); }
-  };
+  const handleSort = (key: SortKey) => onSortChange(key);
 
-  // Build groups
+  // Build groups (CASH rows stay pinned at top, ungrouped)
+  const isCash = (h: LiveHolding) => (h.ticker || "").trim().toUpperCase() === "CASH";
+
   const groups: GroupInfo[] = useMemo(() => {
+    const positionsOnly = holdingsWithReturns.filter((h) => !isCash(h));
+
     if (groupMode === "none") {
       return [{
         key: "__all__",
         label: "",
-        holdings: holdingsWithReturns,
-        totalMv: totalAum,
+        holdings: positionsOnly,
+        totalMv: positionsOnly.reduce((s, h) => s + (h.mv || 0), 0),
         pctAum: 100,
       }];
     }
 
     const grouped = new Map<string, HoldingWithReturns[]>();
-    for (const h of holdingsWithReturns) {
-      const k = groupMode === "layer" ? (h.layer || "Uncategorised") : (h.account || "Unknown");
+    const keyFor = (h: HoldingWithReturns): string => {
+      if (groupMode === "layer") return h.layer || "Uncategorised";
+      if (groupMode === "account") return h.account || "Unknown";
+      // tier
+      return tierByTicker.get(h.ticker) || "Untiered";
+    };
+    for (const h of positionsOnly) {
+      const k = keyFor(h);
       if (!grouped.has(k)) grouped.set(k, []);
       grouped.get(k)!.push(h);
     }
@@ -258,12 +275,14 @@ function UnifiedView({
         };
       })
       .sort((a, b) => b.totalMv - a.totalMv);
-  }, [holdingsWithReturns, groupMode, totalAum]);
+  }, [holdingsWithReturns, groupMode, totalAum, tierByTicker]);
+
+  // CASH rows are always rendered at the top, ignored by sort/filter/group
+  const cashRows = holdingsWithReturns.filter(isCash);
 
   const visibleCols = UNIFIED_COLUMNS.filter(c => !(isMobile && c.hideMobile));
-  // Extra cols after Price: 30D, MA20, MA50, Cost, P&L, Ann.Ret, Notes, Action, chevron
-  const extraDesktopCols = 6; // 30D, MA20, MA50, Cost, P&L, Ann.Ret
-  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3); // +Notes +Action +chevron on desktop
+  const extraDesktopCols = 6;
+  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3);
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
   const pad = isMobile ? "8px 6px" : "8px 12px";
   const cellPad = isMobile ? "10px 6px" : "10px 12px";
