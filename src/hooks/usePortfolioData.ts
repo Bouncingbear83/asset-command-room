@@ -318,6 +318,9 @@ function parseHoldings(rows: Record<string, any>[]) {
       mv: parseMv(findCol(row, "MV (£)", "mv (£)", "MV", "mv", "(£)")),
       gl: parseGl(findCol(row, "G/L %", "g/l %", "G/L%", "gl", "G/L")),
       day: parseDay(findCol(row, "DAY %", "day %", "Day %", "day", "DAY")),
+      aum_pct: parsePct(findCol(row, "AUM_pct", "aum_pct", "AUM_PCT", "AUM %", "aum %")),
+      pct_below_52w_high: parsePct(findCol(row, "%_below_52w_high", "%_BELOW_52W_HIGH", "pct_below_52w_high")),
+      pct_above_52w_low: parsePct(findCol(row, "%_above_52w_low", "%_ABOVE_52W_LOW", "pct_above_52w_low")),
       notes: String(findCol(row, "NOTES", "notes") ?? ""),
       action: String(findCol(row, "ACTION", "action") ?? "HOLD"),
       price: parseNum(findCol(row, "PRICE_LOCAL", "price_local", "Price_Local")),
@@ -415,6 +418,9 @@ function parseScores(rows: Record<string, any>[]) {
       fullThesis: String(row["full_thesis"] ?? ""),
       currency: String(row["currency"] ?? "USD"),
       changeNote: String(row["change_note"] ?? ""),
+      heldStatus: String(findCol(row, "Held_Status", "held_status", "HELD_STATUS") ?? ""),
+      reclassStatus: String(findCol(row, "RECLASS_STATUS", "reclass_status", "Reclass_Status") ?? ""),
+      thesisAgeMonths: parseNum(findCol(row, "THESIS_AGE_MONTHS", "thesis_age_months", "Thesis_Age_Months")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 }
