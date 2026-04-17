@@ -6,7 +6,7 @@
 import type { HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
 
-export type SortField = "score" | "ticker" | "layer" | "disruption";
+export type SortField = "score" | "ticker" | "layer" | "disruption" | "buy_distance";
 export type GroupBy = "none" | "layer" | "status" | "tier";
 
 export interface IntelligenceUiState {
@@ -27,7 +27,7 @@ export const DEFAULT_STATE: IntelligenceUiState = {
   search: "",
 };
 
-const SORT_FIELDS: SortField[] = ["score", "ticker", "layer", "disruption"];
+const SORT_FIELDS: SortField[] = ["score", "ticker", "layer", "disruption", "buy_distance"];
 const GROUP_BYS: GroupBy[] = ["none", "layer", "status", "tier"];
 
 export function stateFromParams(params: URLSearchParams): IntelligenceUiState {
