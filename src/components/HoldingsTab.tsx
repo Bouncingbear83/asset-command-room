@@ -179,8 +179,9 @@ function UnifiedView({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const { scoreCache, fetchScoreRationales, isLoading: isRatLoading } = useRationales();
-  const { fetchHistory, getHistory } = useTickerHistory();
+  // Note: useRationales / useTickerHistory were removed when Holdings switched
+  // to the shared <AssetExpansion>. The expansion's hook (useAssetIntelligence)
+  // already loads rationales eagerly, so per-row fetches are no longer needed.
   const { getSummary, getResearchFreshness } = useResearchSummary();
 
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
@@ -190,16 +191,11 @@ function UnifiedView({
     }));
   }, [allHoldings, transactions]);
 
-  const toggle = (key: string, ticker: string) => {
+  const toggle = (key: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-        fetchScoreRationales(ticker);
-        fetchHistory(ticker);
-      }
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
