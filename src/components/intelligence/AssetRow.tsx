@@ -1,6 +1,7 @@
 import { CSSProperties, KeyboardEvent } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
+import "./AssetRow.css";
 
 interface Props {
   asset: AssetIntelligence;
@@ -86,19 +87,14 @@ function disruptionColor(status: "GREEN" | "AMBER" | "RED"): { bg: string; fg: s
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function MiniBar({ label, value, max }: { label: string; value: number; max: number }) {
+function MiniBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const color = pct >= 80 ? "var(--green)" : pct >= 50 ? "var(--amber)" : "var(--red)";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 52 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 4 }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", color: "var(--text-dim)" }}>
-          {label}
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>
-          {value}<span style={{ color: "var(--text-dim)", fontSize: 8 }}>/{max}</span>
-        </span>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 40 }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", textAlign: "right" }}>
+        {value}<span style={{ color: "var(--text-dim)", fontSize: 8 }}>/{max}</span>
+      </span>
       <div style={{ height: 2, background: "var(--muted)", width: "100%" }}>
         <div style={{ height: 2, background: color, width: `${pct}%` }} />
       </div>
@@ -276,14 +272,14 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </span>
       </div>
 
-      {/* 6D bars */}
-      <div style={{ flex: 1, minWidth: 360, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-        <MiniBar label="SUB"   value={asset.sub_scores.substrate}        max={25} />
-        <MiniBar label="DEM"   value={asset.sub_scores.demand}           max={22} />
-        <MiniBar label="MOAT"  value={asset.sub_scores.moat}             max={18} />
-        <MiniBar label="VAL"   value={asset.sub_scores.valuation}        max={13} />
-        <MiniBar label="MGMT"  value={asset.sub_scores.mgmt}             max={7} />
-        <MiniBar label="DISR"  value={asset.sub_scores.disruption_score} max={15} />
+      {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
+      <div style={{ flex: 1, minWidth: 280, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+        <MiniBar value={asset.sub_scores.substrate}        max={25} />
+        <MiniBar value={asset.sub_scores.demand}           max={22} />
+        <MiniBar value={asset.sub_scores.moat}             max={18} />
+        <MiniBar value={asset.sub_scores.valuation}        max={13} />
+        <MiniBar value={asset.sub_scores.mgmt}             max={7} />
+        <MiniBar value={asset.sub_scores.disruption_score} max={15} />
       </div>
 
       {/* Disruption deep-dive badge */}
@@ -291,8 +287,8 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         <DisruptionBadge asset={asset} />
       </div>
 
-      {/* Buy range */}
-      <div style={{ width: 96, flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", textAlign: "right" }}>
+      {/* Buy range — hidden below 1100px (still in expansion) */}
+      <div className="asset-row-buy-range" style={{ width: 96, flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", textAlign: "right" }}>
         {formatBuyRange(asset.buy_range.low, asset.buy_range.high, asset.buy_range.currency)}
       </div>
 
