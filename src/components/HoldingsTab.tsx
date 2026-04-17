@@ -421,9 +421,7 @@ function UnifiedView({
                       </div>
                     </button>
                     {isOpen && (
-                      <div style={{ padding: 0 }}>
-                        <HoldingsExpansionRow ticker={h.ticker} colSpan={1} />
-                      </div>
+                      <HoldingsExpansionRow ticker={h.ticker} colSpan={1} mode="block" />
                     )}
                   </div>
                 );
