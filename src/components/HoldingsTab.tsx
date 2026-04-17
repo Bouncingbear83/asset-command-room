@@ -291,6 +291,160 @@ function UnifiedView({
     textAlign: "left", fontWeight: 400, whiteSpace: "nowrap", userSelect: "none",
   };
 
+  // ── Mobile card layout (≤767px) ────────────────────────────────────────
+  // Replaces the table entirely; keeps CASH pinned, group headers, all expansion.
+  if (isMobile) {
+    return (
+      <div>
+        {/* Pinned CASH cards */}
+        {cashRows.map((h) => (
+          <div
+            key={`cash-${h.account}`}
+            style={{
+              padding: "10px 14px",
+              background: "rgba(28,28,48,0.4)",
+              borderBottom: "1px solid var(--rim)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--gold)",
+              letterSpacing: "0.12em",
+            }}
+          >
+            CASH · {h.account} · £{(h.mv || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+          </div>
+        ))}
+
+        {groups.map((group) => {
+          const sortedHoldings = sortHoldings(group.holdings, sortKey, sortDir);
+          const layerWeight = groupMode === "layer" ? layerWeights.get(group.key) : undefined;
+          const groupClickable = groupMode === "layer" && (LAYER_VALUES as readonly string[]).includes(group.key);
+          return (
+            <div key={`mobile-group-${group.key}`}>
+              {groupMode !== "none" && (
+                <HoldingsGroupHeader
+                  groupBy={groupMode}
+                  groupValue={group.label}
+                  holdings={group.holdings}
+                  totalAum={totalAum}
+                  weight={layerWeight}
+                  onClick={groupClickable ? () => onLayerGroupClick(group.key as Layer) : undefined}
+                />
+              )}
+              {sortedHoldings.map((h) => {
+                const rowKey = `${h.ticker}-${h.account}`;
+                const isOpen = expanded.has(rowKey);
+                const r = h.returns;
+                const hasReturns = r && r.totalCost > 0;
+                const summary = getSummary(h.ticker);
+                const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
+                return (
+                  <div key={rowKey} style={{ borderBottom: "1px solid var(--rim)" }}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(rowKey)}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        padding: "12px 14px",
+                        width: "100%",
+                        background: isOpen ? "rgba(28,28,48,0.30)" : "transparent",
+                        border: "none",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {/* Line 1: ticker · score badge · alert · flag · chevron */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)", letterSpacing: "0.04em" }}>
+                          {h.ticker}
+                        </span>
+                        {summary && (() => {
+                          const sc = summary.total_score;
+                          const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
+                          return (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, color: badgeColor,
+                              background: `color-mix(in srgb, ${badgeColor} 15%, transparent)`,
+                              padding: "1px 5px", borderRadius: 8, lineHeight: 1,
+                            }}>{sc}</span>
+                          );
+                        })()}
+                        <AlertBadge status={h.alert_status} />
+                        {flag && (
+                          <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 10 }}>
+                            {flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢"}
+                          </span>
+                        )}
+                        <span style={{
+                          marginLeft: "auto",
+                          fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap",
+                          ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR),
+                        }}>{h.action}</span>
+                        <span style={{ color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
+                          {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </span>
+                      </div>
+
+                      {/* Line 2: name (truncated) */}
+                      <div style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
+                        {h.name}
+                      </div>
+
+                      {/* Line 3: MV · G/L% · Day% */}
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 12, width: "100%", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>
+                          {h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}
+                        </span>
+                        <span style={{ fontSize: 11, color: h.gl >= 0 ? "var(--green)" : "var(--red)" }}>
+                          {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"} G/L
+                        </span>
+                        <span style={{ fontSize: 11, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)" }}>
+                          {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"} day
+                        </span>
+                      </div>
+
+                      {/* Line 4: layer · account · ann return */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        <span>{h.layer}</span>
+                        <span style={{ color: "var(--rim)" }}>·</span>
+                        <span>{h.account}</span>
+                        {hasReturns && (
+                          <>
+                            <span style={{ color: "var(--rim)" }}>·</span>
+                            <span style={{ color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700 }}>
+                              {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% ann
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <HoldingsExpansionRow ticker={h.ticker} colSpan={1} mode="block" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        {/* Total footer */}
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "14px", borderTop: "1px solid var(--rim)",
+          fontFamily: "var(--font-mono)", fontSize: 11,
+        }}>
+          <span style={{ color: "var(--text-mid)", fontWeight: 700, letterSpacing: "0.15em" }}>TOTAL</span>
+          <span style={{ color: "var(--gold)", fontWeight: 700 }}>
+            £{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
@@ -890,6 +1044,8 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               layerFilter={state.layerFilter}
               search={state.search}
               groupBy={state.groupBy}
+              sortField={state.sortField}
+              sortDir={state.sortDir}
               onToggleAccount={toggleAccount}
               onResetAccount={() => update({ accountFilter: [] })}
               onToggleAction={toggleAction}
@@ -900,6 +1056,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               onResetLayer={() => update({ layerFilter: [] })}
               onSearchChange={(v) => update({ search: v })}
               onGroupChange={(g) => update({ groupBy: g })}
+              onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}
             />
             {filteredPositionCount === 0 ? (
               <div style={{ padding: 40, textAlign: "center" }}>

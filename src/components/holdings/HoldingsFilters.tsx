@@ -5,13 +5,17 @@ import {
   ChipGroup,
   SearchBox,
   GroupToggle,
+  FilterDisclosure,
+  MobileSortSelect,
   type GroupOption,
+  type MobileSortOption,
 } from "@/components/shared/filters";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import {
   HOLDINGS_ACCOUNT_VALUES,
   type HoldingsAccount,
   type HoldingsGroupBy,
+  type HoldingsSortField,
 } from "@/lib/url-state-holdings";
 
 interface AccountCounts {
@@ -33,6 +37,8 @@ interface Props {
   layerFilter: Layer[];
   search: string;
   groupBy: HoldingsGroupBy;
+  sortField: HoldingsSortField;
+  sortDir: "asc" | "desc";
   onToggleAccount: (a: HoldingsAccount) => void;
   onResetAccount: () => void;
   onToggleAction: (a: string) => void;
@@ -43,6 +49,7 @@ interface Props {
   onResetLayer: () => void;
   onSearchChange: (v: string) => void;
   onGroupChange: (g: HoldingsGroupBy) => void;
+  onSortChange: (field: HoldingsSortField, dir: "asc" | "desc") => void;
 }
 
 const GROUP_OPTIONS: GroupOption<HoldingsGroupBy>[] = [
@@ -50,6 +57,18 @@ const GROUP_OPTIONS: GroupOption<HoldingsGroupBy>[] = [
   { value: "layer",   label: "By Layer",   Icon: Layers },
   { value: "account", label: "By Account", Icon: Wallet },
   { value: "tier",    label: "By Tier",    Icon: Tag },
+];
+
+const SORT_OPTIONS: MobileSortOption<HoldingsSortField>[] = [
+  { field: "mv",        dir: "desc", label: "MV £ (high → low)" },
+  { field: "mv",        dir: "asc",  label: "MV £ (low → high)" },
+  { field: "gl",        dir: "desc", label: "G/L % (high → low)" },
+  { field: "gl",        dir: "asc",  label: "G/L % (low → high)" },
+  { field: "day",       dir: "desc", label: "Day % (high → low)" },
+  { field: "day",       dir: "asc",  label: "Day % (low → high)" },
+  { field: "annReturn", dir: "desc", label: "Ann. return (high → low)" },
+  { field: "ticker",    dir: "asc",  label: "Ticker (A → Z)" },
+  { field: "action",    dir: "asc",  label: "Action" },
 ];
 
 const wrap: CSSProperties = {
@@ -75,11 +94,12 @@ function displayLabel(v: string): string {
 export function HoldingsFilters({
   accountCounts, actionCounts, factorCounts, layerCounts, totalPositions,
   accountFilter, actionFilter, factorFilter, layerFilter, search, groupBy,
+  sortField, sortDir,
   onToggleAccount, onResetAccount,
   onToggleAction, onResetAction,
   onToggleFactor, onResetFactor,
   onToggleLayer, onResetLayer,
-  onSearchChange, onGroupChange,
+  onSearchChange, onGroupChange, onSortChange,
 }: Props) {
   const allAccountsActive = accountFilter.length === 0;
   const allActionsActive = actionFilter.length === 0;
@@ -93,16 +113,30 @@ export function HoldingsFilters({
   const totalActions = actionEntries.reduce((s, [, n]) => s + n, 0);
   const totalFactors = factorEntries.reduce((s, [, n]) => s + n, 0);
 
-  return (
-    <div style={wrap}>
-      {/* Row 1: search + group toggle */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <SearchBox value={search} onChange={onSearchChange} />
-        <div style={{ marginLeft: "auto" }}>
-          <GroupToggle options={GROUP_OPTIONS} value={groupBy} onChange={onGroupChange} />
-        </div>
-      </div>
+  const activeCount =
+    (accountFilter.length > 0 ? 1 : 0) +
+    (actionFilter.length > 0 ? 1 : 0) +
+    (factorFilter.length > 0 ? 1 : 0) +
+    (layerFilter.length > 0 ? 1 : 0) +
+    (search.trim() ? 1 : 0);
 
+  const alwaysVisible = (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <SearchBox value={search} onChange={onSearchChange} />
+      <MobileSortSelect
+        options={SORT_OPTIONS}
+        field={sortField}
+        dir={sortDir}
+        onChange={onSortChange}
+      />
+      <div style={{ marginLeft: "auto" }}>
+        <GroupToggle options={GROUP_OPTIONS} value={groupBy} onChange={onGroupChange} />
+      </div>
+    </div>
+  );
+
+  const chipsBlock = (
+    <>
       {/* Row 2: account chips */}
       <ChipGroup ariaLabel="Filter by account">
         <Chip
@@ -189,6 +223,14 @@ export function HoldingsFilters({
           />
         ))}
       </ChipGroup>
+    </>
+  );
+
+  return (
+    <div style={wrap}>
+      <FilterDisclosure activeCount={activeCount} alwaysVisible={alwaysVisible}>
+        {chipsBlock}
+      </FilterDisclosure>
     </div>
   );
 }

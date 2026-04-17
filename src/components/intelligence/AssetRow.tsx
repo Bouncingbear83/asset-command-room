@@ -346,6 +346,43 @@ function DisruptionBadge({ asset }: { asset: AssetIntelligence }) {
   );
 }
 
+// ── Mobile-only inline (fit-content) chip variants ─────────────────────────
+
+function StatusChipInline({ status }: { status: HeldStatus }) {
+  const style = STATUS_STYLE[status];
+  return (
+    <span style={{
+      padding: "2px 6px", fontFamily: "var(--font-mono)", fontSize: 8,
+      letterSpacing: "0.12em", textTransform: "uppercase", borderRadius: 2,
+      whiteSpace: "nowrap", flexShrink: 0, ...style,
+    }}>{status.replace("_", " ")}</span>
+  );
+}
+
+function LayerChipInline({ layer }: { layer: Layer }) {
+  const c = LAYER_PALETTE[layer];
+  return (
+    <span style={{
+      padding: "2px 6px", fontFamily: "var(--font-mono)", fontSize: 8,
+      letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 2,
+      whiteSpace: "nowrap", flexShrink: 0,
+      background: c.bg, color: c.fg, border: `1px solid ${c.border}`,
+    }}>{layer}</span>
+  );
+}
+
+function DisruptionBadgeInline({ asset }: { asset: AssetIntelligence }) {
+  if (!asset.disruption) return null;
+  const c = disruptionColor(asset.disruption.status);
+  return (
+    <span style={{
+      padding: "2px 6px", fontFamily: "var(--font-mono)", fontSize: 8,
+      letterSpacing: "0.1em", borderRadius: 2, whiteSpace: "nowrap",
+      flexShrink: 0, background: c.bg, color: c.fg, border: `1px solid ${c.border}`,
+    }}>{asset.disruption.status} {Math.round(asset.disruption.total)}</span>
+  );
+}
+
 // ── Main row ────────────────────────────────────────────────────────────────
 
 export function AssetRow({ asset, expanded, onToggle }: Props) {
@@ -358,17 +395,69 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
 
   const ariaLabel = `${asset.ticker} ${asset.name}, score ${asset.score}, status ${asset.held_status}`;
 
+  const sharedHandlers = {
+    role: "button" as const,
+    tabIndex: 0,
+    "aria-expanded": expanded,
+    "aria-label": ariaLabel,
+    onClick: onToggle,
+    onKeyDown: handleKey,
+  };
+
   return (
     <div style={{ borderBottom: "1px solid var(--rim)" }}>
+      {/* ── Mobile stacked card (≤767px) ────────────────────────── */}
       <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={expanded}
-        aria-label={ariaLabel}
-        onClick={onToggle}
-        onKeyDown={handleKey}
+        {...sharedHandlers}
+        className="asset-row-mobile"
         style={{
-          display: "flex",
+          background: expanded ? "rgba(28,28,48,0.30)" : "transparent",
+          outline: "none",
+        }}
+      >
+        <div className="asset-row-mobile-line1">
+          <span className="asset-row-mobile-ticker">{asset.ticker}</span>
+          <StatusChipInline status={asset.held_status} />
+          <span className="asset-row-mobile-score" style={{ color: scoreColor(asset.score) }}>
+            {Math.round(asset.score)}
+            <span style={{ color: "var(--text-dim)", fontSize: 9, marginLeft: 2 }}>/100</span>
+          </span>
+          <span style={{ color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </span>
+        </div>
+
+        <div className="asset-row-mobile-line2">
+          <span className="asset-row-mobile-name">{asset.name}</span>
+          {asset.layer && <LayerChipInline layer={asset.layer} />}
+          <DisruptionBadgeInline asset={asset} />
+        </div>
+
+        <div className="asset-row-mobile-bars">
+          <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
+          <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
+          <MiniBar value={asset.sub_scores.moat}             max={18} trend={asset.trend.moat} />
+          <MiniBar value={asset.sub_scores.valuation}        max={13} trend={asset.trend.valuation} />
+          <MiniBar value={asset.sub_scores.mgmt}             max={7}  trend={asset.trend.mgmt} />
+          <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
+        </div>
+
+        <div className="asset-row-mobile-line4">
+          <DistanceChip
+            buyDistance={asset.buy_distance}
+            currentPrice={asset.current_price}
+            low={asset.buy_range.low}
+            high={asset.buy_range.high}
+            currency={asset.buy_range.currency}
+          />
+        </div>
+      </div>
+
+      {/* ── Desktop flex row (≥768px) ───────────────────────────── */}
+      <div
+        {...sharedHandlers}
+        className="asset-row-desktop"
+        style={{
           alignItems: "center",
           gap: COL.rowGap,
           minHeight: 48,

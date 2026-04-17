@@ -1,6 +1,7 @@
 import { CSSProperties } from "react";
 import { COL, SUB_LABELS } from "./columns";
 import type { SortField } from "@/lib/url-state";
+import "./IntelligenceListHeader.css";
 
 interface Props {
   sortField: SortField;
@@ -53,6 +54,7 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
 
   return (
     <div
+      className="intelligence-list-header"
       style={{
         display: "flex",
         alignItems: "center",

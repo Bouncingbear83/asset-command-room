@@ -292,12 +292,15 @@ export default function IntelligenceTab() {
         layerFilter={state.layerFilter}
         search={state.search}
         groupBy={state.groupBy}
+        sortField={state.sortField}
+        sortDir={state.sortDir}
         onToggleStatus={toggleStatus}
         onResetStatus={resetStatus}
         onToggleLayer={toggleLayer}
         onResetLayer={resetLayer}
         onSearchChange={(v) => update({ search: v })}
         onGroupChange={(g) => update({ groupBy: g })}
+        onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}
       />
 
       <IntelligenceHeader
