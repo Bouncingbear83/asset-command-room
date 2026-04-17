@@ -54,6 +54,17 @@ const SORT_FIELDS: HoldingsSortField[] = [
 ];
 const GROUP_BYS: HoldingsGroupBy[] = ["none", "layer", "account", "tier"];
 
+// External URL aliases (from spec) → internal sort field names.
+// Lets users hand-craft URLs like ?sort=-gl_pct without breaking.
+const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
+  gl_pct: "gl",
+  mv_gbp: "mv",
+  day_pct: "day",
+  ann_ret: "annReturn",
+  true_pl: "truePL",
+  price_local: "price",
+};
+
 export function normalizeAlert(raw: string): HoldingsAlertStatus | null {
   const u = raw.trim().toUpperCase().replace(/\s+/g, "_");
   if ((ALERT_STATUS_VALUES as readonly string[]).includes(u)) return u as HoldingsAlertStatus;
@@ -71,8 +82,10 @@ export function normalizeAccount(raw: string): HoldingsAccount | null {
 export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiState {
   const rawSort = params.get("sort") ?? "-mv";
   const dir: "asc" | "desc" = rawSort.startsWith("-") ? "desc" : "asc";
-  const fieldRaw = (rawSort.startsWith("-") ? rawSort.slice(1) : rawSort) as HoldingsSortField;
-  const sortField: HoldingsSortField = SORT_FIELDS.includes(fieldRaw) ? fieldRaw : "mv";
+  const fieldRaw = (rawSort.startsWith("-") ? rawSort.slice(1) : rawSort);
+  const aliased = SORT_FIELD_ALIASES[fieldRaw];
+  const candidate = (aliased ?? fieldRaw) as HoldingsSortField;
+  const sortField: HoldingsSortField = SORT_FIELDS.includes(candidate) ? candidate : "mv";
 
   const groupRaw = (params.get("group") ?? "layer") as HoldingsGroupBy;
   const groupBy: HoldingsGroupBy = GROUP_BYS.includes(groupRaw) ? groupRaw : "layer";
