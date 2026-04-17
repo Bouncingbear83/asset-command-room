@@ -735,13 +735,12 @@ export interface JisaParseResult {
 function parseJisaHoldings(grid: string[][]): JisaParseResult {
   // Wide/pivoted layout: each row = one stock, child-specific data in columns
   // A=Pillar/Layer, B=Target%, C=Ticker, D=Name, E=FX (currency code), I=price_local
-  // M/N/O = Shares (JB/AB/EB), V/W/X = Weight%, Y/Z/AA = Cost (LOCAL ccy)
-  // AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
-  // Cols P/Q/R (indexes 15/16/17) = Current MV per child in LOCAL currency
+  // M/N/O = Shares (JB/AB/EB), S/T/U = MV£ (GBP, authoritative), Y/Z/AA = Weight%
+  // AB/AC/AD = Cost (LOCAL ccy), AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
   const CHILDREN_MAP = [
-    { child: "Bear",  sharesCol: 12, mvLocalCol: 15, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33 },
-    { child: "Alfie", sharesCol: 13, mvLocalCol: 16, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34 },
-    { child: "Edie",  sharesCol: 14, mvLocalCol: 17, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35 },
+    { child: "Bear",  sharesCol: 12, mvGbpCol: 18, weightCol: 24, costCol: 27, glGbpCol: 30, glPctCol: 33 },
+    { child: "Alfie", sharesCol: 13, mvGbpCol: 19, weightCol: 25, costCol: 28, glGbpCol: 31, glPctCol: 34 },
+    { child: "Edie",  sharesCol: 14, mvGbpCol: 20, weightCol: 26, costCol: 29, glGbpCol: 32, glPctCol: 35 },
   ];
 
   // Locate FX rates (rows with currency labels in col A and rates somewhere on the row)
