@@ -1,7 +1,7 @@
 /**
  * URL <-> filter state serialiser for the Holdings tab.
  * Mirrors src/lib/url-state.ts but with Holdings-specific sort fields and
- * filter dimensions (account + alert + layer instead of held_status + layer).
+ * filter dimensions (account + action + factor + layer).
  */
 
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
@@ -25,16 +25,14 @@ export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 export type HoldingsAccount = "SIPP" | "ISA" | "SIPP+ISA";
 export const HOLDINGS_ACCOUNT_VALUES: HoldingsAccount[] = ["SIPP", "ISA", "SIPP+ISA"];
 
-export const ALERT_STATUS_VALUES = ["CLEAR", "WATCH", "REVIEW", "ADD_ZONE", "EXIT_ZONE"] as const;
-export type HoldingsAlertStatus = (typeof ALERT_STATUS_VALUES)[number];
-
 export interface HoldingsUiState {
   sortField: HoldingsSortField;
   sortDir: "asc" | "desc";
   groupBy: HoldingsGroupBy;
-  accountFilter: HoldingsAccount[];     // empty = all
-  alertFilter: HoldingsAlertStatus[];   // empty = all
-  layerFilter: Layer[];                 // empty = all
+  accountFilter: HoldingsAccount[];   // empty = all
+  actionFilter: string[];             // uppercase+underscore, empty = all
+  factorFilter: string[];             // uppercase+underscore, empty = all
+  layerFilter: Layer[];               // empty = all
   search: string;
 }
 
@@ -43,7 +41,8 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
   sortDir: "desc",
   groupBy: "layer",
   accountFilter: [],
-  alertFilter: [],
+  actionFilter: [],
+  factorFilter: [],
   layerFilter: [],
   search: "",
 };
@@ -55,7 +54,6 @@ const SORT_FIELDS: HoldingsSortField[] = [
 const GROUP_BYS: HoldingsGroupBy[] = ["none", "layer", "account", "tier"];
 
 // External URL aliases (from spec) → internal sort field names.
-// Lets users hand-craft URLs like ?sort=-gl_pct without breaking.
 const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
   gl_pct: "gl",
   mv_gbp: "mv",
@@ -65,18 +63,15 @@ const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
   price_local: "price",
 };
 
-export function normalizeAlert(raw: string): HoldingsAlertStatus | null {
-  const u = raw.trim().toUpperCase().replace(/\s+/g, "_");
-  if ((ALERT_STATUS_VALUES as readonly string[]).includes(u)) return u as HoldingsAlertStatus;
-  // Treat blank/missing as CLEAR
-  if (!u) return "CLEAR";
-  return null;
-}
-
 export function normalizeAccount(raw: string): HoldingsAccount | null {
   const u = raw.trim().toUpperCase();
   if (u === "SIPP" || u === "ISA" || u === "SIPP+ISA") return u as HoldingsAccount;
   return null;
+}
+
+/** Canonicalise freeform ACTION / FACTOR_PRIMARY values: uppercase + underscores. */
+export function normalizeActionFactor(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+/g, "_");
 }
 
 export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiState {
@@ -98,12 +93,14 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
         .filter((a): a is HoldingsAccount => a !== null)
     : [];
 
-  const alertRaw = params.get("alert");
-  const alertFilter: HoldingsAlertStatus[] = alertRaw
-    ? alertRaw
-        .split(",")
-        .map((s) => normalizeAlert(s))
-        .filter((a): a is HoldingsAlertStatus => a !== null)
+  const actionRaw = params.get("action");
+  const actionFilter: string[] = actionRaw
+    ? actionRaw.split(",").map(normalizeActionFactor).filter(Boolean)
+    : [];
+
+  const factorRaw = params.get("factor");
+  const factorFilter: string[] = factorRaw
+    ? factorRaw.split(",").map(normalizeActionFactor).filter(Boolean)
     : [];
 
   const layerRaw = params.get("layer");
@@ -120,7 +117,8 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
     sortDir: dir,
     groupBy,
     accountFilter,
-    alertFilter,
+    actionFilter,
+    factorFilter,
     layerFilter,
     search: params.get("q") ?? "",
   };
@@ -129,11 +127,11 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
 export function holdingsStateToParams(state: HoldingsUiState): URLSearchParams {
   const out = new URLSearchParams();
   const sortKey = `${state.sortDir === "desc" ? "-" : ""}${state.sortField}`;
-  // Only emit non-defaults to keep URLs clean.
   if (sortKey !== "-mv") out.set("sort", sortKey);
   if (state.groupBy !== "layer") out.set("group", state.groupBy);
   if (state.accountFilter.length > 0) out.set("account", state.accountFilter.join(","));
-  if (state.alertFilter.length > 0) out.set("alert", state.alertFilter.join(","));
+  if (state.actionFilter.length > 0) out.set("action", state.actionFilter.join(","));
+  if (state.factorFilter.length > 0) out.set("factor", state.factorFilter.join(","));
   if (state.layerFilter.length > 0) out.set("layer", state.layerFilter.join(","));
   if (state.search.trim() !== "") out.set("q", state.search.trim());
   return out;
