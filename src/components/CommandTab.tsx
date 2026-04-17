@@ -12,7 +12,7 @@ const CLAUDE_COMMANDS = [
   {
     label: "Substrate audit",
     prompt:
-      "Run a substrate audit across every current holding. For each position apply the substrate test: is this the thing without which the transformation stalls? Return a table: TICKER | PASS/FAIL | ONE-LINE SUBSTRATE ARGUMENT. Flag any that fail or are borderline.",
+      "Substrate audit session.\n\nI will paste the candidate company name or ticker in my next message.\n\nWhen I do, execute the full substrate audit protocol:\n\n1. Load HOLDINGS + LAYERS + WATCHLIST + SCORES + CASH via Sheet Reader\n\n2. Web search: substrate thesis, recent financials, competitive position, reclassification signals, II UK accessibility\n\n3. Apply the binary substrate test — pass / conditional pass / fail with reasoning\n\n4. If fail: stop there, explain why, do not score other dimensions\n\n5. If pass: full 6D score with per-dimension rationale (Sub/25 Dem/22 Moat/18 Val/13 Mgmt/7 Dis/15), disruption score, RECLASS_STATUS assessment, tier, buy zone, ADD/EXIT triggers, account recommendation, target position size\n\n6. Check conflicts: layer overweight, factor concentration, substrate duplication vs Core holdings, bio twin-risk cap\n\n7. Present Research Commit payload (NEW_SCORE) — pause for my confirmation before firing\n\nDoctrine reminders: 30% anchor rule if score ≥75 and substrate ≥20/25. Pre-reclassification +5 modifier where applicable. Rule #9 — no application layer.",
   },
   {
     label: "Layer gaps",
