@@ -330,19 +330,42 @@ export function AssetExpansion({ asset }: Props) {
       }}
     >
       {/* ─── Section 1: THESIS ──────────────────────────────────────── */}
-      <div style={SECTION_STYLE}>
-        <div style={LABEL_STYLE}><span>Thesis</span></div>
-        <ExpandableText text={asset.thesis} clampLines={3} emptyLabel="No thesis recorded." />
-        <div style={META_STRIP_STYLE}>
-          {[
-            asset.change_note ? `Last change: ${asset.change_note}` : null,
-            asset.score_date ? `Scored: ${asset.score_date}` : null,
-            asset.trend.prior_score_date ? `Prior scored: ${asset.trend.prior_score_date}` : null,
-            `Reclass: ${asset.reclass_status || "PENDING"}`,
-            `Age: ${asset.thesis_age_months}mo`,
-          ].filter(Boolean).join("  ·  ")}
-        </div>
-      </div>
+      {(() => {
+        const fullThesis = (asset.thesis ?? "").trim();
+        const changeNote = (asset.change_note ?? "").trim();
+        const thesisSource: "full" | "change_note" | "none" =
+          fullThesis ? "full" : changeNote ? "change_note" : "none";
+        const thesisBody = thesisSource === "full" ? fullThesis : thesisSource === "change_note" ? changeNote : "";
+
+        return (
+          <div style={SECTION_STYLE}>
+            <div style={LABEL_STYLE}><span>Thesis</span></div>
+            {thesisSource === "change_note" && (
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "var(--amber)",
+                marginBottom: 6,
+              }}>
+                Thesis (latest change note — full thesis not yet written)
+              </div>
+            )}
+            <ExpandableText text={thesisBody} clampLines={3} emptyLabel="No thesis recorded." />
+            <div style={META_STRIP_STYLE}>
+              {[
+                // Only surface change note in metadata when we already showed the full thesis
+                thesisSource === "full" && changeNote ? `Last change: ${changeNote}` : null,
+                asset.score_date ? `Scored: ${asset.score_date}` : null,
+                asset.trend.prior_score_date ? `Prior scored: ${asset.trend.prior_score_date}` : null,
+                `Reclass: ${asset.reclass_status || "PENDING"}`,
+                `Age: ${asset.thesis_age_months}mo`,
+              ].filter(Boolean).join("  ·  ")}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ─── Section 2: 6D RATIONALES ───────────────────────────────── */}
       <div style={SECTION_STYLE}>

@@ -206,7 +206,7 @@ interface TrendBuildContext {
 function buildTrend(ctx: TrendBuildContext | undefined): AssetIntelligenceTrend {
   if (!ctx) return EMPTY_TREND;
   const { latest, prior } = ctx;
-  const priorDate = prior?.date ? String(prior.date) : null;
+  const priorDate = prior?.date ? parseSheetDateLike(prior.date) : null;
   return {
     score:      makeTrend(latest.score      ?? null, prior?.score      ?? null),
     substrate:  makeTrend(latest.substrate  ?? null, prior?.substrate  ?? null),
