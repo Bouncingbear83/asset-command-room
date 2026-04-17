@@ -969,6 +969,7 @@ export function usePortfolioData(): PortfolioData {
       const narrativeData = parseNarrativeData(narrativeGrid);
       const macroState = parseMacroState(macroStateGrid);
       const macroStateRows = parseMacroStateRows(macroState);
+      const jisaParsed = parseJisaHoldings(jisaHoldingsRaw);
 
       // Parse cash balances from CASH sheet
       // Parse cash balances from CASH sheet — balances in column F (index 5), labels in column A
