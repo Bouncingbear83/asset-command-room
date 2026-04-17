@@ -1,5 +1,7 @@
 import { CSSProperties, useState } from "react";
 import type { AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
+import { PriceChart } from "@/components/intelligence/PriceChart";
+import { CLAUDE_PROJECT_URL, buildDeepDivePrompt } from "@/lib/claudePrompts";
 import "./AssetExpansion.css";
 
 interface Props {
@@ -447,6 +449,7 @@ export function AssetExpansion({ asset }: Props) {
       {showPosition && asset.position && (
         <div style={SECTION_STYLE}>
           <div style={LABEL_STYLE}><span>Price Context</span></div>
+          <PriceChart ticker={asset.ticker} currency={asset.position.currency} defaultRange="1Y" />
           <FiftyTwoWeekBar asset={asset} />
           <div style={{
             marginTop: 8,
@@ -462,9 +465,6 @@ export function AssetExpansion({ asset }: Props) {
             <span style={{ color: "var(--accent)" }}>● current: {formatCurrency(asset.position.price_local, asset.position.currency)}</span>
             <span>MA60: {formatCurrency(asset.position.ma60, asset.position.currency)}</span>
             <span>52W high: {formatCurrency(asset.position.high_52w, asset.position.currency)}</span>
-          </div>
-          <div style={{ ...META_STRIP_STYLE, fontStyle: "italic" }}>
-            // TODO: wire PRICES sheet via chart component in Prompt 6.
           </div>
         </div>
       )}
@@ -583,8 +583,10 @@ export function AssetExpansion({ asset }: Props) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              // TODO: wire to Claude project deep-link in a later prompt
-              console.log("[AssetExpansion] deep dive →", asset.ticker);
+              const prompt = buildDeepDivePrompt(asset.ticker);
+              const url = `${CLAUDE_PROJECT_URL}?prefill=${encodeURIComponent(prompt)}`;
+              // iframe-CSP-safe external open (per project memory)
+              (window.top || window).open(url, "_blank");
             }}
             style={{
               padding: "4px 12px",

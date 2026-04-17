@@ -5,7 +5,7 @@ import CommandTab from "@/components/CommandTab";
 import MonitorTab from "@/components/MonitorTab";
 import WatchlistTab from "@/components/WatchlistTab";
 import LayersTab from "@/components/LayersTab";
-import ScoresTab from "@/components/ScoresTab";
+
 import ReturnsTab from "@/components/ReturnsTab";
 import HoldingsTab from "@/components/HoldingsTab";
 import TransactionsTab from "@/components/TransactionsTab";
@@ -13,7 +13,7 @@ import EarningsCalendarTab from "@/components/EarningsCalendarTab";
 import JisasTab from "@/components/JisasTab";
 import IntelligenceTab from "@/pages/IntelligenceTab";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Intelligence", "Scores", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Intelligence", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>["macroBanner"]) {
@@ -139,10 +139,10 @@ export default function Index() {
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} />}
         {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrativeData} />}
         {active === "Intelligence" && <IntelligenceTab />}
-        {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} allHoldings={[...portfolio.sipp, ...portfolio.isa]} priceData={priceData} />}
+        
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
-        {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.jisaHoldings.map((j) => ({ ticker: j.ticker, name: j.name, layer: j.layer, account: `JISA-${j.child}`, mv: j.mvGbp || 0, gl: j.glPct || 0, day: 0, notes: "", action: "HOLD", price: j.priceLocal, prevClose: null, currency: j.currency, costGbp: j.costGbp, shares: j.shares, add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "", alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null, deploy_target_gbp: null, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "" }))]} />}
+        {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.jisaHoldings.map((j) => ({ ticker: j.ticker, name: j.name, layer: j.layer, account: `JISA-${j.child}`, mv: j.mvGbp || 0, gl: j.glPct || 0, day: 0, aum_pct: 0, pct_below_52w_high: 0, pct_above_52w_low: 0, notes: "", action: "HOLD", price: j.priceLocal, prevClose: null, currency: j.currency, costGbp: j.costGbp, shares: j.shares, add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "", alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null, deploy_target_gbp: null, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "" }))]} />}
         {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} jisaTotals={portfolio.jisaTotals} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
         {active === "Earnings Calendar" && <EarningsCalendarTab items={portfolio.earningsCalendar} />}
       </div>
