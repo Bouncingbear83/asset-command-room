@@ -100,6 +100,31 @@ export interface AssetPosition {
   factor_primary: string;
 }
 
+export interface ScoreRationales {
+  substrate: string;
+  demand: string;
+  moat: string;
+  valuation: string;
+  mgmt: string;
+  /** 6D-disruption /15 dimension rationale (NOT the deep-dive). */
+  disruption: string;
+}
+
+export interface DisruptionRationales {
+  sub_avail: string;
+  economics: string;
+  govt_support: string;
+  demand_vuln: string;
+  time_viability: string;
+}
+
+export interface AssetRationales {
+  /** Always present; missing dimensions render as empty strings. */
+  score: ScoreRationales;
+  /** Null when asset.disruption === null. */
+  disruption: DisruptionRationales | null;
+}
+
 export interface AssetIntelligence {
   // Identity
   ticker: string;
