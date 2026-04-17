@@ -149,4 +149,7 @@ export interface AssetIntelligence {
 
   // Position context (null unless held_status === 'HELD')
   position: AssetPosition | null;
+
+  // Rationales loaded from Supabase (score_rationales + disruption_rationales)
+  rationales: AssetRationales;
 }
