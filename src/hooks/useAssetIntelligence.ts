@@ -139,6 +139,86 @@ function parseSheetDateLike(val: unknown): string {
   return String(val ?? "");
 }
 
+/**
+ * Parse a UK-format date "DD/MM/YYYY" → Date (local). Falls back to new Date(str) on failure.
+ * Returns null if completely unparseable. Sheet API may return raw "Date(yyyy,m,d)" strings —
+ * handle those too.
+ */
+function parseUkDate(raw: unknown): Date | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const gviz = s.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+  if (gviz) {
+    const d = new Date(+gviz[1], +gviz[2], +gviz[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const uk = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (uk) {
+    const d = new Date(+uk[3], +uk[2] - 1, +uk[1]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const iso = new Date(s);
+  return isNaN(iso.getTime()) ? null : iso;
+}
+
+/** Lenient price parser — strips ~, currency symbols, takes midpoint of ranges. */
+function parseLenientPrice(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  // Strip ~, currency symbols, GBX trailing 'p', spaces, commas
+  const cleaned = s.replace(/[~£$€¥₹\s,]/g, "").replace(/p$/i, "");
+  const rangeMatch = cleaned.match(/^(\d+(?:\.\d+)?)[\-–](\d+(?:\.\d+)?)$/);
+  if (rangeMatch) {
+    const lo = Number(rangeMatch[1]);
+    const hi = Number(rangeMatch[2]);
+    if (Number.isFinite(lo) && Number.isFinite(hi)) return (lo + hi) / 2;
+  }
+  const numMatch = cleaned.match(/^(\d+(?:\.\d+)?)/);
+  if (numMatch) {
+    const n = Number(numMatch[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function computeBuyDistance(price: number | null, low: number | null, high: number | null): BuyDistance {
+  if (low === null || high === null) return { status: "NO_RANGE", pct_from_zone: null };
+  if (price === null) return { status: "NO_PRICE", pct_from_zone: null };
+  if (price >= low && price <= high) return { status: "IN_ZONE", pct_from_zone: 0 };
+  if (price > high) return { status: "ABOVE", pct_from_zone: ((price - high) / high) * 100 };
+  return { status: "BELOW", pct_from_zone: ((price - low) / low) * 100 };
+}
+
+function makeTrend(latest: number | null, prior: number | null): ScoreTrend {
+  if (latest === null || prior === null) return { ...EMPTY_SCORE_TREND, prior_value: prior };
+  const delta = latest - prior;
+  const direction: ScoreTrend["direction"] = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  return { delta, direction, prior_value: prior };
+}
+
+interface TrendBuildContext {
+  latest: LiveScoreLog;
+  prior: LiveScoreLog | null;
+}
+
+function buildTrend(ctx: TrendBuildContext | undefined): AssetIntelligenceTrend {
+  if (!ctx) return EMPTY_TREND;
+  const { latest, prior } = ctx;
+  const priorDate = prior?.date ? String(prior.date) : null;
+  return {
+    score:      makeTrend(latest.score      ?? null, prior?.score      ?? null),
+    substrate:  makeTrend(latest.substrate  ?? null, prior?.substrate  ?? null),
+    demand:     makeTrend(latest.demand     ?? null, prior?.demand     ?? null),
+    moat:       makeTrend(latest.moat       ?? null, prior?.moat       ?? null),
+    valuation:  makeTrend(latest.valuation  ?? null, prior?.valuation  ?? null),
+    mgmt:       makeTrend(latest.mgmt       ?? null, prior?.mgmt       ?? null),
+    disruption: makeTrend(latest.disruption ?? null, prior?.disruption ?? null),
+    prior_score_date: priorDate,
+  };
+}
+
 // ── Joiners ─────────────────────────────────────────────────────────────────
 
 function buildDisruption(d: LiveDisruption | undefined): AssetDisruption | null {
