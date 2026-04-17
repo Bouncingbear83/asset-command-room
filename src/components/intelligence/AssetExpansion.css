@@ -1,0 +1,31 @@
+/* Responsive grids for the Intelligence expansion card. */
+
+.aex-grid-6d {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.aex-grid-disruption {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.aex-grid-position {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 1279px) {
+  .aex-grid-6d { grid-template-columns: repeat(2, 1fr); }
+  .aex-grid-disruption { grid-template-columns: repeat(3, 1fr); }
+  .aex-grid-position { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 1023px) {
+  .aex-grid-6d,
+  .aex-grid-disruption,
+  .aex-grid-position { grid-template-columns: 1fr; }
+}
