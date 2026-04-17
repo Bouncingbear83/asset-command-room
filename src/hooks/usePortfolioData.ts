@@ -814,10 +814,10 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
 
       const costLocal = parseNum(row[cm.costCol]) || 0;
       const glGbp = parseNum(row[cm.glGbpCol]) || 0;
-      const mvLocal = parseNum(row[cm.mvLocalCol]);
-      // Prefer authoritative MV (local) from cols P/Q/R × FX; fall back to shares × price × fx
-      const mvGbp = mvLocal !== null && mvLocal > 0
-        ? mvLocal * fx
+      const mvGbpDirect = parseNum(row[cm.mvGbpCol]);
+      // MV£ cols S/T/U are authoritative GBP values; fall back to shares × price × fx
+      const mvGbp = mvGbpDirect !== null && mvGbpDirect > 0
+        ? mvGbpDirect
         : (priceLocal !== null ? shares * priceLocal * fx : (costLocal * fx) + glGbp);
       const costGbp = costLocal * fx;
       const weightPct = parsePct(row[cm.weightCol]);
