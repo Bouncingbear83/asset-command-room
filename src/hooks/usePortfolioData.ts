@@ -737,10 +737,11 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
   // A=Pillar/Layer, B=Target%, C=Ticker, D=Name, E=FX (currency code), I=price_local
   // M/N/O = Shares (JB/AB/EB), V/W/X = Weight%, Y/Z/AA = Cost (LOCAL ccy)
   // AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
+  // Cols P/Q/R (indexes 15/16/17) = Current MV per child in LOCAL currency
   const CHILDREN_MAP = [
-    { child: "Bear", sharesCol: 12, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33, totalCol: 0, cashCol: 0, portfolioCol: 0 },
-    { child: "Alfie", sharesCol: 13, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34, totalCol: 1, cashCol: 1, portfolioCol: 1 },
-    { child: "Edie", sharesCol: 14, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35, totalCol: 2, cashCol: 2, portfolioCol: 2 },
+    { child: "Bear",  sharesCol: 12, mvLocalCol: 15, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33 },
+    { child: "Alfie", sharesCol: 13, mvLocalCol: 16, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34 },
+    { child: "Edie",  sharesCol: 14, mvLocalCol: 17, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35 },
   ];
 
   // Locate FX rates (rows with currency labels in col A and rates somewhere on the row)
@@ -772,46 +773,27 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
     return fxRates[c] ?? 1;
   };
 
-  // Extract authoritative totals from labelled rows (Holdings MV, Cash, Portfolio)
+  // Extract authoritative totals from FIXED rows in JISA_HOLDINGS sheet:
+  //   Row 17 (idx 16) cols A/B/C = Holdings MV (GBP) for Bear/Alfie/Edie
+  //   Row 18 (idx 17) cols A/B/C = Cash balances
+  //   Row 20 (idx 19) cols A/B/C = Total Portfolio (Holdings + Cash)
   const totals: Record<string, JisaChildTotals> = {
     Bear: { mv: 0, cash: 0, portfolio: 0 },
     Alfie: { mv: 0, cash: 0, portfolio: 0 },
     Edie: { mv: 0, cash: 0, portfolio: 0 },
   };
-
-  for (const row of grid) {
-    if (!row) continue;
-    const labelRaw = String(row[0] ?? "").trim().toUpperCase();
-    if (!labelRaw) continue;
-
-    // The sheet rows we care about have a label and 3 child values in some columns.
-    // Find first 3 numeric values on the row (left-to-right) representing Bear/Alfie/Edie.
-    const nums: number[] = [];
-    for (let c = 0; c < row.length && nums.length < 3; c++) {
-      const n = parseMv(row[c]);
-      if (n > 0) nums.push(n);
-    }
-    if (nums.length < 3) continue;
-
-    // Match label semantics
-    if (/(HOLDINGS?\s*(MV|VALUE)|^TOTAL\s*HOLDINGS?|^MV\b|^TOTAL$)/.test(labelRaw)) {
-      // Holdings MV row — only use if not yet set
-      if (totals.Bear.mv === 0) {
-        totals.Bear.mv = nums[0]; totals.Alfie.mv = nums[1]; totals.Edie.mv = nums[2];
-      }
-    } else if (/CASH/.test(labelRaw)) {
-      totals.Bear.cash = nums[0]; totals.Alfie.cash = nums[1]; totals.Edie.cash = nums[2];
-    } else if (/(PORTFOLIO|^TOTAL\s*PORTFOLIO|GRAND\s*TOTAL|^TOTAL\s*\(.*CASH.*\))/.test(labelRaw)) {
-      totals.Bear.portfolio = nums[0]; totals.Alfie.portfolio = nums[1]; totals.Edie.portfolio = nums[2];
-    }
-  }
-
-  // Fallback: if portfolio not explicitly labelled, derive it
-  for (const child of ["Bear", "Alfie", "Edie"]) {
-    if (totals[child].portfolio === 0) {
-      totals[child].portfolio = totals[child].mv + totals[child].cash;
-    }
-  }
+  const readTriple = (rowIdx: number): [number, number, number] => {
+    const r = grid[rowIdx] || [];
+    return [parseMv(r[0]), parseMv(r[1]), parseMv(r[2])];
+  };
+  const [bMv, aMv, eMv] = readTriple(16);
+  const [bCash, aCash, eCash] = readTriple(17);
+  const [bPort, aPort, ePort] = readTriple(19);
+  totals.Bear.mv = bMv;   totals.Alfie.mv = aMv;   totals.Edie.mv = eMv;
+  totals.Bear.cash = bCash; totals.Alfie.cash = aCash; totals.Edie.cash = eCash;
+  totals.Bear.portfolio = bPort || (bMv + bCash);
+  totals.Alfie.portfolio = aPort || (aMv + aCash);
+  totals.Edie.portfolio = ePort || (eMv + eCash);
 
   const holdings: JisaParseResult["holdings"] = [];
 
@@ -833,8 +815,11 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
 
       const costLocal = parseNum(row[cm.costCol]) || 0;
       const glGbp = parseNum(row[cm.glGbpCol]) || 0;
-      // Correct MV: shares × price_local × fx_to_gbp
-      const mvGbp = priceLocal !== null ? shares * priceLocal * fx : (costLocal * fx) + glGbp;
+      const mvLocal = parseNum(row[cm.mvLocalCol]);
+      // Prefer authoritative MV (local) from cols P/Q/R × FX; fall back to shares × price × fx
+      const mvGbp = mvLocal !== null && mvLocal > 0
+        ? mvLocal * fx
+        : (priceLocal !== null ? shares * priceLocal * fx : (costLocal * fx) + glGbp);
       const costGbp = costLocal * fx;
       const weightPct = parsePct(row[cm.weightCol]);
       const glPct = parsePct(row[cm.glPctCol]);
