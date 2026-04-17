@@ -1,79 +1,155 @@
 
-The user wants Prompt 3 of 7. First I need to inspect the actual Supabase schema for `score_rationales` and `disruption_rationales` (already visible in context) and reconcile against the spec, then plan the expansion component.
 
-**Schema reconciliation (from context — no need to query):**
+The user wants Intelligence and Holdings tabs mobile-friendly without losing desktop functionality. Let me explore the current state of these components to understand what needs adapting.
+<lov-tool-use id="toolu_vrtx_01E6MEeyCxF89iQ8VtGA63bG" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/IntelligenceFilters.tsx\"}">
+</lov-tool-use>
 
-`score_rationales` actual columns:
-- `ticker`, `scored_at`, `scored_by`, `total_score`, `tier`, `action`, `thesis_summary`, `change_note`
-- Per-dimension PAIRS (not long-format): `substrate_score`+`substrate_rationale`, `demand_score`+`demand_rationale`, `moat_score`+`moat_rationale`, `valuation_score`+`valuation_rationale`, `mgmt_score`+`mgmt_rationale`, `disruption_score`+`disruption_rationale`
-- Plus context: `price_at_scoring`, `mv_gbp_at_scoring`
+<lov-tool-use id="toolu_vrtx_013osSgrpB16x81zvNRgqnMc" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/IntelligenceListHeader.tsx\"}">
+</lov-tool-use>
 
-`disruption_rationales` actual columns:
-- `ticker`, `scored_at`, `scored_by`, `disruption_score`, `status`, `change_note`, `evidence`, `amber_trigger`, `red_trigger`
-- Per-dimension PAIRS: `sub_avail_score`+`sub_avail_rationale`, `economics_score`+`economics_rationale`, `govt_support_score`+`govt_support_rationale`, `demand_vuln_score`+`demand_vuln_rationale`, `time_viability_score`+`time_viability_rationale`
+<lov-tool-use id="toolu_vrtx_01NbviZQds89oaC7fmkfYVNt" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/AssetRow.tsx\"}">
+</lov-tool-use>
 
-**Mismatch vs spec:** The user's spec assumed long format (`dimension` column + one `rationale` row per dimension). Actual schema is wide format (one row per ticker with all six rationales as columns). This is BETTER — simpler join, one row per ticker. RLS already allows anon SELECT on both tables (confirmed in context).
+<lov-tool-use id="toolu_vrtx_016VgQHwnCfHKzHP49rJRVnQ" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/columns.ts\"}">
+</lov-tool-use>
 
-**Existing infrastructure:**
-- `src/integrations/supabase/client.ts` — anon Supabase client already initialised
-- `src/hooks/useRationales.ts` already exists — likely fetches score_rationales. Need to inspect to avoid duplication. ScoresTab already uses `fetchDisruptionRationales` pattern.
-- `useAssetIntelligence` currently derives from `usePortfolioData()` (sync, no async). Adding Supabase fetches needs `useEffect` + state OR React Query. Project uses bespoke hooks (no React Query for these), so match existing pattern: `useEffect` + state, similar to `useRationales`.
+<lov-tool-use id="toolu_vrtx_01KRWijfU24aL6J2g9cVvHrS" name="code--view" integration-id="code" data="{\"file_path\": \"src/pages/IntelligenceTab.tsx\"}">
+</lov-tool-use>
 
-**Plan:**
+<lov-tool-use id="toolu_vrtx_01Mv54DjGEnHhTWt3qeY8JmM" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/HoldingsTab.tsx\"}">
+</lov-tool-use>
 
-### Step 1 — Extend hook with rationales (wide-format reads)
+<lov-tool-use id="toolu_vrtx_01FbqyMd98jqZNSo7UgiecZt" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/holdings/HoldingsFilters.tsx\"}">
+</lov-tool-use>
 
-1. **Update `src/types/intelligence.ts`**: add `ScoreRationales`, `DisruptionRationales`, and `rationales: { score, disruption }` field on `AssetIntelligence`. Note: `score.disruption` here is the 6D-disruption (/15) rationale; deep-dive disruption rationales live under `disruption.<dimension>`.
+<lov-tool-use id="toolu_vrtx_01WijeiifrZGH96WPrtWyatY" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/AssetRow.tsx\"}">
+</lov-tool-use>
 
-2. **Update `src/hooks/useAssetIntelligence.ts`**:
-   - Add `useEffect` to fetch latest row per ticker from both `score_rationales` and `disruption_rationales`. Order by `scored_at desc`, dedupe in JS (keep first per ticker).
-   - Pagination guard: both tables likely <1000 rows but use `.range(0, 999)` defensively; if reach 1000 paginate (per memory `historical-data-pagination`).
-   - Build two `Map<ticker, RowData>` lookups.
-   - In the existing `useMemo` join, attach `rationales.score` (always present, empty strings for missing dimensions) and `rationales.disruption` (null if `asset.disruption === null`, else populated with empty-string fallbacks).
-   - Warn (console) for rationale rows whose ticker isn't in SCORES.
-   - Loading state should wait for sheets AND rationales (combine flags).
+<lov-tool-use id="toolu_vrtx_01JmVnnTtwBcA5YjMJwFHnud" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/IntelligenceListHeader.tsx\"}">
+</lov-tool-use>
 
-### Step 2 — Build `src/components/intelligence/AssetExpansion.tsx`
+<lov-tool-use id="toolu_vrtx_01AnQgYCdJkp4mnwTneMBWc4" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/columns.ts\"}">
+</lov-tool-use>
 
-Single component, prop `{ asset: AssetIntelligence }`. Sections in order, each with bottom border:
+<lov-tool-use id="toolu_vrtx_01SAJetzAqGqas2CssNZvHYr" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/IntelligenceFilters.tsx\"}">
+</lov-tool-use>
 
-1. **THESIS** — markdown-ish text (use existing markdown approach in repo; if none, render as `white-space: pre-wrap`). Show-more at 3 lines via line-clamp + state. Metadata strip: change_note · score_date · reclass_status · age.
-2. **6D RATIONALES** — 3×2 grid of cards. Per card: label (mono small caps) + score chip top-right (`val/max`, colored) + rationale body (line-clamp 4 + show more) or muted "No rationale recorded".
-3. **DISRUPTION DEEP DIVE** — only when `asset.disruption !== null`. Header with status chip. 5-col grid of /20 cards. Conditional amber/red trigger banners with left-border accents. Conditional evidence quote block. Footer: `Last assessed: {last_checked}`.
-4. **PRICE CONTEXT** — only when `asset.position !== null` (52w data only on held). Render 52w range bar with current + MA60 markers and buy-range overlay region. Stub note for chart (Prompt 6).
-5. **POSITION** — only when `asset.position !== null`. 4×2 metrics grid. ADD/EXIT trigger banners (green/red left border, conditional). Trigger type, alert status chip, factor primary.
-6. **META FOOTER** — DEEP DIVE button (stub: console.log) · Buy range · Score · Tier.
+<lov-tool-use id="toolu_vrtx_0179ymum7mwGKuqxazNaqJaG" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/HoldingsTab.tsx\"}">
+</lov-tool-use>
 
-Responsive grids via inline `gridTemplateColumns` + a small companion CSS file (`AssetExpansion.css`) for the breakpoint switches (consistent with `AssetRow.css` pattern).
+<lov-tool-use id="toolu_vrtx_01XQ21wYETA8irEfGQPdZ1Ay" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/holdings/HoldingsFilters.tsx\"}">
+</lov-tool-use>
 
-Shared score-chip color util — extract to a tiny helper in same file (or co-locate in `AssetRow.tsx` and import). Keep DRY: extract `scoreColor(pct)` into a small utility at the top of `AssetExpansion.tsx` and re-use within.
+<lov-tool-use id="toolu_vrtx_01Spe4RvonBErAUA9DH56nSy" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/intelligence/AssetExpansion.tsx\"}">
+</lov-tool-use>
+I have enough context. Let me present the plan.
 
-### Step 3 — Wire expansion into row + preview
+<lov-plan>
+# Mobile Responsiveness Plan: Intelligence + Holdings
 
-- **`AssetRow.tsx`**: change layout so the row becomes a wrapper (`<div>`) containing the existing 48px header + (when `expanded`) `<AssetExpansion asset={asset} />` below it, full width, no indent, no extra border (expansion handles its own internal borders). Toggle/keyboard handlers stay on the header strip only so clicks inside the expansion don't collapse it.
-- **`IntelligencePreview.tsx`**: no logic changes needed — `ExpandableList` already toggles rows. Just verify `top10` rerenders cleanly with expanded children. Maybe add a small note in subtitle that expansion is now live.
+## The problem (verified from current viewport 430×659)
 
-### Files touched
+Both tabs use **fixed-width pixel columns** in flex layouts that overflow narrow screens:
 
-- `src/types/intelligence.ts` — add rationale types + field
-- `src/hooks/useAssetIntelligence.ts` — add Supabase fetch + join
-- `src/components/intelligence/AssetExpansion.tsx` — new
-- `src/components/intelligence/AssetExpansion.css` — new (responsive grid breakpoints)
-- `src/components/intelligence/AssetRow.tsx` — render expansion inline; isolate click handler
+**Intelligence (`AssetRow.tsx` + `IntelligenceListHeader.tsx`)**
+- Row sums to ~96+100+64+420+84+92+104+20 = **~980px minimum** plus gaps
+- 6D bars use `gridTemplateColumns: "repeat(6, 1fr)"` with `minWidth: 420` — never collapses
+- Currently only the buy-range column has a CSS hide rule (`<1100px`)
 
-### Schema decision callout
+**Holdings (`HoldingsTab.tsx` UnifiedView)**
+- Wraps `<table>` in `overflow-x: auto` — works but forces horizontal scroll for everything including the ticker
+- `useIsMobile` hides Name/Layer/Account/30D/MA20/MA50/Cost/P&L/Notes — but G/L%, Day%, Price, Ann.Ret all stay, still overflows on 430px
+- Filter chip rows (`HoldingsFilters`) wrap OK but eat 4–5 vertical rows on mobile
 
-The spec's assumed long format is replaced by the **actual wide format** in the DB. This is a strict improvement (no GROUP BY, single row per ticker). I'll proceed with the actual schema — flagging here so you know the spec drifted but the implementation will be cleaner.
+**Filters / chrome (both tabs)**
+- `IntelligenceFilters` + `HoldingsFilters` already use `flexWrap: wrap` so they degrade gracefully — but are noisy at 430px (account + action + factor + layer = potentially 30+ chips visible)
+- Group toggle buttons are wide
 
-### Out of scope (later prompts)
+**Expansion (`AssetExpansion.tsx`)**
+- Already mostly OK — `AssetExpansion.css` has media queries that collapse 6D/disruption/position grids to 1 column at ≤720px
 
-- Real price chart (Prompt 6)
-- IntelligenceTab filters/sorts/grouping (Prompt 4)
-- Wiring into HoldingsTab (Prompt 5)
-- Deleting Scores/Disruption tabs (Prompt 6)
-- "Ann. Ret" metric (not in AssetIntelligence yet — TODO placeholder)
+## Strategy: progressive disclosure, no functionality removed
 
-### Risks
+Keep desktop layout 1:1. On mobile (≤767px) switch each row to a **stacked card** that surfaces the same data in a vertical hierarchy. Tap still expands. All filters, sort, group, search still work — chrome just becomes more compact.
 
-- `useRationales.ts` may already fetch one of these tables; I'll inspect it during implementation. If it's a clean superset I'll reuse; if not, the new hook fetch is independent and harmless.
-- Pagination: if either rationales table grows past 1000 rows, switch to keyset pagination. Adding the `.range(0, 999)` cap with a console warn if length === 1000 for now.
+Three-tier breakpoint approach:
+- **Desktop (≥1100px)**: current layout unchanged
+- **Tablet (768–1099px)**: hide buy-range column (already done), shrink 6D bar minWidth, allow horizontal scroll on Holdings table
+- **Mobile (≤767px)**: switch row layouts to stacked cards; collapse filter chrome behind a "Filters" disclosure
+
+## Changes by file
+
+### Intelligence tab
+
+**`src/components/intelligence/AssetRow.css`** (extend)
+- Add `@media (max-width: 767px)` rules that hide the desktop flex row's column wrappers and reveal a mobile-only stacked card. Use a `.asset-row-mobile` / `.asset-row-desktop` toggle pair.
+
+**`src/components/intelligence/AssetRow.tsx`**
+- Wrap existing flex row in `<div className="asset-row-desktop">`
+- Add a parallel `<div className="asset-row-mobile">` rendering:
+  - Line 1: ticker (bold) · score (right-aligned, large) · status chip · chevron
+  - Line 2: name (truncated) · layer chip · disruption badge
+  - Line 3: 6D bars in a single horizontal grid (smaller, 6 columns still — they're just bars)
+  - Line 4: distance chip + buy range text (full width)
+- Both share the same `onClick` / `onToggle`
+
+**`src/components/intelligence/IntelligenceListHeader.tsx`**
+- Add CSS class `intelligence-list-header` and hide via `@media (max-width: 767px) { display: none }` — column headers don't make sense on stacked cards. Sort moves to a compact "Sort: Score ▼" dropdown (see filters below).
+
+**`src/components/intelligence/IntelligenceFilters.tsx`**
+- On mobile, collapse all chip rows behind a single "Filters (N active)" toggle button
+- Add inline mobile-only "Sort by ▾" select that mirrors the column-header sort options
+- Reuse existing `useIsMobile` hook
+
+### Holdings tab
+
+**`src/components/HoldingsTab.tsx` — UnifiedView**
+- Already uses `useIsMobile`. Extend to a mobile card layout:
+  - When `isMobile`, replace the `<table>` body with stacked `<div>` cards per row:
+    - Header: ticker + score badge + Action chip + chevron
+    - Metrics row: MV £ · G/L% · Day%
+    - Secondary: Layer · Account · Ann.Ret
+  - Keep CASH pinned card at top with its own compact style
+  - Keep group headers — they already render as full-width rows
+- Desktop table unchanged
+
+**`src/components/holdings/HoldingsFilters.tsx`**
+- Same collapse-behind-toggle pattern as Intelligence on mobile
+- Add mobile sort dropdown
+
+**`src/components/holdings/HoldingsHeader.tsx`** + **`HoldingsGroupHeader.tsx`**
+- Reduce horizontal padding + font size on mobile via small CSS rules; layouts already wrap
+
+### Shared
+
+**New `src/components/shared/filters/FilterDisclosure.tsx`** (small)
+- Mobile-only wrapper that hides children behind a "Filters (N)" button. Desktop renders children directly.
+- Used by both `IntelligenceFilters` and `HoldingsFilters`.
+
+**New `src/components/shared/filters/MobileSortSelect.tsx`** (small)
+- Native `<select>` styled to match dark theme. Takes `options: {label, field}[]`, current `sortField` + `sortDir`, emits change. Renders only on mobile.
+
+## What stays the same
+
+- All sort, filter, group, search, URL state behaviour (every interaction reachable on mobile)
+- AssetExpansion (already responsive via existing CSS)
+- Price chart (Recharts is responsive by default)
+- CASH pinning, group headers, layer click-to-filter
+- All desktop layouts pixel-identical
+
+## Verification checklist after implementation
+
+1. At 430px: Intelligence rows render as stacked cards, all data visible without horizontal scroll
+2. At 430px: Holdings rows render as stacked cards; tap expands to AssetExpansion
+3. At 430px: Filters collapsed behind "Filters (3)" button; tapping reveals the chip rows
+4. At 430px: Sort accessible via dropdown
+5. At 1280px: Layouts unchanged from current desktop screenshots
+6. At 900px (tablet): Buy-range column hidden, everything else still tabular
+7. URL state still round-trips (filters/sort/group persist on mobile)
+
+## Files touched
+
+Edit: `AssetRow.tsx`, `AssetRow.css`, `IntelligenceListHeader.tsx`, `IntelligenceFilters.tsx`, `HoldingsTab.tsx`, `HoldingsFilters.tsx`, `HoldingsHeader.tsx`, `HoldingsGroupHeader.tsx`
+Create: `shared/filters/FilterDisclosure.tsx`, `shared/filters/MobileSortSelect.tsx`
+
+Estimated scope: ~6 component edits + 2 new small primitives. No data layer changes, no URL state changes, no expansion changes.
