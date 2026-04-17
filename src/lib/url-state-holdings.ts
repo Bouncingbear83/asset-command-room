@@ -82,8 +82,10 @@ export function normalizeAccount(raw: string): HoldingsAccount | null {
 export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiState {
   const rawSort = params.get("sort") ?? "-mv";
   const dir: "asc" | "desc" = rawSort.startsWith("-") ? "desc" : "asc";
-  const fieldRaw = (rawSort.startsWith("-") ? rawSort.slice(1) : rawSort) as HoldingsSortField;
-  const sortField: HoldingsSortField = SORT_FIELDS.includes(fieldRaw) ? fieldRaw : "mv";
+  const fieldRaw = (rawSort.startsWith("-") ? rawSort.slice(1) : rawSort);
+  const aliased = SORT_FIELD_ALIASES[fieldRaw];
+  const candidate = (aliased ?? fieldRaw) as HoldingsSortField;
+  const sortField: HoldingsSortField = SORT_FIELDS.includes(candidate) ? candidate : "mv";
 
   const groupRaw = (params.get("group") ?? "layer") as HoldingsGroupBy;
   const groupBy: HoldingsGroupBy = GROUP_BYS.includes(groupRaw) ? groupRaw : "layer";
