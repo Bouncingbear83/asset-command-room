@@ -148,14 +148,32 @@ function ExpandableText({ text, clampLines, emptyLabel }: { text: string; clampL
   );
 }
 
+function TrendBadge({ trend }: { trend?: { delta: number | null; direction: "up" | "down" | "flat" | null; prior_value: number | null } }) {
+  if (!trend || trend.direction === null) return null;
+  const color = trend.direction === "up" ? "var(--green)" : trend.direction === "down" ? "var(--red)" : "var(--text-dim)";
+  const arrow = trend.direction === "up" ? "↗" : trend.direction === "down" ? "↘" : "→";
+  const sign = trend.delta !== null && trend.delta > 0 ? "+" : "";
+  return (
+    <span
+      title={trend.prior_value !== null ? `Prior: ${trend.prior_value}` : undefined}
+      style={{ fontFamily: "var(--font-mono)", fontSize: 9, color, marginLeft: 6 }}
+    >
+      {arrow}{trend.direction !== "flat" && trend.delta !== null ? `${sign}${trend.delta}` : ""}
+    </span>
+  );
+}
+
 function RationaleCard({
-  label, score, max, rationale,
-}: { label: string; score: number; max: number; rationale: string }) {
+  label, score, max, rationale, trend,
+}: { label: string; score: number; max: number; rationale: string; trend?: { delta: number | null; direction: "up" | "down" | "flat" | null; prior_value: number | null } }) {
   return (
     <div style={CARD_STYLE}>
       <div style={LABEL_STYLE}>
         <span>{label}</span>
-        <ScoreChip value={score} max={max} />
+        <span style={{ display: "inline-flex", alignItems: "baseline" }}>
+          <ScoreChip value={score} max={max} />
+          <TrendBadge trend={trend} />
+        </span>
       </div>
       <ExpandableText text={rationale} clampLines={4} emptyLabel="No rationale recorded." />
     </div>
