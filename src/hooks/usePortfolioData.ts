@@ -886,6 +886,7 @@ export interface PortfolioData {
   earningsCalendar: LiveEarningsCalendarItem[];
   transactions: LiveTransaction[];
   jisaHoldings: LiveJisaHolding[];
+  jisaTotals: LiveJisaTotals;
   cashSipp: number;
   cashIsa: number;
   cashTotal: number;
@@ -916,6 +917,7 @@ export function usePortfolioData(): PortfolioData {
     earningsCalendar: [],
     transactions: [],
     jisaHoldings: [],
+    jisaTotals: { Bear: { mv: 0, cash: 0, portfolio: 0 }, Alfie: { mv: 0, cash: 0, portfolio: 0 }, Edie: { mv: 0, cash: 0, portfolio: 0 } },
     cashSipp: 0,
     cashIsa: 0,
     cashTotal: 0,
