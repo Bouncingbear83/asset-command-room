@@ -1,45 +1,60 @@
 
 
-## Fix JISA Tab: Portfolio Values & Annualised Returns
+## Audit & Fix: Claude Deep-Link Consistency
 
-### Problem 1 — Portfolio values are wrong
-The `parseJisaHoldings` function in `usePortfolioData.ts` computes per-row `mvGbp = costGbp + glGbp`. But in the JISA_HOLDINGS sheet, **Book Cost (cols Y/Z/AA) is in local currency** (e.g. ASML = €5,160 EUR), while GL£ (cols AE/AF/AG) is in GBP. Adding them produces nonsense MVs. As a result the per-child summary cards show wrong totals (e.g. Bear £80,198 instead of the true £66,248).
+### Problem
+Claude links across the dashboard use **three different URL patterns** and **two different project IDs** — some don't reach the correct Stellar project, some don't pre-fill prompts properly.
 
-The sheet itself already contains the correct values:
-- **Row 17 (A17:C17)** = JISA holdings MV in GBP per child (Bear/Alfie/Edie) — `£66,135 / £54,930 / £21,960`
-- **Row 18 (A18:C18)** = JISA cash balances per child — `£113 / £59 / £38`
-- **Row 20 (A20:C20)** = Total portfolio (holdings + cash) per child — `£66,248 / £54,989 / £21,998` ← what the cards should show
+### Current state
 
-### Problem 2 — Annualised returns are absurd (+652% pa, +161% pa, etc.)
-XIRR over ~3–6 month holding periods extrapolates short-term gains into massive annualised numbers. This is mathematically valid but misleading. For positions held less than ~12 months, we should suppress the annualised figure (or show plain total return % only).
+| File | Project ID | URL pattern | Issue |
+|---|---|---|---|
+| `CommandTab.tsx` | `019ca3a9…` (correct) | `claude.ai/new?q=…&project_uuid=…` | Uses `/new` route, not `/project/<id>` |
+| `ScoresTab.tsx` | `019ca3a9…` (correct) | `claude.ai/project/<id>?prompt=…` | ✅ matches user spec |
+| `HoldingsTab.tsx` | `019ca3a9…` (correct) | `claude.ai/project/<id>?prompt=…` | ✅ matches user spec |
+| `WatchlistTab.tsx` | `019ca3a9…` (correct) | `claude.ai/new?q=…&project_uuid=…` | Uses `/new` route |
+| `ReviewQueue.tsx` | `be2a318a…` ❌ **WRONG** (Lovable project ID, not Claude project ID) | `claude.ai/project/<id>#…` | Wrong project + uses `#hash` not `?prompt=` |
+
+### Standardisation
+Per user spec, every Claude button should use:
+```
+https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=<URL_ENCODED_PROMPT>
+```
+Opened via `(window.top || window).open(url, '_blank')` (iframe CSP bypass — already a project rule).
 
 ### Changes
 
-**1. `src/hooks/usePortfolioData.ts` — `parseJisaHoldings`**
-- Compute per-row `mvGbp` correctly. The simplest robust fix: use **`shares × price_local × fx_to_gbp`** (price in col I, FX in col E with rates from rows 13/14). For GBP/GBX assets no FX needed; for USD/EUR look up the EUR/GBP and USD/GBP rates from rows 13–14 of the same grid.
-- Also extract per-child **MV totals** (row index for "TOTAL" row, cols J/K/L = `TAR | JB/AB/EB`... actually use row labelled "TOTAL" cols 9/10/11 which contain `£66,135 / £54,930 / £21,960` — these are the authoritative MV totals).
-- Extract per-child **cash balances** (row containing only £-values immediately after EB header row — A18:C18).
-- Return these alongside the per-row holdings as new fields on the data object, e.g. `jisaTotals: { Bear: { mv, cash, portfolio }, Alfie: {...}, Edie: {...} }`.
+**1. `src/components/CommandTab.tsx`** — Rewrite `getClaudeUrl`:
+```ts
+function getClaudeUrl(prompt: string) {
+  const base = `https://claude.ai/project/${PROJECT_ID}`;
+  return prompt ? `${base}?prompt=${encodeURIComponent(prompt)}` : base;
+}
+```
 
-**2. `src/components/JisasTab.tsx` — Summary cards**
-- Use `jisaTotals[child].portfolio` (holdings + cash) for the headline £ figure on each card instead of summing the parsed per-row `mvGbp`.
-- Update the `Combined:` line to sum the three portfolio totals.
-- Optionally show "Holdings £X · Cash £Y" as a sub-line beneath the headline.
+**2. `src/components/WatchlistTab.tsx`** (line ~241) — Replace:
+```ts
+const url = `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=${encodeURIComponent(prompt)}`;
+```
 
-**3. `src/components/JisasTab.tsx` — Annualised return display**
-- In `calcHoldingReturns` results, suppress `annualisedReturn` display when `daysHeld < 365`. Show "—" or just the total return % instead.
-- Same logic for the per-child group header (no annualised summary if youngest position < 1y).
+**3. `src/components/ReviewQueue.tsx`** — Two fixes:
+- Change project ID from `be2a318a-707e-4e8d-ae4b-23f3eab50633` (Lovable ID — wrong) to `019ca3a9-aefe-77ea-af76-db62fd96f4e1` (Stellar Claude project).
+- Replace the `#${ticker}-${prefix}` hash anchor (does nothing useful in Claude) with a proper pre-filled prompt, e.g.:
+  ```ts
+  const prompt = `Review flag ${flag.prefix} on ${flag.ticker}. Reason: ${flag.reason || '—'}. Reassess thesis and produce Research Commit.`;
+  const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+  ```
 
-**4. `src/lib/xirr.ts`** — no changes needed; the XIRR math is correct. Just gate the display.
+**4. `ScoresTab.tsx` & `HoldingsTab.tsx`** — Already correct, no changes.
+
+**5. Memory** — Update `mem://features/claude-integration-strategy` to record the canonical URL pattern (`/project/<id>?prompt=…`) so future buttons stay consistent.
 
 ### Files touched
-- `src/hooks/usePortfolioData.ts`
-- `src/components/JisasTab.tsx`
+- `src/components/CommandTab.tsx`
+- `src/components/WatchlistTab.tsx`
+- `src/components/ReviewQueue.tsx`
+- `.lovable/memory/features/claude-integration-strategy.md`
 
-### Expected result after fix
-- Bear card → **£66,248** (was £80,198)
-- Alfie card → **£54,989**
-- Edie card → **£21,998**
-- Combined → **£143,235** (was £174,712)
-- "Ann. Return" column shows "—" for positions held <1 year; total return % still visible
+### Expected result
+Every Claude button in the app opens the **Stellar Claude project** (`019ca3a9…`) with the relevant prompt pre-filled in the chat box, ready to send.
 
