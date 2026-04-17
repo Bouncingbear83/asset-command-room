@@ -1,5 +1,5 @@
 import { CSSProperties } from "react";
-import { Layers, Tag, AlignJustify, Wallet, Activity, Sparkles } from "lucide-react";
+import { Layers, Tag, AlignJustify, Wallet } from "lucide-react";
 import {
   Chip,
   ChipGroup,
@@ -134,7 +134,6 @@ export function HoldingsFilters({
             active={allActionsActive}
             onClick={onResetAction}
             ariaLabel="Reset action filters"
-            Icon={Activity}
           />
           {actionEntries.map(([value, count]) => (
             <Chip
@@ -157,7 +156,6 @@ export function HoldingsFilters({
             active={allFactorsActive}
             onClick={onResetFactor}
             ariaLabel="Reset factor filters"
-            Icon={Sparkles}
           />
           {factorEntries.map(([value, count]) => (
             <Chip
