@@ -444,12 +444,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* Disruption deep-dive badge */}
-        <div style={{ width: COL.disruption, minWidth: COL.disruption, maxWidth: COL.disruption, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ width: COL.disruption, minWidth: COL.disruption, maxWidth: COL.disruption, flexShrink: 0 }}>
           <DisruptionBadge asset={asset} />
         </div>
 
         {/* Distance chip — replaces static buy range. Hidden below 1100px. */}
-        <div className="asset-row-buy-range" style={{ width: COL.buyRange, minWidth: COL.buyRange, maxWidth: COL.buyRange, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        <div className="asset-row-buy-range" style={{ width: COL.buyRange, minWidth: COL.buyRange, maxWidth: COL.buyRange, flexShrink: 0 }}>
           <DistanceChip
             buyDistance={asset.buy_distance}
             currentPrice={asset.current_price}
@@ -460,7 +460,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* Status chip */}
-        <div style={{ width: COL.status, minWidth: COL.status, maxWidth: COL.status, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ width: COL.status, minWidth: COL.status, maxWidth: COL.status, flexShrink: 0 }}>
           <StatusChip status={asset.held_status} />
         </div>
 

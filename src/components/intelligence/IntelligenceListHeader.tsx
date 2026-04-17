@@ -68,7 +68,7 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
       }}
     >
       <div style={{ width: COL.ticker, flexShrink: 0 }}>{sortBtn("Ticker", "ticker")}</div>
-      <div style={{ width: COL.layer, flexShrink: 0 }}>{sortBtn("Layer", "layer")}</div>
+      <div style={{ width: COL.layer, flexShrink: 0, textAlign: "center" }}>{sortBtn("Layer", "layer", "left")}</div>
       <div style={{ width: COL.score, flexShrink: 0 }}>{sortBtn("Score", "score")}</div>
 
       {/* 6D bar labels — non-sortable, mirrors AssetRow grid */}
@@ -78,13 +78,13 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
         ))}
       </div>
 
-      <div style={{ width: COL.disruption, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
-        {sortBtn("Disruption", "disruption", "right")}
+      <div style={{ width: COL.disruption, flexShrink: 0, textAlign: "center" }}>
+        {sortBtn("Disruption", "disruption", "left")}
       </div>
-      <div className="asset-row-buy-range" style={{ width: COL.buyRange, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
-        {sortBtn("Buy Range", "buy_distance", "right")}
+      <div className="asset-row-buy-range" style={{ width: COL.buyRange, flexShrink: 0, textAlign: "center" }}>
+        {sortBtn("Buy Range", "buy_distance", "left")}
       </div>
-      <div style={{ width: COL.status, flexShrink: 0, textAlign: "right" }}>
+      <div style={{ width: COL.status, flexShrink: 0, textAlign: "center" }}>
         <span style={{ ...labelBase, cursor: "default" }}>Status</span>
       </div>
       <div style={{ width: COL.chevron, flexShrink: 0 }} />
