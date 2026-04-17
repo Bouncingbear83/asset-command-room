@@ -1,9 +1,87 @@
+/* Default: hide mobile shell, show desktop row */
+.asset-row-desktop { display: flex; }
+.asset-row-mobile { display: none; }
+
 .asset-row-buy-range {
   display: block;
 }
 
+/* Tablet: hide buy-range column to free space; everything else stays tabular */
 @media (max-width: 1100px) {
   .asset-row-buy-range {
     display: none;
+  }
+}
+
+/* Mobile: stacked card layout */
+@media (max-width: 767px) {
+  .asset-row-desktop { display: none; }
+  .asset-row-mobile { display: flex; }
+
+  .asset-row-mobile {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    min-height: 0;
+  }
+
+  .asset-row-mobile-line1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .asset-row-mobile-ticker {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-mid);
+    letter-spacing: 0.04em;
+  }
+
+  .asset-row-mobile-score {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    margin-left: auto;
+  }
+
+  .asset-row-mobile-name {
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .asset-row-mobile-line2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .asset-row-mobile-bars {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+
+  .asset-row-mobile-line4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .asset-row-mobile-line4 > * {
+    flex: 1;
+    min-width: 0;
   }
 }
