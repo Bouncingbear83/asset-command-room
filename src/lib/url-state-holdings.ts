@@ -54,6 +54,17 @@ const SORT_FIELDS: HoldingsSortField[] = [
 ];
 const GROUP_BYS: HoldingsGroupBy[] = ["none", "layer", "account", "tier"];
 
+// External URL aliases (from spec) → internal sort field names.
+// Lets users hand-craft URLs like ?sort=-gl_pct without breaking.
+const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
+  gl_pct: "gl",
+  mv_gbp: "mv",
+  day_pct: "day",
+  ann_ret: "annReturn",
+  true_pl: "truePL",
+  price_local: "price",
+};
+
 export function normalizeAlert(raw: string): HoldingsAlertStatus | null {
   const u = raw.trim().toUpperCase().replace(/\s+/g, "_");
   if ((ALERT_STATUS_VALUES as readonly string[]).includes(u)) return u as HoldingsAlertStatus;
