@@ -4,11 +4,14 @@ import {
   ChipGroup,
   SearchBox,
   GroupToggle,
+  FilterDisclosure,
+  MobileSortSelect,
   type GroupOption,
+  type MobileSortOption,
 } from "@/components/shared/filters";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
-import type { GroupBy } from "@/lib/url-state";
+import type { GroupBy, SortField } from "@/lib/url-state";
 
 interface Props {
   assets: AssetIntelligence[];
@@ -17,12 +20,15 @@ interface Props {
   layerFilter: Layer[];
   search: string;
   groupBy: GroupBy;
+  sortField: SortField;
+  sortDir: "asc" | "desc";
   onToggleStatus: (s: HeldStatus) => void;
   onResetStatus: () => void;
   onToggleLayer: (l: Layer) => void;
   onResetLayer: () => void;
   onSearchChange: (v: string) => void;
   onGroupChange: (g: GroupBy) => void;
+  onSortChange: (field: SortField, dir: "asc" | "desc") => void;
 }
 
 const GROUP_OPTIONS: GroupOption<GroupBy>[] = [
@@ -32,6 +38,16 @@ const GROUP_OPTIONS: GroupOption<GroupBy>[] = [
   { value: "tier",   label: "By Tier",    Icon: Tag },
 ];
 
+const SORT_OPTIONS: MobileSortOption<SortField>[] = [
+  { field: "score",        dir: "desc", label: "Score (high → low)" },
+  { field: "score",        dir: "asc",  label: "Score (low → high)" },
+  { field: "ticker",       dir: "asc",  label: "Ticker (A → Z)" },
+  { field: "ticker",       dir: "desc", label: "Ticker (Z → A)" },
+  { field: "layer",        dir: "asc",  label: "Layer" },
+  { field: "disruption",   dir: "desc", label: "Disruption (high → low)" },
+  { field: "buy_distance", dir: "asc",  label: "Buy distance (closest)" },
+];
+
 export function IntelligenceFilters({
   assets,
   total,
@@ -39,12 +55,15 @@ export function IntelligenceFilters({
   layerFilter,
   search,
   groupBy,
+  sortField,
+  sortDir,
   onToggleStatus,
   onResetStatus,
   onToggleLayer,
   onResetLayer,
   onSearchChange,
   onGroupChange,
+  onSortChange,
 }: Props) {
   // Counts always on full set so users can see distribution regardless of active filters.
   const statusCounts: Record<HeldStatus, number> = {
@@ -56,16 +75,13 @@ export function IntelligenceFilters({
   const allStatusesActive = statusFilter.length === 0;
   const allLayersActive = layerFilter.length === 0;
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px", borderBottom: "1px solid var(--rim)" }}>
-      {/* Row 1: search + grouping */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <SearchBox value={search} onChange={onSearchChange} />
-        <div style={{ marginLeft: "auto" }}>
-          <GroupToggle options={GROUP_OPTIONS} value={groupBy} onChange={onGroupChange} />
-        </div>
-      </div>
+  const activeCount =
+    (statusFilter.length > 0 ? 1 : 0) +
+    (layerFilter.length > 0 ? 1 : 0) +
+    (search.trim() ? 1 : 0);
 
+  const chipsBlock = (
+    <>
       {/* Row 2: status chips */}
       <ChipGroup ariaLabel="Filter by held status">
         <Chip
@@ -107,6 +123,29 @@ export function IntelligenceFilters({
           );
         })}
       </ChipGroup>
+    </>
+  );
+
+  const alwaysVisible = (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <SearchBox value={search} onChange={onSearchChange} />
+      <MobileSortSelect
+        options={SORT_OPTIONS}
+        field={sortField}
+        dir={sortDir}
+        onChange={onSortChange}
+      />
+      <div style={{ marginLeft: "auto" }}>
+        <GroupToggle options={GROUP_OPTIONS} value={groupBy} onChange={onGroupChange} />
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px", borderBottom: "1px solid var(--rim)" }}>
+      <FilterDisclosure activeCount={activeCount} alwaysVisible={alwaysVisible}>
+        {chipsBlock}
+      </FilterDisclosure>
     </div>
   );
 }
