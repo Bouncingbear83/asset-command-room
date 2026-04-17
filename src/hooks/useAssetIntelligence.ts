@@ -342,6 +342,8 @@ function buildOne(
   holdingsByTicker: Map<string, LiveHolding[]>,
   scoreRationaleByTicker: Map<string, ScoreRationaleRow>,
   disruptionRationaleByTicker: Map<string, DisruptionRationaleRow>,
+  trendByTicker: Map<string, TrendBuildContext>,
+  watchlistPriceByTicker: Map<string, number | null>,
 ): AssetIntelligence {
   const ticker = canonTicker(s.ticker);
   const held_status = normalizeHeldStatus(s.heldStatus, ticker);
@@ -365,6 +367,20 @@ function buildOne(
     disruption: buildDisruptionRationales(disruptionRationaleByTicker.get(ticker), disruptionData !== null),
   };
 
+  const trend = buildTrend(trendByTicker.get(ticker));
+
+  // Current price preference: held → position.price_local; else watchlist parsed
+  const lowFinal = buyLow && buyLow > 0 ? buyLow : null;
+  const highFinal = buyHigh && buyHigh > 0 ? buyHigh : null;
+  let current_price: number | null = null;
+  if (position && position.price_local > 0) {
+    current_price = position.price_local;
+  } else {
+    const w = watchlistPriceByTicker.get(ticker);
+    if (w !== undefined && w !== null) current_price = w;
+  }
+  const buy_distance = computeBuyDistance(current_price, lowFinal, highFinal);
+
   return {
     ticker,
     name: String(s.name ?? ""),
@@ -386,14 +402,17 @@ function buildOne(
     reclass_status: String(s.reclassStatus ?? ""),
     thesis_age_months: toNum0(s.thesisAgeMonths),
     buy_range: {
-      low: buyLow && buyLow > 0 ? buyLow : null,
-      high: buyHigh && buyHigh > 0 ? buyHigh : null,
+      low: lowFinal,
+      high: highFinal,
       currency: String(s.currency ?? "USD"),
     },
     action: String(s.action ?? ""),
     disruption: disruptionData,
     position,
     rationales,
+    trend,
+    current_price,
+    buy_distance,
   };
 }
 
