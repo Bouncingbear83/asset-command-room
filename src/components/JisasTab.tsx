@@ -313,7 +313,6 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
                         <span>{formatCurrency(h.mvGbp)}</span>
                         <span>{h.weightPct?.toFixed(1)}%</span>
-                        <span style={{ color: (h.glPct || 0) >= 0 ? "var(--green)" : "var(--red)" }}>{formatPct(h.glPct)}</span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                           <span style={{ width: 6, height: 6, borderRadius: "50%", background: hexColor, display: "inline-block" }} />
                           {h.layer}
