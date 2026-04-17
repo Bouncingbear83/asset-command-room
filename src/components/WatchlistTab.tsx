@@ -238,7 +238,7 @@ function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 
     const prompt = type === 'holding'
       ? `Deep dive on ${ticker}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`
       : `Watchlist review for ${ticker}. Search for latest developments. Reassess entry target, trigger condition, and thesis. Produce research commit JSON at the end.`;
-    const url = `https://claude.ai/new?q=${encodeURIComponent(prompt)}&project_uuid=019ca3a9-aefe-77ea-af76-db62fd96f4e1`;
+    const url = `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=${encodeURIComponent(prompt)}`;
     (window.top || window).open(url, '_blank');
   };
 
