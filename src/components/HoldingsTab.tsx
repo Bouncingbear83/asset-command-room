@@ -1,18 +1,35 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, usePortfolioData } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
-import { useRationales } from "@/hooks/useRationales";
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
-import { useTickerHistory } from "@/hooks/useTickerHistory";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { buildDeepDivePrompt } from "@/lib/claudePrompts";
 import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
+import { HoldingsHeader } from "@/components/holdings/HoldingsHeader";
+import { HoldingsFilters } from "@/components/holdings/HoldingsFilters";
+import { HoldingsGroupHeader } from "@/components/holdings/HoldingsGroupHeader";
+import {
+  DEFAULT_HOLDINGS_STATE,
+  holdingsStateFromParams,
+  holdingsStateToParams,
+  normalizeAlert,
+  normalizeAccount,
+  ALERT_STATUS_VALUES,
+  HOLDINGS_ACCOUNT_VALUES,
+  type HoldingsUiState,
+  type HoldingsSortField,
+  type HoldingsGroupBy,
+  type HoldingsAccount,
+  type HoldingsAlertStatus,
+} from "@/lib/url-state-holdings";
+import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -25,8 +42,8 @@ interface Props {
   priceData?: PriceDataMap;
 }
 
-type GroupMode = "layer" | "account" | "none";
-type SortKey = "ticker" | "name" | "layer" | "mv" | "gl" | "day" | "price" | "action" | "annReturn" | "cost" | "truePL" | "account";
+type GroupMode = HoldingsGroupBy;
+type SortKey = HoldingsSortField;
 type SortDir = "asc" | "desc";
 
 const ACTION_STYLE: Record<string, React.CSSProperties> = {
@@ -163,6 +180,12 @@ function UnifiedView({
   isaTotal,
   priceData,
   scores,
+  sortKey,
+  sortDir,
+  onSortChange,
+  layerWeights,
+  tierByTicker,
+  onLayerGroupClick,
 }: {
   allHoldings: LiveHolding[];
   totalAum: number;
@@ -173,10 +196,14 @@ function UnifiedView({
   isaTotal: number;
   priceData?: PriceDataMap;
   scores?: LiveScore[];
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSortChange: (key: SortKey) => void;
+  layerWeights: Map<string, { actual: number; target: number }>;
+  tierByTicker: Map<string, string>;
+  onLayerGroupClick: (layer: Layer) => void;
 }) {
   const isMobile = useIsMobile();
-  const [sortKey, setSortKey] = useState<SortKey>("mv");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Note: useRationales / useTickerHistory were removed when Holdings switched
@@ -200,26 +227,33 @@ function UnifiedView({
     });
   };
 
-  const handleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("desc"); }
-  };
+  const handleSort = (key: SortKey) => onSortChange(key);
 
-  // Build groups
+  // Build groups (CASH rows stay pinned at top, ungrouped)
+  const isCash = (h: LiveHolding) => (h.ticker || "").trim().toUpperCase() === "CASH";
+
   const groups: GroupInfo[] = useMemo(() => {
+    const positionsOnly = holdingsWithReturns.filter((h) => !isCash(h));
+
     if (groupMode === "none") {
       return [{
         key: "__all__",
         label: "",
-        holdings: holdingsWithReturns,
-        totalMv: totalAum,
+        holdings: positionsOnly,
+        totalMv: positionsOnly.reduce((s, h) => s + (h.mv || 0), 0),
         pctAum: 100,
       }];
     }
 
     const grouped = new Map<string, HoldingWithReturns[]>();
-    for (const h of holdingsWithReturns) {
-      const k = groupMode === "layer" ? (h.layer || "Uncategorised") : (h.account || "Unknown");
+    const keyFor = (h: HoldingWithReturns): string => {
+      if (groupMode === "layer") return h.layer || "Uncategorised";
+      if (groupMode === "account") return h.account || "Unknown";
+      // tier
+      return tierByTicker.get(h.ticker) || "Untiered";
+    };
+    for (const h of positionsOnly) {
+      const k = keyFor(h);
       if (!grouped.has(k)) grouped.set(k, []);
       grouped.get(k)!.push(h);
     }
@@ -241,12 +275,14 @@ function UnifiedView({
         };
       })
       .sort((a, b) => b.totalMv - a.totalMv);
-  }, [holdingsWithReturns, groupMode, totalAum]);
+  }, [holdingsWithReturns, groupMode, totalAum, tierByTicker]);
+
+  // CASH rows are always rendered at the top, ignored by sort/filter/group
+  const cashRows = holdingsWithReturns.filter(isCash);
 
   const visibleCols = UNIFIED_COLUMNS.filter(c => !(isMobile && c.hideMobile));
-  // Extra cols after Price: 30D, MA20, MA50, Cost, P&L, Ann.Ret, Notes, Action, chevron
-  const extraDesktopCols = 6; // 30D, MA20, MA50, Cost, P&L, Ann.Ret
-  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3); // +Notes +Action +chevron on desktop
+  const extraDesktopCols = 6;
+  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3);
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
   const pad = isMobile ? "8px 6px" : "8px 12px";
   const cellPad = isMobile ? "10px 6px" : "10px 12px";
@@ -288,33 +324,32 @@ function UnifiedView({
           </tr>
         </thead>
         <tbody>
+          {/* CASH rows pinned at the top, never sorted/filtered/grouped */}
+          {cashRows.map((h) => (
+            <tr key={`cash-${h.account}`} style={{ background: "rgba(28,28,48,0.4)", borderBottom: "1px solid var(--rim)" }}>
+              <td colSpan={totalCols + 1} style={{ padding: cellPad, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em" }}>
+                CASH · {h.account} · £{(h.mv || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+              </td>
+            </tr>
+          ))}
           {groups.map((group) => {
             const sortedHoldings = sortHoldings(group.holdings, sortKey, sortDir);
+            const layerWeight = groupMode === "layer" ? layerWeights.get(group.key) : undefined;
+            const groupClickable = groupMode === "layer" && (LAYER_VALUES as readonly string[]).includes(group.key);
             return (
-              <>{/* Group header */}
+              <>{/* Group header — rendered as a full-span row with the shared component inside */}
                 {groupMode !== "none" && (
-                  <tr key={`group-${group.key}`} style={{ background: "rgba(28,28,48,0.6)" }}>
-                    {groupMode === "layer" ? (
-                      <>
-                        <td colSpan={isMobile ? 2 : 4} style={{ padding: cellPad, color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                          {group.label}
-                          <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>{group.holdings.length}</span>
-                        </td>
-                        <td style={{ padding: cellPad, textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{group.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-                        <td style={{ padding: cellPad, textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>{group.pctAum.toFixed(1)}%</td>
-                        <td colSpan={totalCols - (isMobile ? 4 : 6)} />
-                      </>
-                    ) : (
-                      <>
-                        <td colSpan={isMobile ? 2 : 4} style={{ padding: cellPad, color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                          {group.label}
-                        </td>
-                        <td style={{ padding: cellPad, textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{group.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-                        <td colSpan={totalCols - (isMobile ? 3 : 5)} style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>
-                          {group.sublabel && <span>· {group.sublabel}</span>}
-                        </td>
-                      </>
-                    )}
+                  <tr key={`group-${group.key}`}>
+                    <td colSpan={totalCols + 1} style={{ padding: 0 }}>
+                      <HoldingsGroupHeader
+                        groupBy={groupMode}
+                        groupValue={group.label}
+                        holdings={group.holdings}
+                        totalAum={totalAum}
+                        weight={layerWeight}
+                        onClick={groupClickable ? () => onLayerGroupClick(group.key as Layer) : undefined}
+                      />
+                    </td>
                   </tr>
                 )}
                 {sortedHoldings.map((h) => {
@@ -634,7 +669,18 @@ function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: 
 
 export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [], priceData }: Props) {
   const [showPriceMap, setShowPriceMap] = useState(false);
-  const [groupMode, setGroupMode] = useState<GroupMode>("layer");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [state, setState] = useState<HoldingsUiState>(() => holdingsStateFromParams(searchParams));
+
+  // Sync state → URL (replace, not push)
+  useEffect(() => {
+    setSearchParams(holdingsStateToParams(state), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  const update = (patch: Partial<HoldingsUiState>) => setState((p) => ({ ...p, ...patch }));
+
+  const portfolio = usePortfolioData();
 
   const disruptionMap = new Map<string, LiveDisruption>();
   for (const d of disruption) {
@@ -649,7 +695,139 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   const sippTotal = sippData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
   const isaTotal = isaData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
 
-  const scoresMap = new Map(scores.map(s => [s.ticker, s]));
+  // Tier lookup from SCORES (case-insensitive ticker)
+  const tierByTicker = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim();
+      if (!t) continue;
+      const tier = String((s as { tier?: string }).tier ?? "").trim();
+      if (tier) m.set(t, tier);
+    }
+    return m;
+  }, [scores]);
+
+  // Layer weight lookup (for layer group headers)
+  const layerWeights = useMemo(() => {
+    const m = new Map<string, { actual: number; target: number }>();
+    for (const l of (portfolio.layers ?? []) as LiveLayer[]) {
+      if (!l.name) continue;
+      m.set(l.name.trim(), { actual: l.current ?? 0, target: l.target ?? 0 });
+    }
+    return m;
+  }, [portfolio.layers]);
+
+  // ── Counts (always on full set, exclude CASH) ────────────────────────────
+  const isCash = (h: LiveHolding) => (h.ticker || "").trim().toUpperCase() === "CASH";
+  const positions = allHoldings.filter((h) => !isCash(h));
+
+  const accountCounts = useMemo(() => {
+    const c: Record<HoldingsAccount, number> = { SIPP: 0, ISA: 0, "SIPP+ISA": 0 };
+    for (const h of positions) {
+      const a = normalizeAccount(h.account);
+      if (a) c[a]++;
+    }
+    return c;
+  }, [positions]);
+
+  const alertCounts = useMemo(() => {
+    const c: Record<HoldingsAlertStatus, number> = { CLEAR: 0, WATCH: 0, REVIEW: 0, ADD_ZONE: 0, EXIT_ZONE: 0 };
+    for (const h of positions) {
+      const a = normalizeAlert(h.alert_status);
+      if (a) c[a]++;
+    }
+    return c;
+  }, [positions]);
+
+  const layerCounts = useMemo(() => {
+    const c: Partial<Record<Layer, number>> = {};
+    for (const h of positions) {
+      const layerStr = (h.layer || "").trim();
+      const match = LAYER_VALUES.find((l) => l.toLowerCase() === layerStr.toLowerCase());
+      if (match) c[match] = (c[match] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
+  const nonClearAlertCount = positions.reduce((s, h) => {
+    const a = normalizeAlert(h.alert_status);
+    return a && a !== "CLEAR" ? s + 1 : s;
+  }, 0);
+
+  // ── Filter pipeline (CASH always passes through) ─────────────────────────
+  const filteredHoldings = useMemo(() => {
+    const q = state.search.trim().toLowerCase();
+    return allHoldings.filter((h) => {
+      if (isCash(h)) return true;
+      if (state.accountFilter.length > 0) {
+        const a = normalizeAccount(h.account);
+        if (!a || !state.accountFilter.includes(a)) return false;
+      }
+      if (state.alertFilter.length > 0) {
+        const a = normalizeAlert(h.alert_status);
+        if (!a || !state.alertFilter.includes(a)) return false;
+      }
+      if (state.layerFilter.length > 0) {
+        const layerStr = (h.layer || "").trim();
+        const match = LAYER_VALUES.find((l) => l.toLowerCase() === layerStr.toLowerCase());
+        if (!match || !state.layerFilter.includes(match)) return false;
+      }
+      if (q) {
+        const hay = `${h.ticker} ${h.name}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [allHoldings, state.accountFilter, state.alertFilter, state.layerFilter, state.search]);
+
+  const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  const toggleAccount = (a: HoldingsAccount) => {
+    setState((prev) => {
+      const has = prev.accountFilter.includes(a);
+      const next = has ? prev.accountFilter.filter((x) => x !== a) : [...prev.accountFilter, a];
+      const allOn = HOLDINGS_ACCOUNT_VALUES.every((v) => next.includes(v));
+      return { ...prev, accountFilter: allOn ? [] : next };
+    });
+  };
+  const toggleAlert = (a: HoldingsAlertStatus) => {
+    setState((prev) => {
+      const has = prev.alertFilter.includes(a);
+      const next = has ? prev.alertFilter.filter((x) => x !== a) : [...prev.alertFilter, a];
+      const allOn = (ALERT_STATUS_VALUES as readonly HoldingsAlertStatus[]).every((v) => next.includes(v));
+      return { ...prev, alertFilter: allOn ? [] : next };
+    });
+  };
+  const toggleLayer = (l: Layer) => {
+    setState((prev) => {
+      const has = prev.layerFilter.includes(l);
+      const next = has ? prev.layerFilter.filter((x) => x !== l) : [...prev.layerFilter, l];
+      const allOn = LAYER_VALUES.every((v) => next.includes(v));
+      return { ...prev, layerFilter: allOn ? [] : next };
+    });
+  };
+
+  const handleSort = (field: HoldingsSortField) => {
+    setState((prev) => {
+      if (prev.sortField === field) {
+        return { ...prev, sortDir: prev.sortDir === "asc" ? "desc" : "asc" };
+      }
+      const dir: "asc" | "desc" = field === "ticker" || field === "name" || field === "layer" || field === "account" || field === "action" ? "asc" : "desc";
+      return { ...prev, sortField: field, sortDir: dir };
+    });
+  };
+
+  const showAlerts = () => update({ alertFilter: ["WATCH", "REVIEW", "ADD_ZONE", "EXIT_ZONE"] });
+  const onLayerGroupClick = (l: Layer) => update({ layerFilter: [l] });
+
+  const sortLabel = `${state.sortField} ${state.sortDir}`;
+  const groupLabel = state.groupBy;
+  const hasFilters =
+    state.accountFilter.length > 0 ||
+    state.alertFilter.length > 0 ||
+    state.layerFilter.length > 0 ||
+    state.search.trim() !== "";
 
   return (
     <div>
@@ -660,7 +838,6 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         <div style={cardHeader}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={cardTitle}>Holdings</span>
-            {!showPriceMap && <GroupByDropdown value={groupMode} onChange={setGroupMode} />}
           </div>
           <ToggleButton active={showPriceMap} label="Price Map" onClick={() => setShowPriceMap(!showPriceMap)} />
         </div>
@@ -668,17 +845,80 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         {showPriceMap ? (
           <PriceMapView allHoldings={allHoldings} priceData={priceData} />
         ) : (
-          <UnifiedView
-            allHoldings={allHoldings}
-            totalAum={totalAum}
-            transactions={transactions}
-            disruptionMap={disruptionMap}
-            groupMode={groupMode}
-            sippTotal={sippTotal}
-            isaTotal={isaTotal}
-            priceData={priceData}
-            scores={scores}
-          />
+          <>
+            <HoldingsHeader
+              positionCount={positions.length}
+              accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"] }}
+              alertCount={nonClearAlertCount}
+              filteredCount={filteredPositionCount}
+              sortLabel={sortLabel}
+              groupLabel={groupLabel}
+              hasFilters={hasFilters}
+              onShowAlerts={showAlerts}
+            />
+            <HoldingsFilters
+              accountCounts={accountCounts}
+              alertCounts={alertCounts}
+              layerCounts={layerCounts}
+              totalPositions={positions.length}
+              accountFilter={state.accountFilter}
+              alertFilter={state.alertFilter}
+              layerFilter={state.layerFilter}
+              search={state.search}
+              groupBy={state.groupBy}
+              onToggleAccount={toggleAccount}
+              onResetAccount={() => update({ accountFilter: [] })}
+              onToggleAlert={toggleAlert}
+              onResetAlert={() => update({ alertFilter: [] })}
+              onToggleLayer={toggleLayer}
+              onResetLayer={() => update({ layerFilter: [] })}
+              onSearchChange={(v) => update({ search: v })}
+              onGroupChange={(g) => update({ groupBy: g })}
+            />
+            {filteredPositionCount === 0 ? (
+              <div style={{ padding: 40, textAlign: "center" }}>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>
+                  No positions match these filters.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setState(DEFAULT_HOLDINGS_STATE)}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--gold-dim, rgba(201,168,76,0.4))",
+                    color: "var(--gold)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    padding: "6px 14px",
+                    cursor: "pointer",
+                    borderRadius: 2,
+                  }}
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <UnifiedView
+                allHoldings={filteredHoldings}
+                totalAum={totalAum}
+                transactions={transactions}
+                disruptionMap={disruptionMap}
+                groupMode={state.groupBy}
+                sippTotal={sippTotal}
+                isaTotal={isaTotal}
+                priceData={priceData}
+                scores={scores}
+                sortKey={state.sortField}
+                sortDir={state.sortDir}
+                onSortChange={handleSort}
+                layerWeights={layerWeights}
+                tierByTicker={tierByTicker}
+                onLayerGroupClick={onLayerGroupClick}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
