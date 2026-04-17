@@ -296,9 +296,14 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          {hasReturns && (
+                          {hasReturns && r!.daysHeld >= 365 && (
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
                               {r!.annualisedReturn >= 0 ? "+" : ""}{r!.annualisedReturn.toFixed(1)}% pa
+                            </span>
+                          )}
+                          {hasReturns && r!.daysHeld < 365 && (
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.truePLpct >= 0 ? "var(--green)" : "var(--red)" }}>
+                              {r!.truePLpct >= 0 ? "+" : ""}{r!.truePLpct.toFixed(1)}%
                             </span>
                           )}
                           <span style={{ fontSize: 10, color: "var(--text-dim)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
@@ -421,7 +426,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                           <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text-dim)", fontSize: 10 }}>{hasReturns ? formatCurrency(r!.totalCost) : "—"}</td>
                           <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                           <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.truePLpct >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePLpct >= 0 ? "+" : ""}${r!.truePLpct.toFixed(1)}%` : "—"}</td>
-                          <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}% pa` : "—"}</td>
+                          <td style={{ padding: "7px 6px", textAlign: "right", color: hasReturns && r!.daysHeld >= 365 ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns && r!.daysHeld >= 365 ? 700 : 400, fontSize: hasReturns && r!.daysHeld >= 365 ? 12 : 11 }} title={hasReturns && r!.daysHeld < 365 ? `Held ${r!.daysHeld}d — annualisation suppressed (<1y)` : undefined}>{hasReturns && r!.daysHeld >= 365 ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}% pa` : "—"}</td>
                         </tr>
                         {isExpanded && (
                           <tr>
