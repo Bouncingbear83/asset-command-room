@@ -3,7 +3,7 @@ import { ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import { LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const CLAUDE_PROJECT_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
+const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
 const VALID_PREFIXES = ["W_EXIT", "W_FACTOR", "W_STALE", "M_REVIEW", "Q_REVIEW"] as const;
 type ValidPrefix = typeof VALID_PREFIXES[number];
@@ -257,7 +257,8 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                           </div>
                           <button
                             onClick={() => {
-                              const url = `${CLAUDE_PROJECT_URL}#${encodeURIComponent(flag.ticker)}-${flag.prefix}`;
+                              const prompt = `Review flag ${flag.prefix} on ${flag.ticker}. Type: ${flag.flagType}. Priority: ${flag.priority}. Reason: ${flag.reason || "—"}. Reassess thesis and produce Research Commit.`;
+                              const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                               (window.top || window).open(url, "_blank");
                             }}
                             style={{
