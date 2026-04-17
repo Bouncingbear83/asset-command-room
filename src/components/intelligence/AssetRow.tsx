@@ -346,6 +346,43 @@ function DisruptionBadge({ asset }: { asset: AssetIntelligence }) {
   );
 }
 
+// ── Mobile-only inline (fit-content) chip variants ─────────────────────────
+
+function StatusChipInline({ status }: { status: HeldStatus }) {
+  const style = STATUS_STYLE[status];
+  return (
+    <span style={{
+      padding: "2px 6px", fontFamily: "var(--font-mono)", fontSize: 8,
+      letterSpacing: "0.12em", textTransform: "uppercase", borderRadius: 2,
+      whiteSpace: "nowrap", flexShrink: 0, ...style,
+    }}>{status.replace("_", " ")}</span>
+  );
+}
+
+function LayerChipInline({ layer }: { layer: Layer }) {
+  const c = LAYER_PALETTE[layer];
+  return (
+    <span style={{
+      padding: "2px 6px", fontFamily: "var(--font-mono)", fontSize: 8,
+      letterSpacing: "0.1em", textTransform: "uppercase", borderRadius: 2,
+      whiteSpace: "nowrap", flexShrink: 0,
+      background: c.bg, color: c.fg, border: `1px solid ${c.border}`,
+    }}>{layer}</span>
+  );
+}
+
+function DisruptionBadgeInline({ asset }: { asset: AssetIntelligence }) {
+  if (!asset.disruption) return null;
+  const c = disruptionColor(asset.disruption.status);
+  return (
+    <span style={{
+      padding: "2px 6px", fontFamily: "var(--font-mono)", fontSize: 8,
+      letterSpacing: "0.1em", borderRadius: 2, whiteSpace: "nowrap",
+      flexShrink: 0, background: c.bg, color: c.fg, border: `1px solid ${c.border}`,
+    }}>{asset.disruption.status} {Math.round(asset.disruption.total)}</span>
+  );
+}
+
 // ── Main row ────────────────────────────────────────────────────────────────
 
 export function AssetRow({ asset, expanded, onToggle }: Props) {
