@@ -248,12 +248,13 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
   };
 
   const toggleDisruptionExpand = (ticker: string) => {
+    const key = `d-${ticker}`;
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(ticker)) {
-        next.delete(ticker);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(ticker);
+        next.add(key);
         fetchDisruptionRationales(ticker);
       }
       return next;
