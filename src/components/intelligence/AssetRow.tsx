@@ -395,25 +395,25 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <LayerChip layer={asset.layer} />
         </div>
 
-        {/* Score (delta placeholder for later) */}
-        {/* TODO: wire trend Δ from SCORE_LOG once hook exposes it */}
+        {/* Score + trend Δ */}
         <div style={{ width: 64, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600, color: scoreColor(asset.score), lineHeight: 1 }}>
             {Math.round(asset.score)}
           </span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em", marginTop: 2 }}>
-            /100
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>/100</span>
+            <TrendIndicator trend={asset.trend.score} />
+          </div>
         </div>
 
         {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
         <div style={{ flex: 1, minWidth: 280, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-          <MiniBar value={asset.sub_scores.substrate}        max={25} />
-          <MiniBar value={asset.sub_scores.demand}           max={22} />
-          <MiniBar value={asset.sub_scores.moat}             max={18} />
-          <MiniBar value={asset.sub_scores.valuation}        max={13} />
-          <MiniBar value={asset.sub_scores.mgmt}             max={7} />
-          <MiniBar value={asset.sub_scores.disruption_score} max={15} />
+          <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
+          <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
+          <MiniBar value={asset.sub_scores.moat}             max={18} trend={asset.trend.moat} />
+          <MiniBar value={asset.sub_scores.valuation}        max={13} trend={asset.trend.valuation} />
+          <MiniBar value={asset.sub_scores.mgmt}             max={7}  trend={asset.trend.mgmt} />
+          <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
         </div>
 
         {/* Disruption deep-dive badge */}
@@ -421,9 +421,15 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <DisruptionBadge asset={asset} />
         </div>
 
-        {/* Buy range — hidden below 1100px (still in expansion) */}
-        <div className="asset-row-buy-range" style={{ width: 96, flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", textAlign: "right" }}>
-          {formatBuyRange(asset.buy_range.low, asset.buy_range.high, asset.buy_range.currency)}
+        {/* Distance chip — replaces static buy range. Hidden below 1100px. */}
+        <div className="asset-row-buy-range" style={{ width: 96, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+          <DistanceChip
+            buyDistance={asset.buy_distance}
+            currentPrice={asset.current_price}
+            low={asset.buy_range.low}
+            high={asset.buy_range.high}
+            currency={asset.buy_range.currency}
+          />
         </div>
 
         {/* Status chip */}
