@@ -2,18 +2,19 @@
  * Shared column-width tokens for the Intelligence list.
  * Both AssetRow and IntelligenceListHeader import from here so they never drift.
  *
- * Values mirror AssetRow exactly. Update both at once if you change a column.
+ * All cells are FIXED-WIDTH; chips inside are natural-sized but their containing
+ * cell is locked, so 6D bars and trailing chips align across every row.
  */
 
 export const COL = {
   ticker: 96,
-  layer: 84,
+  layer: 100,            // widest label is "SOVEREIGNTY"
   score: 64,
-  bars: { flex: 1, minWidth: 280 }, // 6 bars in equal grid
-  disruption: 88,
-  buyRange: 96,
-  status: 110,
-  chevron: 16,
+  bars: { flex: 1, minWidth: 420 }, // 6 bars in equal grid
+  disruption: 84,        // "GREEN 100" fits
+  buyRange: 92,          // "IN ZONE" / "+287%" / "£1400–1500"
+  status: 104,           // "WATCHLIST" fits
+  chevron: 20,
   rowGap: 12,
   rowPadX: 12,
 } as const;
