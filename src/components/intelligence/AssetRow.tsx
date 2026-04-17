@@ -166,13 +166,18 @@ function DistanceChip({
   currency: string;
 }) {
   const baseChip: CSSProperties = {
-    display: "inline-block",
+    display: "block",
+    width: "100%",
     padding: "3px 6px",
     fontFamily: "var(--font-mono)",
     fontSize: 10,
     letterSpacing: "0.06em",
+    textAlign: "center",
     borderRadius: 2,
     whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    boxSizing: "border-box",
   };
   const sym = CURRENCY_SYMBOL[currency.toUpperCase()] ?? "";
   const fmt = (n: number) => (n >= 1000 ? n.toFixed(0) : n.toFixed(n < 10 ? 2 : 1));
@@ -239,22 +244,36 @@ function DistanceChip({
 
 function LayerChip({ layer }: { layer: Layer | null }) {
   if (!layer) {
-    return <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>—</span>;
+    return (
+      <span style={{
+        display: "block",
+        width: "100%",
+        fontFamily: "var(--font-mono)",
+        fontSize: 11,
+        color: "var(--text-dim)",
+        textAlign: "center",
+      }}>—</span>
+    );
   }
   const c = LAYER_PALETTE[layer];
   return (
     <span style={{
-      display: "inline-block",
-      padding: "2px 8px",
+      display: "block",
+      width: "100%",
+      padding: "3px 6px",
       fontFamily: "var(--font-mono)",
       fontSize: 9,
       letterSpacing: "0.1em",
       textTransform: "uppercase",
+      textAlign: "center",
       background: c.bg,
       color: c.fg,
       border: `1px solid ${c.border}`,
       borderRadius: 2,
       whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      boxSizing: "border-box",
     }}>
       {layer}
     </span>
@@ -265,14 +284,19 @@ function StatusChip({ status }: { status: HeldStatus }) {
   const style = STATUS_STYLE[status];
   return (
     <span style={{
-      display: "inline-block",
-      padding: "3px 10px",
+      display: "block",
+      width: "100%",
+      padding: "3px 6px",
       fontFamily: "var(--font-mono)",
       fontSize: 9,
       letterSpacing: "0.12em",
       textTransform: "uppercase",
+      textAlign: "center",
       borderRadius: 2,
       whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      boxSizing: "border-box",
       ...style,
     }}>
       {status.replace("_", " ")}
@@ -281,18 +305,26 @@ function StatusChip({ status }: { status: HeldStatus }) {
 }
 
 function DisruptionBadge({ asset }: { asset: AssetIntelligence }) {
+  const baseFill: CSSProperties = {
+    display: "block",
+    width: "100%",
+    padding: "3px 6px",
+    fontFamily: "var(--font-mono)",
+    fontSize: 9,
+    letterSpacing: "0.1em",
+    textAlign: "center",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    boxSizing: "border-box",
+  };
   if (!asset.disruption) {
     return (
       <span style={{
-        display: "inline-block",
-        padding: "3px 10px",
-        fontFamily: "var(--font-mono)",
-        fontSize: 9,
-        letterSpacing: "0.1em",
+        ...baseFill,
         color: "var(--text-dim)",
         border: "1px solid var(--rim)",
-        borderRadius: 2,
-        whiteSpace: "nowrap",
       }}>
         — n/a
       </span>
@@ -303,16 +335,10 @@ function DisruptionBadge({ asset }: { asset: AssetIntelligence }) {
     <span
       title={`Last assessed: ${asset.disruption.last_checked || "—"}`}
       style={{
-        display: "inline-block",
-        padding: "3px 10px",
-        fontFamily: "var(--font-mono)",
-        fontSize: 9,
-        letterSpacing: "0.1em",
+        ...baseFill,
         background: c.bg,
         color: c.fg,
         border: `1px solid ${c.border}`,
-        borderRadius: 2,
-        whiteSpace: "nowrap",
       }}
     >
       {asset.disruption.status} {Math.round(asset.disruption.total)}
