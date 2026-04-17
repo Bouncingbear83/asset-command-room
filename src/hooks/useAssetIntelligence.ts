@@ -438,7 +438,7 @@ async function fetchLatestRationales<T extends { ticker: string; scored_at: stri
   }
 
   const map = new Map<string, T>();
-  for (const raw of (data ?? []) as T[]) {
+  for (const raw of (data ?? []) as unknown as T[]) {
     const t = canonTicker(raw.ticker);
     if (!t) continue;
     if (!map.has(t)) map.set(t, raw); // first wins = newest (ordered desc)
