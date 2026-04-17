@@ -1,5 +1,40 @@
 import { LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
+import { CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+
+function buildPostEarningsPrompt(ticker: string): string {
+  return `Post-earnings thesis check for ${ticker}.
+
+Execute:
+
+1. Load HOLDINGS + SCORES + DISRUPTION + EARNINGS_CALENDAR for ${ticker}
+
+2. Pull the pre-earnings PREP email content if I paste it — otherwise proceed without
+
+3. Web search: earnings release, call transcript highlights, analyst reactions, management guidance changes, competitor responses
+
+4. Assess against substrate-layer metrics (not just consensus beat/miss):
+
+   - Did the metric that actually matters for the Stellar thesis move the right way?
+
+   - Any commentary on substrate positioning, pricing power, capacity, moat?
+
+5. Trigger check: did any ADD_TRIGGER or EXIT_TRIGGER fire per HOLDINGS cols AB-AF?
+
+6. Disruption check: did any amber/red trigger proximity change?
+
+7. Reclassification check: did management commentary or analyst reaction shift RECLASS_STATUS?
+
+8. Output:
+
+   - Decision: HOLD / SIZE UP / SIZE DOWN / EXIT
+
+   - If score changes: Research Commit (UPDATE_SCORE) with rationales
+
+   - If triggers fired: Research Commit with action-specific updates
+
+   - If no change: brief confirmation note for session record`;
+}
 
 interface Props {
   items: LiveEarningsCalendarItem[];
@@ -138,13 +173,25 @@ export default function EarningsCalendarTab({ items }: Props) {
                     </td>
                     <td style={{ padding: "12px 16px", color: "var(--text-dim)" }}>{formatDate(item.lastUpdated)}</td>
                     <td style={{ padding: "12px 8px" }}>
-                      <button
-                        title={`Earnings prep for ${item.ticker}`}
-                        onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}. Check email.`)}
-                        style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s" }}
-                      >
-                        📋 Prep
-                      </button>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          title={`Earnings prep for ${item.ticker}`}
+                          onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}. Check email.`)}
+                          style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s" }}
+                        >
+                          📋 Prep
+                        </button>
+                        <button
+                          title={`Post-earnings thesis check for ${item.ticker}`}
+                          onClick={() => {
+                            const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(buildPostEarningsPrompt(item.ticker))}`;
+                            (window.top || window).open(url, "_blank");
+                          }}
+                          style={{ background: "none", border: "1px solid var(--accent)", color: "var(--accent)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s" }}
+                        >
+                          🔬 Post
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
