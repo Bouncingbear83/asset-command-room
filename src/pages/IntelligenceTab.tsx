@@ -225,6 +225,63 @@ export default function IntelligenceTab() {
     state.layerFilter.length > 0 ||
     state.search.trim() !== "";
 
+  // ── Rationale coverage telemetry (Part 4) ────────────────────────────────
+  const rationaleCoverage = useMemo(() => {
+    const hasScoreRationale = (a: AssetIntelligence) => {
+      const r = a.rationales.score;
+      return Boolean(
+        r.substrate?.trim() || r.demand?.trim() || r.moat?.trim() ||
+        r.valuation?.trim() || r.mgmt?.trim() || r.disruption?.trim(),
+      );
+    };
+    const hasDisruptionRationale = (a: AssetIntelligence) => {
+      const r = a.rationales.disruption;
+      if (!r) return false;
+      return Boolean(
+        r.sub_avail?.trim() || r.economics?.trim() || r.govt_support?.trim() ||
+        r.demand_vuln?.trim() || r.time_viability?.trim(),
+      );
+    };
+    const scoreHits = data.filter(hasScoreRationale).length;
+    const scoreTotal = data.length;
+    const disruptionAssets = data.filter((a) => a.disruption !== null);
+    const disruptionHits = disruptionAssets.filter(hasDisruptionRationale).length;
+    const disruptionTotal = disruptionAssets.length;
+    const missing = data
+      .filter((a) => !hasScoreRationale(a))
+      .slice(0, 5)
+      .map((a) => a.ticker);
+    return { scoreHits, scoreTotal, disruptionHits, disruptionTotal, missing };
+  }, [data]);
+
+  const [coverageDismissed, setCoverageDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem("intelligence:coverageDismissed") === "1"; } catch { return false; }
+  });
+  const dismissCoverage = () => {
+    try { localStorage.setItem("intelligence:coverageDismissed", "1"); } catch { /* noop */ }
+    setCoverageDismissed(true);
+  };
+
+  const scorePct = rationaleCoverage.scoreTotal > 0
+    ? (rationaleCoverage.scoreHits / rationaleCoverage.scoreTotal) * 100 : 100;
+  const disruptionPct = rationaleCoverage.disruptionTotal > 0
+    ? (rationaleCoverage.disruptionHits / rationaleCoverage.disruptionTotal) * 100 : 100;
+  const showCoverageBanner = !coverageDismissed && !loading && data.length > 0 && (scorePct < 80 || disruptionPct < 80);
+
+  // ── Thesis backfill console warning (Part 5) ─────────────────────────────
+  useEffect(() => {
+    if (loading || data.length === 0) return;
+    const heldEmptyThesis = data
+      .filter((a) => a.held_status === "HELD" && !a.thesis?.trim())
+      .map((a) => a.ticker);
+    if (heldEmptyThesis.length > 0) {
+      console.warn(
+        `[Intelligence] ${heldEmptyThesis.length} HELD tickers have empty full_thesis. Backfill via Research Commit:`,
+        heldEmptyThesis,
+      );
+    }
+  }, [data, loading]);
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: "12px 0" }}>
@@ -250,6 +307,55 @@ export default function IntelligenceTab() {
         groupLabel={groupLabel}
         hasFilters={hasFilters}
       />
+
+      {showCoverageBanner && (
+        <div style={{
+          margin: "0 16px 12px",
+          padding: "10px 14px",
+          border: "1px solid var(--rim)",
+          background: "rgba(28,28,48,0.35)",
+          borderRadius: 4,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          color: "var(--text-mid)",
+          lineHeight: 1.5,
+        }}>
+          <span style={{ color: "var(--gold)" }}>📊</span>
+          <div style={{ flex: 1 }}>
+            <div>
+              Rationale coverage: <strong style={{ color: "var(--text-mid)" }}>{rationaleCoverage.scoreHits}/{rationaleCoverage.scoreTotal}</strong> score rationales ({Math.round(scorePct)}%)
+              {" · "}
+              <strong style={{ color: "var(--text-mid)" }}>{rationaleCoverage.disruptionHits}/{rationaleCoverage.disruptionTotal}</strong> disruption rationales ({Math.round(disruptionPct)}%)
+            </div>
+            {rationaleCoverage.missing.length > 0 && (
+              <div style={{ marginTop: 4, fontSize: 10, color: "var(--text-dim)" }}>
+                Tickers missing: {rationaleCoverage.missing.join(", ")}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={dismissCoverage}
+            aria-label="Dismiss coverage banner"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--rim)",
+              color: "var(--text-dim)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              padding: "2px 8px",
+              cursor: "pointer",
+              borderRadius: 2,
+            }}
+          >
+            DISMISS
+          </button>
+        </div>
+      )}
 
       {error && (
         <div style={{ margin: "16px", padding: 12, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--red)", border: "1px solid rgba(200,90,90,0.3)", background: "var(--red-dim)" }}>
