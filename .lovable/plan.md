@@ -1,60 +1,42 @@
 
 
-## Audit & Fix: Claude Deep-Link Consistency
+## Fix JISA G/L% column — wrong source mapping
 
-### Problem
-Claude links across the dashboard use **three different URL patterns** and **two different project IDs** — some don't reach the correct Stellar project, some don't pre-fill prompts properly.
+### What's wrong
 
-### Current state
+Looking at the screenshot:
 
-| File | Project ID | URL pattern | Issue |
-|---|---|---|---|
-| `CommandTab.tsx` | `019ca3a9…` (correct) | `claude.ai/new?q=…&project_uuid=…` | Uses `/new` route, not `/project/<id>` |
-| `ScoresTab.tsx` | `019ca3a9…` (correct) | `claude.ai/project/<id>?prompt=…` | ✅ matches user spec |
-| `HoldingsTab.tsx` | `019ca3a9…` (correct) | `claude.ai/project/<id>?prompt=…` | ✅ matches user spec |
-| `WatchlistTab.tsx` | `019ca3a9…` (correct) | `claude.ai/new?q=…&project_uuid=…` | Uses `/new` route |
-| `ReviewQueue.tsx` | `be2a318a…` ❌ **WRONG** (Lovable project ID, not Claude project ID) | `claude.ai/project/<id>#…` | Wrong project + uses `#hash` not `?prompt=` |
+| Ticker | G/L % shown | P&L £ shown | True G/L % (P&L ÷ Cost) | Return % shown |
+|---|---|---|---|---|
+| VWRP | +158.1% | £158 | 0.6% | +0.6% |
+| SMH | +2467.1% | £2,467 | 39.5% | +39.5% |
+| NVDA | +215.8% | £216 | 2.9% | +2.9% |
 
-### Standardisation
-Per user spec, every Claude button should use:
-```
-https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=<URL_ENCODED_PROMPT>
-```
-Opened via `(window.top || window).open(url, '_blank')` (iframe CSP bypass — already a project rule).
+The **G/L % column is just echoing the £ P&L number with a `%` slapped on it.** It's reading from sheet columns AH/AI/AJ (indices 33/34/35), but those columns clearly contain GBP G/L values (same data as AE/AF/AG at indices 30/31/32 which we already use as `glGbpCol`), not percentages.
 
-### Changes
+The **Return %** column is computed independently from transactions (`calcHoldingReturns` → `(mv − cost) / cost`) and is correct.
 
-**1. `src/components/CommandTab.tsx`** — Rewrite `getClaudeUrl`:
-```ts
-function getClaudeUrl(prompt: string) {
-  const base = `https://claude.ai/project/${PROJECT_ID}`;
-  return prompt ? `${base}?prompt=${encodeURIComponent(prompt)}` : base;
-}
-```
+### Two options
 
-**2. `src/components/WatchlistTab.tsx`** (line ~241) — Replace:
-```ts
-const url = `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=${encodeURIComponent(prompt)}`;
-```
+**Option A — Drop the G/L % column entirely** (recommended)
+Return % already captures the same concept (true % gain on cost basis) and is computed correctly from transactions. The sheet G/L% column is redundant and broken. Removing it tightens the table and removes the misleading number.
 
-**3. `src/components/ReviewQueue.tsx`** — Two fixes:
-- Change project ID from `be2a318a-707e-4e8d-ae4b-23f3eab50633` (Lovable ID — wrong) to `019ca3a9-aefe-77ea-af76-db62fd96f4e1` (Stellar Claude project).
-- Replace the `#${ticker}-${prefix}` hash anchor (does nothing useful in Claude) with a proper pre-filled prompt, e.g.:
-  ```ts
-  const prompt = `Review flag ${flag.prefix} on ${flag.ticker}. Reason: ${flag.reason || '—'}. Reassess thesis and produce Research Commit.`;
-  const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
-  ```
+**Option B — Find the real G/L% columns in the JISA sheet**
+Inspect the JISA sheet to locate the actual G/L % columns (likely further right than AH-AJ) and remap `glPctCol`. Keep both columns. Risk: more sheet drift.
 
-**4. `ScoresTab.tsx` & `HoldingsTab.tsx`** — Already correct, no changes.
+### Recommendation
 
-**5. Memory** — Update `mem://features/claude-integration-strategy` to record the canonical URL pattern (`/project/<id>?prompt=…`) so future buttons stay consistent.
+Go with **Option A**. Reasoning:
+- Return % is doctrine-correct (Average Cost Method, computed from TRANSACTIONS) — matches the methodology used elsewhere in the dashboard
+- The sheet's G/L % column adds nothing Return % doesn't already give
+- Fewer columns = cleaner table, especially given Cost £ + P&L £ + Return % + Ann. Return already cover the return story
 
-### Files touched
-- `src/components/CommandTab.tsx`
-- `src/components/WatchlistTab.tsx`
-- `src/components/ReviewQueue.tsx`
-- `.lovable/memory/features/claude-integration-strategy.md`
+### Files touched (Option A)
+
+- `src/components/JisasTab.tsx` — remove the `<th>G/L %</th>` and corresponding `<td>` from the desktop table; remove the duplicated G/L% chip from the mobile card (line 316); keep child-summary G/L (computed from cost vs MV — that one's correct).
+- `src/hooks/usePortfolioData.ts` — leave `glPct` field in the interface for now (no harm, just unused); optionally drop `glPctCol` from `CHILDREN_MAP` later.
 
 ### Expected result
-Every Claude button in the app opens the **Stellar Claude project** (`019ca3a9…`) with the relevant prompt pre-filled in the chat box, ready to send.
+
+JISA holdings table goes from 13 columns → 12 columns. Return % becomes the single source of truth for per-holding % gain. No more "+2467.1%" lies.
 
