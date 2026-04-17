@@ -352,7 +352,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Weight %</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Target %</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Drift</th>
-                <th style={{ textAlign: "right", padding: "8px 6px" }}>G/L %</th>
+                
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Cost £</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>P&L £</th>
                 <th style={{ textAlign: "right", padding: "8px 6px" }}>Return %</th>
