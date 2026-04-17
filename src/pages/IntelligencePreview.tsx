@@ -34,6 +34,23 @@ const FIXTURES: AssetIntelligence[] = [
       add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: null, trigger_price_exit: null,
       alert_status: "CLEAR", factor_primary: "Compute",
     },
+    rationales: {
+      score: {
+        substrate: "Dominant CUDA + hardware substrate; structural moat compounding via developer lock-in across the entire ML stack.",
+        demand: "Hyperscaler capex still inflecting; inference TAM widens faster than training plateaus.",
+        moat: "Software ecosystem moat is the binding constraint, not silicon. ROCm gap remains material through 2027.",
+        valuation: "Stretched on FY26 but reasonable on FY28 if inference scales as expected.",
+        mgmt: "Founder-led, exceptional capital allocation, candid disclosure.",
+        disruption: "ASIC threat real but slower than bears claim; CUDA stickiness underestimated.",
+      },
+      disruption: {
+        sub_avail: "No viable substitute at scale through 2027; ROCm gap remains material.",
+        economics: "Margin profile resilient; pricing power intact across H100/H200/B200.",
+        govt_support: "Export controls a tailwind for domestic share, headwind for China revenue.",
+        demand_vuln: "Concentration risk in top-5 hyperscalers; inference diversifies the base.",
+        time_viability: "Multi-year moat; competitive landscape shifts measured in years not quarters.",
+      },
+    },
   },
   {
     ticker: "KLAC",
@@ -55,6 +72,23 @@ const FIXTURES: AssetIntelligence[] = [
       evidence: "Memory capex tracking light vs Q1 guide.", last_checked: "2025-04-09",
     },
     position: null,
+    rationales: {
+      score: {
+        substrate: "Inspection/metrology duopoly with no credible challenger.",
+        demand: "Tied to leading-edge logic capex; cyclical near-term.",
+        moat: "Patent estate + service revenue base; replacement risk near zero.",
+        valuation: "Trading mid-band of 5y multiple; entry better below $580.",
+        mgmt: "Conservative capital allocators; consistent buybacks.",
+        disruption: "EUV inspection complexity widens KLA's lead.",
+      },
+      disruption: {
+        sub_avail: "No drop-in replacement for advanced inspection.",
+        economics: "Service revenue cushions cyclicality.",
+        govt_support: "CHIPS Act adjacent benefit.",
+        demand_vuln: "Memory capex pause is the chief near-term risk.",
+        time_viability: "Multi-year visibility from logic node ramps.",
+      },
+    },
   },
   {
     ticker: "APD",
@@ -77,6 +111,23 @@ const FIXTURES: AssetIntelligence[] = [
       evidence: "Hydrogen tax credit clarity not yet sufficient to bridge gap.", last_checked: "2025-03-21",
     },
     position: null,
+    rationales: {
+      score: {
+        substrate: "Industrial gas substrate solid but H2 bet is the binding constraint.",
+        demand: "Green H2 demand failing to materialize at projected pricing.",
+        moat: "Industrial gas moat real but capex ahead of demand.",
+        valuation: "Discount justified by stranded-asset risk.",
+        mgmt: "Capital discipline questioned post Louisiana write-down.",
+        disruption: "Tech substitution risk from electrolyser cost decline is real.",
+      },
+      disruption: {
+        sub_avail: "Grey H2 remains cheaper and abundant.",
+        economics: "Green H2 LCOE inverted vs grey at current power prices.",
+        govt_support: "Inconsistent regulatory clarity across jurisdictions.",
+        demand_vuln: "Offtake commitments thin; many MoUs, few firm contracts.",
+        time_viability: "Multi-year payback under threat from cost-curve evolution.",
+      },
+    },
   },
   {
     ticker: "ASTS",
@@ -93,6 +144,17 @@ const FIXTURES: AssetIntelligence[] = [
     action: "RESEARCH",
     disruption: null,
     position: null,
+    rationales: {
+      score: {
+        substrate: "Direct-to-cell from LEO is a genuinely new substrate.",
+        demand: "TAM enormous if execution holds; carrier partnerships secured.",
+        moat: "Patent position strong; first-mover in licensed bands.",
+        valuation: "Pre-revenue; binary outcome distribution.",
+        mgmt: "Founder vision strong; execution track record mixed.",
+        disruption: "",
+      },
+      disruption: null,
+    },
   },
 ];
 
@@ -145,7 +207,7 @@ export default function IntelligencePreview() {
         {/* Live preview */}
         <h1 style={SECTION_HEADER_STYLE}>AssetRow · Live Preview</h1>
         <p style={SUBTITLE_STYLE}>
-          Top 10 assets by score (live). Real data from SCORES ∪ DISRUPTION ∪ HOLDINGS join.
+          Top 10 assets by score (live). Real data from SCORES ∪ DISRUPTION ∪ HOLDINGS join. Click any row to expand the full intelligence card (thesis, 6D rationales, disruption deep dive, position).
         </p>
 
         {loading && (

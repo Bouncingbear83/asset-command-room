@@ -1,6 +1,7 @@
 import { CSSProperties, KeyboardEvent } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
+import { AssetExpansion } from "./AssetExpansion";
 import "./AssetRow.css";
 
 interface Props {
@@ -198,109 +199,112 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
   const ariaLabel = `${asset.ticker} ${asset.name}, score ${asset.score}, status ${asset.held_status}`;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-expanded={expanded}
-      aria-label={ariaLabel}
-      onClick={onToggle}
-      onKeyDown={handleKey}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        minHeight: 48,
-        padding: "6px 12px",
-        borderBottom: "1px solid var(--rim)",
-        background: expanded ? "rgba(28,28,48,0.30)" : "transparent",
-        cursor: "pointer",
-        transition: "background 120ms ease",
-        outline: "none",
-      }}
-      onMouseEnter={(e) => {
-        if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(28,28,48,0.18)";
-      }}
-      onMouseLeave={(e) => {
-        if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent";
-      }}
-      onFocus={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "inset 0 0 0 1px var(--gold-dim)";
-      }}
-      onBlur={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-      }}
-    >
-      {/* Ticker + name + dual-account badge */}
-      <div style={{ width: 96, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em" }}>
-          {asset.ticker}
-        </span>
-        <span style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
-          {asset.name}
-        </span>
-        {asset.position?.account === "SIPP+ISA" && (
-          <span style={{
-            display: "inline-block",
-            marginTop: 2,
-            padding: "1px 4px",
-            width: "fit-content",
-            fontFamily: "var(--font-mono)",
-            fontSize: 7,
-            letterSpacing: "0.1em",
-            color: "var(--accent)",
-            border: "1px solid rgba(110,142,200,0.4)",
-            borderRadius: 2,
-          }}>
-            SIPP+ISA
+    <div style={{ borderBottom: "1px solid var(--rim)" }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={ariaLabel}
+        onClick={onToggle}
+        onKeyDown={handleKey}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          minHeight: 48,
+          padding: "6px 12px",
+          background: expanded ? "rgba(28,28,48,0.30)" : "transparent",
+          cursor: "pointer",
+          transition: "background 120ms ease",
+          outline: "none",
+        }}
+        onMouseEnter={(e) => {
+          if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(28,28,48,0.18)";
+        }}
+        onMouseLeave={(e) => {
+          if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent";
+        }}
+        onFocus={(e) => {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = "inset 0 0 0 1px var(--gold-dim)";
+        }}
+        onBlur={(e) => {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+        }}
+      >
+        {/* Ticker + name + dual-account badge */}
+        <div style={{ width: 96, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em" }}>
+            {asset.ticker}
           </span>
-        )}
+          <span style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+            {asset.name}
+          </span>
+          {asset.position?.account === "SIPP+ISA" && (
+            <span style={{
+              display: "inline-block",
+              marginTop: 2,
+              padding: "1px 4px",
+              width: "fit-content",
+              fontFamily: "var(--font-mono)",
+              fontSize: 7,
+              letterSpacing: "0.1em",
+              color: "var(--accent)",
+              border: "1px solid rgba(110,142,200,0.4)",
+              borderRadius: 2,
+            }}>
+              SIPP+ISA
+            </span>
+          )}
+        </div>
+
+        {/* Layer chip */}
+        <div style={{ width: 84, flexShrink: 0 }}>
+          <LayerChip layer={asset.layer} />
+        </div>
+
+        {/* Score (delta placeholder for later) */}
+        {/* TODO: wire trend Δ from SCORE_LOG once hook exposes it */}
+        <div style={{ width: 64, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600, color: scoreColor(asset.score), lineHeight: 1 }}>
+            {Math.round(asset.score)}
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em", marginTop: 2 }}>
+            /100
+          </span>
+        </div>
+
+        {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
+        <div style={{ flex: 1, minWidth: 280, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+          <MiniBar value={asset.sub_scores.substrate}        max={25} />
+          <MiniBar value={asset.sub_scores.demand}           max={22} />
+          <MiniBar value={asset.sub_scores.moat}             max={18} />
+          <MiniBar value={asset.sub_scores.valuation}        max={13} />
+          <MiniBar value={asset.sub_scores.mgmt}             max={7} />
+          <MiniBar value={asset.sub_scores.disruption_score} max={15} />
+        </div>
+
+        {/* Disruption deep-dive badge */}
+        <div style={{ width: 88, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+          <DisruptionBadge asset={asset} />
+        </div>
+
+        {/* Buy range — hidden below 1100px (still in expansion) */}
+        <div className="asset-row-buy-range" style={{ width: 96, flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", textAlign: "right" }}>
+          {formatBuyRange(asset.buy_range.low, asset.buy_range.high, asset.buy_range.currency)}
+        </div>
+
+        {/* Status chip */}
+        <div style={{ width: 110, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+          <StatusChip status={asset.held_status} />
+        </div>
+
+        {/* Chevron */}
+        <div style={{ width: 16, flexShrink: 0, color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </div>
       </div>
 
-      {/* Layer chip */}
-      <div style={{ width: 84, flexShrink: 0 }}>
-        <LayerChip layer={asset.layer} />
-      </div>
-
-      {/* Score (delta placeholder for later) */}
-      {/* TODO: wire trend Δ from SCORE_LOG once hook exposes it */}
-      <div style={{ width: 64, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600, color: scoreColor(asset.score), lineHeight: 1 }}>
-          {Math.round(asset.score)}
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em", marginTop: 2 }}>
-          /100
-        </span>
-      </div>
-
-      {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
-      <div style={{ flex: 1, minWidth: 280, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-        <MiniBar value={asset.sub_scores.substrate}        max={25} />
-        <MiniBar value={asset.sub_scores.demand}           max={22} />
-        <MiniBar value={asset.sub_scores.moat}             max={18} />
-        <MiniBar value={asset.sub_scores.valuation}        max={13} />
-        <MiniBar value={asset.sub_scores.mgmt}             max={7} />
-        <MiniBar value={asset.sub_scores.disruption_score} max={15} />
-      </div>
-
-      {/* Disruption deep-dive badge */}
-      <div style={{ width: 88, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
-        <DisruptionBadge asset={asset} />
-      </div>
-
-      {/* Buy range — hidden below 1100px (still in expansion) */}
-      <div className="asset-row-buy-range" style={{ width: 96, flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", textAlign: "right" }}>
-        {formatBuyRange(asset.buy_range.low, asset.buy_range.high, asset.buy_range.currency)}
-      </div>
-
-      {/* Status chip */}
-      <div style={{ width: 110, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
-        <StatusChip status={asset.held_status} />
-      </div>
-
-      {/* Chevron */}
-      <div style={{ width: 16, flexShrink: 0, color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
-        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-      </div>
+      {expanded && <AssetExpansion asset={asset} />}
     </div>
   );
 }
