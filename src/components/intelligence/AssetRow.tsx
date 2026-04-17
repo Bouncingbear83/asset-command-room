@@ -1,6 +1,7 @@
 import { CSSProperties, KeyboardEvent } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
+import { AssetExpansion } from "./AssetExpansion";
 import "./AssetRow.css";
 
 interface Props {
