@@ -1,0 +1,6 @@
+/* Hide the column-header row on mobile — sort is offered via dropdown instead. */
+@media (max-width: 767px) {
+  .intelligence-list-header {
+    display: none !important;
+  }
+}
