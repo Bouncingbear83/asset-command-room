@@ -3,6 +3,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
+import { buildDeepDivePrompt, buildWatchlistReviewPrompt } from "@/lib/claudePrompts";
 import {
   Tooltip,
   TooltipContent,
@@ -236,8 +237,8 @@ function ReviewCard({ note, dateStr }: { note: string; dateStr: string }) {
 function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 'holding' | 'watchlist' }) {
   const handleDeepDive = () => {
     const prompt = type === 'holding'
-      ? `Deep dive on ${ticker}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`
-      : `Watchlist review for ${ticker}. Search for latest developments. Reassess entry target, trigger condition, and thesis. Produce research commit JSON at the end.`;
+      ? buildDeepDivePrompt(ticker)
+      : buildWatchlistReviewPrompt(ticker);
     const url = `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=${encodeURIComponent(prompt)}`;
     (window.top || window).open(url, '_blank');
   };

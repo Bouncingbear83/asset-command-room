@@ -7,6 +7,7 @@ import { ScoreRationalePanel, DisruptionRationalePanel, RationaleLoading } from 
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 import { parseReviewFlag } from "@/components/ReviewQueue";
+import { buildDeepDivePrompt } from "@/lib/claudePrompts";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -347,7 +348,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
                 title={`Deep dive ${s.ticker}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  const prompt = `Deep dive rescore on ${s.ticker}. Layer: ${s.layer}. Current score: ${s.score}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`;
+                  const prompt = buildDeepDivePrompt(s.ticker);
                   const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                   (window.top || window).open(url, '_blank');
                 }}
@@ -395,7 +396,7 @@ export default function ScoresTab({ scores, scoreLog, disruptionData = [], allHo
                 </span>
               )}
               <a
-                href={`${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(`Deep dive rescore on ${s.ticker}. Layer: ${s.layer}. Current score: ${s.score}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`)}`}
+                href={`${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(buildDeepDivePrompt(s.ticker))}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}

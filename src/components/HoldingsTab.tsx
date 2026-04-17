@@ -13,6 +13,7 @@ import { PriceChart } from "@/components/PriceChart";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { buildDeepDivePrompt } from "@/lib/claudePrompts";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -595,7 +596,7 @@ function UnifiedView({
                               title={`Deep dive ${h.ticker}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const prompt = `Deep dive rescore on ${h.ticker}. Layer: ${h.layer}. Current score: ${h.gl}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`;
+                                const prompt = buildDeepDivePrompt(h.ticker);
                                 const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                                 (window.top || window).open(url, '_blank');
                               }}

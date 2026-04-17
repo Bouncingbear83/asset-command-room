@@ -5,6 +5,7 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
+import { buildDeepDivePrompt, buildWatchlistReviewPrompt } from "@/lib/claudePrompts";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -225,8 +226,8 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
     if (!deepDiveTarget) return;
     const isHolding = tickers.includes(deepDiveTarget);
     const prompt = isHolding
-      ? `Deep dive on ${deepDiveTarget}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`
-      : `Watchlist review for ${deepDiveTarget}. Search for latest developments. Reassess entry target, trigger condition, and thesis. Produce research commit JSON at the end.`;
+      ? buildDeepDivePrompt(deepDiveTarget)
+      : buildWatchlistReviewPrompt(deepDiveTarget);
     const url = getClaudeUrl(prompt);
     (window.top || window).open(url, '_blank');
     setDeepDiveTarget("");
