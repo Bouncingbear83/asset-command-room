@@ -138,6 +138,7 @@ export default function Index() {
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} />}
         {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrativeData} />}
+        {active === "Intelligence" && <IntelligenceTab />}
         {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} allHoldings={[...portfolio.sipp, ...portfolio.isa]} priceData={priceData} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
