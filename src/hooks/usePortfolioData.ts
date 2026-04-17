@@ -716,25 +716,105 @@ function parseTransactions(rows: Record<string, any>[]) {
 
 export type LiveTransaction = ReturnType<typeof parseTransactions>[number];
 
-function parseJisaHoldings(grid: string[][]) {
-  // Wide/pivoted layout: each row = one stock, child-specific data in columns
-  // A=Pillar/Layer, B=Target%, C=Ticker, D=Name, E=FX
-  // M/N/O = Shares (JB/AB/EB), V/W/X = Weight%, Y/Z/AA = Cost GBP
-  // AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
-  const CHILDREN_MAP = [
-    { child: "Bear", sharesCol: 12, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33 },
-    { child: "Alfie", sharesCol: 13, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34 },
-    { child: "Edie", sharesCol: 14, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35 },
-  ];
+export interface JisaChildTotals {
+  mv: number;       // Holdings MV in GBP (from sheet TOTAL row)
+  cash: number;     // Cash balance in GBP
+  portfolio: number; // mv + cash
+}
 
-  const results: {
+export interface JisaParseResult {
+  holdings: {
     child: string; ticker: string; name: string; type: string; layer: string;
     shares: number | null; priceLocal: number | null; currency: string;
     mvGbp: number | null; weightPct: number | null; costGbp: number | null;
     glPct: number | null; codeGf: string; targetPct: number | null; notes: string;
-  }[] = [];
+  }[];
+  totals: Record<string, JisaChildTotals>;
+}
 
-  // Skip header rows (rows 0-1 typically) and TOTAL row
+function parseJisaHoldings(grid: string[][]): JisaParseResult {
+  // Wide/pivoted layout: each row = one stock, child-specific data in columns
+  // A=Pillar/Layer, B=Target%, C=Ticker, D=Name, E=FX (currency code), I=price_local
+  // M/N/O = Shares (JB/AB/EB), V/W/X = Weight%, Y/Z/AA = Cost (LOCAL ccy)
+  // AE/AF/AG = GL£ (GBP), AH/AI/AJ = GL%
+  const CHILDREN_MAP = [
+    { child: "Bear", sharesCol: 12, weightCol: 21, costCol: 24, glGbpCol: 30, glPctCol: 33, totalCol: 0, cashCol: 0, portfolioCol: 0 },
+    { child: "Alfie", sharesCol: 13, weightCol: 22, costCol: 25, glGbpCol: 31, glPctCol: 34, totalCol: 1, cashCol: 1, portfolioCol: 1 },
+    { child: "Edie", sharesCol: 14, weightCol: 23, costCol: 26, glGbpCol: 32, glPctCol: 35, totalCol: 2, cashCol: 2, portfolioCol: 2 },
+  ];
+
+  // Locate FX rates (rows with currency labels in col A and rates somewhere on the row)
+  // The sheet typically has rows like: USD | rate ; EUR | rate near rows 13-14
+  const fxRates: Record<string, number> = { GBP: 1, GBX: 0.01 };
+  for (const row of grid) {
+    if (!row || row.length < 2) continue;
+    const labelRaw = String(row[0] ?? "").trim().toUpperCase();
+    if (!labelRaw) continue;
+    // Look for short currency tokens
+    const ccyMatch = labelRaw.match(/\b(USD|EUR|GBP|GBX|CHF|JPY|CAD|AUD|HKD)\b/);
+    if (!ccyMatch) continue;
+    const ccy = ccyMatch[1];
+    if (fxRates[ccy] !== undefined && ccy !== "USD" && ccy !== "EUR") continue;
+    // Find first numeric value in row > 0
+    for (let c = 1; c < row.length; c++) {
+      const n = parseNum(row[c]);
+      if (n !== null && n > 0 && n < 100) { // sane FX range
+        fxRates[ccy] = n;
+        break;
+      }
+    }
+  }
+
+  const fxToGbp = (ccy: string): number => {
+    const c = ccy.toUpperCase().trim();
+    if (!c || c === "GBP") return 1;
+    if (c === "GBX" || c === "GBP-PENCE") return 0.01;
+    return fxRates[c] ?? 1;
+  };
+
+  // Extract authoritative totals from labelled rows (Holdings MV, Cash, Portfolio)
+  const totals: Record<string, JisaChildTotals> = {
+    Bear: { mv: 0, cash: 0, portfolio: 0 },
+    Alfie: { mv: 0, cash: 0, portfolio: 0 },
+    Edie: { mv: 0, cash: 0, portfolio: 0 },
+  };
+
+  for (const row of grid) {
+    if (!row) continue;
+    const labelRaw = String(row[0] ?? "").trim().toUpperCase();
+    if (!labelRaw) continue;
+
+    // The sheet rows we care about have a label and 3 child values in some columns.
+    // Find first 3 numeric values on the row (left-to-right) representing Bear/Alfie/Edie.
+    const nums: number[] = [];
+    for (let c = 0; c < row.length && nums.length < 3; c++) {
+      const n = parseMv(row[c]);
+      if (n > 0) nums.push(n);
+    }
+    if (nums.length < 3) continue;
+
+    // Match label semantics
+    if (/(HOLDINGS?\s*(MV|VALUE)|^TOTAL\s*HOLDINGS?|^MV\b|^TOTAL$)/.test(labelRaw)) {
+      // Holdings MV row — only use if not yet set
+      if (totals.Bear.mv === 0) {
+        totals.Bear.mv = nums[0]; totals.Alfie.mv = nums[1]; totals.Edie.mv = nums[2];
+      }
+    } else if (/CASH/.test(labelRaw)) {
+      totals.Bear.cash = nums[0]; totals.Alfie.cash = nums[1]; totals.Edie.cash = nums[2];
+    } else if (/(PORTFOLIO|^TOTAL\s*PORTFOLIO|GRAND\s*TOTAL|^TOTAL\s*\(.*CASH.*\))/.test(labelRaw)) {
+      totals.Bear.portfolio = nums[0]; totals.Alfie.portfolio = nums[1]; totals.Edie.portfolio = nums[2];
+    }
+  }
+
+  // Fallback: if portfolio not explicitly labelled, derive it
+  for (const child of ["Bear", "Alfie", "Edie"]) {
+    if (totals[child].portfolio === 0) {
+      totals[child].portfolio = totals[child].mv + totals[child].cash;
+    }
+  }
+
+  const holdings: JisaParseResult["holdings"] = [];
+
   for (const row of grid) {
     const ticker = (row[2] ?? "").trim();
     const layer = (row[0] ?? "").trim();
@@ -744,25 +824,29 @@ function parseJisaHoldings(grid: string[][]) {
     const targetPct = parsePct(row[1]);
     const name = (row[3] ?? "").trim();
     const currency = (row[4] ?? "GBP").trim();
+    const priceLocal = parseNum(row[8]);
+    const fx = fxToGbp(currency);
 
     for (const cm of CHILDREN_MAP) {
       const shares = parseNum(row[cm.sharesCol]);
       if (!shares || shares === 0) continue;
 
-      const costGbp = parseNum(row[cm.costCol]) || 0;
+      const costLocal = parseNum(row[cm.costCol]) || 0;
       const glGbp = parseNum(row[cm.glGbpCol]) || 0;
-      const mvGbp = costGbp + glGbp;
+      // Correct MV: shares × price_local × fx_to_gbp
+      const mvGbp = priceLocal !== null ? shares * priceLocal * fx : (costLocal * fx) + glGbp;
+      const costGbp = costLocal * fx;
       const weightPct = parsePct(row[cm.weightCol]);
       const glPct = parsePct(row[cm.glPctCol]);
 
-      results.push({
+      holdings.push({
         child: cm.child,
         ticker,
         name,
         type: "",
         layer,
         shares,
-        priceLocal: parseNum(row[8]),
+        priceLocal,
         currency,
         mvGbp,
         weightPct,
@@ -775,10 +859,12 @@ function parseJisaHoldings(grid: string[][]) {
     }
   }
 
-  return results;
+  console.log("[JISA] FX rates:", fxRates, "Totals:", totals);
+  return { holdings, totals };
 }
 
-export type LiveJisaHolding = ReturnType<typeof parseJisaHoldings>[number];
+export type LiveJisaHolding = JisaParseResult["holdings"][number];
+export type LiveJisaTotals = Record<string, JisaChildTotals>;
 
 export interface PortfolioData {
   holdings: LiveHolding[];
