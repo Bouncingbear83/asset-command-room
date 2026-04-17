@@ -167,10 +167,10 @@ function DistanceChip({
 }) {
   const baseChip: CSSProperties = {
     display: "inline-block",
-    padding: "3px 8px",
+    padding: "3px 6px",
     fontFamily: "var(--font-mono)",
     fontSize: 10,
-    letterSpacing: "0.08em",
+    letterSpacing: "0.06em",
     borderRadius: 2,
     whiteSpace: "nowrap",
   };
@@ -344,9 +344,9 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: COL.rowGap,
           minHeight: 48,
-          padding: "6px 12px",
+          padding: `6px ${COL.rowPadX}px`,
           background: expanded ? "rgba(28,28,48,0.30)" : "transparent",
           cursor: "pointer",
           transition: "background 120ms ease",
@@ -366,7 +366,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         }}
       >
         {/* Ticker + name + dual-account badge */}
-        <div style={{ width: 96, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+        <div style={{ width: COL.ticker, minWidth: COL.ticker, maxWidth: COL.ticker, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em" }}>
             {asset.ticker}
           </span>
@@ -392,12 +392,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* Layer chip */}
-        <div style={{ width: 84, flexShrink: 0 }}>
+        <div style={{ width: COL.layer, minWidth: COL.layer, maxWidth: COL.layer, flexShrink: 0 }}>
           <LayerChip layer={asset.layer} />
         </div>
 
         {/* Score + trend Δ */}
-        <div style={{ width: 64, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        <div style={{ width: COL.score, minWidth: COL.score, maxWidth: COL.score, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600, color: scoreColor(asset.score), lineHeight: 1 }}>
             {Math.round(asset.score)}
           </span>
@@ -408,7 +408,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
-        <div style={{ flex: 1, minWidth: 280, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+        <div style={{ flex: COL.bars.flex, minWidth: COL.bars.minWidth, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
           <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
           <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
           <MiniBar value={asset.sub_scores.moat}             max={18} trend={asset.trend.moat} />
@@ -418,12 +418,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* Disruption deep-dive badge */}
-        <div style={{ width: 88, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ width: COL.disruption, minWidth: COL.disruption, maxWidth: COL.disruption, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
           <DisruptionBadge asset={asset} />
         </div>
 
         {/* Distance chip — replaces static buy range. Hidden below 1100px. */}
-        <div className="asset-row-buy-range" style={{ width: 96, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        <div className="asset-row-buy-range" style={{ width: COL.buyRange, minWidth: COL.buyRange, maxWidth: COL.buyRange, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
           <DistanceChip
             buyDistance={asset.buy_distance}
             currentPrice={asset.current_price}
@@ -434,12 +434,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* Status chip */}
-        <div style={{ width: 110, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ width: COL.status, minWidth: COL.status, maxWidth: COL.status, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
           <StatusChip status={asset.held_status} />
         </div>
 
         {/* Chevron */}
-        <div style={{ width: 16, flexShrink: 0, color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
+        <div style={{ width: COL.chevron, minWidth: COL.chevron, maxWidth: COL.chevron, flexShrink: 0, color: "var(--text-dim)", display: "flex", alignItems: "center" }}>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </div>
       </div>
