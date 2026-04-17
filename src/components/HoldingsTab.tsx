@@ -19,15 +19,13 @@ import {
   DEFAULT_HOLDINGS_STATE,
   holdingsStateFromParams,
   holdingsStateToParams,
-  normalizeAlert,
   normalizeAccount,
-  ALERT_STATUS_VALUES,
+  normalizeActionFactor,
   HOLDINGS_ACCOUNT_VALUES,
   type HoldingsUiState,
   type HoldingsSortField,
   type HoldingsGroupBy,
   type HoldingsAccount,
-  type HoldingsAlertStatus,
 } from "@/lib/url-state-holdings";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 
@@ -730,11 +728,22 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     return c;
   }, [positions]);
 
-  const alertCounts = useMemo(() => {
-    const c: Record<HoldingsAlertStatus, number> = { CLEAR: 0, WATCH: 0, REVIEW: 0, ADD_ZONE: 0, EXIT_ZONE: 0 };
+  const actionCounts = useMemo(() => {
+    const c: Record<string, number> = {};
     for (const h of positions) {
-      const a = normalizeAlert(h.alert_status);
-      if (a) c[a]++;
+      const a = normalizeActionFactor(String(h.action ?? ""));
+      if (!a) continue;
+      c[a] = (c[a] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
+  const factorCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const f = normalizeActionFactor(String(h.factor_primary ?? ""));
+      if (!f) continue;
+      c[f] = (c[f] || 0) + 1;
     }
     return c;
   }, [positions]);
@@ -749,10 +758,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     return c;
   }, [positions]);
 
-  const nonClearAlertCount = positions.reduce((s, h) => {
-    const a = normalizeAlert(h.alert_status);
-    return a && a !== "CLEAR" ? s + 1 : s;
-  }, 0);
+  // Debug: log unique values discovered for ACTION & FACTOR_PRIMARY
+  useEffect(() => {
+    if (positions.length === 0) return;
+    // eslint-disable-next-line no-console
+    console.log("[Holdings] Unique ACTION values:", Object.keys(actionCounts).sort());
+    // eslint-disable-next-line no-console
+    console.log("[Holdings] Unique FACTOR_PRIMARY values:", Object.keys(factorCounts).sort());
+  }, [actionCounts, factorCounts, positions.length]);
 
   // ── Filter pipeline (CASH always passes through) ─────────────────────────
   const filteredHoldings = useMemo(() => {
@@ -763,9 +776,13 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         const a = normalizeAccount(h.account);
         if (!a || !state.accountFilter.includes(a)) return false;
       }
-      if (state.alertFilter.length > 0) {
-        const a = normalizeAlert(h.alert_status);
-        if (!a || !state.alertFilter.includes(a)) return false;
+      if (state.actionFilter.length > 0) {
+        const a = normalizeActionFactor(String(h.action ?? ""));
+        if (!a || !state.actionFilter.includes(a)) return false;
+      }
+      if (state.factorFilter.length > 0) {
+        const f = normalizeActionFactor(String(h.factor_primary ?? ""));
+        if (!f || !state.factorFilter.includes(f)) return false;
       }
       if (state.layerFilter.length > 0) {
         const layerStr = (h.layer || "").trim();
@@ -778,7 +795,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       }
       return true;
     });
-  }, [allHoldings, state.accountFilter, state.alertFilter, state.layerFilter, state.search]);
+  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.search]);
 
   const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
 
@@ -791,12 +808,18 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       return { ...prev, accountFilter: allOn ? [] : next };
     });
   };
-  const toggleAlert = (a: HoldingsAlertStatus) => {
+  const toggleAction = (a: string) => {
     setState((prev) => {
-      const has = prev.alertFilter.includes(a);
-      const next = has ? prev.alertFilter.filter((x) => x !== a) : [...prev.alertFilter, a];
-      const allOn = (ALERT_STATUS_VALUES as readonly HoldingsAlertStatus[]).every((v) => next.includes(v));
-      return { ...prev, alertFilter: allOn ? [] : next };
+      const has = prev.actionFilter.includes(a);
+      const next = has ? prev.actionFilter.filter((x) => x !== a) : [...prev.actionFilter, a];
+      return { ...prev, actionFilter: next };
+    });
+  };
+  const toggleFactor = (f: string) => {
+    setState((prev) => {
+      const has = prev.factorFilter.includes(f);
+      const next = has ? prev.factorFilter.filter((x) => x !== f) : [...prev.factorFilter, f];
+      return { ...prev, factorFilter: next };
     });
   };
   const toggleLayer = (l: Layer) => {
@@ -818,14 +841,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     });
   };
 
-  const showAlerts = () => update({ alertFilter: ["WATCH", "REVIEW", "ADD_ZONE", "EXIT_ZONE"] });
   const onLayerGroupClick = (l: Layer) => update({ layerFilter: [l] });
 
   const sortLabel = `${state.sortField} ${state.sortDir}`;
   const groupLabel = state.groupBy;
   const hasFilters =
     state.accountFilter.length > 0 ||
-    state.alertFilter.length > 0 ||
+    state.actionFilter.length > 0 ||
+    state.factorFilter.length > 0 ||
     state.layerFilter.length > 0 ||
     state.search.trim() !== "";
 
@@ -849,27 +872,29 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
             <HoldingsHeader
               positionCount={positions.length}
               accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"] }}
-              alertCount={nonClearAlertCount}
               filteredCount={filteredPositionCount}
               sortLabel={sortLabel}
               groupLabel={groupLabel}
               hasFilters={hasFilters}
-              onShowAlerts={showAlerts}
             />
             <HoldingsFilters
               accountCounts={accountCounts}
-              alertCounts={alertCounts}
+              actionCounts={actionCounts}
+              factorCounts={factorCounts}
               layerCounts={layerCounts}
               totalPositions={positions.length}
               accountFilter={state.accountFilter}
-              alertFilter={state.alertFilter}
+              actionFilter={state.actionFilter}
+              factorFilter={state.factorFilter}
               layerFilter={state.layerFilter}
               search={state.search}
               groupBy={state.groupBy}
               onToggleAccount={toggleAccount}
               onResetAccount={() => update({ accountFilter: [] })}
-              onToggleAlert={toggleAlert}
-              onResetAlert={() => update({ alertFilter: [] })}
+              onToggleAction={toggleAction}
+              onResetAction={() => update({ actionFilter: [] })}
+              onToggleFactor={toggleFactor}
+              onResetFactor={() => update({ factorFilter: [] })}
               onToggleLayer={toggleLayer}
               onResetLayer={() => update({ layerFilter: [] })}
               onSearchChange={(v) => update({ search: v })}

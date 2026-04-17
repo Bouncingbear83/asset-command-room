@@ -8,14 +8,12 @@ interface AccountCounts {
 }
 
 interface Props {
-  positionCount: number;          // includes CASH? caller decides
+  positionCount: number;
   accountCounts: AccountCounts;
-  alertCount: number;             // non-CLEAR alerts in the full set
   filteredCount: number;
   sortLabel: string;
   groupLabel: string;
   hasFilters: boolean;
-  onShowAlerts?: () => void;      // wires the alert banner CTA to apply filter
 }
 
 const meta: CSSProperties = {
@@ -45,7 +43,7 @@ const badgeAccent: CSSProperties = {
 };
 
 export function HoldingsHeader({
-  positionCount, accountCounts, alertCount, filteredCount, sortLabel, groupLabel, hasFilters, onShowAlerts,
+  positionCount, accountCounts, filteredCount, sortLabel, groupLabel, hasFilters,
 }: Props) {
   const showing =
     !hasFilters && filteredCount === positionCount
@@ -59,23 +57,6 @@ export function HoldingsHeader({
         <span style={badge}>{accountCounts.sipp} SIPP</span>
         <span style={badge}>{accountCounts.isa} ISA</span>
         <span style={badge}>{accountCounts.sippIsa} SIPP+ISA</span>
-        {alertCount > 0 && (
-          <button
-            type="button"
-            onClick={onShowAlerts}
-            title="Filter to non-clear alerts"
-            style={{
-              ...badge,
-              cursor: "pointer",
-              color: "var(--amber)",
-              borderColor: "rgba(200,146,90,0.4)",
-              background: "var(--amber-dim)",
-              marginLeft: "auto",
-            }}
-          >
-            ⚠ {alertCount} {alertCount === 1 ? "active alert" : "active alerts"} — show all
-          </button>
-        )}
       </div>
 
       <div style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
