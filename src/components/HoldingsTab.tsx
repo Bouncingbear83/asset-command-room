@@ -1,18 +1,35 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, usePortfolioData } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
-import { useRationales } from "@/hooks/useRationales";
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
-import { useTickerHistory } from "@/hooks/useTickerHistory";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { buildDeepDivePrompt } from "@/lib/claudePrompts";
 import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
+import { HoldingsHeader } from "@/components/holdings/HoldingsHeader";
+import { HoldingsFilters } from "@/components/holdings/HoldingsFilters";
+import { HoldingsGroupHeader } from "@/components/holdings/HoldingsGroupHeader";
+import {
+  DEFAULT_HOLDINGS_STATE,
+  holdingsStateFromParams,
+  holdingsStateToParams,
+  normalizeAlert,
+  normalizeAccount,
+  ALERT_STATUS_VALUES,
+  HOLDINGS_ACCOUNT_VALUES,
+  type HoldingsUiState,
+  type HoldingsSortField,
+  type HoldingsGroupBy,
+  type HoldingsAccount,
+  type HoldingsAlertStatus,
+} from "@/lib/url-state-holdings";
+import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
