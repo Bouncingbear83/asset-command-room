@@ -1,6 +1,6 @@
 import { CSSProperties, KeyboardEvent } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
+import type { AssetIntelligence, BuyDistance, HeldStatus, Layer, ScoreTrend } from "@/types/intelligence";
 import { AssetExpansion } from "./AssetExpansion";
 import "./AssetRow.css";
 
@@ -88,18 +88,151 @@ function disruptionColor(status: "GREEN" | "AMBER" | "RED"): { bg: string; fg: s
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function MiniBar({ value, max }: { value: number; max: number }) {
+function trendColor(direction: ScoreTrend["direction"]): string {
+  if (direction === "up")   return "var(--green)";
+  if (direction === "down") return "var(--red)";
+  return "var(--text-dim)";
+}
+
+function trendArrow(direction: ScoreTrend["direction"]): string {
+  if (direction === "up")   return "↗";
+  if (direction === "down") return "↘";
+  if (direction === "flat") return "→";
+  return "";
+}
+
+/** Compact trend indicator for the total-score column. */
+function TrendIndicator({ trend }: { trend: ScoreTrend }) {
+  if (trend.direction === null) return null;
+  const color = trendColor(trend.direction);
+  const arrow = trendArrow(trend.direction);
+  const sign = trend.delta !== null && trend.delta > 0 ? "+" : "";
+  return (
+    <span
+      title={trend.prior_value !== null ? `Prior: ${trend.prior_value}` : undefined}
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        color,
+        letterSpacing: "0.04em",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {arrow}{trend.direction !== "flat" && trend.delta !== null ? `${sign}${trend.delta}` : ""}
+    </span>
+  );
+}
+
+/** Micro trend indicator for sub-score bars. */
+function MicroTrend({ trend }: { trend: ScoreTrend }) {
+  if (trend.direction === null) return null;
+  const color = trendColor(trend.direction);
+  const arrow = trend.direction === "up" ? "↑" : trend.direction === "down" ? "↓" : "→";
+  return (
+    <span
+      title={trend.prior_value !== null ? `Prior: ${trend.prior_value}` : undefined}
+      style={{ fontFamily: "var(--font-mono)", fontSize: 8, color, marginLeft: 2 }}
+    >
+      {arrow}{trend.direction !== "flat" && trend.delta !== null ? Math.abs(trend.delta) : ""}
+    </span>
+  );
+}
+
+function MiniBar({ value, max, trend }: { value: number; max: number; trend?: ScoreTrend }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const color = pct >= 80 ? "var(--green)" : pct >= 50 ? "var(--amber)" : "var(--red)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 40 }}>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", textAlign: "right" }}>
         {value}<span style={{ color: "var(--text-dim)", fontSize: 8 }}>/{max}</span>
+        {trend && <MicroTrend trend={trend} />}
       </span>
       <div style={{ height: 2, background: "var(--muted)", width: "100%" }}>
         <div style={{ height: 2, background: color, width: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+/** Distance-to-buy-zone chip; replaces the old static buy-range column. */
+function DistanceChip({
+  buyDistance, currentPrice, low, high, currency,
+}: {
+  buyDistance: BuyDistance;
+  currentPrice: number | null;
+  low: number | null;
+  high: number | null;
+  currency: string;
+}) {
+  const baseChip: CSSProperties = {
+    display: "inline-block",
+    padding: "3px 8px",
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    letterSpacing: "0.08em",
+    borderRadius: 2,
+    whiteSpace: "nowrap",
+  };
+  const sym = CURRENCY_SYMBOL[currency.toUpperCase()] ?? "";
+  const fmt = (n: number) => (n >= 1000 ? n.toFixed(0) : n.toFixed(n < 10 ? 2 : 1));
+  const rangeStr = low !== null && high !== null
+    ? (sym ? `${sym}${fmt(low)}–${fmt(high)}` : `${currency} ${fmt(low)}–${fmt(high)}`)
+    : "—";
+  const priceStr = currentPrice !== null ? `${sym || currency + " "}${fmt(currentPrice)}` : "n/a";
+  const tooltip = `Current: ${priceStr} · Buy: ${rangeStr}`;
+
+  if (buyDistance.status === "IN_ZONE") {
+    return (
+      <span title={tooltip} style={{
+        ...baseChip,
+        background: "var(--green-dim)",
+        color: "var(--green)",
+        border: "1px solid rgba(90,191,160,0.35)",
+        textTransform: "uppercase",
+      }}>IN ZONE</span>
+    );
+  }
+  if (buyDistance.status === "ABOVE" && buyDistance.pct_from_zone !== null) {
+    const pct = buyDistance.pct_from_zone;
+    const color = pct > 20 ? "var(--red)" : pct > 5 ? "var(--amber)" : "var(--text-dim)";
+    const bg = pct > 20 ? "var(--red-dim)" : pct > 5 ? "var(--amber-dim)" : "transparent";
+    const border = pct > 20 ? "rgba(200,90,90,0.35)" : pct > 5 ? "rgba(200,146,90,0.35)" : "var(--rim)";
+    return (
+      <span title={tooltip} style={{ ...baseChip, color, background: bg, border: `1px solid ${border}` }}>
+        +{pct.toFixed(pct >= 100 ? 0 : 1)}%
+      </span>
+    );
+  }
+  if (buyDistance.status === "BELOW" && buyDistance.pct_from_zone !== null) {
+    return (
+      <span title={tooltip} style={{
+        ...baseChip,
+        color: "var(--green)",
+        background: "var(--green-dim)",
+        border: "1px solid rgba(90,191,160,0.35)",
+      }}>
+        {buyDistance.pct_from_zone.toFixed(1)}%
+      </span>
+    );
+  }
+  if (buyDistance.status === "NO_PRICE") {
+    return (
+      <span title={tooltip} style={{
+        ...baseChip,
+        color: "var(--text-dim)",
+        border: "1px dashed var(--rim)",
+        background: "transparent",
+      }}>{rangeStr}</span>
+    );
+  }
+  // NO_RANGE
+  return (
+    <span title={tooltip} style={{
+      ...baseChip,
+      color: "var(--text-dim)",
+      border: "none",
+      background: "transparent",
+    }}>—</span>
   );
 }
 
