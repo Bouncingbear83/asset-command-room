@@ -19,15 +19,13 @@ import {
   DEFAULT_HOLDINGS_STATE,
   holdingsStateFromParams,
   holdingsStateToParams,
-  normalizeAlert,
   normalizeAccount,
-  ALERT_STATUS_VALUES,
+  normalizeActionFactor,
   HOLDINGS_ACCOUNT_VALUES,
   type HoldingsUiState,
   type HoldingsSortField,
   type HoldingsGroupBy,
   type HoldingsAccount,
-  type HoldingsAlertStatus,
 } from "@/lib/url-state-holdings";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 
@@ -730,11 +728,22 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     return c;
   }, [positions]);
 
-  const alertCounts = useMemo(() => {
-    const c: Record<HoldingsAlertStatus, number> = { CLEAR: 0, WATCH: 0, REVIEW: 0, ADD_ZONE: 0, EXIT_ZONE: 0 };
+  const actionCounts = useMemo(() => {
+    const c: Record<string, number> = {};
     for (const h of positions) {
-      const a = normalizeAlert(h.alert_status);
-      if (a) c[a]++;
+      const a = normalizeActionFactor(String(h.action ?? ""));
+      if (!a) continue;
+      c[a] = (c[a] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
+  const factorCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const f = normalizeActionFactor(String(h.factor_primary ?? ""));
+      if (!f) continue;
+      c[f] = (c[f] || 0) + 1;
     }
     return c;
   }, [positions]);
@@ -749,10 +758,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     return c;
   }, [positions]);
 
-  const nonClearAlertCount = positions.reduce((s, h) => {
-    const a = normalizeAlert(h.alert_status);
-    return a && a !== "CLEAR" ? s + 1 : s;
-  }, 0);
+  // Debug: log unique values discovered for ACTION & FACTOR_PRIMARY
+  useEffect(() => {
+    if (positions.length === 0) return;
+    // eslint-disable-next-line no-console
+    console.log("[Holdings] Unique ACTION values:", Object.keys(actionCounts).sort());
+    // eslint-disable-next-line no-console
+    console.log("[Holdings] Unique FACTOR_PRIMARY values:", Object.keys(factorCounts).sort());
+  }, [actionCounts, factorCounts, positions.length]);
 
   // ── Filter pipeline (CASH always passes through) ─────────────────────────
   const filteredHoldings = useMemo(() => {
