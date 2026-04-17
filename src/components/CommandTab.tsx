@@ -225,8 +225,8 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
     if (!deepDiveTarget) return;
     const isHolding = tickers.includes(deepDiveTarget);
     const prompt = isHolding
-      ? `Deep dive on ${deepDiveTarget}. Search for latest news, earnings, and developments. Reassess all 6 scoring dimensions. Produce research commit JSON at the end.`
-      : `Watchlist review for ${deepDiveTarget}. Search for latest developments. Reassess entry target, trigger condition, and thesis. Produce research commit JSON at the end.`;
+      ? buildDeepDivePrompt(deepDiveTarget)
+      : buildWatchlistReviewPrompt(deepDiveTarget);
     const url = getClaudeUrl(prompt);
     (window.top || window).open(url, '_blank');
     setDeepDiveTarget("");

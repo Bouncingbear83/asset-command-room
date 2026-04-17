@@ -595,7 +595,7 @@ function UnifiedView({
                               title={`Deep dive ${h.ticker}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const prompt = `Deep dive rescore on ${h.ticker}. Layer: ${h.layer}. Current score: ${h.gl}. Run full 6D substrate audit, check for thesis changes, and Research Commit when done.`;
+                                const prompt = buildDeepDivePrompt(h.ticker);
                                 const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
                                 (window.top || window).open(url, '_blank');
                               }}
