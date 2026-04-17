@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePortfolioData, type LiveScore, type LiveDisruption, type LiveHolding } from "./usePortfolioData";
+import {
+  usePortfolioData,
+  type LiveScore,
+  type LiveDisruption,
+  type LiveHolding,
+  type LiveScoreLog,
+  type LiveWatchItem,
+} from "./usePortfolioData";
 import {
   AssetIntelligence,
   AssetDisruption,
@@ -15,6 +22,11 @@ import {
   Tier,
   DisruptionStatus,
   AssetAccount,
+  AssetIntelligenceTrend,
+  ScoreTrend,
+  EMPTY_TREND,
+  EMPTY_SCORE_TREND,
+  BuyDistance,
 } from "@/types/intelligence";
 
 // ── Rationale row shapes (subset of Supabase tables) ────────────────────────
