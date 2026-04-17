@@ -1,19 +1,18 @@
-import { useState, useMemo, useRef } from "react";
-import { ChevronRight, ChevronDown, Shield, Microscope, AlertTriangle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { useRationales } from "@/hooks/useRationales";
-import { ThesisCard, RationaleLoading } from "@/components/RationalePanels";
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 import { useTickerHistory } from "@/hooks/useTickerHistory";
-import { PriceChart } from "@/components/PriceChart";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { buildDeepDivePrompt } from "@/lib/claudePrompts";
+import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -105,203 +104,11 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
   });
 }
 
-function InlineRangeBar({ h }: { h: LiveHolding }) {
-  if (h.ma60 == null || h.high_52w == null || h.low_52w == null || h.price == null) return null;
-  const low = h.low_52w;
-  const high = h.high_52w;
-  const price = h.price;
-  const ma60 = h.ma60;
-  const range = high - low;
-  if (range <= 0) return null;
-
-  const pricePct = Math.max(0, Math.min(100, ((price - low) / range) * 100));
-  const ma60Pct = Math.max(0, Math.min(100, ((ma60 - low) / range) * 100));
-  const distFromMa = ((price - ma60) / ma60) * 100;
-
-  let statusColor: string;
-  let statusLabel: string;
-  if (price < ma60) { statusColor = "var(--red)"; statusLabel = "Dislocation"; }
-  else if (pricePct >= 80) { statusColor = "var(--amber)"; statusLabel = "Extended"; }
-  else { statusColor = "var(--green)"; statusLabel = "Healthy"; }
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
-      <div style={{ flex: 1, position: "relative", height: 22, display: "flex", alignItems: "center", minWidth: 120 }}>
-        <div style={{ position: "absolute", left: 0, right: 0, height: 6, background: "rgba(110,142,200,0.25)", borderRadius: 3 }} />
-        <div style={{ position: "absolute", left: `${ma60Pct}%`, top: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 7, color: "var(--gold)", whiteSpace: "nowrap", marginBottom: 1 }}>MA60</span>
-          <div style={{ width: 0, flex: 1, borderLeft: "1px dashed var(--gold)" }} />
-        </div>
-        <div style={{ position: "absolute", left: `${pricePct}%`, top: 2, bottom: 2, width: 3, background: statusColor, borderRadius: 1 }} />
-        <span style={{ position: "absolute", left: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{low.toFixed(0)}</span>
-        <span style={{ position: "absolute", right: 0, bottom: -1, fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)" }}>{high.toFixed(0)}</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <span style={{
-          background: statusColor === "var(--green)" ? "var(--green-dim)" : statusColor === "var(--amber)" ? "var(--amber-dim)" : "var(--red-dim)",
-          color: statusColor,
-          border: `1px solid ${statusColor === "var(--green)" ? "rgba(90,191,160,0.2)" : statusColor === "var(--amber)" ? "rgba(200,146,90,0.2)" : "rgba(200,90,90,0.2)"}`,
-          padding: "1px 6px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", whiteSpace: "nowrap",
-        }}>
-          {statusLabel}
-        </span>
-        <span style={{ fontFamily: "'DM Mono', var(--font-mono)", fontSize: 10, color: statusColor, whiteSpace: "nowrap" }}>
-          {distFromMa >= 0 ? "+" : ""}{distFromMa.toFixed(1)}%
-        </span>
-      </div>
-    </div>
-  );
-}
-
-const DISRUPTION_STATUS_STYLE: Record<string, React.CSSProperties> = {
-  GREEN: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
-  MONITOR: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  AMBER: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
-  RED: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
-};
-
-function DisruptionPanel({ d }: { d: LiveDisruption }) {
-  const subScores = [
-    { label: "SUB_AVAIL", val: d.subAvail },
-    { label: "ECONOMICS", val: d.economics },
-    { label: "GOVT", val: d.govtSupport },
-    { label: "DEMAND", val: d.demandVuln },
-    { label: "TIME", val: d.timeViability },
-  ];
-  return (
-    <div style={{ padding: "8px 12px 10px 36px", background: "rgba(20,20,40,0.6)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-        <Shield size={12} style={{ color: "var(--accent)" }} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: "var(--accent)" }}>DISRUPTION</span>
-        {d.disruptionScore != null && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: d.disruptionScore >= 70 ? "var(--green)" : d.disruptionScore >= 50 ? "var(--amber)" : "var(--red)" }}>
-            {d.disruptionScore}/100
-          </span>
-        )}
-        <span style={{ ...(DISRUPTION_STATUS_STYLE[d.status] ?? DISRUPTION_STATUS_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em", padding: "1px 6px", borderRadius: 2 }}>
-          {d.status}
-        </span>
-      </div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
-        {subScores.map((s) =>
-          s.val != null ? (
-            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em" }}>{s.label}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: "var(--text-mid)" }}>{s.val}</span>
-            </div>
-          ) : null,
-        )}
-      </div>
-      {d.evidence && <div style={{ fontFamily: "var(--font-ui)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5, marginBottom: 4 }}>{d.evidence}</div>}
-      <div style={{ display: "flex", gap: 20, marginTop: 4 }}>
-        {d.amberTrigger && (
-          <div style={{ flex: 1 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--amber)", fontWeight: 700, letterSpacing: "0.1em" }}>⚠ AMBER</span>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2 }}>{d.amberTrigger}</div>
-          </div>
-        )}
-        {d.redTrigger && (
-          <div style={{ flex: 1 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--red)", fontWeight: 700, letterSpacing: "0.1em" }}>🔴 RED</span>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 2 }}>{d.redTrigger}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ScoreCard({ score }: { score: LiveScore }) {
-  const dims = [
-    { label: "TOTAL", val: score.score, max: 30 },
-    { label: "SUBSTRATE", val: score.substrate },
-    { label: "DEMAND", val: score.demand },
-    { label: "MOAT", val: score.moat },
-    { label: "VALUATION", val: score.valuation },
-    { label: "MGMT", val: score.mgmt },
-    { label: "DISRUPTION", val: score.disruption },
-  ];
-  const dimColor = (v: number, isTotal?: boolean) => {
-    if (isTotal) return v >= 22 ? "var(--green)" : v >= 15 ? "var(--amber)" : "var(--red)";
-    return v >= 4 ? "var(--green)" : v >= 3 ? "var(--amber)" : "var(--red)";
-  };
-  return (
-    <div style={{ padding: "8px 12px 8px 36px", background: "rgba(20,20,40,0.5)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <Microscope size={12} style={{ color: "var(--gold)" }} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: "var(--gold)" }}>SCORES</span>
-        {score.tier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>TIER {score.tier}</span>}
-      </div>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-        {dims.map((d, i) => (
-          <div key={d.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", letterSpacing: "0.1em" }}>{d.label}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: i === 0 ? 14 : 11, fontWeight: i === 0 ? 700 : 600, color: dimColor(d.val, i === 0) }}>{d.val}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TriggerRows({ h, colSpan, disruption, returns, thesisLoading, thesisRationale, tickerHistory, score }: { h: LiveHolding; colSpan: number; disruption?: LiveDisruption; returns?: HoldingReturns; thesisLoading?: boolean; thesisRationale?: import("@/hooks/useRationales").ScoreRationale | null; tickerHistory?: { points: import("@/hooks/useDailyPrices").DailyPricePoint[]; loading: boolean }; score?: LiveScore }) {
-  const addVal = h.trigger_price_add || h.add_trigger || "—";
-  const exitVal = h.trigger_price_exit || h.exit_trigger || "—";
-  const has52w = h.ma60 != null && h.high_52w != null && h.low_52w != null && h.price != null;
-  return (
-    <>
-      {/* Thesis card — at top of expanded content */}
-      {thesisLoading && <tr><td colSpan={colSpan}><RationaleLoading /></td></tr>}
-      {!thesisLoading && thesisRationale && (
-        <tr><td colSpan={colSpan} style={{ padding: 0 }}><ThesisCard rationale={thesisRationale} /></td></tr>
-      )}
-      {!thesisLoading && !thesisRationale && score && (score.fullThesis || score.changeNote) && (
-        <tr><td colSpan={colSpan} style={{ padding: "8px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-          {score.fullThesis && <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", lineHeight: 1.6, marginBottom: score.changeNote ? 8 : 0 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--accent)", marginRight: 8 }}>THESIS</span>{score.fullThesis}
-          </div>}
-          {score.changeNote && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)", lineHeight: 1.5 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)", marginRight: 8 }}>CHANGE</span>{score.changeNote}
-          </div>}
-        </td></tr>
-      )}
-      {/* Score card */}
-      {score && <tr><td colSpan={colSpan} style={{ padding: 0 }}><ScoreCard score={score} /></td></tr>}
-      {/* Price chart */}
-      {tickerHistory && (tickerHistory.loading || tickerHistory.points.length >= 2) && (
-        <tr><td colSpan={colSpan} style={{ padding: 0 }}><PriceChart points={tickerHistory.points} loading={tickerHistory.loading} /></td></tr>
-      )}
-      <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--green)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>ADD</span><span style={{ color: "var(--text-mid)" }}>{addVal}</span></td></tr>
-      <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--red)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>EXIT</span><span style={{ color: "var(--text-mid)" }}>{exitVal}</span></td></tr>
-      {h.trigger_type && (
-        <tr><td colSpan={colSpan} style={detailRowS}><span style={{ color: "var(--accent)", fontWeight: 700, marginRight: 10, fontSize: 9, letterSpacing: "0.1em" }}>TYPE</span><span style={{ color: "var(--text-mid)" }}>{h.trigger_type}</span></td></tr>
-      )}
-      {has52w && (
-        <tr><td colSpan={colSpan} style={detailRowS}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", flexShrink: 0 }}>52W</span>
-            <InlineRangeBar h={h} />
-          </div>
-        </td></tr>
-      )}
-      {returns && returns.totalCost > 0 && (
-        <tr><td colSpan={colSpan} style={detailRowS}>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
-            <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>COST</span> <span style={{ color: "var(--text-mid)" }}>£{returns.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
-            <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>P&L</span> <span style={{ color: returns.truePL >= 0 ? "var(--green)" : "var(--red)" }}>£{returns.truePL >= 0 ? "+" : ""}{returns.truePL.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
-            <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>RETURN</span> <span style={{ color: returns.truePLpct >= 0 ? "var(--green)" : "var(--red)" }}>{returns.truePLpct >= 0 ? "+" : ""}{returns.truePLpct.toFixed(1)}%</span></span>
-            <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>ANN.</span> <span style={{ color: returns.annualisedReturn >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700 }}>{returns.annualisedReturn >= 0 ? "+" : ""}{returns.annualisedReturn.toFixed(1)}% pa</span></span>
-            <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>ENTRY</span> <span style={{ color: "var(--text-dim)" }}>{returns.entryDate}</span></span>
-            <span><span style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em" }}>TRANCHES</span> <span style={{ color: "var(--text-mid)" }}>{returns.trancheCount}</span></span>
-          </div>
-        </td></tr>
-      )}
-      {disruption && (
-        <tr><td colSpan={colSpan} style={{ padding: 0 }}><DisruptionPanel d={disruption} /></td></tr>
-      )}
-    </>
-  );
-}
+// Holdings expansion bodies (TriggerRows / DisruptionPanel / ScoreCard /
+// InlineRangeBar) were removed in the Prompt 5 refactor. The shared
+// <AssetExpansion> in src/components/intelligence/ now renders the full
+// expansion for both Intelligence and Holdings, looked up via
+// <HoldingsExpansionRow ticker={...} />.
 
 function ToggleButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
