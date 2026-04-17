@@ -7,6 +7,7 @@ import { ScoreRationalePanel, DisruptionRationalePanel, RationaleLoading } from 
 import { PriceDataMap } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 import { parseReviewFlag } from "@/components/ReviewQueue";
+import { buildDeepDivePrompt } from "@/lib/claudePrompts";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 

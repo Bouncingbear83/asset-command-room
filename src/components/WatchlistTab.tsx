@@ -3,6 +3,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
+import { buildDeepDivePrompt, buildWatchlistReviewPrompt } from "@/lib/claudePrompts";
 import {
   Tooltip,
   TooltipContent,
