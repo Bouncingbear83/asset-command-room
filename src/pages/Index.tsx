@@ -11,8 +11,9 @@ import HoldingsTab from "@/components/HoldingsTab";
 import TransactionsTab from "@/components/TransactionsTab";
 import EarningsCalendarTab from "@/components/EarningsCalendarTab";
 import JisasTab from "@/components/JisasTab";
+import IntelligenceTab from "@/pages/IntelligenceTab";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Scores", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Intelligence", "Scores", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>["macroBanner"]) {
@@ -137,6 +138,7 @@ export default function Index() {
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} />}
         {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrativeData} />}
+        {active === "Intelligence" && <IntelligenceTab />}
         {active === "Scores" && <ScoresTab scores={portfolio.scores} scoreLog={portfolio.scoreLog} disruptionData={portfolio.disruption} allHoldings={[...portfolio.sipp, ...portfolio.isa]} priceData={priceData} />}
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}

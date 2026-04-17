@@ -204,6 +204,19 @@ export default function IntelligencePreview() {
   return (
     <div style={{ padding: 24, background: "var(--void)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        {/* Banner: link to the real tab */}
+        <div style={{ marginBottom: 24, padding: 12, border: "1px solid var(--gold-dim, rgba(201,168,76,0.4))", background: "rgba(201,168,76,0.06)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", letterSpacing: "0.08em" }}>
+            This page is the edge-case storybook. The full Intelligence tab (filters, sorting, grouping, search) lives at →{" "}
+          </span>
+          <a
+            href="/?tab=intelligence"
+            style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.08em", textDecoration: "none", borderBottom: "1px solid var(--gold)" }}
+          >
+            Open Intelligence tab
+          </a>
+        </div>
+
         {/* Live preview */}
         <h1 style={SECTION_HEADER_STYLE}>AssetRow · Live Preview</h1>
         <p style={SUBTITLE_STYLE}>
