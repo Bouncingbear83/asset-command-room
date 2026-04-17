@@ -1,6 +1,7 @@
 import { CSSProperties, KeyboardEvent } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
+import "./AssetRow.css";
 
 interface Props {
   asset: AssetIntelligence;
@@ -86,19 +87,14 @@ function disruptionColor(status: "GREEN" | "AMBER" | "RED"): { bg: string; fg: s
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function MiniBar({ label, value, max }: { label: string; value: number; max: number }) {
+function MiniBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const color = pct >= 80 ? "var(--green)" : pct >= 50 ? "var(--amber)" : "var(--red)";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 52 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 4 }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", color: "var(--text-dim)" }}>
-          {label}
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>
-          {value}<span style={{ color: "var(--text-dim)", fontSize: 8 }}>/{max}</span>
-        </span>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 40 }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", textAlign: "right" }}>
+        {value}<span style={{ color: "var(--text-dim)", fontSize: 8 }}>/{max}</span>
+      </span>
       <div style={{ height: 2, background: "var(--muted)", width: "100%" }}>
         <div style={{ height: 2, background: color, width: `${pct}%` }} />
       </div>
