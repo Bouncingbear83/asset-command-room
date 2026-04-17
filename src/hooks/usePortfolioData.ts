@@ -772,46 +772,27 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
     return fxRates[c] ?? 1;
   };
 
-  // Extract authoritative totals from labelled rows (Holdings MV, Cash, Portfolio)
+  // Extract authoritative totals from FIXED rows in JISA_HOLDINGS sheet:
+  //   Row 17 (idx 16) cols A/B/C = Holdings MV (GBP) for Bear/Alfie/Edie
+  //   Row 18 (idx 17) cols A/B/C = Cash balances
+  //   Row 20 (idx 19) cols A/B/C = Total Portfolio (Holdings + Cash)
   const totals: Record<string, JisaChildTotals> = {
     Bear: { mv: 0, cash: 0, portfolio: 0 },
     Alfie: { mv: 0, cash: 0, portfolio: 0 },
     Edie: { mv: 0, cash: 0, portfolio: 0 },
   };
-
-  for (const row of grid) {
-    if (!row) continue;
-    const labelRaw = String(row[0] ?? "").trim().toUpperCase();
-    if (!labelRaw) continue;
-
-    // The sheet rows we care about have a label and 3 child values in some columns.
-    // Find first 3 numeric values on the row (left-to-right) representing Bear/Alfie/Edie.
-    const nums: number[] = [];
-    for (let c = 0; c < row.length && nums.length < 3; c++) {
-      const n = parseMv(row[c]);
-      if (n > 0) nums.push(n);
-    }
-    if (nums.length < 3) continue;
-
-    // Match label semantics
-    if (/(HOLDINGS?\s*(MV|VALUE)|^TOTAL\s*HOLDINGS?|^MV\b|^TOTAL$)/.test(labelRaw)) {
-      // Holdings MV row — only use if not yet set
-      if (totals.Bear.mv === 0) {
-        totals.Bear.mv = nums[0]; totals.Alfie.mv = nums[1]; totals.Edie.mv = nums[2];
-      }
-    } else if (/CASH/.test(labelRaw)) {
-      totals.Bear.cash = nums[0]; totals.Alfie.cash = nums[1]; totals.Edie.cash = nums[2];
-    } else if (/(PORTFOLIO|^TOTAL\s*PORTFOLIO|GRAND\s*TOTAL|^TOTAL\s*\(.*CASH.*\))/.test(labelRaw)) {
-      totals.Bear.portfolio = nums[0]; totals.Alfie.portfolio = nums[1]; totals.Edie.portfolio = nums[2];
-    }
-  }
-
-  // Fallback: if portfolio not explicitly labelled, derive it
-  for (const child of ["Bear", "Alfie", "Edie"]) {
-    if (totals[child].portfolio === 0) {
-      totals[child].portfolio = totals[child].mv + totals[child].cash;
-    }
-  }
+  const readTriple = (rowIdx: number): [number, number, number] => {
+    const r = grid[rowIdx] || [];
+    return [parseMv(r[0]), parseMv(r[1]), parseMv(r[2])];
+  };
+  const [bMv, aMv, eMv] = readTriple(16);
+  const [bCash, aCash, eCash] = readTriple(17);
+  const [bPort, aPort, ePort] = readTriple(19);
+  totals.Bear.mv = bMv;   totals.Alfie.mv = aMv;   totals.Edie.mv = eMv;
+  totals.Bear.cash = bCash; totals.Alfie.cash = aCash; totals.Edie.cash = eCash;
+  totals.Bear.portfolio = bPort || (bMv + bCash);
+  totals.Alfie.portfolio = aPort || (aMv + aCash);
+  totals.Edie.portfolio = ePort || (eMv + eCash);
 
   const holdings: JisaParseResult["holdings"] = [];
 
