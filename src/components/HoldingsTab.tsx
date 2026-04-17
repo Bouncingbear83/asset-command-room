@@ -324,33 +324,32 @@ function UnifiedView({
           </tr>
         </thead>
         <tbody>
+          {/* CASH rows pinned at the top, never sorted/filtered/grouped */}
+          {cashRows.map((h) => (
+            <tr key={`cash-${h.account}`} style={{ background: "rgba(28,28,48,0.4)", borderBottom: "1px solid var(--rim)" }}>
+              <td colSpan={totalCols + 1} style={{ padding: cellPad, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em" }}>
+                CASH · {h.account} · £{(h.mv || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}
+              </td>
+            </tr>
+          ))}
           {groups.map((group) => {
             const sortedHoldings = sortHoldings(group.holdings, sortKey, sortDir);
+            const layerWeight = groupMode === "layer" ? layerWeights.get(group.key) : undefined;
+            const groupClickable = groupMode === "layer" && (LAYER_VALUES as readonly string[]).includes(group.key);
             return (
-              <>{/* Group header */}
+              <>{/* Group header — rendered as a full-span row with the shared component inside */}
                 {groupMode !== "none" && (
-                  <tr key={`group-${group.key}`} style={{ background: "rgba(28,28,48,0.6)" }}>
-                    {groupMode === "layer" ? (
-                      <>
-                        <td colSpan={isMobile ? 2 : 4} style={{ padding: cellPad, color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                          {group.label}
-                          <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 9, marginLeft: 8 }}>{group.holdings.length}</span>
-                        </td>
-                        <td style={{ padding: cellPad, textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{group.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-                        <td style={{ padding: cellPad, textAlign: "right", color: "var(--accent)", fontWeight: 700, fontSize: 10 }}>{group.pctAum.toFixed(1)}%</td>
-                        <td colSpan={totalCols - (isMobile ? 4 : 6)} />
-                      </>
-                    ) : (
-                      <>
-                        <td colSpan={isMobile ? 2 : 4} style={{ padding: cellPad, color: "var(--gold)", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                          {group.label}
-                        </td>
-                        <td style={{ padding: cellPad, textAlign: "right", color: "var(--text)", fontWeight: 700 }}>£{group.totalMv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-                        <td colSpan={totalCols - (isMobile ? 3 : 5)} style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>
-                          {group.sublabel && <span>· {group.sublabel}</span>}
-                        </td>
-                      </>
-                    )}
+                  <tr key={`group-${group.key}`}>
+                    <td colSpan={totalCols + 1} style={{ padding: 0 }}>
+                      <HoldingsGroupHeader
+                        groupBy={groupMode}
+                        groupValue={group.label}
+                        holdings={group.holdings}
+                        totalAum={totalAum}
+                        weight={layerWeight}
+                        onClick={groupClickable ? () => onLayerGroupClick(group.key as Layer) : undefined}
+                      />
+                    </td>
                   </tr>
                 )}
                 {sortedHoldings.map((h) => {
