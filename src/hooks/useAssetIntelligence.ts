@@ -1,9 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { usePortfolioData, type LiveScore, type LiveDisruption, type LiveHolding } from "./usePortfolioData";
 import {
   AssetIntelligence,
   AssetDisruption,
   AssetPosition,
+  AssetRationales,
+  ScoreRationales,
+  DisruptionRationales,
   HeldStatus,
   HELD_STATUS_VALUES,
   LAYER_VALUES,
@@ -12,6 +16,47 @@ import {
   DisruptionStatus,
   AssetAccount,
 } from "@/types/intelligence";
+
+// ── Rationale row shapes (subset of Supabase tables) ────────────────────────
+
+interface ScoreRationaleRow {
+  ticker: string;
+  scored_at: string;
+  substrate_rationale: string | null;
+  demand_rationale: string | null;
+  moat_rationale: string | null;
+  valuation_rationale: string | null;
+  mgmt_rationale: string | null;
+  disruption_rationale: string | null;
+}
+
+interface DisruptionRationaleRow {
+  ticker: string;
+  scored_at: string;
+  sub_avail_rationale: string | null;
+  economics_rationale: string | null;
+  govt_support_rationale: string | null;
+  demand_vuln_rationale: string | null;
+  time_viability_rationale: string | null;
+}
+
+const EMPTY_SCORE_RATIONALES: ScoreRationales = {
+  substrate: "",
+  demand: "",
+  moat: "",
+  valuation: "",
+  mgmt: "",
+  disruption: "",
+};
+
+const EMPTY_DISRUPTION_RATIONALES: DisruptionRationales = {
+  sub_avail: "",
+  economics: "",
+  govt_support: "",
+  demand_vuln: "",
+  time_viability: "",
+};
+
 
 // ── Parsing helpers ─────────────────────────────────────────────────────────
 
