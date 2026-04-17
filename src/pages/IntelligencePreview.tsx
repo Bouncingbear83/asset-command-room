@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AssetRow } from "@/components/intelligence/AssetRow";
+import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
 import type { AssetIntelligence } from "@/types/intelligence";
+
+// ── Edge-case fixtures (kept for visual regression coverage) ────────────────
 
 const FIXTURES: AssetIntelligence[] = [
   {
@@ -88,12 +91,24 @@ const FIXTURES: AssetIntelligence[] = [
     change_note: "", reclass_status: "PRE", thesis_age_months: 3,
     buy_range: { low: 22, high: 28, currency: "USD" },
     action: "RESEARCH",
-    disruption: null, // ← null disruption case
+    disruption: null,
     position: null,
   },
 ];
 
-export default function IntelligencePreview() {
+// ── Page ────────────────────────────────────────────────────────────────────
+
+const SECTION_HEADER_STYLE = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 12,
+  letterSpacing: "0.2em",
+  textTransform: "uppercase" as const,
+  color: "var(--gold)",
+};
+
+const SUBTITLE_STYLE = { fontSize: 11, color: "var(--text-dim)", marginTop: 4, marginBottom: 16 };
+
+function ExpandableList({ assets }: { assets: AssetIntelligence[] }) {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   const toggle = (t: string) => {
     setOpenSet(prev => {
@@ -102,26 +117,60 @@ export default function IntelligencePreview() {
       return next;
     });
   };
+  return (
+    <div style={{ border: "1px solid var(--rim)", background: "rgba(0,0,0,0.2)" }}>
+      {assets.map(asset => (
+        <AssetRow
+          key={asset.ticker}
+          asset={asset}
+          expanded={openSet.has(asset.ticker)}
+          onToggle={() => toggle(asset.ticker)}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function IntelligencePreview() {
+  const { data, loading, error } = useAssetIntelligence();
+
+  const top10 = useMemo(
+    () => [...data].sort((a, b) => b.score - a.score).slice(0, 10),
+    [data],
+  );
 
   return (
     <div style={{ padding: 24, background: "var(--void)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--gold)", marginBottom: 4 }}>
-          AssetRow · Density Preview
-        </h1>
-        <p style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 16 }}>
+        {/* Live preview */}
+        <h1 style={SECTION_HEADER_STYLE}>AssetRow · Live Preview</h1>
+        <p style={SUBTITLE_STYLE}>
+          Top 10 assets by score (live). Real data from SCORES ∪ DISRUPTION ∪ HOLDINGS join.
+        </p>
+
+        {loading && (
+          <div style={{ padding: 24, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+            Loading sheets…
+          </div>
+        )}
+        {error && (
+          <div style={{ padding: 16, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--red)", border: "1px solid rgba(200,90,90,0.3)", background: "var(--red-dim)" }}>
+            {error}
+          </div>
+        )}
+        {!loading && !error && top10.length === 0 && (
+          <div style={{ padding: 16, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+            No scored assets returned by the join.
+          </div>
+        )}
+        {!loading && top10.length > 0 && <ExpandableList assets={top10} />}
+
+        {/* Fixtures */}
+        <h2 style={{ ...SECTION_HEADER_STYLE, fontSize: 11, marginTop: 40 }}>Fixtures (edge cases)</h2>
+        <p style={SUBTITLE_STYLE}>
           NVDA (HELD, SIPP+ISA, GREEN) · KLAC (WATCHLIST, AMBER) · APD (REJECTED, RED) · ASTS (RESEARCH, no disruption row)
         </p>
-        <div style={{ border: "1px solid var(--rim)", background: "rgba(0,0,0,0.2)" }}>
-          {FIXTURES.map(asset => (
-            <AssetRow
-              key={asset.ticker}
-              asset={asset}
-              expanded={openSet.has(asset.ticker)}
-              onToggle={() => toggle(asset.ticker)}
-            />
-          ))}
-        </div>
+        <ExpandableList assets={FIXTURES} />
       </div>
     </div>
   );
