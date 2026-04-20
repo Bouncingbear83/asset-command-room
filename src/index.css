@@ -247,3 +247,14 @@ nav::-webkit-scrollbar {
 /* Transaction row hover tooltip */
 .txn-row { position: relative; }
 .txn-row:hover .txn-tooltip { display: block !important; }
+
+/* Mobile rationale coverage banner — tighter padding + smaller font. */
+@media (max-width: 767px) {
+  .intelligence-coverage-banner {
+    margin: 0 12px 8px !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    font-size: 10px !important;
+    line-height: 1.4 !important;
+  }
+}
