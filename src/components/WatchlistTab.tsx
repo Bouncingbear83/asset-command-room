@@ -519,27 +519,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={sectionStyle}>
           <SectionHeader label="Research" count={research.length} dotColor="rgb(140,140,220)" />
           {research.map((r) => (
-            <div
-              key={`res-${r.item.ticker}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 18px",
-                borderBottom: "1px solid rgba(28,28,48,0.4)",
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
-                {r.item.ticker}
-              </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
-                {r.item.name}
-              </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                {r.daysSinceReview != null ? `Reviewed ${r.daysSinceReview}d ago` : "Never reviewed"}
-              </span>
-            </div>
+            <ResearchRow key={`res-${r.item.ticker}`} row={r} />
           ))}
         </div>
       )}
