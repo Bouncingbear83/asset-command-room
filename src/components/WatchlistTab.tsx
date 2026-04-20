@@ -6,6 +6,7 @@ import { parseEntryTarget } from "@/lib/parseEntryTarget";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { WatchlistCard, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
+import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
 
 interface Props {
   liveData: LiveWatchItem[];
@@ -19,6 +20,64 @@ function daysSince(dateStr: string | null | undefined): number | null {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
   return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// ── Research row (compact, with rationale + Substrate Audit) ──
+function ResearchRow({ row }: { row: DerivedRow }) {
+  const { item } = row;
+  const handleAudit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const prompt = buildSubstrateAuditPrompt(item.ticker);
+    const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+    (window.top || window).open(url, "_blank");
+  };
+  return (
+    <div style={{ padding: "10px 18px 8px", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
+          {item.ticker}
+        </span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
+          {item.name}
+        </span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+          {row.daysSinceReview != null ? `Reviewed ${row.daysSinceReview}d ago` : "Never reviewed"}
+        </span>
+        <button
+          onClick={handleAudit}
+          style={{
+            background: "none",
+            border: "1px solid var(--rim)",
+            color: "rgb(170,140,220)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.08em",
+            padding: "3px 9px",
+            borderRadius: 2,
+            cursor: "pointer",
+          }}
+        >
+          🔬 Substrate Audit →
+        </button>
+      </div>
+      {item.rationale && (
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 9.5,
+            color: "var(--text-dim)",
+            lineHeight: 1.55,
+            marginTop: 4,
+            paddingLeft: 72,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {item.rationale}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Section header ──
@@ -519,27 +578,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         <div style={sectionStyle}>
           <SectionHeader label="Research" count={research.length} dotColor="rgb(140,140,220)" />
           {research.map((r) => (
-            <div
-              key={`res-${r.item.ticker}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 18px",
-                borderBottom: "1px solid rgba(28,28,48,0.4)",
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
-                {r.item.ticker}
-              </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
-                {r.item.name}
-              </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                {r.daysSinceReview != null ? `Reviewed ${r.daysSinceReview}d ago` : "Never reviewed"}
-              </span>
-            </div>
+            <ResearchRow key={`res-${r.item.ticker}`} row={r} />
           ))}
         </div>
       )}

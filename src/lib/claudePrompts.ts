@@ -62,3 +62,29 @@ Execute:
 
 5. Output: Research Commit payload (or no-change confirmation) — pause for confirmation`;
 }
+
+export function buildSubstrateAuditPrompt(ticker: string): string {
+  const t = ticker.toUpperCase();
+  return `Substrate audit for ${t} — from-scratch audit, not a stress-test of an existing thesis.
+
+Execute:
+
+1. Treat this ticker as a candidate with no prior commitments. Do not anchor on existing notes.
+
+2. Web search: business model, end markets, revenue mix, competitive landscape, capital structure, recent 2 years of news + earnings.
+
+3. Run the substrate test from first principles:
+
+   - Is the underlying substrate (technology, resource, network, regulation) durable for the next 5–10 years?
+
+   - What is the irreducible "why this exists" — the demand vector that does not depend on a specific product cycle?
+
+   - What would have to be true for this thesis to be wrong?
+
+4. Score all 6 dimensions (substrate, demand, moat, valuation, mgmt, disruption) from cold — provide rationales as if writing them for the first time.
+
+5. Decide: COMMIT (move to scored watchlist with ENTRY_TARGET + TRIGGER_CONDITION), DEFER (more research needed — list specific questions), or REJECT (substrate fails — explain).
+
+6. Output: Research Commit payload — pause for confirmation`;
+}
+
