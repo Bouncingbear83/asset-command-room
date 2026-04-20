@@ -290,10 +290,10 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         </span>
         <LayerChip layer={item.layer} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}</span>
+          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
         </span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
+          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
         </span>
         {(() => {
           if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
@@ -423,7 +423,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Current:</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
-              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}
+              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}
             </span>
             <TrajectoryArrow pct={change7dPct} />
             <span style={{ color: "var(--text-dim)", fontSize: 9 }}>7d</span>
@@ -432,7 +432,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           </div>
           <div>
             <span style={{ color: "var(--text-dim)" }}>Target: </span>
-            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
+            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
           </div>
           {(() => {
             // IN_ZONE → "Position: X% through zone" (lower = closer to bottom = better)
@@ -470,7 +470,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             <div>
               <span style={{ color: "var(--text-dim)" }}>52w: </span>
               <span style={{ color: "var(--text-mid)" }}>
-                {formatPrice(trajectory.low52w, item.currency)} – {formatPrice(trajectory.high52w, item.currency)}
+                {formatPrice(trajectory.low52w, item.currency, item.ticker)} – {formatPrice(trajectory.high52w, item.currency, item.ticker)}
               </span>
             </div>
           )}
