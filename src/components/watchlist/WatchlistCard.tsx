@@ -251,16 +251,32 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         </span>
         <LayerChip layer={item.layer} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null)}</span>
+          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}</span>
         </span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone)}</span>
+          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
         </span>
-        {distanceToEntryPct != null && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: distanceToEntryPct <= 0 ? "var(--green)" : "var(--text-mid)" }}>
-            Gap {distanceToEntryPct >= 0 ? "+" : ""}{distanceToEntryPct.toFixed(1)}%
-          </span>
-        )}
+        {(() => {
+          if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
+            const cp = trajectory?.currentClose ?? item.current ?? null;
+            if (cp != null) {
+              const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
+              return (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--green)" }}>
+                  Pos {through.toFixed(0)}% thru
+                </span>
+              );
+            }
+          }
+          if (distanceToEntryPct != null) {
+            return (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: distanceToEntryPct <= 0 ? "var(--green)" : "var(--text-mid)" }}>
+                Gap {distanceToEntryPct >= 0 ? "+" : ""}{distanceToEntryPct.toFixed(1)}%
+              </span>
+            );
+          }
+          return null;
+        })()}
         <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
         {daysSinceReview != null && (
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
