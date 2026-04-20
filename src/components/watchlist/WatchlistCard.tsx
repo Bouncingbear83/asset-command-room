@@ -66,12 +66,26 @@ const TINT_STYLE: Record<NonNullable<Props["tint"]>, CSSProperties> = {
   },
 };
 
+/**
+ * Currency-aware price formatting.
+ * Symbols: € EUR, ¥ JPY, £ GBP, p suffix GBX/GBp, kr SEK/DKK/NOK, C$ CAD, A$ AUD, HK$ HKD, CHF, $ USD/default.
+ */
 function formatPrice(n: number | null | undefined, currency?: string): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  const sym = currency === "GBp" ? "" : currency === "GBP" ? "£" : currency === "JPY" ? "¥" : "$";
-  const suffix = currency === "GBp" ? "p" : "";
+  const c = (currency ?? "USD").trim().toUpperCase();
+  let prefix = "$";
+  let suffix = "";
+  if (c === "EUR") prefix = "€";
+  else if (c === "JPY") prefix = "¥";
+  else if (c === "GBP") prefix = "£";
+  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBp".toUpperCase()) { prefix = ""; suffix = "p"; }
+  else if (c === "SEK" || c === "DKK" || c === "NOK") { prefix = ""; suffix = " kr"; }
+  else if (c === "CAD") prefix = "C$";
+  else if (c === "AUD") prefix = "A$";
+  else if (c === "HKD") prefix = "HK$";
+  else if (c === "CHF") { prefix = ""; suffix = " CHF"; }
   const decimals = Math.abs(n) >= 1000 ? 0 : 2;
-  return `${sym}${n.toLocaleString("en-GB", { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}${suffix}`;
+  return `${prefix}${n.toLocaleString("en-GB", { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}${suffix}`;
 }
 
 function formatZone(zone: EntryZone | null, currency?: string): string {
@@ -237,16 +251,32 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         </span>
         <LayerChip layer={item.layer} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null)}</span>
+          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}</span>
         </span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone)}</span>
+          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
         </span>
-        {distanceToEntryPct != null && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: distanceToEntryPct <= 0 ? "var(--green)" : "var(--text-mid)" }}>
-            Gap {distanceToEntryPct >= 0 ? "+" : ""}{distanceToEntryPct.toFixed(1)}%
-          </span>
-        )}
+        {(() => {
+          if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
+            const cp = trajectory?.currentClose ?? item.current ?? null;
+            if (cp != null) {
+              const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
+              return (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--green)" }}>
+                  Pos {through.toFixed(0)}% thru
+                </span>
+              );
+            }
+          }
+          if (distanceToEntryPct != null) {
+            return (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: distanceToEntryPct <= 0 ? "var(--green)" : "var(--text-mid)" }}>
+                Gap {distanceToEntryPct >= 0 ? "+" : ""}{distanceToEntryPct.toFixed(1)}%
+              </span>
+            );
+          }
+          return null;
+        })()}
         <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
         {daysSinceReview != null && (
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
@@ -354,7 +384,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Current:</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
-              {formatPrice(trajectory?.currentClose ?? item.current ?? null)}
+              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}
             </span>
             <TrajectoryArrow pct={change7dPct} />
             <span style={{ color: "var(--text-dim)", fontSize: 9 }}>7d</span>
@@ -363,28 +393,45 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           </div>
           <div>
             <span style={{ color: "var(--text-dim)" }}>Target: </span>
-            <span style={{ color: "var(--gold)" }}>{formatZone(zone)}</span>
+            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
           </div>
-          <div>
-            <span style={{ color: "var(--text-dim)" }}>Gap: </span>
-            <span
-              style={{
-                color: distanceToEntryPct == null ? "var(--text-dim)" : distanceToEntryPct <= 0 ? "var(--green)" : distanceToEntryPct <= 10 ? "var(--amber)" : "var(--text-mid)",
-                fontWeight: 600,
-              }}
-            >
-              {distanceToEntryPct == null
-                ? "—"
-                : distanceToEntryPct <= 0
-                  ? `${distanceToEntryPct.toFixed(1)}% (in zone)`
-                  : `+${distanceToEntryPct.toFixed(1)}% above entry`}
-            </span>
-          </div>
+          {(() => {
+            // IN_ZONE → "Position: X% through zone" (lower = closer to bottom = better)
+            const cp = trajectory?.currentClose ?? item.current ?? null;
+            if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low && cp != null) {
+              const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
+              return (
+                <div>
+                  <span style={{ color: "var(--text-dim)" }}>Position: </span>
+                  <span style={{ color: "var(--green)", fontWeight: 600 }}>
+                    {through.toFixed(0)}% through zone
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div>
+                <span style={{ color: "var(--text-dim)" }}>Gap: </span>
+                <span
+                  style={{
+                    color: distanceToEntryPct == null ? "var(--text-dim)" : distanceToEntryPct <= 0 ? "var(--green)" : distanceToEntryPct <= 10 ? "var(--amber)" : "var(--text-mid)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {distanceToEntryPct == null
+                    ? "—"
+                    : distanceToEntryPct <= 0
+                      ? `${distanceToEntryPct.toFixed(1)}% (in zone)`
+                      : `+${distanceToEntryPct.toFixed(1)}% above zone top`}
+                </span>
+              </div>
+            );
+          })()}
           {(trajectory?.high52w != null || trajectory?.low52w != null) && (
             <div>
               <span style={{ color: "var(--text-dim)" }}>52w: </span>
               <span style={{ color: "var(--text-mid)" }}>
-                {formatPrice(trajectory.low52w)} – {formatPrice(trajectory.high52w)}
+                {formatPrice(trajectory.low52w, item.currency)} – {formatPrice(trajectory.high52w, item.currency)}
               </span>
             </div>
           )}

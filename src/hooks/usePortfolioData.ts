@@ -367,6 +367,7 @@ function parseWatchlist(rows: Record<string, any>[]) {
         triggerReviewDate: parseSheetDate(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE")) ?? "",
         triggerReviewNote: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
         deploy_amount_gbp: parseNum(findCol(row, "deploy_amount_gbp", "DEPLOY_AMOUNT_GBP", "Deploy_Amount_GBP")),
+        currency: String(findCol(row, "currency", "CURRENCY", "Currency") ?? "USD").trim(),
       };
     })
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
