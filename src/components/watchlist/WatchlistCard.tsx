@@ -66,12 +66,26 @@ const TINT_STYLE: Record<NonNullable<Props["tint"]>, CSSProperties> = {
   },
 };
 
+/**
+ * Currency-aware price formatting.
+ * Symbols: € EUR, ¥ JPY, £ GBP, p suffix GBX/GBp, kr SEK/DKK/NOK, C$ CAD, A$ AUD, HK$ HKD, CHF, $ USD/default.
+ */
 function formatPrice(n: number | null | undefined, currency?: string): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  const sym = currency === "GBp" ? "" : currency === "GBP" ? "£" : currency === "JPY" ? "¥" : "$";
-  const suffix = currency === "GBp" ? "p" : "";
+  const c = (currency ?? "USD").trim().toUpperCase();
+  let prefix = "$";
+  let suffix = "";
+  if (c === "EUR") prefix = "€";
+  else if (c === "JPY") prefix = "¥";
+  else if (c === "GBP") prefix = "£";
+  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBp".toUpperCase()) { prefix = ""; suffix = "p"; }
+  else if (c === "SEK" || c === "DKK" || c === "NOK") { prefix = ""; suffix = " kr"; }
+  else if (c === "CAD") prefix = "C$";
+  else if (c === "AUD") prefix = "A$";
+  else if (c === "HKD") prefix = "HK$";
+  else if (c === "CHF") { prefix = ""; suffix = " CHF"; }
   const decimals = Math.abs(n) >= 1000 ? 0 : 2;
-  return `${sym}${n.toLocaleString("en-GB", { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}${suffix}`;
+  return `${prefix}${n.toLocaleString("en-GB", { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}${suffix}`;
 }
 
 function formatZone(zone: EntryZone | null, currency?: string): string {
