@@ -272,78 +272,95 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
       <div
         onClick={handleCardClick}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "8px 14px",
+          padding: "8px 14px 6px",
           borderBottom: "1px solid rgba(28,28,48,0.4)",
           cursor: isMobile ? "pointer" : "default",
-          flexWrap: "wrap",
           ...tintStyle,
         }}
       >
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
-          {item.ticker}
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {item.name}
-        </span>
-        <LayerChip layer={item.layer} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
-        </span>
-        {(() => {
-          if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
-            const cp = trajectory?.currentClose ?? item.current ?? null;
-            if (cp != null) {
-              const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
+        {/* Primary data row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
+            {item.ticker}
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {item.name}
+          </span>
+          <LayerChip layer={item.layer} />
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+            Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+            Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
+          </span>
+          {(() => {
+            if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
+              const cp = trajectory?.currentClose ?? item.current ?? null;
+              if (cp != null) {
+                const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
+                return (
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--green)" }}>
+                    Pos {through.toFixed(0)}% thru
+                  </span>
+                );
+              }
+            }
+            if (distanceToEntryPct != null) {
               return (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--green)" }}>
-                  Pos {through.toFixed(0)}% thru
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: distanceToEntryPct <= 0 ? "var(--green)" : "var(--text-mid)" }}>
+                  Gap {distanceToEntryPct >= 0 ? "+" : ""}{distanceToEntryPct.toFixed(1)}%
                 </span>
               );
             }
-          }
-          if (distanceToEntryPct != null) {
-            return (
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: distanceToEntryPct <= 0 ? "var(--green)" : "var(--text-mid)" }}>
-                Gap {distanceToEntryPct >= 0 ? "+" : ""}{distanceToEntryPct.toFixed(1)}%
-              </span>
-            );
-          }
-          return null;
-        })()}
-        <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
-        {daysSinceReview != null && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
-            {row.isOverdue ? `${daysSinceReview}d ⚠` : `${daysSinceReview}d`}
-          </span>
-        )}
-        {!hideActions && (
-          <button
-            onClick={(e) => {
-              stop(e);
-              triggerWebhook("stellar-watchlist-review", { ticker: item.ticker }, `Watchlist review triggered for ${item.ticker}. Check email.`);
-            }}
+            return null;
+          })()}
+          <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
+          {daysSinceReview != null && (
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
+              {row.isOverdue ? `${daysSinceReview}d ⚠` : `${daysSinceReview}d`}
+            </span>
+          )}
+          {!hideActions && (
+            <button
+              onClick={(e) => {
+                stop(e);
+                triggerWebhook("stellar-watchlist-review", { ticker: item.ticker }, `Watchlist review triggered for ${item.ticker}. Check email.`);
+              }}
+              style={{
+                background: "none",
+                border: "1px solid var(--rim)",
+                color: "var(--gold)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.08em",
+                padding: "3px 9px",
+                borderRadius: 2,
+                cursor: "pointer",
+              }}
+            >
+              Review →
+            </button>
+          )}
+          {isMobile && <ChevronRight size={12} style={{ color: "var(--text-dim)" }} />}
+        </div>
+
+        {/* Secondary trigger line — full width, never truncated */}
+        {item.trigger && (
+          <div
             style={{
-              background: "none",
-              border: "1px solid var(--rim)",
-              color: "var(--gold)",
               fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              letterSpacing: "0.08em",
-              padding: "3px 9px",
-              borderRadius: 2,
-              cursor: "pointer",
+              fontSize: 9.5,
+              color: "var(--text-dim)",
+              lineHeight: 1.5,
+              marginTop: 4,
+              paddingLeft: 72,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
             }}
           >
-            Review →
-          </button>
+            <span style={{ color: "var(--accent)", fontWeight: 600 }}>Trigger:</span> {item.trigger}
+          </div>
         )}
-        {isMobile && <ChevronRight size={12} style={{ color: "var(--text-dim)" }} />}
       </div>
     );
   }
