@@ -1,4 +1,5 @@
 import { CSSProperties, ReactNode } from "react";
+import "./chip.css";
 
 /**
  * Atomic filter chip — uppercase mono pill with optional count badge and
@@ -7,6 +8,8 @@ import { CSSProperties, ReactNode } from "react";
  * Visual grammar:
  *   - Inactive: transparent bg, dim text, rim border
  *   - Active:   gold-dim bg, gold text, gold border
+ *
+ * Mobile (≤767px): tighter padding + smaller font, applied via CSS class.
  */
 
 export interface ChipProps {
@@ -60,6 +63,7 @@ export function Chip({ label, count, active, onClick, ariaLabel, variant = "defa
       aria-pressed={active}
       aria-label={ariaLabel ?? labelStr}
       onClick={onClick}
+      className="filter-chip"
       style={{ ...chipBase, ...(active ? activeStyle : null) }}
     >
       {icon}

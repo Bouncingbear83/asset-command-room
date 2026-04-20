@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { Search } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   value: string;
@@ -8,10 +9,17 @@ interface Props {
   ariaLabel?: string;
 }
 
-const wrap: CSSProperties = {
+const wrapDesktop: CSSProperties = {
   position: "relative",
   flex: "1 1 220px",
   maxWidth: 360,
+};
+
+const wrapMobile: CSSProperties = {
+  position: "relative",
+  flex: "1 1 100%",
+  width: "100%",
+  maxWidth: "none",
 };
 
 const input: CSSProperties = {
@@ -35,8 +43,9 @@ const icon: CSSProperties = {
 };
 
 export function SearchBox({ value, onChange, placeholder = "Search ticker or name…", ariaLabel }: Props) {
+  const isMobile = useIsMobile();
   return (
-    <div style={wrap}>
+    <div style={isMobile ? wrapMobile : wrapDesktop}>
       <Search size={12} style={icon} />
       <input
         type="text"
