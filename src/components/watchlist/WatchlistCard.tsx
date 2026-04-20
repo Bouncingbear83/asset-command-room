@@ -67,18 +67,57 @@ const TINT_STYLE: Record<NonNullable<Props["tint"]>, CSSProperties> = {
 };
 
 /**
+ * Infer currency from ticker exchange suffix when the WATCHLIST sheet
+ * doesn't carry an explicit CURRENCY column for the row.
+ *   .DE/.F/.PA/.AS/.MI/.MC/.LS/.BR/.VI/.HE → EUR
+ *   .T/.JP                                 → JPY
+ *   .L                                     → GBX (London listings quote in pence by default)
+ *   .ST                                    → SEK
+ *   .CO                                    → DKK
+ *   .OL                                    → NOK
+ *   .TO/.V                                 → CAD
+ *   .AX                                    → AUD
+ *   .HK                                    → HKD
+ *   .SW                                    → CHF
+ */
+function inferCurrencyFromTicker(ticker: string | undefined): string | null {
+  if (!ticker) return null;
+  const m = ticker.toUpperCase().match(/\.([A-Z]{1,3})$/);
+  if (!m) return null;
+  const sfx = m[1];
+  const map: Record<string, string> = {
+    DE: "EUR", F: "EUR", PA: "EUR", AS: "EUR", MI: "EUR", MC: "EUR",
+    LS: "EUR", BR: "EUR", VI: "EUR", HE: "EUR", IR: "EUR",
+    T: "JPY", JP: "JPY",
+    L: "GBX",
+    ST: "SEK", CO: "DKK", OL: "NOK",
+    TO: "CAD", V: "CAD",
+    AX: "AUD", HK: "HKD", SW: "CHF",
+  };
+  return map[sfx] ?? null;
+}
+
+/**
  * Currency-aware price formatting.
  * Symbols: € EUR, ¥ JPY, £ GBP, p suffix GBX/GBp, kr SEK/DKK/NOK, C$ CAD, A$ AUD, HK$ HKD, CHF, $ USD/default.
+ *
+ * `currency` may come from the WATCHLIST sheet's CURRENCY column; if absent
+ * or "USD" while the ticker has a non-US exchange suffix, infer from the suffix.
  */
-function formatPrice(n: number | null | undefined, currency?: string): string {
+function formatPrice(n: number | null | undefined, currency?: string, ticker?: string): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  const c = (currency ?? "USD").trim().toUpperCase();
+  let c = (currency ?? "").trim().toUpperCase();
+  // If sheet says USD (default) but ticker carries an exchange suffix, prefer the suffix
+  const inferred = inferCurrencyFromTicker(ticker);
+  if ((!c || c === "USD") && inferred) c = inferred;
+  if (!c) c = "USD";
+
   let prefix = "$";
   let suffix = "";
   if (c === "EUR") prefix = "€";
   else if (c === "JPY") prefix = "¥";
   else if (c === "GBP") prefix = "£";
-  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBp".toUpperCase()) { prefix = ""; suffix = "p"; }
+  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBP".toUpperCase() + "P") { prefix = ""; suffix = "p"; }
   else if (c === "SEK" || c === "DKK" || c === "NOK") { prefix = ""; suffix = " kr"; }
   else if (c === "CAD") prefix = "C$";
   else if (c === "AUD") prefix = "A$";
@@ -88,10 +127,10 @@ function formatPrice(n: number | null | undefined, currency?: string): string {
   return `${prefix}${n.toLocaleString("en-GB", { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}${suffix}`;
 }
 
-function formatZone(zone: EntryZone | null, currency?: string): string {
+function formatZone(zone: EntryZone | null, currency?: string, ticker?: string): string {
   if (!zone) return "—";
-  if (zone.low === zone.high) return formatPrice(zone.low, currency);
-  return `${formatPrice(zone.low, currency)}–${formatPrice(zone.high, currency)}`;
+  if (zone.low === zone.high) return formatPrice(zone.low, currency, ticker);
+  return `${formatPrice(zone.low, currency, ticker)}–${formatPrice(zone.high, currency, ticker)}`;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -251,10 +290,10 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         </span>
         <LayerChip layer={item.layer} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}</span>
+          Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
         </span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
+          Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
         </span>
         {(() => {
           if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
@@ -384,7 +423,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Current:</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
-              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}
+              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}
             </span>
             <TrajectoryArrow pct={change7dPct} />
             <span style={{ color: "var(--text-dim)", fontSize: 9 }}>7d</span>
@@ -393,7 +432,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           </div>
           <div>
             <span style={{ color: "var(--text-dim)" }}>Target: </span>
-            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
+            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
           </div>
           {(() => {
             // IN_ZONE → "Position: X% through zone" (lower = closer to bottom = better)
@@ -431,7 +470,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             <div>
               <span style={{ color: "var(--text-dim)" }}>52w: </span>
               <span style={{ color: "var(--text-mid)" }}>
-                {formatPrice(trajectory.low52w, item.currency)} – {formatPrice(trajectory.high52w, item.currency)}
+                {formatPrice(trajectory.low52w, item.currency, item.ticker)} – {formatPrice(trajectory.high52w, item.currency, item.ticker)}
               </span>
             </div>
           )}
