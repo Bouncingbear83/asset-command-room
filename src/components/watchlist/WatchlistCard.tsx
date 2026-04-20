@@ -396,22 +396,38 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         <StatusBadge status={item.status} />
       </div>
 
-      {/* Trigger condition */}
+      {/* THESIS / RATIONALE — full text, no truncation */}
+      {item.rationale && (
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10.5,
+            color: "var(--text-mid)",
+            lineHeight: 1.55,
+            marginBottom: 6,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {item.rationale}
+        </div>
+      )}
+
+      {/* TRIGGER CONDITION — separate accent line */}
       {item.trigger && (
         <div
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            color: "var(--text-dim)",
-            lineHeight: 1.5,
-            marginBottom: 8,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical" as const,
+            fontSize: 10.5,
+            color: "var(--accent)",
+            fontWeight: 600,
+            lineHeight: 1.55,
+            marginBottom: 10,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
           }}
         >
-          {item.trigger.length > 140 ? `${item.trigger.slice(0, 140)}…` : item.trigger}
+          ▸ TRIGGER: <span style={{ color: "var(--text)" }}>{item.trigger}</span>
         </div>
       )}
 
