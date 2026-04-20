@@ -67,18 +67,57 @@ const TINT_STYLE: Record<NonNullable<Props["tint"]>, CSSProperties> = {
 };
 
 /**
+ * Infer currency from ticker exchange suffix when the WATCHLIST sheet
+ * doesn't carry an explicit CURRENCY column for the row.
+ *   .DE/.F/.PA/.AS/.MI/.MC/.LS/.BR/.VI/.HE → EUR
+ *   .T/.JP                                 → JPY
+ *   .L                                     → GBX (London listings quote in pence by default)
+ *   .ST                                    → SEK
+ *   .CO                                    → DKK
+ *   .OL                                    → NOK
+ *   .TO/.V                                 → CAD
+ *   .AX                                    → AUD
+ *   .HK                                    → HKD
+ *   .SW                                    → CHF
+ */
+function inferCurrencyFromTicker(ticker: string | undefined): string | null {
+  if (!ticker) return null;
+  const m = ticker.toUpperCase().match(/\.([A-Z]{1,3})$/);
+  if (!m) return null;
+  const sfx = m[1];
+  const map: Record<string, string> = {
+    DE: "EUR", F: "EUR", PA: "EUR", AS: "EUR", MI: "EUR", MC: "EUR",
+    LS: "EUR", BR: "EUR", VI: "EUR", HE: "EUR", IR: "EUR",
+    T: "JPY", JP: "JPY",
+    L: "GBX",
+    ST: "SEK", CO: "DKK", OL: "NOK",
+    TO: "CAD", V: "CAD",
+    AX: "AUD", HK: "HKD", SW: "CHF",
+  };
+  return map[sfx] ?? null;
+}
+
+/**
  * Currency-aware price formatting.
  * Symbols: € EUR, ¥ JPY, £ GBP, p suffix GBX/GBp, kr SEK/DKK/NOK, C$ CAD, A$ AUD, HK$ HKD, CHF, $ USD/default.
+ *
+ * `currency` may come from the WATCHLIST sheet's CURRENCY column; if absent
+ * or "USD" while the ticker has a non-US exchange suffix, infer from the suffix.
  */
-function formatPrice(n: number | null | undefined, currency?: string): string {
+function formatPrice(n: number | null | undefined, currency?: string, ticker?: string): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  const c = (currency ?? "USD").trim().toUpperCase();
+  let c = (currency ?? "").trim().toUpperCase();
+  // If sheet says USD (default) but ticker carries an exchange suffix, prefer the suffix
+  const inferred = inferCurrencyFromTicker(ticker);
+  if ((!c || c === "USD") && inferred) c = inferred;
+  if (!c) c = "USD";
+
   let prefix = "$";
   let suffix = "";
   if (c === "EUR") prefix = "€";
   else if (c === "JPY") prefix = "¥";
   else if (c === "GBP") prefix = "£";
-  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBp".toUpperCase()) { prefix = ""; suffix = "p"; }
+  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBP".toUpperCase() + "P") { prefix = ""; suffix = "p"; }
   else if (c === "SEK" || c === "DKK" || c === "NOK") { prefix = ""; suffix = " kr"; }
   else if (c === "CAD") prefix = "C$";
   else if (c === "AUD") prefix = "A$";
@@ -88,10 +127,10 @@ function formatPrice(n: number | null | undefined, currency?: string): string {
   return `${prefix}${n.toLocaleString("en-GB", { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}${suffix}`;
 }
 
-function formatZone(zone: EntryZone | null, currency?: string): string {
+function formatZone(zone: EntryZone | null, currency?: string, ticker?: string): string {
   if (!zone) return "—";
-  if (zone.low === zone.high) return formatPrice(zone.low, currency);
-  return `${formatPrice(zone.low, currency)}–${formatPrice(zone.high, currency)}`;
+  if (zone.low === zone.high) return formatPrice(zone.low, currency, ticker);
+  return `${formatPrice(zone.low, currency, ticker)}–${formatPrice(zone.high, currency, ticker)}`;
 }
 
 function StatusBadge({ status }: { status: string }) {
