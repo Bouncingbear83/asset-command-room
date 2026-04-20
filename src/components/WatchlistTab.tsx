@@ -6,6 +6,8 @@ import { parseEntryTarget } from "@/lib/parseEntryTarget";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { WatchlistCard, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
+import { triggerWebhook } from "@/lib/webhooks";
+import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
 
 interface Props {
   liveData: LiveWatchItem[];
