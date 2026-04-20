@@ -1,9 +1,13 @@
 import { CSSProperties } from "react";
 import type { LucideIcon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Generic group-by toggle row. Caller supplies the typed value list and the
  * active value; this component just renders chips and forwards changes.
+ *
+ * On mobile (≤767px): icon-only chips with title tooltips to save horizontal
+ * space. Desktop keeps icon + label.
  */
 
 export interface GroupOption<T extends string> {
@@ -37,6 +41,12 @@ const chipBase: CSSProperties = {
   transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
 };
 
+const chipBaseMobile: CSSProperties = {
+  ...chipBase,
+  padding: "5px 7px",
+  gap: 0,
+};
+
 const chipActive: CSSProperties = {
   background: "var(--gold-dim, rgba(201,168,76,0.12))",
   color: "var(--gold)",
@@ -44,8 +54,10 @@ const chipActive: CSSProperties = {
 };
 
 export function GroupToggle<T extends string>({ options, value, onChange, ariaLabel = "Group by" }: Props<T>) {
+  const isMobile = useIsMobile();
+  const base = isMobile ? chipBaseMobile : chipBase;
   return (
-    <div role="group" aria-label={ariaLabel} style={{ display: "flex", gap: 6 }}>
+    <div role="group" aria-label={ariaLabel} style={{ display: "flex", gap: isMobile ? 4 : 6 }}>
       {options.map(({ value: v, label, Icon }) => {
         const active = v === value;
         return (
@@ -53,11 +65,13 @@ export function GroupToggle<T extends string>({ options, value, onChange, ariaLa
             key={v}
             type="button"
             aria-pressed={active}
+            aria-label={label}
             onClick={() => onChange(v)}
             title={label}
-            style={{ ...chipBase, ...(active ? chipActive : null) }}
+            style={{ ...base, ...(active ? chipActive : null) }}
           >
-            <Icon size={12} /> {label}
+            <Icon size={12} />
+            {!isMobile && <span>{label}</span>}
           </button>
         );
       })}

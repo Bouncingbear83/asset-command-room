@@ -10,6 +10,7 @@ import {
   type GroupOption,
   type MobileSortOption,
 } from "@/components/shared/filters";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import {
   HOLDINGS_ACCOUNT_VALUES,
@@ -71,11 +72,19 @@ const SORT_OPTIONS: MobileSortOption<HoldingsSortField>[] = [
   { field: "action",    dir: "asc",  label: "Action" },
 ];
 
-const wrap: CSSProperties = {
+const wrapDesktop: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: 10,
   padding: "12px 16px",
+  borderBottom: "1px solid var(--rim)",
+};
+
+const wrapMobile: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  padding: "8px 12px",
   borderBottom: "1px solid var(--rim)",
 };
 
@@ -120,7 +129,24 @@ export function HoldingsFilters({
     (layerFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
-  const alwaysVisible = (
+  const isMobile = useIsMobile();
+
+  const alwaysVisible = isMobile ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <SearchBox value={search} onChange={onSearchChange} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <MobileSortSelect
+            options={SORT_OPTIONS}
+            field={sortField}
+            dir={sortDir}
+            onChange={onSortChange}
+          />
+        </div>
+        <GroupToggle options={GROUP_OPTIONS} value={groupBy} onChange={onGroupChange} />
+      </div>
+    </div>
+  ) : (
     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
       <SearchBox value={search} onChange={onSearchChange} />
       <MobileSortSelect
@@ -227,7 +253,7 @@ export function HoldingsFilters({
   );
 
   return (
-    <div style={wrap}>
+    <div style={isMobile ? wrapMobile : wrapDesktop}>
       <FilterDisclosure activeCount={activeCount} alwaysVisible={alwaysVisible}>
         {chipsBlock}
       </FilterDisclosure>

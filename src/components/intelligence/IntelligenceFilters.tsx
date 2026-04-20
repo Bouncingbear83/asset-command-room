@@ -9,6 +9,7 @@ import {
   type GroupOption,
   type MobileSortOption,
 } from "@/components/shared/filters";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
 import type { GroupBy, SortField } from "@/lib/url-state";
@@ -126,7 +127,24 @@ export function IntelligenceFilters({
     </>
   );
 
-  const alwaysVisible = (
+  const isMobile = useIsMobile();
+
+  const alwaysVisible = isMobile ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <SearchBox value={search} onChange={onSearchChange} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <MobileSortSelect
+            options={SORT_OPTIONS}
+            field={sortField}
+            dir={sortDir}
+            onChange={onSortChange}
+          />
+        </div>
+        <GroupToggle options={GROUP_OPTIONS} value={groupBy} onChange={onGroupChange} />
+      </div>
+    </div>
+  ) : (
     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
       <SearchBox value={search} onChange={onSearchChange} />
       <MobileSortSelect
@@ -142,7 +160,15 @@ export function IntelligenceFilters({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 16px", borderBottom: "1px solid var(--rim)" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? 6 : 10,
+        padding: isMobile ? "8px 12px" : "12px 16px",
+        borderBottom: "1px solid var(--rim)",
+      }}
+    >
       <FilterDisclosure activeCount={activeCount} alwaysVisible={alwaysVisible}>
         {chipsBlock}
       </FilterDisclosure>

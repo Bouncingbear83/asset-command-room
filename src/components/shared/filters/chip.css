@@ -1,0 +1,12 @@
+/* Mobile chip sizing — tighter padding + smaller font for dense filter rows. */
+@media (max-width: 767px) {
+  .filter-chip {
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+    letter-spacing: 0.08em !important;
+    gap: 4px !important;
+  }
+  .filter-chip > span {
+    font-size: 9px !important;
+  }
+}

@@ -312,22 +312,25 @@ export default function IntelligenceTab() {
       />
 
       {showCoverageBanner && (
-        <div style={{
-          margin: "0 16px 12px",
-          padding: "10px 14px",
-          border: "1px solid var(--rim)",
-          background: "rgba(28,28,48,0.35)",
-          borderRadius: 4,
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 12,
-          fontFamily: "var(--font-mono)",
-          fontSize: 11,
-          color: "var(--text-mid)",
-          lineHeight: 1.5,
-        }}>
+        <div
+          className="intelligence-coverage-banner"
+          style={{
+            margin: "0 16px 12px",
+            padding: "10px 14px",
+            border: "1px solid var(--rim)",
+            background: "rgba(28,28,48,0.35)",
+            borderRadius: 4,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 12,
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--text-mid)",
+            lineHeight: 1.5,
+          }}
+        >
           <span style={{ color: "var(--gold)" }}>📊</span>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div>
               Rationale coverage: <strong style={{ color: "var(--text-mid)" }}>{rationaleCoverage.scoreHits}/{rationaleCoverage.scoreTotal}</strong> score rationales ({Math.round(scorePct)}%)
               {" · "}
@@ -350,7 +353,8 @@ export default function IntelligenceTab() {
               fontFamily: "var(--font-mono)",
               fontSize: 10,
               letterSpacing: "0.1em",
-              padding: "2px 8px",
+              padding: "6px 10px",
+              minHeight: 32,
               cursor: "pointer",
               borderRadius: 2,
             }}
