@@ -1,643 +1,629 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronRight, ChevronDown } from "lucide-react";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
-import { triggerWebhook } from "@/lib/webhooks";
-import { buildDeepDivePrompt, buildWatchlistReviewPrompt } from "@/lib/claudePrompts";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useResearchSummary } from "@/hooks/useResearchSummary";
+import { parseEntryTarget } from "@/lib/parseEntryTarget";
+import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
+import { useWatchlistScores } from "@/hooks/useWatchlistScores";
+import { WatchlistCard, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 
 interface Props {
   liveData: LiveWatchItem[];
   macroState: LiveMacroState;
 }
 
-const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  "BUY T1": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
-  "BUY T2": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
-  "BUY NOW": { background: "var(--green-dim)", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" },
-  ACTIVE_MONITORING: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid color-mix(in srgb, var(--amber) 35%, transparent)" },
-  MONITOR: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)" },
-  WAIT: { background: "rgba(80, 80, 120, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(80, 80, 120, 0.25)" },
-  WATCH: { background: "rgba(80, 80, 120, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(80, 80, 120, 0.25)" },
-  RESEARCH: { background: "rgba(80, 80, 160, 0.15)", color: "rgb(140, 140, 220)", border: "1px solid rgba(140, 140, 220, 0.25)" },
-  "PRE-IPO": { background: "rgba(130, 80, 180, 0.15)", color: "rgb(170, 120, 220)", border: "1px solid rgba(170, 120, 220, 0.25)" },
-  EXITED: { background: "rgba(60, 60, 80, 0.15)", color: "var(--text-dim)", border: "1px solid rgba(60, 60, 80, 0.3)" },
-};
+const OVERDUE_DAYS = 14;
 
-function parseEntryTarget(entry: string): number | null {
-  if (!entry) return null;
-  const parts = entry.split(/\s*[-–]\s*|\s+to\s+/i);
-  const nums = parts
-    .map((part) => parseFloat(part.replace(/[^0-9.]/g, "")))
-    .filter((num) => !isNaN(num) && num > 0);
-  if (nums.length === 0) return null;
-  return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];
-}
-
-function getPctInfo(item: LiveWatchItem) {
-  const current = typeof item.current === "number" ? item.current : null;
-  const entryNum = item.triggerPriceNumeric ?? parseEntryTarget(item.entry);
-  const hasBoth = current != null && entryNum != null && entryNum > 0;
-  const pctDist = hasBoth ? ((current! - entryNum!) / entryNum!) * 100 : null;
-  let vsColor = "var(--text-dim)";
-  let vsLabel = "—";
-  if (pctDist !== null) {
-    // Negative = below target (buy zone) = green. Positive = above target (wait) = amber/red.
-    if (pctDist <= 0) { vsColor = "var(--green)"; vsLabel = pctDist === 0 ? "AT TARGET" : `${pctDist.toFixed(1)}%`; }
-    else if (pctDist <= 10) { vsColor = "var(--red)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
-    else { vsColor = "var(--red)"; vsLabel = `+${pctDist.toFixed(1)}%`; }
-  }
-  return { current, entryNum, pctDist, vsColor, vsLabel };
-}
-
-function isStale(note: string) {
-  return note?.toUpperCase().startsWith("STALE:");
-}
-
-function reviewAge(dateStr: string): number | null {
+function daysSince(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
-  const reviewDate = new Date(dateStr);
-  if (isNaN(reviewDate.getTime())) return null;
-  const now = new Date();
-  return Math.floor((now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-// ── Staleness indicator ──
-
-interface StalenessConfig {
-  amberDays: number;
-  redDays: number;
-  showStaleness: boolean;
-}
-
-const stalenessByStatus: Record<string, StalenessConfig> = {
-  'ACTIVE':           { amberDays: 14, redDays: 30, showStaleness: true },
-  'REVIEW_FLAGGED':   { amberDays: 14, redDays: 30, showStaleness: true },
-  'PENDING':          { amberDays: 14, redDays: 30, showStaleness: true },
-  'BUY NOW':          { amberDays: 14, redDays: 30, showStaleness: true },
-  'BUY T1':           { amberDays: 14, redDays: 30, showStaleness: true },
-  'BUY T2':           { amberDays: 14, redDays: 30, showStaleness: true },
-  'ACTIVE_MONITORING':{ amberDays: 14, redDays: 30, showStaleness: true },
-  'MONITOR':          { amberDays: 14, redDays: 30, showStaleness: true },
-  'WAIT':             { amberDays: 30, redDays: 60, showStaleness: true },
-  'WATCH':            { amberDays: 30, redDays: 60, showStaleness: true },
-  'RESEARCH':         { amberDays: 30, redDays: 60, showStaleness: true },
-  'PRE-IPO':          { amberDays: -1, redDays: -1, showStaleness: false },
-  'EXITED':           { amberDays: -1, redDays: -1, showStaleness: false },
-};
-
-type StalenessColor = 'green' | 'amber' | 'red' | 'grey';
-
-function getStalenessIndicator(
-  reviewDate: string | null | undefined,
-  status: string
-): { color: StalenessColor; label: string; sortWeight: number } {
-  const config = stalenessByStatus[status.trim().toUpperCase()] || stalenessByStatus['WAIT'];
-
-  if (!reviewDate) {
-    return { color: 'red', label: 'Never reviewed', sortWeight: 9999 };
-  }
-
-  const daysSince = reviewAge(reviewDate);
-  if (daysSince === null) {
-    return { color: 'red', label: 'Never reviewed', sortWeight: 9999 };
-  }
-
-  if (!config.showStaleness) {
-    return { color: 'grey', label: `Scanned ${daysSince}d ago`, sortWeight: -1 };
-  }
-
-  if (daysSince >= config.redDays) {
-    return { color: 'red', label: `${daysSince}d — overdue`, sortWeight: daysSince + 1000 };
-  }
-  if (daysSince >= config.amberDays) {
-    return { color: 'amber', label: `${daysSince}d`, sortWeight: daysSince + 500 };
-  }
-  return { color: 'green', label: `${daysSince}d`, sortWeight: daysSince };
-}
-
-const STALENESS_DOT_COLORS: Record<StalenessColor, string> = {
-  green: 'var(--green)',
-  amber: '#EF9F27',
-  red: 'var(--red)',
-  grey: 'var(--text-dim)',
-};
-
-function formatReviewDate(dateStr: string): string {
-  if (!dateStr) return "";
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  if (isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function parseReviewNote(note: string) {
-  const parts = {
-    status: note?.toUpperCase().startsWith("STALE:") ? "STALE" as const : "OK" as const,
-    reason: "",
-    suggestedTarget: "",
-    suggestedCondition: "",
-  };
-  if (!note) return parts;
-  const targetMatch = note.match(/\|\s*Target:\s*([^|]+)/);
-  const condMatch = note.match(/\|\s*Cond:\s*([^|]+)/);
-  parts.reason = note.split("|")[0].replace(/^(STALE|OK):\s*/i, "").trim();
-  if (targetMatch) parts.suggestedTarget = targetMatch[1].trim();
-  if (condMatch) parts.suggestedCondition = condMatch[1].trim();
-  return parts;
-}
+// ── Section header ──
 
-// ── Shared sub-components ──
-
-function StatCard({ count, label, color, glow }: { count: number; label: string; color: string; glow?: string }) {
+function SectionHeader({
+  label,
+  count,
+  dotColor,
+  collapsible,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  count: number;
+  dotColor: string;
+  collapsible?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
+  const isMobile = useIsMobile();
   return (
-    <div style={{
-      flex: "1 1 0",
-      minWidth: 80,
-      padding: "14px 14px",
-      background: "var(--panel)",
-      border: "1px solid var(--rim)",
-      borderRadius: 3,
-      position: "relative",
-      overflow: "hidden",
-    }}>
-      {glow && <div style={{ position: "absolute", top: -20, right: -20, width: 60, height: 60, borderRadius: "50%", background: glow, filter: "blur(24px)", opacity: 0.4 }} />}
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 24, fontWeight: 700, color, lineHeight: 1, position: "relative" }}>{count}</div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-dim)", marginTop: 6, position: "relative" }}>{label}</div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const normalized = status.trim().toUpperCase();
-  const style = STATUS_STYLE[normalized] ?? STATUS_STYLE.WATCH;
-  return (
-    <span style={{ ...style, padding: "2px 8px", borderRadius: 2, fontSize: 8, letterSpacing: "0.12em", whiteSpace: "nowrap", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-      {normalized}
-    </span>
-  );
-}
-
-function ReviewCard({ note, dateStr }: { note: string; dateStr: string }) {
-  const hasNote = note && note.trim() !== "";
-  if (!hasNote && !dateStr) {
-    return (
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", opacity: 0.5 }}>
-        (no review)
+    <div
+      onClick={collapsible ? onToggle : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: isMobile ? "10px 14px" : "12px 18px",
+        borderBottom: "1px solid var(--rim)",
+        cursor: collapsible ? "pointer" : "default",
+        userSelect: "none",
+      }}
+    >
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.18em",
+          color: dotColor,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
       </span>
-    );
-  }
-
-  const parsed = hasNote ? parseReviewNote(note) : null;
-  const stale = hasNote && isStale(note);
-  const age = reviewAge(dateStr);
-  const overdue = age !== null && age > 90;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {parsed && (
-        <div style={{
-          borderLeft: `3px solid ${stale ? "#EF9F27" : "var(--green)"}`,
-          background: stale ? "rgba(239, 159, 39, 0.06)" : "rgba(90, 191, 160, 0.04)",
-          padding: "8px 12px",
-          borderRadius: "0 3px 3px 0",
-        }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: stale ? "#EF9F27" : "var(--green)", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 3 }}>
-            {stale ? "⚠️ STALE" : "✓ OK"}
-          </div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", lineHeight: 1.5 }}>
-            {parsed.reason}
-          </div>
-          {parsed.suggestedTarget && (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", fontStyle: "italic", marginTop: 4 }}>
-              💡 Suggested target: {parsed.suggestedTarget}
-            </div>
-          )}
-          {parsed.suggestedCondition && (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", fontStyle: "italic" }}>
-              💡 Suggested cond: {parsed.suggestedCondition}
-            </div>
-          )}
-        </div>
-      )}
-      {dateStr && (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: overdue ? "var(--red)" : "var(--text-dim)" }}>
-          {overdue ? `Review overdue (${age}d)` : `Reviewed: ${formatReviewDate(dateStr)} ✓`}
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>· {count}</span>
+      {collapsible && (
+        <span style={{ marginLeft: "auto", color: "var(--text-dim)" }}>
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
       )}
     </div>
   );
 }
 
-function ActionButtons({ ticker, type = 'watchlist' }: { ticker: string; type?: 'holding' | 'watchlist' }) {
-  const handleDeepDive = () => {
-    const prompt = type === 'holding'
-      ? buildDeepDivePrompt(ticker)
-      : buildWatchlistReviewPrompt(ticker);
-    const url = `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?prompt=${encodeURIComponent(prompt)}`;
-    (window.top || window).open(url, '_blank');
-  };
+// ── Empty section line ──
 
-  const btnStyle: React.CSSProperties = {
-    background: "none",
-    border: "1px solid var(--rim)",
-    color: "var(--text-dim)",
-    fontFamily: "var(--font-mono)",
-    fontSize: 9,
-    letterSpacing: "0.08em",
-    padding: "3px 10px",
-    borderRadius: 2,
-    cursor: "pointer",
-    transition: "all 0.15s",
-  };
-
-  return (
-    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-      <button
-        onClick={() => triggerWebhook("stellar-earnings-prep", { ticker }, `Earnings prep triggered for ${ticker}`)}
-        style={btnStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
-      >
-        📋 Earnings Prep
-      </button>
-      <button
-        onClick={() => triggerWebhook("stellar-watchlist-review", { ticker }, `Watchlist review triggered for ${ticker}. Check email.`)}
-        style={btnStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.color = "var(--gold)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--text-dim)"; }}
-      >
-        🔄 Review
-      </button>
-      <button
-        onClick={handleDeepDive}
-        style={{ ...btnStyle, color: "var(--accent)" }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; e.currentTarget.style.color = "var(--accent)"; }}
-        title="Deep dive (opens Claude project — free on Max)"
-      >
-        🔬 Deep Dive
-      </button>
-    </div>
-  );
-}
-
-// ── Row Card ──
-
-function WatchlistRow({ item, dimmed, hideActions }: { item: LiveWatchItem; dimmed?: boolean; hideActions?: boolean }) {
-  const [expanded, setExpanded] = useState(false);
-  const { current, vsColor, vsLabel, pctDist } = getPctInfo(item);
+function EmptyLine({ label, dotColor }: { label: string; dotColor: string }) {
   const isMobile = useIsMobile();
-  const staleness = getStalenessIndicator(item.triggerReviewDate, item.status);
-  const staleDotColor = STALENESS_DOT_COLORS[staleness.color];
-  const isReviewFlagged = item.status.trim().toUpperCase() === 'REVIEW_FLAGGED';
-  const { getSummary } = useResearchSummary();
-  const summary = getSummary(item.ticker);
-
-  // Entry zone highlight: price at or below target
-  const inEntryZone = pctDist !== null && pctDist <= 0;
-
   return (
     <div
       style={{
-        padding: isMobile ? "10px 12px" : "14px 20px",
-        borderBottom: "1px solid rgba(28,28,48,0.3)",
-        borderLeft: inEntryZone ? "3px solid var(--gold)" : "3px solid transparent",
-        opacity: dimmed ? 0.6 : 1,
-        transition: "background 0.15s",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: isMobile ? "8px 14px" : "10px 18px",
+        background: "var(--panel)",
+        border: "1px solid var(--rim)",
+        borderRadius: 3,
+        marginBottom: 10,
+        opacity: 0.55,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(200, 169, 110, 0.03)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      {/* Collapsed header — always visible, clickable */}
-      <div
-        style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: 8 }}
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Line 1: Ticker · Score pill · Name · Layer · Status */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.ticker || "—"}</span>
-            {/* Score pill */}
-            {summary && (() => {
-              const sc = summary.total_score;
-              const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
-              return <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: badgeColor, background: `color-mix(in srgb, ${badgeColor} 15%, transparent)`, padding: "1px 6px", borderRadius: 8, lineHeight: 1 }}>{sc}</span>;
-            })()}
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{item.name}</span>
-            {item.layer && (
-              <span style={{
-                fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", padding: "2px 7px", borderRadius: 2,
-                background: "rgba(28,28,48,0.5)", border: "1px solid var(--rim)", color: "var(--text-dim)", textTransform: "uppercase",
-              }}>
-                {item.layer}
-              </span>
-            )}
-            <StatusBadge status={item.status} />
-          </div>
-
-          {/* Thesis subtitle */}
-          {summary?.thesis_summary && (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", lineHeight: 1.4, marginBottom: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" as const }}>
-              {summary.thesis_summary.length > 100 ? summary.thesis_summary.slice(0, 100) + "…" : summary.thesis_summary}
-            </div>
-          )}
-
-          {/* Line 2: Target · Current · vs% · Reviewed */}
-          <div style={{ display: "flex", gap: isMobile ? 8 : 16, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 10, flexWrap: "wrap" }}>
-            <span style={{ color: "var(--text-dim)" }}>Target: <span style={{ color: "var(--gold)" }}>{item.entry || "—"}</span></span>
-            <span style={{ color: "var(--text-dim)" }}>Current: <span style={{ color: "var(--text)" }}>{current != null ? current.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "—"}</span></span>
-            <span style={{ fontWeight: 700, color: vsColor }}>{vsLabel}</span>
-            {item.deploy_amount_gbp != null && item.deploy_amount_gbp > 0 && (
-              <span style={{ color: "var(--text-dim)" }}>Deploy: <span style={{ color: "var(--accent)" }}>£{item.deploy_amount_gbp.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</span></span>
-            )}
-            {/* Staleness indicator */}
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: staleDotColor, flexShrink: 0, boxShadow: staleness.color === 'red' ? `0 0 4px ${staleDotColor}` : undefined }} />
-              <span style={{ color: staleDotColor, fontWeight: staleness.color === 'red' ? 700 : 400 }}>{staleness.label}</span>
-            </span>
-          </div>
-
-          {/* Review note subtitle for REVIEW_FLAGGED */}
-          {isReviewFlagged && item.triggerReviewNote && (
-            <div style={{
-              marginTop: 4,
-              padding: "4px 8px",
-              background: "rgba(239, 159, 39, 0.08)",
-              borderLeft: "2px solid #EF9F27",
-              borderRadius: "0 2px 2px 0",
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              color: "#EF9F27",
-              lineHeight: 1.4,
-            }}>
-              {item.triggerReviewNote}
-            </div>
-          )}
-        </div>
-
-        {/* Chevron */}
-        {expanded
-          ? <ChevronDown size={14} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
-          : <ChevronRight size={14} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
-        }
-      </div>
-
-      {/* Expanded details */}
-      {expanded && (
-        <div style={{ marginTop: 8 }}>
-          {/* Trigger condition */}
-          {item.trigger && (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", marginBottom: 4, lineHeight: 1.5 }}>
-              {item.trigger}
-            </div>
-          )}
-          {/* Thesis / rationale */}
-          {item.rationale && (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5, fontStyle: "italic" }}>
-              {item.rationale}
-            </div>
-          )}
-
-          {/* Review note */}
-          <ReviewCard note={item.triggerReviewNote} dateStr={item.triggerReviewDate} />
-
-          {/* Action buttons */}
-          {!hideActions && <ActionButtons ticker={item.ticker} />}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Section Header ──
-
-function SectionHeader({ dotColor, label, count }: { dotColor: string; label: string; count: number }) {
-  const isMobile = useIsMobile();
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "12px 12px" : "14px 20px", borderBottom: "1px solid var(--rim)" }}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", color: dotColor, textTransform: "uppercase" }}>
-        {label} ({count})
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor }} />
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.15em" }}>
+        {label}
       </span>
     </div>
   );
 }
 
-// ── Main Component ──
+// ── Skeleton ──
+
+function SkeletonRow() {
+  return (
+    <div
+      style={{
+        padding: "14px 18px",
+        borderBottom: "1px solid rgba(28,28,48,0.4)",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+      }}
+    >
+      <div style={{ width: 80, height: 12, background: "var(--rim)", borderRadius: 2, animation: "pulse-alert 1.6s ease-in-out infinite" }} />
+      <div style={{ flex: 1, height: 10, background: "var(--rim)", borderRadius: 2, opacity: 0.6 }} />
+      <div style={{ width: 180, height: 40, background: "var(--rim)", borderRadius: 2, opacity: 0.5 }} />
+      <div style={{ width: 80, height: 10, background: "var(--rim)", borderRadius: 2, opacity: 0.6 }} />
+    </div>
+  );
+}
+
+// ── Page ──
 
 export default function WatchlistTab({ liveData, macroState }: Props) {
-  const [showAllWaiting, setShowAllWaiting] = useState(false);
+  const isMobile = useIsMobile();
+  const [search, setSearch] = useState("");
+  const [layerFilter, setLayerFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [waitingExpanded, setWaitingExpanded] = useState(false);
+  const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
-  const BUY_STATUSES = ["BUY NOW", "BUY T1", "BUY T2"];
-  const ACTIVE_MONITORING_STATUSES = ["ACTIVE_MONITORING"];
-  const MONITORING_STATUSES = ["MONITOR"];
-  const WAIT_STATUSES = ["WAIT", "WATCH"];
-  const RESEARCH_STATUSES = ["RESEARCH"];
-  const PREIPO_STATUSES = ["PRE-IPO"];
-  const EXITED_STATUSES = ["EXITED"];
+  // Pull tickers for batched Supabase fetches
+  const allTickers = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          liveData
+            .map((d) => d.ticker?.trim().toUpperCase())
+            .filter((t): t is string => !!t),
+        ),
+      ),
+    [liveData],
+  );
 
-  const buyTargets = useMemo(() =>
-    liveData
-      .filter((item) => BUY_STATUSES.includes(item.status.trim().toUpperCase()))
+  const { byTicker: traj, loading: trajLoading } = useWatchlistHistory(allTickers);
+  const { byTicker: scoresByTicker } = useWatchlistScores(allTickers);
+
+  // Layer + status filter options
+  const layerOptions = useMemo(
+    () => Array.from(new Set(liveData.map((d) => d.layer).filter(Boolean))).sort(),
+    [liveData],
+  );
+  const statusOptions = useMemo(
+    () => Array.from(new Set(liveData.map((d) => d.status?.trim().toUpperCase()).filter(Boolean))).sort(),
+    [liveData],
+  );
+
+  // ── Derive every row ──
+  const derived: DerivedRow[] = useMemo(() => {
+    return liveData.map((item) => {
+      const ticker = item.ticker?.trim().toUpperCase() ?? "";
+      const trajectory = traj[ticker] ?? null;
+      const score = scoresByTicker[ticker] ?? null;
+
+      const zone = parseEntryTarget(item.entry, item.triggerPriceNumeric);
+
+      // Prefer Supabase live close, fall back to sheet's CURRENT PRICE
+      const currentPrice = trajectory?.currentClose ?? item.current ?? null;
+
+      let zoneStatus: ZoneStatus;
+      if (currentPrice == null) zoneStatus = "PRE_IPO";
+      else if (!zone) zoneStatus = "WAITING";
+      else if (currentPrice <= zone.high && currentPrice >= zone.low) zoneStatus = "IN_ZONE";
+      else if (currentPrice <= zone.high * 1.10) zoneStatus = "APPROACHING";
+      else zoneStatus = "WAITING";
+
+      const distanceToEntryPct =
+        currentPrice != null && zone && zone.high > 0
+          ? ((currentPrice - zone.high) / zone.high) * 100
+          : null;
+
+      const change7dPct =
+        trajectory?.currentClose != null && trajectory?.price7dAgo != null && trajectory.price7dAgo > 0
+          ? ((trajectory.currentClose - trajectory.price7dAgo) / trajectory.price7dAgo) * 100
+          : null;
+      const change30dPct =
+        trajectory?.currentClose != null && trajectory?.price30dAgo != null && trajectory.price30dAgo > 0
+          ? ((trajectory.currentClose - trajectory.price30dAgo) / trajectory.price30dAgo) * 100
+          : null;
+
+      const days = daysSince(item.triggerReviewDate);
+      const isOverdue = days != null && days > OVERDUE_DAYS;
+
+      return {
+        item,
+        zone,
+        zoneStatus,
+        distanceToEntryPct,
+        change7dPct,
+        change30dPct,
+        daysSinceReview: days,
+        isOverdue,
+        trajectory,
+        score,
+      };
+    });
+  }, [liveData, traj, scoresByTicker]);
+
+  // Apply search + filter chips
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return derived.filter((r) => {
+      if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
+      if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
+      if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      return true;
+    });
+  }, [derived, search, layerFilter, statusFilter]);
+
+  // ── Bucket rows ──
+  const inZone = useMemo(
+    () => filtered.filter((r) => r.zoneStatus === "IN_ZONE"),
+    [filtered],
+  );
+
+  const approaching = useMemo(
+    () =>
+      filtered
+        .filter((r) => r.zoneStatus === "APPROACHING")
+        .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
+    [filtered],
+  );
+
+  // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR
+  const overdue = useMemo(() => {
+    const skipStatus = new Set(["EXITED", "PRE-IPO", "RESEARCH", "MONITOR"]);
+    return filtered
+      .filter((r) => r.isOverdue && !skipStatus.has(r.item.status?.trim().toUpperCase()))
+      .sort((a, b) => (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0));
+  }, [filtered]);
+
+  const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
+
+  // Waiting: priced & WAITING & not already shown above
+  const waiting = useMemo(() => {
+    const skipStatus = new Set(["MONITOR", "RESEARCH", "PRE-IPO", "EXITED"]);
+    return filtered
+      .filter(
+        (r) =>
+          r.zoneStatus === "WAITING" &&
+          !overdueIds.has(r.item.ticker) &&
+          !skipStatus.has(r.item.status?.trim().toUpperCase()),
+      )
       .sort((a, b) => {
-        const aPct = getPctInfo(a).pctDist ?? 999;
-        const bPct = getPctInfo(b).pctDist ?? 999;
-        return aPct - bPct; // most below target first
-      }),
-    [liveData]
+        // Score desc if both have scores; otherwise gap asc
+        const sa = a.score?.total_score ?? null;
+        const sb = b.score?.total_score ?? null;
+        if (sa != null && sb != null && sa !== sb) return sb - sa;
+        return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
+      });
+  }, [filtered, overdueIds]);
+
+  // Group waiting by layer
+  const waitingByLayer = useMemo(() => {
+    const groups = new Map<string, DerivedRow[]>();
+    for (const r of waiting) {
+      const layer = r.item.layer || "—";
+      if (!groups.has(layer)) groups.set(layer, []);
+      groups.get(layer)!.push(r);
+    }
+    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [waiting]);
+
+  const monitoring = useMemo(
+    () =>
+      filtered
+        .filter((r) => r.item.status?.trim().toUpperCase() === "MONITOR")
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
+  );
+  const research = useMemo(
+    () =>
+      filtered
+        .filter((r) => r.item.status?.trim().toUpperCase() === "RESEARCH")
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
+  );
+  const preIpo = useMemo(
+    () =>
+      filtered
+        .filter((r) => r.item.status?.trim().toUpperCase() === "PRE-IPO")
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
   );
 
-  const waiting = useMemo(() =>
-    liveData
-      .filter((item) => WAIT_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => {
-        const aPct = getPctInfo(a).pctDist ?? 999;
-        const bPct = getPctInfo(b).pctDist ?? 999;
-        return aPct - bPct; // closest to entry first
-      }),
-    [liveData]
-  );
-
-  const preIpo = useMemo(() =>
-    liveData
-      .filter((item) => PREIPO_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-    [liveData]
-  );
-
-  const activeMonitoring = useMemo(() =>
-    liveData
-      .filter((item) => ACTIVE_MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
-    [liveData]
-  );
-
-  const monitoring = useMemo(() =>
-    liveData
-      .filter((item) => MONITORING_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
-    [liveData]
-  );
-
-  const research = useMemo(() =>
-    liveData
-      .filter((item) => RESEARCH_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => getStalenessIndicator(b.triggerReviewDate, b.status).sortWeight - getStalenessIndicator(a.triggerReviewDate, a.status).sortWeight || a.name.localeCompare(b.name)),
-    [liveData]
-  );
-
-  const exited = useMemo(() =>
-    liveData
-      .filter((item) => EXITED_STATUSES.includes(item.status.trim().toUpperCase()))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-    [liveData]
-  );
-
-  const inZoneCount = useMemo(() =>
-    liveData.filter((item) => {
-      const { pctDist } = getPctInfo(item);
-      return pctDist !== null && pctDist < 0;
-    }).length,
-    [liveData]
-  );
-
-  const staleCount = useMemo(() =>
-    liveData.filter((item) => getStalenessIndicator(item.triggerReviewDate, item.status).color === 'red').length,
-    [liveData]
-  );
+  // Header counts (live, not bucketed — recomputed from `derived` so they reflect entire watchlist regardless of filters)
+  const counts = useMemo(() => {
+    const total = derived.length;
+    const inZ = derived.filter((r) => r.zoneStatus === "IN_ZONE").length;
+    const appr = derived.filter((r) => r.zoneStatus === "APPROACHING").length;
+    const od = derived.filter((r) => {
+      const skip = new Set(["EXITED", "PRE-IPO", "RESEARCH", "MONITOR"]);
+      return r.isOverdue && !skip.has(r.item.status?.trim().toUpperCase());
+    }).length;
+    return { total, inZ, appr, od };
+  }, [derived]);
 
   const pauseActive = (macroState["PAUSE_ACTIVE"]?.currentValue || "").trim().toUpperCase() === "YES";
 
-  const visibleWaiting = showAllWaiting ? waiting : waiting.slice(0, 6);
-  const hiddenWaitingCount = waiting.length - 6;
+  // ── Empty data state ──
+  if (!liveData || liveData.length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>
+          Watchlist data unavailable. Check Google Sheets connection.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Render ──
+
+  const sectionStyle: CSSProperties = {
+    background: "var(--panel)",
+    border: "1px solid var(--rim)",
+    borderRadius: 3,
+    marginBottom: 14,
+    overflow: "hidden",
+  };
 
   return (
     <div>
-      {/* Hero summary strip */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <StatCard count={buyTargets.length} label="Buy Ready" color="var(--green)" glow="rgba(90, 191, 160, 0.5)" />
-        <StatCard count={inZoneCount} label="In Zone" color="var(--amber)" glow="rgba(200, 146, 90, 0.5)" />
-        <StatCard count={staleCount} label="Overdue Reviews" color="#EF9F27" glow="rgba(239, 159, 39, 0.4)" />
-        <StatCard count={liveData.length} label="Total Watching" color="var(--text-mid)" />
+      {/* ── Sticky header strip ── */}
+      <div
+        style={{
+          position: "sticky",
+          top: isMobile ? 84 : 84,
+          zIndex: 10,
+          background: "var(--void)",
+          borderBottom: "1px solid var(--rim)",
+          padding: isMobile ? "10px 14px" : "12px 18px",
+          marginBottom: 16,
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? 10 : 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 12 : 18, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: "var(--gold)" }}>
+            WATCHLIST
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+            {counts.total} total ·{" "}
+            <span style={{ color: counts.inZ > 0 ? "var(--green)" : "var(--text-dim)", fontWeight: counts.inZ > 0 ? 700 : 400 }}>
+              {counts.inZ} IN ZONE
+            </span>{" "}
+            ·{" "}
+            <span style={{ color: counts.appr > 0 ? "var(--amber)" : "var(--text-dim)" }}>
+              {counts.appr} APPROACHING
+            </span>{" "}
+            ·{" "}
+            <span style={{ color: counts.od > 0 ? "var(--red)" : "var(--text-dim)" }}>
+              {counts.od} OVERDUE
+            </span>
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flex: isMobile ? "1 1 auto" : "1 1 auto", justifyContent: isMobile ? "stretch" : "flex-end", flexWrap: "wrap" }}>
+          <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 200px", maxWidth: isMobile ? "none" : 280 }}>
+            <Search size={12} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)" }} />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search ticker or name…"
+              aria-label="Search watchlist"
+              style={{
+                width: "100%",
+                padding: "6px 8px 6px 26px",
+                background: "rgba(0,0,0,0.3)",
+                border: "1px solid var(--rim)",
+                color: "var(--text-mid)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                borderRadius: 2,
+                outline: "none",
+              }}
+            />
+          </div>
+          <select
+            value={layerFilter}
+            onChange={(e) => setLayerFilter(e.target.value)}
+            style={selectStyle}
+            aria-label="Filter by layer"
+          >
+            <option value="ALL">Layer · All</option>
+            {layerOptions.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={selectStyle}
+            aria-label="Filter by status"
+          >
+            <option value="ALL">Status · All</option>
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* ── Section 1: Buy Targets ── */}
-      <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-        <SectionHeader dotColor="var(--green)" label="Buy Targets" count={buyTargets.length} />
+      {pauseActive && (
+        <div
+          style={{
+            background: "var(--red-dim)",
+            border: "1px solid color-mix(in srgb, var(--red) 35%, transparent)",
+            padding: "8px 14px",
+            borderRadius: 2,
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            letterSpacing: "0.12em",
+            color: "var(--red)",
+            fontWeight: 700,
+            marginBottom: 14,
+          }}
+        >
+          ⛔ MACRO PAUSE ACTIVE — NO NEW BUYS
+        </div>
+      )}
 
-        {pauseActive && (
-          <div style={{ margin: "12px 20px 0", background: "var(--red-dim)", border: "1px solid color-mix(in srgb, var(--red) 35%, transparent)", padding: "8px 14px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", color: "var(--red)", fontWeight: 700 }}>
-            ⛔ MACRO PAUSE ACTIVE — NO NEW BUYS
-          </div>
-        )}
+      {/* ── 1. IN ZONE ── */}
+      {inZone.length > 0 ? (
+        <div style={sectionStyle}>
+          <SectionHeader label="In Zone" count={inZone.length} dotColor="var(--green)" />
+          {inZone.map((r) => (
+            <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
+          ))}
+        </div>
+      ) : (
+        <EmptyLine label="No tickers in buy zone" dotColor="var(--green)" />
+      )}
 
-        {buyTargets.length === 0 ? (
-          <div style={{ padding: "20px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>
-            No buy targets active
-          </div>
-        ) : (
-          buyTargets.map((item, idx) => (
-            <WatchlistRow key={`buy-${idx}-${item.ticker}`} item={item} />
-          ))
-        )}
-      </div>
-
-      {/* ── Section 2: Active Monitoring ── */}
-      {activeMonitoring.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-          <SectionHeader dotColor="var(--amber)" label="Active Monitoring" count={activeMonitoring.length} />
-          {activeMonitoring.map((item, idx) => (
-            <WatchlistRow key={`monitor-${idx}-${item.ticker}`} item={item} />
+      {/* ── 2. APPROACHING ── */}
+      {approaching.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Approaching (within 10%)" count={approaching.length} dotColor="var(--amber)" />
+          {approaching.map((r) => (
+            <WatchlistCard key={`appr-${r.item.ticker}`} row={r} variant="full" tint="approaching" />
           ))}
         </div>
       )}
 
-      {/* ── Section 3: Monitoring ── */}
+      {/* ── 3. OVERDUE REVIEWS ── */}
+      {overdue.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Overdue Reviews" count={overdue.length} dotColor="var(--red)" />
+          {overdue.map((r) => (
+            <WatchlistCard key={`od-${r.item.ticker}`} row={r} variant="compact" tint="overdue" />
+          ))}
+        </div>
+      )}
+
+      {/* ── 4. WAITING (collapsed by default) ── */}
+      {waiting.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader
+            label="Waiting"
+            count={waiting.length}
+            dotColor="var(--text-dim)"
+            collapsible
+            expanded={waitingExpanded}
+            onToggle={() => setWaitingExpanded((v) => !v)}
+          />
+          {waitingExpanded &&
+            waitingByLayer.map(([layer, rows]) => (
+              <div key={`wait-${layer}`}>
+                <div
+                  style={{
+                    padding: "8px 18px",
+                    background: "rgba(0,0,0,0.2)",
+                    borderBottom: "1px solid var(--rim)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.18em",
+                    color: "var(--text-dim)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {layer} · {rows.length}
+                </div>
+                {rows.map((r) => (
+                  <WatchlistCard key={`wait-${r.item.ticker}`} row={r} variant="compact" />
+                ))}
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* ── 5. MONITORING ── */}
       {monitoring.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-          <SectionHeader dotColor="var(--accent)" label="Monitoring" count={monitoring.length} />
-          {monitoring.map((item, idx) => (
-            <WatchlistRow key={`monitoring-${idx}-${item.ticker}`} item={item} />
+        <div style={sectionStyle}>
+          <SectionHeader label="Monitoring" count={monitoring.length} dotColor="var(--accent)" />
+          {monitoring.map((r) => (
+            <WatchlistCard key={`mon-${r.item.ticker}`} row={r} variant="compact" hideActions />
           ))}
         </div>
       )}
 
-      {/* ── Section 4: Waiting for Entry ── */}
-      <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-        <SectionHeader dotColor="var(--text-dim)" label="Waiting for Entry" count={waiting.length} />
-
-        {waiting.length === 0 ? (
-          <div style={{ padding: "20px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>
-            No entries waiting
-          </div>
-        ) : (
-          <>
-            {visibleWaiting.map((item, idx) => {
-              const { pctDist } = getPctInfo(item);
-              const farAway = pctDist !== null && pctDist > 25;
-              return <WatchlistRow key={`wait-${idx}-${item.ticker}`} item={item} dimmed={farAway} />;
-            })}
-            {!showAllWaiting && hiddenWaitingCount > 0 && (
-              <button
-                onClick={() => setShowAllWaiting(true)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  background: "none",
-                  border: "none",
-                  borderTop: "1px solid var(--rim)",
-                  color: "var(--gold)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 10,
-                  letterSpacing: "0.1em",
-                  cursor: "pointer",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(200, 169, 110, 0.05)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                + {hiddenWaitingCount} more waiting...
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ── Section 5: Research ── */}
+      {/* ── 6. RESEARCH ── */}
       {research.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-          <SectionHeader dotColor="rgb(100, 160, 220)" label="Research" count={research.length} />
-          {research.map((item, idx) => (
-            <WatchlistRow key={`research-${idx}-${item.ticker}`} item={item} dimmed />
+        <div style={sectionStyle}>
+          <SectionHeader label="Research" count={research.length} dotColor="rgb(140,140,220)" />
+          {research.map((r) => (
+            <div
+              key={`res-${r.item.ticker}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 18px",
+                borderBottom: "1px solid rgba(28,28,48,0.4)",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
+                {r.item.ticker}
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
+                {r.item.name}
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                {r.daysSinceReview != null ? `Reviewed ${r.daysSinceReview}d ago` : "Never reviewed"}
+              </span>
+            </div>
           ))}
         </div>
       )}
 
-      {/* ── Section 6: Pre-IPO ── */}
+      {/* ── 7. PRE-IPO (collapsed) ── */}
       {preIpo.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-          <SectionHeader dotColor="rgb(170, 120, 220)" label="Pre-IPO" count={preIpo.length} />
-          {preIpo.map((item, idx) => (
-            <WatchlistRow key={`preipo-${idx}-${item.ticker}`} item={item} dimmed />
-          ))}
+        <div style={sectionStyle}>
+          <SectionHeader
+            label="Pre-IPO"
+            count={preIpo.length}
+            dotColor="rgb(170,120,220)"
+            collapsible
+            expanded={preIpoExpanded}
+            onToggle={() => setPreIpoExpanded((v) => !v)}
+          />
+          {preIpoExpanded &&
+            preIpo.map((r) => (
+              <div
+                key={`pre-${r.item.ticker}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 18px",
+                  borderBottom: "1px solid rgba(28,28,48,0.4)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
+                  {r.item.ticker}
+                </span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
+                  {r.item.name}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 8,
+                    letterSpacing: "0.12em",
+                    padding: "2px 7px",
+                    borderRadius: 2,
+                    background: "rgba(28,28,48,0.5)",
+                    border: "1px solid var(--rim)",
+                    color: "var(--text-dim)",
+                  }}
+                >
+                  {r.item.layer}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    color: "rgb(170,120,220)",
+                    background: "rgba(170,120,220,0.1)",
+                    padding: "2px 7px",
+                    borderRadius: 2,
+                  }}
+                >
+                  Awaiting IPO
+                </span>
+              </div>
+            ))}
         </div>
       )}
 
-      {/* ── Section 7: Exited ── */}
-      {exited.length > 0 && (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderRadius: 3, overflow: "hidden" }}>
-          <SectionHeader dotColor="var(--text-dim)" label="Exited" count={exited.length} />
-          {exited.map((item, idx) => (
-            <WatchlistRow key={`exited-${idx}-${item.ticker}`} item={item} dimmed />
-          ))}
+      {/* Loading hint when sparkline data is still being fetched */}
+      {trajLoading && (
+        <div style={{ marginTop: 12 }}>
+          <SkeletonRow />
+          <SkeletonRow />
         </div>
       )}
     </div>
   );
 }
+
+const selectStyle: CSSProperties = {
+  background: "rgba(0,0,0,0.3)",
+  border: "1px solid var(--rim)",
+  color: "var(--text-mid)",
+  fontFamily: "var(--font-mono)",
+  fontSize: 11,
+  padding: "6px 8px",
+  borderRadius: 2,
+  outline: "none",
+  cursor: "pointer",
+};
