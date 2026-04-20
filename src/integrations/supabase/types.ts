@@ -590,6 +590,36 @@ export type Database = {
         }
         Relationships: []
       }
+      watchlist_price_history: {
+        Row: {
+          close_price: number
+          created_at: string | null
+          currency: string
+          id: number
+          snapshot_date: string
+          source: string | null
+          ticker: string
+        }
+        Insert: {
+          close_price: number
+          created_at?: string | null
+          currency: string
+          id?: number
+          snapshot_date: string
+          source?: string | null
+          ticker: string
+        }
+        Update: {
+          close_price?: number
+          created_at?: string | null
+          currency?: string
+          id?: number
+          snapshot_date?: string
+          source?: string | null
+          ticker?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
