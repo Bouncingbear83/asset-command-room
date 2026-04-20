@@ -2,9 +2,10 @@ export const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-
 
 export function buildDeepDivePrompt(ticker: string): string {
   const t = ticker.toUpperCase();
-  const ilmnNote = t === "ILMN"
-    ? "\n\nNote: ILMN is dual-held — the SIPP row needs manual sync (Research Commit tickerMatch is first-row only)."
-    : "";
+  const ilmnNote =
+    t === "ILMN"
+      ? "\n\nNote: ILMN is dual-held — the SIPP row needs manual sync (Research Commit tickerMatch is first-row only)."
+      : "";
   return `Deep dive on ${t}.
 
 Execute:
@@ -68,23 +69,16 @@ export function buildSubstrateAuditPrompt(ticker: string): string {
   return `Substrate audit for ${t} — from-scratch audit, not a stress-test of an existing thesis.
 
 Execute:
-
 1. Treat this ticker as a candidate with no prior commitments. Do not anchor on existing notes.
-
 2. Web search: business model, end markets, revenue mix, competitive landscape, capital structure, recent 2 years of news + earnings.
-
 3. Run the substrate test from first principles:
-
    - Is the underlying substrate (technology, resource, network, regulation) durable for the next 5–10 years?
-
    - What is the irreducible "why this exists" — the demand vector that does not depend on a specific product cycle?
-
    - What would have to be true for this thesis to be wrong?
-
-4. Score all 6 dimensions (substrate, demand, moat, valuation, mgmt, disruption) from cold — provide rationales as if writing them for the first time.
-
-5. Decide: COMMIT (move to scored watchlist with ENTRY_TARGET + TRIGGER_CONDITION), DEFER (more research needed — list specific questions), or REJECT (substrate fails — explain).
-
-6. Output: Research Commit payload — pause for confirmation`;
+4. Score all 6 dimensions (substrate /25, demand /22, moat /18, valuation /13, mgmt /7, disruption /15) from cold — provide rationales as if writing them for the first time.
+5. Decide:
+   - COMMIT: move to scored watchlist. Set WATCHLIST.STATUS = WAIT (or ACTIVE if buy zone is near). Populate ENTRY_TARGET, TRIGGER_CONDITION, TRIGGER_PRICE_NUMERIC, THESIS, DEPLOY_AMOUNT_GBP. Research Commit payload must include: scores_row (new), disruption_row (new), watchlist_updates (STATUS / TRIGGER_PRICE_NUMERIC / DEPLOY_AMOUNT_GBP), scores_rationales (full 6D), disruption_rationales, and score_log_action = 'INITIAL_SCORE'.
+   - DEFER: more research needed. List 3-5 specific questions that would close the audit. Do not fire Research Commit.
+   - REJECT: substrate test fails. Research Commit with watchlist_updates.STATUS = 'REJECTED' + change_note explaining substrate gap. Still writes scores_rationales so the rejection logic is auditable.
+6. Output: full Research Commit payload in a single code block — pause for user confirmation before firing.`;
 }
-
