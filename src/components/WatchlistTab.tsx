@@ -340,13 +340,16 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
-  const research = useMemo(
-    () =>
-      filtered
-        .filter((r) => r.item.status?.trim().toUpperCase() === "RESEARCH")
-        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
-    [filtered],
-  );
+  const research = useMemo(() => {
+    // MONITORING wins: exclude any ticker already shown in MONITORING
+    const monitorTickers = new Set(
+      monitoring.map((r) => r.item.ticker.trim().toUpperCase()),
+    );
+    return filtered
+      .filter((r) => r.item.status?.trim().toUpperCase() === "RESEARCH")
+      .filter((r) => !monitorTickers.has(r.item.ticker.trim().toUpperCase()))
+      .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
+  }, [filtered, monitoring]);
   const preIpo = useMemo(
     () =>
       filtered
