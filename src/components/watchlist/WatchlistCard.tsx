@@ -384,7 +384,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Current:</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
-              {formatPrice(trajectory?.currentClose ?? item.current ?? null)}
+              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency)}
             </span>
             <TrajectoryArrow pct={change7dPct} />
             <span style={{ color: "var(--text-dim)", fontSize: 9 }}>7d</span>
@@ -393,28 +393,45 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           </div>
           <div>
             <span style={{ color: "var(--text-dim)" }}>Target: </span>
-            <span style={{ color: "var(--gold)" }}>{formatZone(zone)}</span>
+            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency)}</span>
           </div>
-          <div>
-            <span style={{ color: "var(--text-dim)" }}>Gap: </span>
-            <span
-              style={{
-                color: distanceToEntryPct == null ? "var(--text-dim)" : distanceToEntryPct <= 0 ? "var(--green)" : distanceToEntryPct <= 10 ? "var(--amber)" : "var(--text-mid)",
-                fontWeight: 600,
-              }}
-            >
-              {distanceToEntryPct == null
-                ? "—"
-                : distanceToEntryPct <= 0
-                  ? `${distanceToEntryPct.toFixed(1)}% (in zone)`
-                  : `+${distanceToEntryPct.toFixed(1)}% above entry`}
-            </span>
-          </div>
+          {(() => {
+            // IN_ZONE → "Position: X% through zone" (lower = closer to bottom = better)
+            const cp = trajectory?.currentClose ?? item.current ?? null;
+            if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low && cp != null) {
+              const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
+              return (
+                <div>
+                  <span style={{ color: "var(--text-dim)" }}>Position: </span>
+                  <span style={{ color: "var(--green)", fontWeight: 600 }}>
+                    {through.toFixed(0)}% through zone
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div>
+                <span style={{ color: "var(--text-dim)" }}>Gap: </span>
+                <span
+                  style={{
+                    color: distanceToEntryPct == null ? "var(--text-dim)" : distanceToEntryPct <= 0 ? "var(--green)" : distanceToEntryPct <= 10 ? "var(--amber)" : "var(--text-mid)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {distanceToEntryPct == null
+                    ? "—"
+                    : distanceToEntryPct <= 0
+                      ? `${distanceToEntryPct.toFixed(1)}% (in zone)`
+                      : `+${distanceToEntryPct.toFixed(1)}% above zone top`}
+                </span>
+              </div>
+            );
+          })()}
           {(trajectory?.high52w != null || trajectory?.low52w != null) && (
             <div>
               <span style={{ color: "var(--text-dim)" }}>52w: </span>
               <span style={{ color: "var(--text-mid)" }}>
-                {formatPrice(trajectory.low52w)} – {formatPrice(trajectory.high52w)}
+                {formatPrice(trajectory.low52w, item.currency)} – {formatPrice(trajectory.high52w, item.currency)}
               </span>
             </div>
           )}
