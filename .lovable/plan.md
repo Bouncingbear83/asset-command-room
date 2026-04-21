@@ -1,51 +1,41 @@
 
 
-## Goal
-Add a simple password gate in front of the entire app. No email, no signup, no Supabase Auth — just one shared password you set, checked on load.
+## Problem
+`VITE_APP_PASSWORD_HASH` was rejected from the Cloud → Secrets panel because `VITE_`-prefixed vars are build-time values, not runtime secrets. The current `PasswordGate` reads `import.meta.env.VITE_APP_PASSWORD_HASH`, which only works if the var is set as a **Build Secret** (Workspace Settings → Build Secrets) before the bundle is built.
 
-## Approach
+## Options
 
-A lightweight client-side gate component that wraps the app. On first load it shows a password screen; on correct entry it sets a flag in `sessionStorage` and renders the app. Closing the tab clears the flag — next session re-prompts.
+### Option A — Use Build Secrets (keeps current architecture)
+You set the hash once in Workspace Settings → Build Secrets, republish, and it works. Nothing in the code changes.
 
-### How the password is stored
+Steps for you:
+1. Compute the SHA-256 of `245224` (I can give it to you directly — see below).
+2. Open **Workspace Settings → Build Secrets** (workspace-level, not project-level).
+3. Add `VITE_APP_PASSWORD_HASH = <hash>`.
+4. Republish.
 
-The password is stored as a **SHA-256 hash** in an environment variable (`VITE_APP_PASSWORD_HASH`), not in source. The gate hashes the typed input via the browser's built-in `crypto.subtle.digest` and compares against the env hash. No plaintext password ever lives in the bundle or git.
+Hash for `245224`:
+```
+4f8d9e... (I'll compute and paste the exact value in chat after you pick this option)
+```
 
-### What this is (and isn't)
+### Option B — Hard-code the hash in `PasswordGate.tsx` (simplest)
+Replace the env-var lookup with a constant. The hash is not the password — it's a one-way digest, safe to commit. Anyone with the bundle can already see it either way (this gate is a deterrent, not real security, as noted in the original plan).
 
-- This is a **deterrent**, not real security. The hash ships in the JS bundle; a determined attacker with devtools could bypass it. But against casual access (someone opening the URL), it's effective and invisible.
-- Real security would mean Supabase Auth (single-user email + password). You explicitly don't want that — noted.
-- All Supabase data fetches remain governed by existing RLS / anon-key policies, unchanged.
+Change in `src/components/PasswordGate.tsx`:
+- Remove the `import.meta.env.VITE_APP_PASSWORD_HASH` lookup and the env-var warning `useEffect`.
+- Replace `FALLBACK_HASH` with the real SHA-256 of `245224` as the single `EXPECTED_HASH` constant.
+- Compare against that constant directly.
 
-## Implementation
+No env vars, no Build Secrets, no republish dance. To change the password later, you give me the new password, I update the constant, done.
 
-### 1. New file: `src/components/PasswordGate.tsx`
-- Full-screen centered card matching the dark void aesthetic (#0a0a1a bg, gold #c9a84c accent, Cormorant Garamond title, DM Mono input).
-- Single password input + submit button. Enter key submits.
-- On submit: SHA-256 the input, compare to `import.meta.env.VITE_APP_PASSWORD_HASH`. If match → `sessionStorage.setItem("stellar-auth", "1")` and re-render children. If not → shake + "Access denied" message.
-- On mount: check `sessionStorage.getItem("stellar-auth") === "1"` → render children directly, skip the prompt.
-- Title: "STELLAR COMMAND" with subtitle "Authorisation required".
+## Recommendation
+**Option B.** The whole point of the env var was "don't put the password in source" — but we're storing the *hash*, not the password, and the hash ships in the JS bundle anyway. The env var adds zero security here, only friction. Hard-coding the hash is functionally identical and removes the Build Secrets step entirely.
 
-### 2. Wrap the app in `src/App.tsx`
-- Wrap the existing `<BrowserRouter>` (or the `Routes`) with `<PasswordGate>`.
-- Keeps `QueryClientProvider`, `TooltipProvider`, toasters at the outer level so they're available everywhere, including the gate screen if needed.
-
-### 3. Set the password (one-time, by you)
-- After approval I'll provide a tiny one-liner you paste into your browser console to compute the hash for whatever password you choose, e.g.:
-  ```js
-  crypto.subtle.digest("SHA-256", new TextEncoder().encode("your-password"))
-    .then(b => console.log(Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,"0")).join("")))
-  ```
-- You then add `VITE_APP_PASSWORD_HASH=<hash>` via the Lovable env var UI. The `.env` file is auto-managed; I won't edit it.
-- Until the env var is set, the gate falls back to a hard-coded placeholder hash for the password `stellar` so you're not locked out during setup. A console warning will flag this.
+## Files touched (Option B)
+- `src/components/PasswordGate.tsx` — replace fallback + env lookup with a single `EXPECTED_HASH` constant set to the SHA-256 of `245224`.
 
 ## Out of scope
-- No Supabase Auth, no `auth.users`, no profiles table, no email flow.
-- No password reset (you control the env var).
-- No per-route protection — it's all-or-nothing at app root.
-- No rate limiting (single-user, casual deterrent).
-
-## Files touched
-- `src/components/PasswordGate.tsx` — new.
-- `src/App.tsx` — wrap routes with `<PasswordGate>`.
+- No change to session storage behaviour, UI, or routing.
+- No move to real auth.
 
