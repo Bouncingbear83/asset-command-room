@@ -545,11 +545,17 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
   const data = useMemo<AssetIntelligence[]>(() => {
     if (!scores || scores.length === 0) return [];
 
-    // Index disruption by canonical ticker (exact match; no case folding)
+    // Index disruption by canonical ticker. Live DISRUPTION sheet wins; fall
+    // back to disruption_snapshot (Supabase mirror) when sheet has no row —
+    // ensures tickers like MP Materials get real sub-scores instead of 0/20.
     const disruptionByTicker = new Map<string, LiveDisruption>();
+    for (const [t, d] of disruptionSnapshotByTicker) {
+      disruptionByTicker.set(t, d);
+    }
     for (const d of disruption ?? []) {
       const t = canonTicker(d.ticker);
-      if (t) disruptionByTicker.set(t, d);
+      // Only override snapshot if the live sheet row has a real disruption_score
+      if (t && (d.disruptionScore ?? 0) > 0) disruptionByTicker.set(t, d);
     }
 
     // Group holdings by canonical ticker (lists, to handle ILMN dual-row)
