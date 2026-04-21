@@ -6,7 +6,7 @@
 // `(window.top || window).open(url, '_blank')` to bypass iframe CSP.
 
 const CLAUDE_PROJECT_BASE =
-  "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
+  "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
 export type PromptContext = Record<string, string | number | null | undefined>;
 
