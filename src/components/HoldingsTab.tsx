@@ -28,6 +28,7 @@ import {
   type HoldingsAccount,
 } from "@/lib/url-state-holdings";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
+import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
