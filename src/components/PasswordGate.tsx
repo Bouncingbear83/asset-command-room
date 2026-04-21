@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
-// SHA-256 of "stellar" — fallback so you're not locked out during initial setup.
-const FALLBACK_HASH = "5f1f7e2c0ad21c2e8f8b9a6c4f7e3a2d8b1e9c0a3f6d2b8e5c1a4f7d0b3e6c9a";
+// SHA-256 of the access password. Hash is one-way; safe to commit.
+const EXPECTED_HASH = "2ce309a61c25cab514f9514e73eb5a02cf6541b6d08f8bbda93b1614c2c2ef14";
 const SESSION_KEY = "stellar-auth";
 
 async function sha256(input: string): Promise<string> {
@@ -25,15 +25,6 @@ export default function PasswordGate({ children }: PasswordGateProps) {
   const [shake, setShake] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!import.meta.env.VITE_APP_PASSWORD_HASH) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "[PasswordGate] VITE_APP_PASSWORD_HASH not set — using fallback password 'stellar'. Set the env var to secure the app.",
-      );
-    }
-  }, []);
-
   if (authed) return <>{children}</>;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -41,9 +32,8 @@ export default function PasswordGate({ children }: PasswordGateProps) {
     if (busy || !pw) return;
     setBusy(true);
     setError(false);
-    const expected = (import.meta.env.VITE_APP_PASSWORD_HASH as string | undefined) || FALLBACK_HASH;
     const hash = await sha256(pw);
-    if (hash.toLowerCase() === expected.toLowerCase()) {
+    if (hash.toLowerCase() === EXPECTED_HASH.toLowerCase()) {
       sessionStorage.setItem(SESSION_KEY, "1");
       setAuthed(true);
     } else {
