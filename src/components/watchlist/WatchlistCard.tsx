@@ -340,7 +340,15 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             <button
               onClick={(e) => {
                 stop(e);
-                triggerWebhook("stellar-watchlist-review", { ticker: item.ticker }, `Watchlist review triggered for ${item.ticker}. Check email.`);
+                const url = buildClaudePromptUrl("watchlist_review", {
+                  ticker: item.ticker,
+                  name: item.name,
+                  layer: item.layer,
+                  status: item.status,
+                  trigger_condition: item.trigger || "—",
+                  entry_target: item.entry || "—",
+                });
+                (window.top || window).open(url, "_blank");
               }}
               style={{
                 background: "none",
