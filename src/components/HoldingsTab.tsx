@@ -300,11 +300,34 @@ function UnifiedView({
     textAlign: "left", fontWeight: 400, whiteSpace: "nowrap", userSelect: "none",
   };
 
+  // Mobile sort options — explicit dropdown replaces clickable column headers below 900px
+  const mobileSortOptions: MobileSortOption<SortKey>[] = [
+    { field: "day", dir: "desc", label: "Day % ↓" },
+    { field: "day", dir: "asc",  label: "Day % ↑" },
+    { field: "gl",  dir: "desc", label: "G/L % ↓" },
+    { field: "gl",  dir: "asc",  label: "G/L % ↑" },
+    { field: "mv",  dir: "desc", label: "MV ↓" },
+    { field: "mv",  dir: "asc",  label: "MV ↑" },
+    { field: "annReturn", dir: "desc", label: "Ann. Ret ↓" },
+    { field: "annReturn", dir: "asc",  label: "Ann. Ret ↑" },
+    { field: "ticker", dir: "asc",  label: "A → Z" },
+    { field: "ticker", dir: "desc", label: "Z → A" },
+  ];
+  const handleMobileSortChange = (f: SortKey, d: SortDir) => {
+    if (f === sortKey && d === sortDir) return;
+    if (f !== sortKey) onSortChange(f);
+    // Re-call until dir matches (parent flips dir on same-field click)
+    if (d !== (f === sortKey ? sortDir : "desc")) onSortChange(f);
+  };
+
   // ── Mobile card layout (≤767px) ────────────────────────────────────────
   // Replaces the table entirely; keeps CASH pinned, group headers, all expansion.
   if (isMobile) {
     return (
       <div>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--rim)" }}>
+          <MobileSortSelect options={mobileSortOptions} field={sortKey} dir={sortDir} onChange={handleMobileSortChange} />
+        </div>
         {/* Pinned CASH cards */}
         {cashRows.map((h) => (
           <div
