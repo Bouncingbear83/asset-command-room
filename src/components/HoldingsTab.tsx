@@ -479,6 +479,10 @@ function UnifiedView({
 
   return (
     <div>
+      {/* Below 900px (but above mobile breakpoint) headers get cramped — show explicit sort dropdown */}
+      <div style={{ padding: "10px 14px 0" }}>
+        <MobileSortSelect maxWidth={899} options={mobileSortOptions} field={sortKey} dir={sortDir} onChange={handleMobileSortChange} />
+      </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, tableLayout: "auto" }}>
         <thead>
           <tr>
