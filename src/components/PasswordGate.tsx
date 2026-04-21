@@ -25,15 +25,6 @@ export default function PasswordGate({ children }: PasswordGateProps) {
   const [shake, setShake] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!import.meta.env.VITE_APP_PASSWORD_HASH) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "[PasswordGate] VITE_APP_PASSWORD_HASH not set — using fallback password 'stellar'. Set the env var to secure the app.",
-      );
-    }
-  }, []);
-
   if (authed) return <>{children}</>;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -41,9 +32,8 @@ export default function PasswordGate({ children }: PasswordGateProps) {
     if (busy || !pw) return;
     setBusy(true);
     setError(false);
-    const expected = (import.meta.env.VITE_APP_PASSWORD_HASH as string | undefined) || FALLBACK_HASH;
     const hash = await sha256(pw);
-    if (hash.toLowerCase() === expected.toLowerCase()) {
+    if (hash.toLowerCase() === EXPECTED_HASH.toLowerCase()) {
       sessionStorage.setItem(SESSION_KEY, "1");
       setAuthed(true);
     } else {
