@@ -316,10 +316,8 @@ function UnifiedView({
     { field: "ticker", dir: "desc", label: "Z → A" },
   ];
   const handleMobileSortChange = (f: SortKey, d: SortDir) => {
-    if (f === sortKey && d === sortDir) return;
-    if (f !== sortKey) onSortChange(f);
-    // Re-call until dir matches (parent flips dir on same-field click)
-    if (d !== (f === sortKey ? sortDir : "desc")) onSortChange(f);
+    if (onSortSet) onSortSet(f, d);
+    else if (f !== sortKey) onSortChange(f);
   };
 
   // ── Mobile card layout (≤767px) ────────────────────────────────────────
