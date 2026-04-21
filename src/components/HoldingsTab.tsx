@@ -5,7 +5,7 @@ import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, usePortfolioData } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
-import { PriceDataMap } from "@/hooks/useDailyPrices";
+import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
@@ -598,7 +598,7 @@ function UnifiedView({
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
                         {!isMobile && (() => {
-                          const pd = priceData?.get(h.ticker.toUpperCase().trim());
+                          const pd = priceData?.get(normaliseTicker(h.ticker));
                           return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
                         })()}
                         {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>}
@@ -700,8 +700,8 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
       </div>
       {layers.map(([layer, holdings]) => {
         const sorted = [...holdings].sort((a, b) => {
-          const pdA = priceData?.get(a.ticker.toUpperCase().trim());
-          const pdB = priceData?.get(b.ticker.toUpperCase().trim());
+          const pdA = priceData?.get(normaliseTicker(a.ticker));
+          const pdB = priceData?.get(normaliseTicker(b.ticker));
           return getPriceMapSortValue(a, sortMode, pdA?.ma20 ?? null) - getPriceMapSortValue(b, sortMode, pdB?.ma20 ?? null);
         });
         return (
@@ -711,7 +711,7 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
               const low = h.low_52w!;
               const high = h.high_52w!;
               const price = h.price!;
-              const pd = priceData?.get(h.ticker.toUpperCase().trim());
+              const pd = priceData?.get(normaliseTicker(h.ticker));
               const ma20 = pd?.ma20 ?? null;
               const ma50 = pd?.ma50 ?? null;
               const range = high - low;
