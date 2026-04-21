@@ -7,7 +7,7 @@ import type { WatchlistTrajectory } from "@/hooks/useWatchlistHistory";
 import type { WatchlistScoreEntry } from "@/hooks/useWatchlistScores";
 import type { EntryZone } from "@/lib/parseEntryTarget";
 import { triggerWebhook } from "@/lib/webhooks";
-import { buildDeepDivePrompt, buildWatchlistReviewPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+import { buildClaudePromptUrl } from "@/lib/claudePromptUrl";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
