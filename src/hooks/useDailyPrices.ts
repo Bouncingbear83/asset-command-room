@@ -16,6 +16,13 @@ export interface TickerPriceData {
 
 export type PriceDataMap = Map<string, TickerPriceData>;
 
+export const normaliseTicker = (t: string | null | undefined): string =>
+  String(t ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
 function computeMA(points: DailyPricePoint[], n: number): number | null {
   if (points.length < n) return null;
   const slice = points.slice(-n);
