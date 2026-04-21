@@ -1,41 +1,53 @@
 
 
-## Goal
-Make the HOLD STATUS column visibly read as a status, by replacing the current tiny 9px badge with coloured pills using the same visual grammar as the action filter pills at the top of the Holdings page (the shared `Chip` component style: 10px uppercase mono, 5×10 padding, border + tinted background). Also add a missing **MONITOR** state (blue) that the current mapping silently swallows.
+## Plan (amended & approved)
 
-## Scope
-Single file: `src/components/HoldingsTab.tsx`. The badge component is reused in three places (group header row, table cell, and the mobile card variant), so updating `HoldStatusBadge` propagates everywhere automatically.
+### 1. Add `normaliseTicker` helper + diagnostic logs to `src/hooks/useDailyPrices.ts`
 
-## Changes
-
-### 1. Extend the status vocabulary
-Add `MONITOR` as a first-class kind. Update the mapping so `HOLD` is treated as CLEAR (no badge), per spec.
-
-```text
-SIZE_UP    ← SIZE_UP | ADD_ZONE | ADD          → green   "▲ SIZE UP"
-SIZE_DOWN  ← SIZE_DOWN | REVIEW | TRIM         → amber   "▼ SIZE DOWN"
-MONITOR    ← MONITOR | WATCH                   → blue    "◉ MONITOR"
-EXIT       ← EXIT | EXIT_ZONE | SELL           → red     "✕ EXIT"
-CLEAR      ← CLEAR | HOLD | "" | unknown       → no badge
+```ts
+const normaliseTicker = (t: string | null | undefined): string =>
+  String(t ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
 ```
 
-Blue uses the existing `--accent` token (`#6e8ec8`) and `--accent-dim` background — already in the palette, no new colours.
+- Use it when building Map keys (replacing the current `.toUpperCase().trim()`).
+- After the pagination loop log: `pages fetched`, `total rows`, `distinct tickers`.
+- After Map build log: sorted keys + `map.get("RKLB")`.
 
-### 2. Restyle `HoldStatusBadge` to match action filter pills
-Adopt the Chip visual language:
+### 2. Update `src/components/HoldingsTab.tsx`
 
-- `fontSize: 10` (was 9)
-- `letterSpacing: 0.1em`
-- `padding: 5px 10px` (was 2×8)
-- `borderRadius: 2`
-- `fontFamily: var(--font-mono)`, uppercase
-- Width: intrinsic (`display: inline-flex`, `whiteSpace: nowrap`) — fits content
-- Each variant keeps its tinted background + matching-tone border (same pattern as the active-state Chip), so the colour is what reads, not just the icon
+- Import `normaliseTicker` from `useDailyPrices`.
+- Replace all three lookup sites (table cell sparkline render, sort comparator, mobile card) currently using `h.ticker.toUpperCase().trim()` with `normaliseTicker(h.ticker)`.
+- Add two diagnostic logs (one-time per render):
+  - `console.log("[HoldingsTab] holdings tickers:", allHoldings.map(h => JSON.stringify(h.ticker)));`
+  - `console.log("[HoldingsTab] RKLB lookup:", priceData?.get(normaliseTicker("RKLB")));`
+- **Amendment 1** — add a third log to flag internal-whitespace data hygiene issues:
+  ```ts
+  console.log("[HoldingsTab] tickers with internal whitespace:",
+    allHoldings.filter(h => /\s/.test(String(h.ticker).trim())).map(h => JSON.stringify(h.ticker))
+  );
+  ```
+  Any hits indicate a Google Sheet hygiene issue to fix at source.
 
-### 3. No call-site changes
-All three existing `<HoldStatusBadge status={h.alert_status} />` usages stay as-is. The mobile compact card and group-header chips automatically pick up the new look.
+### 3. After user shares console output
 
-## Out of scope
-- Filter chips, table headers, sort logic — untouched.
-- `alert_status` field semantics in `usePortfolioData` / the sheet — untouched. Just one more value (`MONITOR`) is now rendered instead of being dropped to CLEAR.
+- If hidden chars / whitespace: confirmed fixed by `normaliseTicker`. Strip logs.
+- If internal-whitespace flagged: report tickers; fix in the sheet (not in the consumer).
+- **Amendment 2** — if suffixed tickers (e.g. `RKLB.O`) appear: do **not** add a suffix-strip fallback. Suffixes are legitimate (`HEXA-B.ST`) and silent stripping would break them. Fix at the sheet or ingest layer instead.
+- Strip all diagnostic logs once root cause is confirmed.
+
+### Out of scope
+
+- No source/context filters.
+- No Sparkline threshold changes.
+- No suffix-stripping in `normaliseTicker`.
+- No DB changes.
+
+### Files touched
+
+- `src/hooks/useDailyPrices.ts` — add helper, normalise Map keys, 2 diagnostic logs.
+- `src/components/HoldingsTab.tsx` — import helper, update 3 lookups, 3 diagnostic logs.
 
