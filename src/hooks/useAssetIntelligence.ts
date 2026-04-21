@@ -467,6 +467,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
 
   const [scoreRationaleByTicker, setScoreRationaleByTicker] = useState<Map<string, ScoreRationaleRow>>(new Map());
   const [disruptionRationaleByTicker, setDisruptionRationaleByTicker] = useState<Map<string, DisruptionRationaleRow>>(new Map());
+  const [disruptionSnapshotByTicker, setDisruptionSnapshotByTicker] = useState<Map<string, LiveDisruption>>(new Map());
   const [rationalesLoading, setRationalesLoading] = useState(true);
   const [rationalesError, setRationalesError] = useState<string | null>(null);
 
@@ -478,11 +479,13 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     Promise.all([
       fetchLatestRationales<ScoreRationaleRow>("score_rationales"),
       fetchLatestRationales<DisruptionRationaleRow>("disruption_rationales"),
+      fetchLatestDisruptionSnapshot(),
     ])
-      .then(([scoreMap, disruptionMap]) => {
+      .then(([scoreMap, disruptionMap, snapshotMap]) => {
         if (cancelled) return;
         setScoreRationaleByTicker(scoreMap);
         setDisruptionRationaleByTicker(disruptionMap);
+        setDisruptionSnapshotByTicker(snapshotMap);
       })
       .catch((e) => {
         if (cancelled) return;
