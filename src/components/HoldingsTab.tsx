@@ -287,8 +287,9 @@ function UnifiedView({
   const cashRows = holdingsWithReturns.filter(isCash);
 
   const visibleCols = UNIFIED_COLUMNS.filter(c => !(isMobile && c.hideMobile));
-  const extraDesktopCols = 6;
-  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3);
+  // Extra columns rendered after Price: 30D sparkline, Ann. Ret, Hold Status
+  const extraDesktopCols = 3;
+  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols);
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
   const pad = isMobile ? "8px 6px" : "8px 12px";
   const cellPad = isMobile ? "10px 6px" : "10px 12px";
