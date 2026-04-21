@@ -1,10 +1,12 @@
-import { CSSProperties } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
- * Native <select>-based sort control for mobile. Renders nothing on desktop —
- * desktop uses sortable column headers. Each option encodes both the field
- * and direction so users can pick e.g. "Score ↓" vs "Score ↑" in one tap.
+ * Native <select>-based sort control for compact viewports. Renders nothing
+ * above the breakpoint — wider screens use sortable column headers. Each
+ * option encodes both field and direction so users can pick e.g. "Score ↓"
+ * vs "Score ↑" in one tap. Default breakpoint follows useIsMobile (768px);
+ * pass `maxWidth` to override (e.g. 900 for tabs that need more room).
  */
 
 export interface MobileSortOption<T extends string> {
@@ -18,6 +20,8 @@ interface Props<T extends string> {
   field: T;
   dir: "asc" | "desc";
   onChange: (field: T, dir: "asc" | "desc") => void;
+  /** Show dropdown when viewport ≤ this width (px). Defaults to mobile (768). */
+  maxWidth?: number;
 }
 
 const wrap: CSSProperties = {
