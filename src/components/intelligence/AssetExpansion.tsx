@@ -166,8 +166,10 @@ function TrendBadge({ trend }: { trend?: { delta: number | null; direction: "up"
 }
 
 function RationaleCard({
-  label, score, max, rationale, trend,
-}: { label: string; score: number; max: number; rationale: string; trend?: { delta: number | null; direction: "up" | "down" | "flat" | null; prior_value: number | null } }) {
+  label, score, max, rationale, trend, emptyLabel,
+}: { label: string; score: number; max: number; rationale: string; trend?: { delta: number | null; direction: "up" | "down" | "flat" | null; prior_value: number | null }; emptyLabel?: string }) {
+  // If we have a real score but no rationale text, signal that explicitly.
+  const fallbackEmpty = score > 0 ? "Scored — rationale not archived." : "No rationale recorded.";
   return (
     <div style={CARD_STYLE}>
       <div style={LABEL_STYLE}>
@@ -177,7 +179,7 @@ function RationaleCard({
           <TrendBadge trend={trend} />
         </span>
       </div>
-      <ExpandableText text={rationale} clampLines={4} emptyLabel="No rationale recorded." />
+      <ExpandableText text={rationale} clampLines={4} emptyLabel={emptyLabel ?? fallbackEmpty} />
     </div>
   );
 }

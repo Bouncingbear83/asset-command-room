@@ -446,6 +446,47 @@ async function fetchLatestRationales<T extends { ticker: string; scored_at: stri
   return map;
 }
 
+/**
+ * Fetch the latest disruption_snapshot row per ticker as a fallback when the
+ * live DISRUPTION sheet has no entry. Returns LiveDisruption-shaped objects
+ * (camelCase) so they slot into the same map as parseDisruption() output.
+ */
+async function fetchLatestDisruptionSnapshot(): Promise<Map<string, LiveDisruption>> {
+  const { data, error } = await supabase
+    .from("disruption_snapshot")
+    .select("ticker,snapshot_date,disruption_score,sub_avail,economics,govt_support,demand_vuln,time_viability,status")
+    .order("snapshot_date", { ascending: false })
+    .range(0, 999);
+
+  if (error) {
+    console.error("[useAssetIntelligence] disruption_snapshot fetch error:", error);
+    return new Map();
+  }
+
+  const map = new Map<string, LiveDisruption>();
+  for (const row of data ?? []) {
+    const t = canonTicker(row.ticker);
+    if (!t || map.has(t)) continue; // first wins = newest
+    map.set(t, {
+      ticker: t,
+      name: "",
+      layer: "",
+      disruptionScore: Number(row.disruption_score ?? 0),
+      subAvail: Number(row.sub_avail ?? 0),
+      economics: Number(row.economics ?? 0),
+      govtSupport: Number(row.govt_support ?? 0),
+      demandVuln: Number(row.demand_vuln ?? 0),
+      timeViability: Number(row.time_viability ?? 0),
+      status: String(row.status ?? ""),
+      lastChecked: row.snapshot_date ?? null,
+      amberTrigger: "",
+      redTrigger: "",
+      evidence: "",
+    } as LiveDisruption);
+  }
+  return map;
+}
+
 // ── Public hook ─────────────────────────────────────────────────────────────
 
 export interface UseAssetIntelligenceResult {
@@ -467,6 +508,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
 
   const [scoreRationaleByTicker, setScoreRationaleByTicker] = useState<Map<string, ScoreRationaleRow>>(new Map());
   const [disruptionRationaleByTicker, setDisruptionRationaleByTicker] = useState<Map<string, DisruptionRationaleRow>>(new Map());
+  const [disruptionSnapshotByTicker, setDisruptionSnapshotByTicker] = useState<Map<string, LiveDisruption>>(new Map());
   const [rationalesLoading, setRationalesLoading] = useState(true);
   const [rationalesError, setRationalesError] = useState<string | null>(null);
 
@@ -478,11 +520,13 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     Promise.all([
       fetchLatestRationales<ScoreRationaleRow>("score_rationales"),
       fetchLatestRationales<DisruptionRationaleRow>("disruption_rationales"),
+      fetchLatestDisruptionSnapshot(),
     ])
-      .then(([scoreMap, disruptionMap]) => {
+      .then(([scoreMap, disruptionMap, snapshotMap]) => {
         if (cancelled) return;
         setScoreRationaleByTicker(scoreMap);
         setDisruptionRationaleByTicker(disruptionMap);
+        setDisruptionSnapshotByTicker(snapshotMap);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -501,11 +545,17 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
   const data = useMemo<AssetIntelligence[]>(() => {
     if (!scores || scores.length === 0) return [];
 
-    // Index disruption by canonical ticker (exact match; no case folding)
+    // Index disruption by canonical ticker. Live DISRUPTION sheet wins; fall
+    // back to disruption_snapshot (Supabase mirror) when sheet has no row —
+    // ensures tickers like MP Materials get real sub-scores instead of 0/20.
     const disruptionByTicker = new Map<string, LiveDisruption>();
+    for (const [t, d] of disruptionSnapshotByTicker) {
+      disruptionByTicker.set(t, d);
+    }
     for (const d of disruption ?? []) {
       const t = canonTicker(d.ticker);
-      if (t) disruptionByTicker.set(t, d);
+      // Only override snapshot if the live sheet row has a real disruption_score
+      if (t && (d.disruptionScore ?? 0) > 0) disruptionByTicker.set(t, d);
     }
 
     // Group holdings by canonical ticker (lists, to handle ILMN dual-row)
@@ -572,7 +622,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
         watchlistPriceByTicker,
       ),
     );
-  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker]);
+  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker, disruptionSnapshotByTicker]);
 
   return {
     data,

@@ -28,6 +28,7 @@ import {
   type HoldingsAccount,
 } from "@/lib/url-state-holdings";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
+import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 
 const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
@@ -57,11 +58,40 @@ const ACTION_STYLE: Record<string, React.CSSProperties> = {
   WATCH: { background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid rgba(110,142,200,0.2)" },
 };
 
-const ALERT_STYLE: Record<string, React.CSSProperties> = {
-  ADD_ZONE: { background: "var(--green-dim)", color: "var(--green)", border: "1px solid rgba(90,191,160,0.2)" },
-  EXIT_ZONE: { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
-  REVIEW: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
+// Hold Status — derived from HOLDINGS.ALERT_STATUS. Maps both the new
+// vocabulary (SIZE_UP/SIZE_DOWN/EXIT/CLEAR) and legacy ALERT_STATUS values
+// (ADD_ZONE → size up, EXIT_ZONE → exit, REVIEW → size down).
+type HoldStatusKind = "SIZE_UP" | "SIZE_DOWN" | "EXIT" | "CLEAR";
+
+const HOLD_STATUS_STYLE: Record<Exclude<HoldStatusKind, "CLEAR">, { bg: string; fg: string; border: string; label: string }> = {
+  SIZE_UP:   { bg: "var(--green-dim)", fg: "var(--green)", border: "rgba(90,191,160,0.25)", label: "▲ SIZE UP" },
+  SIZE_DOWN: { bg: "var(--amber-dim)", fg: "var(--amber)", border: "rgba(200,146,90,0.25)", label: "▼ SIZE DOWN" },
+  EXIT:      { bg: "var(--red-dim)",   fg: "var(--red)",   border: "rgba(200,90,90,0.25)",  label: "✕ EXIT" },
 };
+
+function deriveHoldStatus(raw: string | null | undefined): HoldStatusKind {
+  const u = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  if (!u) return "CLEAR";
+  if (u === "SIZE_UP" || u === "ADD_ZONE" || u === "ADD") return "SIZE_UP";
+  if (u === "SIZE_DOWN" || u === "REVIEW" || u === "TRIM") return "SIZE_DOWN";
+  if (u === "EXIT" || u === "EXIT_ZONE" || u === "SELL") return "EXIT";
+  return "CLEAR";
+}
+
+function HoldStatusBadge({ status }: { status: string | null | undefined }) {
+  const kind = deriveHoldStatus(status);
+  if (kind === "CLEAR") return null;
+  const s = HOLD_STATUS_STYLE[kind];
+  return (
+    <span style={{
+      background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
+      padding: "2px 8px", borderRadius: 2,
+      fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", whiteSpace: "nowrap",
+    }}>
+      {s.label}
+    </span>
+  );
+}
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 24 };
 const cardHeader: React.CSSProperties = {
@@ -79,28 +109,6 @@ const cardTitle: React.CSSProperties = {
   textTransform: "uppercase",
   color: "var(--text-mid)",
 };
-const detailRowS: React.CSSProperties = {
-  padding: "6px 12px 6px 36px",
-  fontFamily: "'DM Mono', var(--font-mono)",
-  fontSize: "0.78rem",
-  background: "color-mix(in srgb, var(--panel) 90%, white 10%)",
-  borderBottom: "1px solid rgba(28,28,48,0.25)",
-};
-
-function normalizeAlertStatus(value: string) {
-  return value.trim().toUpperCase();
-}
-
-function AlertBadge({ status }: { status: string }) {
-  const normalized = normalizeAlertStatus(status);
-  const style = ALERT_STYLE[normalized];
-  if (!style || normalized === "CLEAR") return null;
-  return (
-    <span style={{ ...style, padding: "2px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", whiteSpace: "nowrap" }}>
-      {normalized.replace("_", " ")}
-    </span>
-  );
-}
 
 type HoldingWithReturns = LiveHolding & { returns?: HoldingReturns };
 
@@ -181,6 +189,7 @@ function UnifiedView({
   sortKey,
   sortDir,
   onSortChange,
+  onSortSet,
   layerWeights,
   tierByTicker,
   onLayerGroupClick,
@@ -197,6 +206,7 @@ function UnifiedView({
   sortKey: SortKey;
   sortDir: SortDir;
   onSortChange: (key: SortKey) => void;
+  onSortSet?: (key: SortKey, dir: SortDir) => void;
   layerWeights: Map<string, { actual: number; target: number }>;
   tierByTicker: Map<string, string>;
   onLayerGroupClick: (layer: Layer) => void;
@@ -279,8 +289,9 @@ function UnifiedView({
   const cashRows = holdingsWithReturns.filter(isCash);
 
   const visibleCols = UNIFIED_COLUMNS.filter(c => !(isMobile && c.hideMobile));
-  const extraDesktopCols = 6;
-  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols + 3);
+  // Extra columns rendered after Price: 30D sparkline, Ann. Ret, Hold Status
+  const extraDesktopCols = 3;
+  const totalCols = visibleCols.length + (isMobile ? 2 : extraDesktopCols);
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
   const pad = isMobile ? "8px 6px" : "8px 12px";
   const cellPad = isMobile ? "10px 6px" : "10px 12px";
@@ -291,11 +302,32 @@ function UnifiedView({
     textAlign: "left", fontWeight: 400, whiteSpace: "nowrap", userSelect: "none",
   };
 
+  // Mobile sort options — explicit dropdown replaces clickable column headers below 900px
+  const mobileSortOptions: MobileSortOption<SortKey>[] = [
+    { field: "day", dir: "desc", label: "Day % ↓" },
+    { field: "day", dir: "asc",  label: "Day % ↑" },
+    { field: "gl",  dir: "desc", label: "G/L % ↓" },
+    { field: "gl",  dir: "asc",  label: "G/L % ↑" },
+    { field: "mv",  dir: "desc", label: "MV ↓" },
+    { field: "mv",  dir: "asc",  label: "MV ↑" },
+    { field: "annReturn", dir: "desc", label: "Ann. Ret ↓" },
+    { field: "annReturn", dir: "asc",  label: "Ann. Ret ↑" },
+    { field: "ticker", dir: "asc",  label: "A → Z" },
+    { field: "ticker", dir: "desc", label: "Z → A" },
+  ];
+  const handleMobileSortChange = (f: SortKey, d: SortDir) => {
+    if (onSortSet) onSortSet(f, d);
+    else if (f !== sortKey) onSortChange(f);
+  };
+
   // ── Mobile card layout (≤767px) ────────────────────────────────────────
   // Replaces the table entirely; keeps CASH pinned, group headers, all expansion.
   if (isMobile) {
     return (
       <div>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--rim)" }}>
+          <MobileSortSelect options={mobileSortOptions} field={sortKey} dir={sortDir} onChange={handleMobileSortChange} />
+        </div>
         {/* Pinned CASH cards */}
         {cashRows.map((h) => (
           <div
@@ -371,7 +403,7 @@ function UnifiedView({
                             }}>{sc}</span>
                           );
                         })()}
-                        <AlertBadge status={h.alert_status} />
+                        <HoldStatusBadge status={h.alert_status} />
                         {flag && (
                           <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 10 }}>
                             {flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢"}
@@ -446,8 +478,12 @@ function UnifiedView({
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+    <div>
+      {/* Below 900px (but above mobile breakpoint) headers get cramped — show explicit sort dropdown */}
+      <div style={{ padding: "10px 14px 0" }}>
+        <MobileSortSelect maxWidth={899} options={mobileSortOptions} field={sortKey} dir={sortDir} onChange={handleMobileSortChange} />
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, tableLayout: "auto" }}>
         <thead>
           <tr>
             {visibleCols.map((col) => (
@@ -465,21 +501,14 @@ function UnifiedView({
               </th>
             ))}
             {!isMobile && <th style={{ ...thS, cursor: "default" }} title="30-day price trend · Updated nightly">30D</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA20</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA50</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("cost")}>Cost £{arrow("cost")}</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("truePL")}>P&L £{arrow("truePL")}</th>}
-            <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("annReturn")}>Ann. Ret{arrow("annReturn")}</th>
-            {!isMobile && <th style={{ ...thS, cursor: "default" }}>Notes</th>}
-            <th style={{ ...thS, cursor: "pointer" }} onClick={() => handleSort("action")}>Action{arrow("action")}</th>
-            <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("annReturn")}>Ann. Ret{arrow("annReturn")}</th>}
+            {!isMobile && <th style={{ ...thS, cursor: "default" }}>Hold Status</th>}
           </tr>
         </thead>
         <tbody>
-          {/* CASH rows pinned at the top, never sorted/filtered/grouped */}
           {cashRows.map((h) => (
             <tr key={`cash-${h.account}`} style={{ background: "rgba(28,28,48,0.4)", borderBottom: "1px solid var(--rim)" }}>
-              <td colSpan={totalCols + 1} style={{ padding: cellPad, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em" }}>
+              <td colSpan={totalCols} style={{ padding: cellPad, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em" }}>
                 CASH · {h.account} · £{(h.mv || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}
               </td>
             </tr>
@@ -489,10 +518,10 @@ function UnifiedView({
             const layerWeight = groupMode === "layer" ? layerWeights.get(group.key) : undefined;
             const groupClickable = groupMode === "layer" && (LAYER_VALUES as readonly string[]).includes(group.key);
             return (
-              <>{/* Group header — rendered as a full-span row with the shared component inside */}
+              <>
                 {groupMode !== "none" && (
                   <tr key={`group-${group.key}`}>
-                    <td colSpan={totalCols + 1} style={{ padding: 0 }}>
+                    <td colSpan={totalCols} style={{ padding: 0 }}>
                       <HoldingsGroupHeader
                         groupBy={groupMode}
                         groupValue={group.label}
@@ -530,7 +559,6 @@ function UnifiedView({
                                 })()}
                               </Tooltip>
                             </TooltipProvider>
-                            {/* Score mini-badge */}
                             {(() => {
                               const summary = getSummary(h.ticker);
                               if (!summary) return null;
@@ -538,12 +566,10 @@ function UnifiedView({
                               const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
                               return <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: badgeColor, background: `color-mix(in srgb, ${badgeColor} 15%, transparent)`, padding: "1px 5px", borderRadius: 8, lineHeight: 1 }}>{sc}</span>;
                             })()}
-                            {/* Research freshness dot */}
                             {(() => {
                               const freshness = getResearchFreshness(h.ticker);
                               return <span title={`Research: ${freshness.label}`} style={{ width: 6, height: 6, borderRadius: "50%", background: freshness.color, flexShrink: 0 }} />;
                             })()}
-                            <AlertBadge status={h.alert_status} />
                             {(() => {
                               const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
                               if (!flag) return null;
@@ -552,7 +578,7 @@ function UnifiedView({
                             })()}
                           </div>
                         </td>
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>}
+                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 240 }}>{h.name}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>}
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
@@ -563,42 +589,31 @@ function UnifiedView({
                           const pd = priceData?.get(h.ticker);
                           return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
                         })()}
-                        {!isMobile && (() => {
-                          const pd = priceData?.get(h.ticker);
-                          const ma20 = pd?.ma20;
-                          const maColor = ma20 != null && h.price != null ? (h.price > ma20 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
-                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma20 != null ? ma20.toFixed(2) : "—"}</td>;
-                        })()}
-                        {!isMobile && (() => {
-                          const pd = priceData?.get(h.ticker);
-                          const ma50 = pd?.ma50;
-                          const maColor = ma50 != null && h.price != null ? (h.price > ma50 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
-                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma50 != null ? ma50.toFixed(2) : "—"}</td>;
-                        })()}
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", textAlign: "right", fontSize: 10 }}>{hasReturns ? `£${r!.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
-                        {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
-                        <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
-                        <td style={{ padding: cellPad }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
-                            <button
-                              title={`Deep dive ${h.ticker}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const prompt = buildDeepDivePrompt(h.ticker);
-                                const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
-                                (window.top || window).open(url, '_blank');
-                              }}
-                              style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
-                            >
-                              <Microscope size={11} />
-                            </button>
-                          </div>
-                        </td>
-                        <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
+                        {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>}
+                        {!isMobile && (
+                          <td style={{ padding: cellPad }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <HoldStatusBadge status={h.alert_status} />
+                              <button
+                                title={`Deep dive ${h.ticker}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const prompt = buildDeepDivePrompt(h.ticker);
+                                  const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                                  (window.top || window).open(url, '_blank');
+                                }}
+                                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+                              >
+                                <Microscope size={11} />
+                              </button>
+                              <span style={{ marginLeft: "auto", color: "var(--text-dim)", display: "inline-flex" }}>
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </span>
+                            </div>
+                          </td>
+                        )}
                       </tr>
-                      {isOpen && <HoldingsExpansionRow ticker={h.ticker} colSpan={totalCols + 1} />}
+                      {isOpen && <HoldingsExpansionRow ticker={h.ticker} colSpan={totalCols} />}
                     </>
                   );
                 })}
@@ -610,7 +625,7 @@ function UnifiedView({
           <tr>
             <td colSpan={isMobile ? 2 : 4} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-            <td colSpan={totalCols - (isMobile ? 3 : 5)} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={Math.max(0, totalCols - (isMobile ? 3 : 5))} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
@@ -705,7 +720,7 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
                   <div style={{ width: 140, flexShrink: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
-                      <AlertBadge status={h.alert_status} />
+                      <HoldStatusBadge status={h.alert_status} />
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
                   </div>
@@ -1096,6 +1111,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
                 sortKey={state.sortField}
                 sortDir={state.sortDir}
                 onSortChange={handleSort}
+                onSortSet={(field, dir) => setState((prev) => ({ ...prev, sortField: field, sortDir: dir }))}
                 layerWeights={layerWeights}
                 tierByTicker={tierByTicker}
                 onLayerGroupClick={onLayerGroupClick}
