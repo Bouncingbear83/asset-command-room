@@ -1107,6 +1107,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
                 sortKey={state.sortField}
                 sortDir={state.sortDir}
                 onSortChange={handleSort}
+                onSortSet={(field, dir) => setState((prev) => ({ ...prev, sortField: field, sortDir: dir }))}
                 layerWeights={layerWeights}
                 tierByTicker={tierByTicker}
                 onLayerGroupClick={onLayerGroupClick}
