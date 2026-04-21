@@ -1,6 +1,7 @@
 import { LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
-import { buildClaudePromptUrl } from "@/lib/claudePromptUrl";
+import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import { toast } from "sonner";
 
 interface Props {
   items: LiveEarningsCalendarItem[];
