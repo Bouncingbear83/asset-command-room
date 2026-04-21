@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 // SHA-256 of the access password. Hash is one-way; safe to commit.
 const EXPECTED_HASH = "2ce309a61c25cab514f9514e73eb5a02cf6541b6d08f8bbda93b1614c2c2ef14";
