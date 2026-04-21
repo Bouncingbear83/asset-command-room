@@ -16,6 +16,13 @@ export interface TickerPriceData {
 
 export type PriceDataMap = Map<string, TickerPriceData>;
 
+export const normaliseTicker = (t: string | null | undefined): string =>
+  String(t ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
 function computeMA(points: DailyPricePoint[], n: number): number | null {
   if (points.length < n) return null;
   const slice = points.slice(-n);
@@ -56,6 +63,7 @@ export function useDailyPrices(): { priceData: PriceDataMap; loading: boolean } 
         const MAX_PAGES = 10;
         const allRows: Array<{ ticker: string; snapshot_date: string; price_local: number; price_gbp: number }> = [];
 
+        let pageCount = 0;
         for (let page = 0; page < MAX_PAGES; page++) {
           const from = page * PAGE_SIZE;
           const to = from + PAGE_SIZE - 1;
@@ -75,6 +83,7 @@ export function useDailyPrices(): { priceData: PriceDataMap; loading: boolean } 
 
           const batch = data || [];
           allRows.push(...batch);
+          pageCount++;
           if (batch.length < PAGE_SIZE) break;
         }
 
@@ -82,7 +91,7 @@ export function useDailyPrices(): { priceData: PriceDataMap; loading: boolean } 
         const grouped = new Map<string, DailyPricePoint[]>();
 
         for (const row of allRows) {
-          const ticker = String(row.ticker).toUpperCase().trim();
+          const ticker = normaliseTicker(row.ticker);
           if (!grouped.has(ticker)) grouped.set(ticker, []);
           grouped.get(ticker)!.push({
             date: row.snapshot_date,
@@ -99,6 +108,10 @@ export function useDailyPrices(): { priceData: PriceDataMap; loading: boolean } 
             sparklineColor: getSparklineColor(points),
           });
         }
+
+        console.log("[useDailyPrices] pages fetched:", pageCount, "total rows:", allRows.length, "distinct tickers:", map.size);
+        console.log("[useDailyPrices] keys:", Array.from(map.keys()).sort());
+        console.log("[useDailyPrices] RKLB entry:", map.get("RKLB"));
 
         setPriceData(map);
       } catch (err) {
