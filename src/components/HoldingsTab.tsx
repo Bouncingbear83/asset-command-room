@@ -93,7 +93,22 @@ function HoldStatusBadge({ status }: { status: string | null | undefined }) {
   );
 }
 
-type HoldingWithReturns = LiveHolding & { returns?: HoldingReturns };
+const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 24 };
+const cardHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "14px 20px",
+  borderBottom: "1px solid var(--rim)",
+};
+const cardTitle: React.CSSProperties = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
+  color: "var(--text-mid)",
+};
 
 function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): HoldingWithReturns[] {
   return [...data].sort((a, b) => {
