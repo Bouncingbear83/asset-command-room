@@ -825,15 +825,51 @@ export default function CommandTab() {
                 <button style={toggleBtn("▼ LOSS", "losers")} onClick={() => setMoverSort("losers")}>▼ LOSS</button>
               </div>
               <div style={{ padding: isMobile ? "10px 12px" : "10px 20px" }}>
-                {topMovers.map((m) => (
-                  <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                {topMovers.map((m) => {
+                  const currencySymbol = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : "$";
+                  const pd = priceData?.get(normaliseTicker(m.ticker));
+                  const hasSpark = pd && pd.points.length >= 5;
+                  const priceStr = typeof m.price === "number" && !isNaN(m.price) ? `${currencySymbol}${m.price.toFixed(2)}` : "—";
+                  const dayPctEl = (
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: m.day >= 0 ? "var(--green)" : "var(--red)", minWidth: 60 }}>
                       {m.day >= 0 ? "▲" : "▼"} {m.day >= 0 ? "+" : ""}{m.day.toFixed(2)}%
                     </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, textAlign: "right" }}>{formatCurrency(m.mv)}</span>
-                  </div>
-                ))}
+                  );
+
+                  if (isMobile) {
+                    return (
+                      <div key={m.ticker} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
+                          {dayPctEl}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {hasSpark ? (
+                            <Sparkline points={pd.points} color={pd.sparklineColor} width={140} height={20} />
+                          ) : (
+                            <span style={{ width: 140, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4 }}>—</span>
+                          )}
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, textAlign: "right" }}>{formatCurrency(m.mv)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
+                      {dayPctEl}
+                      {hasSpark ? (
+                        <Sparkline points={pd.points} color={pd.sparklineColor} width={90} height={22} />
+                      ) : (
+                        <span style={{ width: 90, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4, textAlign: "center" }}>—</span>
+                      )}
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, textAlign: "right" }}>{formatCurrency(m.mv)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : null;
