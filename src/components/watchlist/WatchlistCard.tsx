@@ -7,7 +7,8 @@ import type { WatchlistTrajectory } from "@/hooks/useWatchlistHistory";
 import type { WatchlistScoreEntry } from "@/hooks/useWatchlistScores";
 import type { EntryZone } from "@/lib/parseEntryTarget";
 import { triggerWebhook } from "@/lib/webhooks";
-import { buildClaudePromptUrl } from "@/lib/claudePromptUrl";
+import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import { toast } from "sonner";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
@@ -198,17 +199,16 @@ function TrajectoryArrow({ pct }: { pct: number | null }) {
 }
 
 function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.MouseEvent) => void }) {
-  const handleDeepDive = (e: React.MouseEvent) => {
+  const handleDeepDive = async (e: React.MouseEvent) => {
     stop(e);
-    const url = buildClaudePromptUrl("watchlist_deep_dive", {
+    await openClaudeWithPrompt("watchlist_deep_dive", {
       ticker: item.ticker,
       name: item.name,
       layer: item.layer,
       status: item.status,
       entry_target: item.entry || "—",
       thesis: item.rationale || "—",
-    });
-    (window.top || window).open(url, "_blank");
+    }, (m) => toast(m));
   };
 
   const handleEarnings = (e: React.MouseEvent) => {
@@ -216,19 +216,18 @@ function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.Mo
     triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}`);
   };
 
-  const handleReview = (e: React.MouseEvent) => {
+  const handleReview = async (e: React.MouseEvent) => {
     stop(e);
     // Repointed from the broken stellar-watchlist-review webhook to the
     // Claude project deep-link with a pre-filled review prompt.
-    const url = buildClaudePromptUrl("watchlist_review", {
+    await openClaudeWithPrompt("watchlist_review", {
       ticker: item.ticker,
       name: item.name,
       layer: item.layer,
       status: item.status,
       trigger_condition: item.trigger || "—",
       entry_target: item.entry || "—",
-    });
-    (window.top || window).open(url, "_blank");
+    }, (m) => toast(m));
   };
 
   const btn: CSSProperties = {
@@ -338,17 +337,16 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           )}
           {!hideActions && (
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 stop(e);
-                const url = buildClaudePromptUrl("watchlist_review", {
+                await openClaudeWithPrompt("watchlist_review", {
                   ticker: item.ticker,
                   name: item.name,
                   layer: item.layer,
                   status: item.status,
                   trigger_condition: item.trigger || "—",
                   entry_target: item.entry || "—",
-                });
-                (window.top || window).open(url, "_blank");
+                }, (m) => toast(m));
               }}
               style={{
                 background: "none",
