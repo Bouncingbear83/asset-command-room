@@ -150,13 +150,12 @@ export default function EarningsCalendarTab({ items }: Props) {
                         </button>
                         <button
                           title={`Post-earnings thesis check for ${item.ticker}`}
-                          onClick={() => {
-                            const url = buildClaudePromptUrl("earnings_post", {
+                          onClick={async () => {
+                            await openClaudeWithPrompt("earnings_post", {
                               ticker: item.ticker,
                               fiscal_period: item.fiscalPeriod || "—",
                               earnings_date: item.nextEarningsDate || "—",
-                            });
-                            (window.top || window).open(url, "_blank");
+                            }, (m) => toast(m));
                           }}
                           style={{ background: "none", border: "1px solid var(--accent)", color: "var(--accent)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s" }}
                         >
