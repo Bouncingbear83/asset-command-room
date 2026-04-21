@@ -418,6 +418,7 @@ export default function CommandTab() {
   const [moverSort, setMoverSort] = useState<"abs" | "gainers" | "losers">("abs");
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, scores, loading, error } = usePortfolioData();
   const { recentResearch } = useResearchSummary();
+  const { priceData } = useDailyPrices();
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")
