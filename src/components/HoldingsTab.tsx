@@ -10,7 +10,7 @@ import { Sparkline } from "@/components/Sparkline";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { buildDeepDivePrompt } from "@/lib/claudePrompts";
+import { buildClaudePromptUrl } from "@/lib/claudePromptUrl";
 import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
 import { HoldingsHeader } from "@/components/holdings/HoldingsHeader";
 import { HoldingsFilters } from "@/components/holdings/HoldingsFilters";
@@ -30,7 +30,7 @@ import {
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 
-const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
+// (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
 
 interface Props {
   sipp: LiveHolding[];
@@ -610,8 +610,15 @@ function UnifiedView({
                                 title={`Deep dive ${h.ticker}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const prompt = buildDeepDivePrompt(h.ticker);
-                                  const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                                  const aumPct = totalAum > 0 ? ((h.mv || 0) / totalAum) * 100 : 0;
+                                  const url = buildClaudePromptUrl("holdings_deep_dive", {
+                                    ticker: h.ticker,
+                                    mv: Math.round(h.mv || 0),
+                                    aum_pct: aumPct.toFixed(1),
+                                    gl_pct: h.gl != null ? h.gl.toFixed(1) : "—",
+                                    add_trigger: h.add_trigger || "—",
+                                    exit_trigger: h.exit_trigger || "—",
+                                  });
                                   (window.top || window).open(url, '_blank');
                                 }}
                                 style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
