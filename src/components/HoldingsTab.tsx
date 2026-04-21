@@ -61,19 +61,21 @@ const ACTION_STYLE: Record<string, React.CSSProperties> = {
 // Hold Status — derived from HOLDINGS.ALERT_STATUS. Maps both the new
 // vocabulary (SIZE_UP/SIZE_DOWN/EXIT/CLEAR) and legacy ALERT_STATUS values
 // (ADD_ZONE → size up, EXIT_ZONE → exit, REVIEW → size down).
-type HoldStatusKind = "SIZE_UP" | "SIZE_DOWN" | "EXIT" | "CLEAR";
+type HoldStatusKind = "SIZE_UP" | "SIZE_DOWN" | "MONITOR" | "EXIT" | "CLEAR";
 
 const HOLD_STATUS_STYLE: Record<Exclude<HoldStatusKind, "CLEAR">, { bg: string; fg: string; border: string; label: string }> = {
-  SIZE_UP:   { bg: "var(--green-dim)", fg: "var(--green)", border: "rgba(90,191,160,0.25)", label: "▲ SIZE UP" },
-  SIZE_DOWN: { bg: "var(--amber-dim)", fg: "var(--amber)", border: "rgba(200,146,90,0.25)", label: "▼ SIZE DOWN" },
-  EXIT:      { bg: "var(--red-dim)",   fg: "var(--red)",   border: "rgba(200,90,90,0.25)",  label: "✕ EXIT" },
+  SIZE_UP:   { bg: "var(--green-dim)",  fg: "var(--green)",  border: "rgba(90,191,160,0.4)",  label: "▲ SIZE UP" },
+  SIZE_DOWN: { bg: "var(--amber-dim)",  fg: "var(--amber)",  border: "rgba(200,146,90,0.4)",  label: "▼ SIZE DOWN" },
+  MONITOR:   { bg: "var(--accent-dim)", fg: "var(--accent)", border: "rgba(110,142,200,0.4)", label: "◉ MONITOR" },
+  EXIT:      { bg: "var(--red-dim)",    fg: "var(--red)",    border: "rgba(200,90,90,0.4)",   label: "✕ EXIT" },
 };
 
 function deriveHoldStatus(raw: string | null | undefined): HoldStatusKind {
   const u = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "_");
-  if (!u) return "CLEAR";
+  if (!u || u === "HOLD" || u === "CLEAR") return "CLEAR";
   if (u === "SIZE_UP" || u === "ADD_ZONE" || u === "ADD") return "SIZE_UP";
   if (u === "SIZE_DOWN" || u === "REVIEW" || u === "TRIM") return "SIZE_DOWN";
+  if (u === "MONITOR" || u === "WATCH") return "MONITOR";
   if (u === "EXIT" || u === "EXIT_ZONE" || u === "SELL") return "EXIT";
   return "CLEAR";
 }
@@ -84,9 +86,19 @@ function HoldStatusBadge({ status }: { status: string | null | undefined }) {
   const s = HOLD_STATUS_STYLE[kind];
   return (
     <span style={{
-      background: s.bg, color: s.fg, border: `1px solid ${s.border}`,
-      padding: "2px 8px", borderRadius: 2,
-      fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", whiteSpace: "nowrap",
+      display: "inline-flex",
+      alignItems: "center",
+      background: s.bg,
+      color: s.fg,
+      border: `1px solid ${s.border}`,
+      padding: "5px 10px",
+      borderRadius: 2,
+      fontFamily: "var(--font-mono)",
+      fontSize: 10,
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      whiteSpace: "nowrap",
+      lineHeight: 1,
     }}>
       {s.label}
     </span>
