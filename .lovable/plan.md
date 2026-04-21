@@ -1,53 +1,37 @@
 
 
-## Plan (amended & approved)
+## Goal
+Enrich Today's Movers on the Command tab with current price + a 30-day sparkline so each row gives both magnitude (% move, MV) and visual trend context at a glance.
 
-### 1. Add `normaliseTicker` helper + diagnostic logs to `src/hooks/useDailyPrices.ts`
+## Current state
+Each row shows: `TICKER · ▲/▼ DAY% · MV (£)`. No price, no trend.
 
-```ts
-const normaliseTicker = (t: string | null | undefined): string =>
-  String(t ?? "")
-    .normalize("NFKC")
-    .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(/\s+/g, "")
-    .toUpperCase();
+## New row layout (desktop)
+```
+TICKER · PRICE · ▲/▼ DAY% · ━━━━╱╲━ (30d sparkline) · MV (£)
 ```
 
-- Use it when building Map keys (replacing the current `.toUpperCase().trim()`).
-- After the pagination loop log: `pages fetched`, `total rows`, `distinct tickers`.
-- After Map build log: sorted keys + `map.get("RKLB")`.
+- **TICKER** — unchanged, 50px min
+- **PRICE** — `currencySymbol + h.price.toFixed(2)`, mono 11px, `--text-mid`, 70px min. Same currency-symbol logic already used on the Zone Alerts card (`GBP/GBX→£`, `EUR→€`, `SEK→kr`, else `$`)
+- **DAY %** — unchanged, with arrow + colour
+- **Sparkline** — 30-day, reuses existing `<Sparkline />` from `src/components/Sparkline.tsx`. Width 90 × height 22. Colour driven by the sparkline's own 30-day pct change (`green/red/neutral`) — independent of today's % so it shows trend, not just today
+- **MV** — unchanged, right-aligned
 
-### 2. Update `src/components/HoldingsTab.tsx`
+## Mobile (<700px)
+Two-line stack to avoid horizontal cramping:
+- Line 1: `TICKER · PRICE · ▲/▼ DAY%`
+- Line 2: sparkline (full row width, ~140×20) · MV right-aligned
 
-- Import `normaliseTicker` from `useDailyPrices`.
-- Replace all three lookup sites (table cell sparkline render, sort comparator, mobile card) currently using `h.ticker.toUpperCase().trim()` with `normaliseTicker(h.ticker)`.
-- Add two diagnostic logs (one-time per render):
-  - `console.log("[HoldingsTab] holdings tickers:", allHoldings.map(h => JSON.stringify(h.ticker)));`
-  - `console.log("[HoldingsTab] RKLB lookup:", priceData?.get(normaliseTicker("RKLB")));`
-- **Amendment 1** — add a third log to flag internal-whitespace data hygiene issues:
-  ```ts
-  console.log("[HoldingsTab] tickers with internal whitespace:",
-    allHoldings.filter(h => /\s/.test(String(h.ticker).trim())).map(h => JSON.stringify(h.ticker))
-  );
-  ```
-  Any hits indicate a Google Sheet hygiene issue to fix at source.
+## Data wiring
+- Add `useDailyPrices()` call inside `CommandTab` (already paginated, normalised, cached via single hook instance)
+- For each mover: `const pd = priceData.get(normaliseTicker(m.ticker))` — render `<Sparkline points={pd.points} color={pd.sparklineColor} />` if `pd && pd.points.length >= 5`, otherwise render a faint `—` placeholder of the same width so rows don't jump
+- Carry `price` and `currency` through the dedup map (currently only `ticker/day/mv`) by adding both fields when building `deduped`
 
-### 3. After user shares console output
+## Out of scope
+- No change to sort toggles (ALL / GAIN / LOSS), top-5 cap, dedup logic, or the up/down counters in the header
+- No change to the Returns tab's Today's Movers (separate component, can be revisited later if you want parity)
+- No new DB queries — `useDailyPrices` is already fetched elsewhere on the same page load and React will share the result via the hook's internal cache pattern (note: hook fires per-component instance; one extra paginated fetch on Command tab mount, ~2 pages, acceptable)
 
-- If hidden chars / whitespace: confirmed fixed by `normaliseTicker`. Strip logs.
-- If internal-whitespace flagged: report tickers; fix in the sheet (not in the consumer).
-- **Amendment 2** — if suffixed tickers (e.g. `RKLB.O`) appear: do **not** add a suffix-strip fallback. Suffixes are legitimate (`HEXA-B.ST`) and silent stripping would break them. Fix at the sheet or ingest layer instead.
-- Strip all diagnostic logs once root cause is confirmed.
-
-### Out of scope
-
-- No source/context filters.
-- No Sparkline threshold changes.
-- No suffix-stripping in `normaliseTicker`.
-- No DB changes.
-
-### Files touched
-
-- `src/hooks/useDailyPrices.ts` — add helper, normalise Map keys, 2 diagnostic logs.
-- `src/components/HoldingsTab.tsx` — import helper, update 3 lookups, 3 diagnostic logs.
+## Files touched
+- `src/components/CommandTab.tsx` — add `useDailyPrices` import + call, extend `deduped` map shape, restyle the mover row with price + sparkline cells, add mobile two-line variant
 
