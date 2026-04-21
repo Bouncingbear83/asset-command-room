@@ -1,7 +1,7 @@
 import { CSSProperties, useState } from "react";
 import type { AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
 import { PriceChart } from "@/components/intelligence/PriceChart";
-import { CLAUDE_PROJECT_URL, buildDeepDivePrompt } from "@/lib/claudePrompts";
+import { buildClaudePromptUrl } from "@/lib/claudePromptUrl";
 import "./AssetExpansion.css";
 
 interface Props {
@@ -585,8 +585,14 @@ export function AssetExpansion({ asset }: Props) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              const prompt = buildDeepDivePrompt(asset.ticker);
-              const url = `${CLAUDE_PROJECT_URL}?prefill=${encodeURIComponent(prompt)}`;
+              const url = buildClaudePromptUrl("intelligence_deep_dive", {
+                ticker: asset.ticker,
+                name: asset.name,
+                layer: asset.layer ?? "—",
+                score: Math.round(asset.score),
+                tier: asset.tier ?? "—",
+                held_status: asset.held_status,
+              });
               // iframe-CSP-safe external open (per project memory)
               (window.top || window).open(url, "_blank");
             }}
