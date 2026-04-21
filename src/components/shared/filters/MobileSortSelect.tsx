@@ -57,9 +57,27 @@ function encode<T extends string>(field: T, dir: "asc" | "desc"): string {
   return `${field}:${dir}`;
 }
 
-export function MobileSortSelect<T extends string>({ options, field, dir, onChange }: Props<T>) {
-  const isMobile = useIsMobile();
-  if (!isMobile) return null;
+export function MobileSortSelect<T extends string>({ options, field, dir, onChange, maxWidth }: Props<T>) {
+  const isMobileDefault = useIsMobile();
+  const [show, setShow] = useState<boolean>(() => {
+    if (maxWidth === undefined) return isMobileDefault;
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(`(max-width: ${maxWidth}px)`).matches;
+  });
+
+  useEffect(() => {
+    if (maxWidth === undefined) {
+      setShow(isMobileDefault);
+      return;
+    }
+    const mql = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const onChange = () => setShow(mql.matches);
+    mql.addEventListener("change", onChange);
+    setShow(mql.matches);
+    return () => mql.removeEventListener("change", onChange);
+  }, [maxWidth, isMobileDefault]);
+
+  if (!show) return null;
 
   const current = encode(field, dir);
   return (
