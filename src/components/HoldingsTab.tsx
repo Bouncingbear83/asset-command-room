@@ -205,6 +205,7 @@ function UnifiedView({
   sortKey: SortKey;
   sortDir: SortDir;
   onSortChange: (key: SortKey) => void;
+  onSortSet?: (key: SortKey, dir: SortDir) => void;
   layerWeights: Map<string, { actual: number; target: number }>;
   tierByTicker: Map<string, string>;
   onLayerGroupClick: (layer: Layer) => void;
