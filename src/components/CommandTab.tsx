@@ -5,7 +5,8 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
-import { buildClaudePromptUrl, type PromptTemplateKey } from "@/lib/claudePromptUrl";
+import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
+import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 
@@ -209,10 +210,9 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
     setTimeout(() => setWebhookFired(""), 3000);
   };
 
-  const handleDeepDive = () => {
+  const handleDeepDive = async () => {
     if (!deepDiveTarget) return;
-    const url = buildClaudePromptUrl("dropdown_deep_dive", { ticker: deepDiveTarget });
-    (window.top || window).open(url, '_blank');
+    await openClaudeWithPrompt("dropdown_deep_dive", { ticker: deepDiveTarget }, (m) => toast(m));
     setDeepDiveTarget("");
   };
 
@@ -241,18 +241,22 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
       {/* Claude commands */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 16 }}>
         {CLAUDE_COMMANDS.map((cmd) => {
-          const url = buildClaudePromptUrl(cmd.templateKey);
-          // Decode the prompt portion of the URL once for the copy-to-clipboard button.
-          const promptText = decodeURIComponent(url.split("?q=")[1] ?? "");
+          const promptText = buildPrompt(cmd.templateKey);
           return (
             <div key={cmd.label} style={{ display: "flex", gap: 0 }}>
-              <a href={url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: isMobile ? "10px 12px" : "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  await openClaudeWithPrompt(cmd.templateKey, {}, (m) => toast(m));
+                }}
+                style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: isMobile ? "10px 12px" : "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 8 }}
+              >
                 {cmd.icon && <span style={{ fontSize: 14 }}>{cmd.icon}</span>}
                 <div>
                   <div>{cmd.label}</div>
                   {cmd.subtitle && <div style={{ fontSize: 8, color: "var(--text-dim)", textTransform: "none", letterSpacing: "0.02em", marginTop: 2 }}>{cmd.subtitle}</div>}
                 </div>
-              </a>
+              </button>
               <button onClick={() => copyToClipboard(promptText)} title="Copy prompt" style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "0 10px", fontFamily: "var(--font-mono)", fontSize: 10, cursor: "pointer", transition: "all 0.2s" }}>⧉</button>
             </div>
           );

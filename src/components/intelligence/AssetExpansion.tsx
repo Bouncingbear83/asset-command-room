@@ -1,7 +1,8 @@
 import { CSSProperties, useState } from "react";
 import type { AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
 import { PriceChart } from "@/components/intelligence/PriceChart";
-import { buildClaudePromptUrl } from "@/lib/claudePromptUrl";
+import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import { toast } from "sonner";
 import "./AssetExpansion.css";
 
 interface Props {
@@ -583,18 +584,16 @@ export function AssetExpansion({ asset }: Props) {
         }}>
           <button
             type="button"
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
-              const url = buildClaudePromptUrl("intelligence_deep_dive", {
+              await openClaudeWithPrompt("intelligence_deep_dive", {
                 ticker: asset.ticker,
                 name: asset.name,
                 layer: asset.layer ?? "—",
                 score: Math.round(asset.score),
                 tier: asset.tier ?? "—",
                 held_status: asset.held_status,
-              });
-              // iframe-CSP-safe external open (per project memory)
-              (window.top || window).open(url, "_blank");
+              }, (m) => toast(m));
             }}
             style={{
               padding: "4px 12px",
