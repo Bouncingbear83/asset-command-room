@@ -5,35 +5,17 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
-import { buildDeepDivePrompt, buildWatchlistReviewPrompt } from "@/lib/claudePrompts";
+import { buildClaudePromptUrl, type PromptTemplateKey } from "@/lib/claudePromptUrl";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 
-const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
+// Quick Commands now route through buildClaudePromptUrl().
 
-const CLAUDE_COMMANDS = [
-  {
-    label: "Substrate audit",
-    prompt:
-      "Substrate audit session.\n\nI will paste the candidate company name or ticker in my next message.\n\nWhen I do, execute the full substrate audit protocol:\n\n1. Load HOLDINGS + LAYERS + WATCHLIST + SCORES + CASH via Sheet Reader\n\n2. Web search: substrate thesis, recent financials, competitive position, reclassification signals, II UK accessibility\n\n3. Apply the binary substrate test — pass / conditional pass / fail with reasoning\n\n4. If fail: stop there, explain why, do not score other dimensions\n\n5. If pass: full 6D score with per-dimension rationale (Sub/25 Dem/22 Moat/18 Val/13 Mgmt/7 Dis/15), disruption score, RECLASS_STATUS assessment, tier, buy zone, ADD/EXIT triggers, account recommendation, target position size\n\n6. Check conflicts: layer overweight, factor concentration, substrate duplication vs Core holdings, bio twin-risk cap\n\n7. Present Research Commit payload (NEW_SCORE) — pause for my confirmation before firing\n\nDoctrine reminders: 30% anchor rule if score ≥75 and substrate ≥20/25. Pre-reclassification +5 modifier where applicable. Rule #9 — no application layer.",
-  },
-  {
-    label: "Layer gaps",
-    prompt:
-      "Layer gap analysis session.\n\nExecute immediately:\n\n1. Load HOLDINGS + LAYERS + WATCHLIST + CASH via Sheet Reader\n\n2. Produce current layer weight vs target table with Gap column, sorted by absolute gap\n\n3. Flag any layer >3% off target as HIGH priority\n\n4. For the top 2 gap layers:\n\n   - List held positions and their contribution to layer weight\n\n   - List WATCHLIST candidates ranked by score, with current price vs entry zone\n\n   - Flag any ACTIVE watchlist items (in buy zone now)\n\n5. Identify blockers explicitly:\n\n   - Energy overweight blocking further Energy adds\n\n   - Factor concentration breaches (>25% in any FACTOR_PRIMARY)\n\n   - Bio twin-risk (ILMN + TWST combined cap)\n\n   - SIPP vs ISA cash availability per target account\n\n6. Output: deploy priority queue with ticker / layer / amount / account / trigger / rationale, ordered by priority\n\n7. End with: what I should do this week vs wait for\n\nDo not score anything new. This is allocation analysis only.",
-  },
-  {
-    label: "Reclassification risk",
-    prompt:
-      "Reclassification risk session.\n\nExecute immediately:\n\n1. Load SCORES + HOLDINGS via Sheet Reader\n\n2. For every held position, pull RECLASS_STATUS (col U), THESIS_FIRST_SCORED (col V), THESIS_AGE_MONTHS (col W), AUM_pct (HOLDINGS col F, decimal — multiply by 100)\n\n3. Build three queues:\n\n   - EXIT QUEUE: RECLASS_STATUS = COMPLETE and AUM_pct > 3% — easy money done, candidates for trim\n\n   - REVIEW QUEUE: RECLASS_STATUS = PRE and THESIS_AGE_MONTHS > 9 — thesis stalling, needs web-search refresh\n\n   - TRIM QUEUE: RECLASS_STATUS = IN_PROGRESS and multiple expanded >2x since THESIS_FIRST_SCORED — partial trim candidates\n\n4. Cross-reference WATCHLIST: for each EXIT QUEUE holding, identify PRE-reclassification candidates in same layer that could absorb the freed capital (rotation pairs)\n\n5. Output format: three tables (Exit / Review / Trim) with specific action + suggested size + rotation target where applicable\n\n6. Flag any position where RECLASS_STATUS conflicts with current market pricing (e.g. marked PRE but trading at reclassified multiple)\n\nDoctrine: Rule #12 — reclassification is where the returns are. The edge is entering PRE and exiting at COMPLETE.",
-  },
-  {
-    label: "Log Trades",
-    prompt:
-      "I have new trades to log. Ready for CSV or screenshot.",
-    icon: "📝",
-    subtitle: "CSV or screenshot → Claude",
-  },
+const CLAUDE_COMMANDS: { label: string; templateKey: PromptTemplateKey; icon?: string; subtitle?: string }[] = [
+  { label: "Substrate audit",       templateKey: "substrate_audit" },
+  { label: "Layer gaps",            templateKey: "layer_gaps" },
+  { label: "Reclassification risk", templateKey: "reclass_risk" },
+  { label: "Log Trades",            templateKey: "log_trades", icon: "📝", subtitle: "CSV or screenshot → Claude" },
 ];
 
 const SIGNAL_KEYS = ["VIX", "SP500_YTD_PCT", "GOLD_USD", "PAUSE_ACTIVE", "EARNINGS_BLACKOUT"] as const;
