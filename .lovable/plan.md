@@ -1,46 +1,41 @@
 
-# Mobile chrome polish — Intelligence + Holdings
 
-Scope: tighten headings + filter bars at ≤767px only. Desktop untouched.
+## Goal
+Make the HOLD STATUS column visibly read as a status, by replacing the current tiny 9px badge with coloured pills using the same visual grammar as the action filter pills at the top of the Holdings page (the shared `Chip` component style: 10px uppercase mono, 5×10 padding, border + tinted background). Also add a missing **MONITOR** state (blue) that the current mapping silently swallows.
 
-## What I'll inspect to confirm issues at 430px
+## Scope
+Single file: `src/components/HoldingsTab.tsx`. The badge component is reused in three places (group header row, table cell, and the mobile card variant), so updating `HoldStatusBadge` propagates everywhere automatically.
 
-From the current code I already know:
-- `IntelligenceHeader` and `HoldingsHeader` use desktop-sized typography + horizontal padding
-- `FilterDisclosure` button sits next to a wide `alwaysVisible` row containing SearchBox + MobileSortSelect + GroupToggle — at 430px the GroupToggle (4 chips with icons + labels) wraps awkwardly and pushes the Filters button onto its own line
-- SearchBox is fixed-ish width and doesn't fill the row
-- Header meta lines ("Showing N of M") stack but with desktop spacing
-- Rationale-coverage banner uses desktop padding
+## Changes
 
-## Changes (mobile-only, all gated by `useIsMobile` or `@media (max-width: 767px)`)
+### 1. Extend the status vocabulary
+Add `MONITOR` as a first-class kind. Update the mapping so `HOLD` is treated as CLEAR (no badge), per spec.
 
-### Headings
-- `IntelligenceHeader.tsx` + `HoldingsHeader.tsx`: reduce title font-size, tighten padding (12px → 10px vertical, 16px → 12px horizontal), drop letter-spacing slightly, allow meta line to wrap cleanly
-- Rationale coverage banner in `IntelligenceTab.tsx`: smaller font, tighter padding, dismiss button stays tappable (≥32px hit area)
+```text
+SIZE_UP    ← SIZE_UP | ADD_ZONE | ADD          → green   "▲ SIZE UP"
+SIZE_DOWN  ← SIZE_DOWN | REVIEW | TRIM         → amber   "▼ SIZE DOWN"
+MONITOR    ← MONITOR | WATCH                   → blue    "◉ MONITOR"
+EXIT       ← EXIT | EXIT_ZONE | SELL           → red     "✕ EXIT"
+CLEAR      ← CLEAR | HOLD | "" | unknown       → no badge
+```
 
-### Filter bar layout (`IntelligenceFilters.tsx` + `HoldingsFilters.tsx`)
-Reorganise the `alwaysVisible` row on mobile into two stacked rows:
-- Row A: SearchBox (full width, `flex: 1`)
-- Row B: Sort select (left, flex: 1) + Filters disclosure button (right) + Group toggle as compact dropdown OR icon-only chips
+Blue uses the existing `--accent` token (`#6e8ec8`) and `--accent-dim` background — already in the palette, no new colours.
 
-Convert `GroupToggle` on mobile to **icon-only** chips (drop the label text, keep the Lucide icon + tooltip) so all 4 fit in ~140px instead of ~280px. Desktop keeps icon+label.
+### 2. Restyle `HoldStatusBadge` to match action filter pills
+Adopt the Chip visual language:
 
-### Chip rows (when disclosure is open)
-- Reduce chip padding (`5px 10px` → `4px 8px`) and font-size (10px → 9px) on mobile
-- Tighten gap between rows (`10px` → `6px`)
+- `fontSize: 10` (was 9)
+- `letterSpacing: 0.1em`
+- `padding: 5px 10px` (was 2×8)
+- `borderRadius: 2`
+- `fontFamily: var(--font-mono)`, uppercase
+- Width: intrinsic (`display: inline-flex`, `whiteSpace: nowrap`) — fits content
+- Each variant keeps its tinted background + matching-tone border (same pattern as the active-state Chip), so the colour is what reads, not just the icon
 
-### Files to edit
-- `src/components/intelligence/IntelligenceHeader.tsx`
-- `src/components/holdings/HoldingsHeader.tsx`
-- `src/components/intelligence/IntelligenceFilters.tsx`
-- `src/components/holdings/HoldingsFilters.tsx`
-- `src/components/shared/filters/GroupToggle.tsx` (add `compact` / icon-only mode driven by `useIsMobile`)
-- `src/components/shared/filters/Chip.tsx` (mobile size variant via CSS)
-- `src/components/shared/filters/SearchBox.tsx` (full-width on mobile)
-- `src/pages/IntelligenceTab.tsx` (rationale banner mobile styling)
+### 3. No call-site changes
+All three existing `<HoldStatusBadge status={h.alert_status} />` usages stay as-is. The mobile compact card and group-header chips automatically pick up the new look.
 
-### What stays exactly as-is
-- All desktop layouts (≥768px)
-- AssetRow / HoldingsTab card layouts (already shipped and working)
-- All sort/filter/group/search/URL behaviour
-- AssetExpansion + PriceChart
+## Out of scope
+- Filter chips, table headers, sort logic — untouched.
+- `alert_status` field semantics in `usePortfolioData` / the sheet — untouched. Just one more value (`MONITOR`) is now rendered instead of being dropped to CLEAR.
+
