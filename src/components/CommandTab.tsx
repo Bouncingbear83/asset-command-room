@@ -776,13 +776,13 @@ export default function CommandTab() {
 
         {/* Today's Movers card */}
         {(() => {
-          const deduped = new Map<string, { ticker: string; day: number; mv: number }>();
+          const deduped = new Map<string, { ticker: string; day: number; mv: number; price: number; currency: string }>();
           holdings.forEach((h) => {
             if (h.day == null) return;
             const key = h.ticker.toUpperCase();
             const existing = deduped.get(key);
             if (!existing || Math.abs(h.day) > Math.abs(existing.day)) {
-              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0 });
+              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0, price: h.price, currency: h.currency });
             }
           });
           const all = Array.from(deduped.values());
