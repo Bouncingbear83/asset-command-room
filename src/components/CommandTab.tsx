@@ -6,6 +6,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { buildDeepDivePrompt, buildWatchlistReviewPrompt } from "@/lib/claudePrompts";
+import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
+import { Sparkline } from "@/components/Sparkline";
 
 const PROJECT_ID = "019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
