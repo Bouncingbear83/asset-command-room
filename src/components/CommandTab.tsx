@@ -33,9 +33,12 @@ const HOLDING_ALERT_STYLE: Record<string, React.CSSProperties> = {
   REVIEW: { background: "var(--amber-dim)", color: "var(--amber)", border: "1px solid rgba(200,146,90,0.2)" },
 };
 
+// Claude project base URL — kept locally so the Start Session free-form
+// prompt can be appended without having to add a one-off template.
+const CLAUDE_PROJECT_BASE_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
+
 function getClaudeUrl(prompt: string) {
-  const base = `https://claude.ai/project/${PROJECT_ID}`;
-  return prompt ? `${base}?prompt=${encodeURIComponent(prompt)}` : base;
+  return prompt ? `${CLAUDE_PROJECT_BASE_URL}?q=${encodeURIComponent(prompt)}` : CLAUDE_PROJECT_BASE_URL;
 }
 
 function isEmbedded(): boolean {
@@ -208,11 +211,7 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
 
   const handleDeepDive = () => {
     if (!deepDiveTarget) return;
-    const isHolding = tickers.includes(deepDiveTarget);
-    const prompt = isHolding
-      ? buildDeepDivePrompt(deepDiveTarget)
-      : buildWatchlistReviewPrompt(deepDiveTarget);
-    const url = getClaudeUrl(prompt);
+    const url = buildClaudePromptUrl("dropdown_deep_dive", { ticker: deepDiveTarget });
     (window.top || window).open(url, '_blank');
     setDeepDiveTarget("");
   };
