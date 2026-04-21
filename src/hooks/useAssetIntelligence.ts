@@ -446,6 +446,47 @@ async function fetchLatestRationales<T extends { ticker: string; scored_at: stri
   return map;
 }
 
+/**
+ * Fetch the latest disruption_snapshot row per ticker as a fallback when the
+ * live DISRUPTION sheet has no entry. Returns LiveDisruption-shaped objects
+ * (camelCase) so they slot into the same map as parseDisruption() output.
+ */
+async function fetchLatestDisruptionSnapshot(): Promise<Map<string, LiveDisruption>> {
+  const { data, error } = await supabase
+    .from("disruption_snapshot")
+    .select("ticker,snapshot_date,disruption_score,sub_avail,economics,govt_support,demand_vuln,time_viability,status")
+    .order("snapshot_date", { ascending: false })
+    .range(0, 999);
+
+  if (error) {
+    console.error("[useAssetIntelligence] disruption_snapshot fetch error:", error);
+    return new Map();
+  }
+
+  const map = new Map<string, LiveDisruption>();
+  for (const row of data ?? []) {
+    const t = canonTicker(row.ticker);
+    if (!t || map.has(t)) continue; // first wins = newest
+    map.set(t, {
+      ticker: t,
+      name: "",
+      layer: "",
+      disruptionScore: Number(row.disruption_score ?? 0),
+      subAvail: Number(row.sub_avail ?? 0),
+      economics: Number(row.economics ?? 0),
+      govtSupport: Number(row.govt_support ?? 0),
+      demandVuln: Number(row.demand_vuln ?? 0),
+      timeViability: Number(row.time_viability ?? 0),
+      status: String(row.status ?? ""),
+      lastChecked: row.snapshot_date ?? null,
+      amberTrigger: "",
+      redTrigger: "",
+      evidence: "",
+    } as LiveDisruption);
+  }
+  return map;
+}
+
 // ── Public hook ─────────────────────────────────────────────────────────────
 
 export interface UseAssetIntelligenceResult {
