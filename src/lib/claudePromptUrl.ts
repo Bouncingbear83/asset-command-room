@@ -1,9 +1,6 @@
-// Centralised Claude project deep-link builder.
-// All Claude buttons across the dashboard funnel through this module so the
-// prompt copy + URL shape stay consistent.
-//
-// NOTE: Uses the project ID specified in the approved plan. Open via
-// `(window.top || window).open(url, '_blank')` to bypass iframe CSP.
+// Centralised Claude project deep-link helper.
+// Claude projects do NOT support URL-based prompt pre-fill (verified).
+// Pattern: copy prompt → open project in new tab → user pastes (⌘V).
 
 const CLAUDE_PROJECT_BASE =
   "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
@@ -44,13 +41,39 @@ const TEMPLATES = {
 
 export type PromptTemplateKey = keyof typeof TEMPLATES;
 
-export function buildClaudePromptUrl(
+export function buildPrompt(
   templateKey: PromptTemplateKey,
   context: PromptContext = {},
 ): string {
   const tmpl = TEMPLATES[templateKey];
-  const prompt = typeof tmpl === "function" ? tmpl(context) : String(tmpl);
-  return `${CLAUDE_PROJECT_BASE}?q=${encodeURIComponent(prompt)}`;
+  return typeof tmpl === "function" ? tmpl(context) : String(tmpl);
+}
+
+/**
+ * Copies the prompt to clipboard, opens the Claude project in a new tab,
+ * and (optionally) fires a toast so the user knows to paste.
+ */
+export async function openClaudeWithPrompt(
+  templateKey: PromptTemplateKey,
+  context: PromptContext = {},
+  toast?: (msg: string) => void,
+): Promise<void> {
+  const prompt = buildPrompt(templateKey, context);
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(prompt);
+    copied = true;
+  } catch (err) {
+    console.warn("Clipboard write failed", err);
+  }
+  (window.top || window).open(CLAUDE_PROJECT_BASE, "_blank");
+  if (toast) {
+    toast(
+      copied
+        ? "Prompt copied — paste into Claude (⌘V)"
+        : "Open Claude and paste manually",
+    );
+  }
 }
 
 export { CLAUDE_PROJECT_BASE };
