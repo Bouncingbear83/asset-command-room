@@ -379,7 +379,7 @@ function UnifiedView({
                             }}>{sc}</span>
                           );
                         })()}
-                        <AlertBadge status={h.alert_status} />
+                        <HoldStatusBadge status={h.alert_status} />
                         {flag && (
                           <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 10 }}>
                             {flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢"}
@@ -551,7 +551,7 @@ function UnifiedView({
                               const freshness = getResearchFreshness(h.ticker);
                               return <span title={`Research: ${freshness.label}`} style={{ width: 6, height: 6, borderRadius: "50%", background: freshness.color, flexShrink: 0 }} />;
                             })()}
-                            <AlertBadge status={h.alert_status} />
+                            <HoldStatusBadge status={h.alert_status} />
                             {(() => {
                               const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
                               if (!flag) return null;
@@ -713,7 +713,7 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
                   <div style={{ width: 140, flexShrink: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
-                      <AlertBadge status={h.alert_status} />
+                      <HoldStatusBadge status={h.alert_status} />
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
                   </div>
