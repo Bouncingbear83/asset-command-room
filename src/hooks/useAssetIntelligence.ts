@@ -622,7 +622,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
         watchlistPriceByTicker,
       ),
     );
-  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker]);
+  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker, disruptionSnapshotByTicker]);
 
   return {
     data,
