@@ -871,6 +871,17 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   const isaData: LiveHolding[] = isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => withFallbackHolding(h, "ISA"));
 
   const allHoldings = [...sippData, ...isaData];
+
+  useEffect(() => {
+    if (!priceData) return;
+    console.log("[HoldingsTab] holdings tickers:", allHoldings.map(h => JSON.stringify(h.ticker)));
+    console.log("[HoldingsTab] RKLB lookup:", priceData?.get(normaliseTicker("RKLB")));
+    console.log("[HoldingsTab] tickers with internal whitespace:",
+      allHoldings.filter(h => /\s/.test(String(h.ticker).trim())).map(h => JSON.stringify(h.ticker))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceData]);
+
   const totalAum = allHoldings.reduce((sum, holding) => sum + (holding.mv || 0), 0);
   const sippTotal = sippData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
   const isaTotal = isaData.reduce((sum, holding) => sum + (holding.mv || 0), 0);
