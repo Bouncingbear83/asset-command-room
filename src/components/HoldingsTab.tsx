@@ -189,6 +189,7 @@ function UnifiedView({
   sortKey,
   sortDir,
   onSortChange,
+  onSortSet,
   layerWeights,
   tierByTicker,
   onLayerGroupClick,
