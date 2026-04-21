@@ -455,8 +455,8 @@ function UnifiedView({
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+    <div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, tableLayout: "auto" }}>
         <thead>
           <tr>
             {visibleCols.map((col) => (
@@ -474,21 +474,14 @@ function UnifiedView({
               </th>
             ))}
             {!isMobile && <th style={{ ...thS, cursor: "default" }} title="30-day price trend · Updated nightly">30D</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA20</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "default" }}>MA50</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("cost")}>Cost £{arrow("cost")}</th>}
-            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("truePL")}>P&L £{arrow("truePL")}</th>}
-            <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("annReturn")}>Ann. Ret{arrow("annReturn")}</th>
-            {!isMobile && <th style={{ ...thS, cursor: "default" }}>Notes</th>}
-            <th style={{ ...thS, cursor: "pointer" }} onClick={() => handleSort("action")}>Action{arrow("action")}</th>
-            <th style={{ width: 24, padding: "8px 6px", borderBottom: "1px solid var(--rim)" }} />
+            {!isMobile && <th style={{ ...thS, textAlign: "right", cursor: "pointer" }} onClick={() => handleSort("annReturn")}>Ann. Ret{arrow("annReturn")}</th>}
+            {!isMobile && <th style={{ ...thS, cursor: "default" }}>Hold Status</th>}
           </tr>
         </thead>
         <tbody>
-          {/* CASH rows pinned at the top, never sorted/filtered/grouped */}
           {cashRows.map((h) => (
             <tr key={`cash-${h.account}`} style={{ background: "rgba(28,28,48,0.4)", borderBottom: "1px solid var(--rim)" }}>
-              <td colSpan={totalCols + 1} style={{ padding: cellPad, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em" }}>
+              <td colSpan={totalCols} style={{ padding: cellPad, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em" }}>
                 CASH · {h.account} · £{(h.mv || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}
               </td>
             </tr>
@@ -498,10 +491,10 @@ function UnifiedView({
             const layerWeight = groupMode === "layer" ? layerWeights.get(group.key) : undefined;
             const groupClickable = groupMode === "layer" && (LAYER_VALUES as readonly string[]).includes(group.key);
             return (
-              <>{/* Group header — rendered as a full-span row with the shared component inside */}
+              <>
                 {groupMode !== "none" && (
                   <tr key={`group-${group.key}`}>
-                    <td colSpan={totalCols + 1} style={{ padding: 0 }}>
+                    <td colSpan={totalCols} style={{ padding: 0 }}>
                       <HoldingsGroupHeader
                         groupBy={groupMode}
                         groupValue={group.label}
@@ -539,7 +532,6 @@ function UnifiedView({
                                 })()}
                               </Tooltip>
                             </TooltipProvider>
-                            {/* Score mini-badge */}
                             {(() => {
                               const summary = getSummary(h.ticker);
                               if (!summary) return null;
@@ -547,12 +539,10 @@ function UnifiedView({
                               const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
                               return <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: badgeColor, background: `color-mix(in srgb, ${badgeColor} 15%, transparent)`, padding: "1px 5px", borderRadius: 8, lineHeight: 1 }}>{sc}</span>;
                             })()}
-                            {/* Research freshness dot */}
                             {(() => {
                               const freshness = getResearchFreshness(h.ticker);
                               return <span title={`Research: ${freshness.label}`} style={{ width: 6, height: 6, borderRadius: "50%", background: freshness.color, flexShrink: 0 }} />;
                             })()}
-                            <HoldStatusBadge status={h.alert_status} />
                             {(() => {
                               const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
                               if (!flag) return null;
@@ -561,7 +551,7 @@ function UnifiedView({
                             })()}
                           </div>
                         </td>
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap" }}>{h.name}</td>}
+                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 240 }}>{h.name}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>}
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
@@ -572,42 +562,31 @@ function UnifiedView({
                           const pd = priceData?.get(h.ticker);
                           return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
                         })()}
-                        {!isMobile && (() => {
-                          const pd = priceData?.get(h.ticker);
-                          const ma20 = pd?.ma20;
-                          const maColor = ma20 != null && h.price != null ? (h.price > ma20 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
-                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma20 != null ? ma20.toFixed(2) : "—"}</td>;
-                        })()}
-                        {!isMobile && (() => {
-                          const pd = priceData?.get(h.ticker);
-                          const ma50 = pd?.ma50;
-                          const maColor = ma50 != null && h.price != null ? (h.price > ma50 ? "var(--green)" : "var(--amber)") : "var(--text-dim)";
-                          return <td style={{ padding: cellPad, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: maColor }}>{ma50 != null ? ma50.toFixed(2) : "—"}</td>;
-                        })()}
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", textAlign: "right", fontSize: 10 }}>{hasReturns ? `£${r!.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
-                        {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.truePL >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)" }}>{hasReturns ? `${r!.truePL >= 0 ? "+" : ""}£${Math.abs(r!.truePL).toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>}
-                        <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10, maxWidth: 200, overflow: "hidden", textOverflow: isOpen ? "unset" : "ellipsis", whiteSpace: isOpen ? "normal" : "nowrap", lineHeight: 1.5 }}>{h.notes}</td>}
-                        <td style={{ padding: cellPad }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ ...(ACTION_STYLE[h.action] ?? ACTION_STYLE.MONITOR), fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap" }}>{h.action}</span>
-                            <button
-                              title={`Deep dive ${h.ticker}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const prompt = buildDeepDivePrompt(h.ticker);
-                                const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
-                                (window.top || window).open(url, '_blank');
-                              }}
-                              style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
-                            >
-                              <Microscope size={11} />
-                            </button>
-                          </div>
-                        </td>
-                        <td style={{ padding: "10px 6px", color: "var(--text-dim)" }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
+                        {!isMobile && <td style={{ padding: cellPad, textAlign: "right", color: hasReturns ? (r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)") : "var(--text-dim)", fontWeight: hasReturns ? 700 : 400, fontSize: hasReturns ? 12 : 11 }}>{hasReturns ? `${r!.annualisedReturn >= 0 ? "+" : ""}${r!.annualisedReturn.toFixed(1)}%` : "—"}</td>}
+                        {!isMobile && (
+                          <td style={{ padding: cellPad }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <HoldStatusBadge status={h.alert_status} />
+                              <button
+                                title={`Deep dive ${h.ticker}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const prompt = buildDeepDivePrompt(h.ticker);
+                                  const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
+                                  (window.top || window).open(url, '_blank');
+                                }}
+                                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+                              >
+                                <Microscope size={11} />
+                              </button>
+                              <span style={{ marginLeft: "auto", color: "var(--text-dim)", display: "inline-flex" }}>
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </span>
+                            </div>
+                          </td>
+                        )}
                       </tr>
-                      {isOpen && <HoldingsExpansionRow ticker={h.ticker} colSpan={totalCols + 1} />}
+                      {isOpen && <HoldingsExpansionRow ticker={h.ticker} colSpan={totalCols} />}
                     </>
                   );
                 })}
@@ -619,7 +598,7 @@ function UnifiedView({
           <tr>
             <td colSpan={isMobile ? 2 : 4} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-            <td colSpan={totalCols - (isMobile ? 3 : 5)} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={Math.max(0, totalCols - (isMobile ? 3 : 5))} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
