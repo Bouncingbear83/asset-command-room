@@ -357,6 +357,13 @@ function buildInbox(
         { label: "Trigger condition", value: fmt(w.trigger), full: true },
       ],
       longNote: w.triggerReviewNote || w.rationale,
+      explain: {
+        trigger: `Trigger review for ${w.ticker} is ${since} day${since === 1 ? "" : "s"} stale (last reviewed ${fmt(w.triggerReviewDate, "—")}).`,
+        thesis: `${fmt(w.layer)} watchlist · status ${fmt(w.status)}.${w.trigger ? ` Stated trigger: ${w.trigger}.` : ""}`,
+        action: since > 30
+          ? `Decide now: refresh trigger / upgrade to active / demote to research / reject. Don't let stale theses clutter the queue.`
+          : `Refresh the trigger this week — confirm it still maps to a real entry condition or retire the row.`,
+      },
     });
   });
 
