@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { parseAllFlags, type ReviewFlag } from "@/components/ReviewQueue";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -377,6 +377,13 @@ interface Props {
 }
 
 const OPEN_ROWS_STORAGE_KEY = "stellar.actionInbox.openRows.v1";
+const DONE_STORAGE_KEY = "stellar.actionInbox.done.v1";
+
+/** Today's local-date string — used to namespace "done" so items auto-return on next snapshot. */
+function todayStamp(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function ExplainRow({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
@@ -428,6 +435,27 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
     }
   });
 
+  // "Done" map: { [itemKey]: snapshotStamp }. An item is considered done only
+  // while its stored stamp matches today's stamp — next snapshot it returns.
+  const [doneMap, setDoneMap] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(DONE_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return {};
+      const today = todayStamp();
+      // Drop any entries from previous days at load time.
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>)
+          .filter(([, v]) => typeof v === "string" && v === today),
+      ) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  });
+  const [showDone, setShowDone] = useState(false);
+
   const items = useMemo(() => buildInbox(holdings, watchlist, earnings), [holdings, watchlist, earnings]);
 
   // Persist expanded-row state across reloads/sessions.
@@ -442,6 +470,39 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
       // ignore quota / privacy-mode failures
     }
   }, [openRows]);
+
+  // Persist "done" map.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DONE_STORAGE_KEY, JSON.stringify(doneMap));
+    } catch {
+      // ignore
+    }
+  }, [doneMap]);
+
+  const today = todayStamp();
+  const isDone = useCallback((key: string) => doneMap[key] === today, [doneMap, today]);
+
+  const markDone = useCallback((key: string) => {
+    setDoneMap((m) => ({ ...m, [key]: todayStamp() }));
+    // Collapse the row when marking done so it disappears cleanly.
+    setOpenRows((s) => {
+      if (!s[key]) return s;
+      const next = { ...s };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const restore = useCallback((key: string) => {
+    setDoneMap((m) => {
+      if (!(key in m)) return m;
+      const next = { ...m };
+      delete next[key];
+      return next;
+    });
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -460,14 +521,17 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
     );
   }
 
-  const highCount = items.filter((i) => i.urgency <= 1).length;
-  const visible = showAll ? items : items.slice(0, 8);
+  const activeItems = items.filter((i) => !isDone(i.key));
+  const doneItems = items.filter((i) => isDone(i.key));
+  const highCount = activeItems.filter((i) => i.urgency <= 1).length;
+  const visible = showAll ? activeItems : activeItems.slice(0, 8);
   const mp = isMobile ? "10px 12px" : "14px 20px";
+  const allCleared = activeItems.length === 0;
 
   return (
     <div style={{
       background: "var(--panel)", border: "1px solid var(--rim)",
-      borderLeft: "3px solid var(--gold)", marginBottom: 16,
+      borderLeft: `3px solid ${allCleared ? "var(--green)" : "var(--gold)"}`, marginBottom: 16,
     }}>
       <div
         onClick={() => setExpanded(!expanded)}
@@ -477,12 +541,13 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--gold)" }}>
-            ⚡ Today's Decisions
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: allCleared ? "var(--green)" : "var(--gold)" }}>
+            {allCleared ? "✅ All cleared for today" : "⚡ Today's Decisions"}
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.1em" }}>
-            {items.length} item{items.length !== 1 ? "s" : ""}
+            {activeItems.length} open
             {highCount > 0 && <span style={{ color: "var(--red)", marginLeft: 6 }}>· {highCount} urgent</span>}
+            {doneItems.length > 0 && <span style={{ marginLeft: 6 }}>· {doneItems.length} done</span>}
           </span>
         </div>
         <div style={{ color: "var(--text-dim)" }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
@@ -657,13 +722,47 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                         </span>
                       </div>
                     )}
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        borderTop: "1px dashed var(--rim)",
+                        paddingTop: 10,
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markDone(item.key);
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "color-mix(in srgb, var(--green) 10%, transparent)",
+                          border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)",
+                          color: "var(--green)",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 9,
+                          letterSpacing: "0.14em",
+                          textTransform: "uppercase",
+                          padding: "6px 12px",
+                          borderRadius: 2,
+                          cursor: "pointer",
+                        }}
+                        title="Hide until next snapshot"
+                      >
+                        <Check size={11} /> Mark done
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
 
-          {items.length > 8 && (
+          {activeItems.length > 8 && (
             <button
               onClick={() => setShowAll((s) => !s)}
               style={{
@@ -673,8 +772,84 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                 cursor: "pointer", borderRadius: 2, justifySelf: "start",
               }}
             >
-              {showAll ? `Show top 8` : `Show all ${items.length}`}
+              {showAll ? `Show top 8` : `Show all ${activeItems.length}`}
             </button>
+          )}
+
+          {doneItems.length > 0 && (
+            <div style={{ marginTop: 10, borderTop: "1px solid var(--rim)", paddingTop: 10, display: "grid", gap: 6 }}>
+              <button
+                onClick={() => setShowDone((s) => !s)}
+                style={{
+                  background: "none", border: "none", color: "var(--text-dim)",
+                  fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.14em",
+                  textTransform: "uppercase", padding: 0, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 6, justifySelf: "start",
+                }}
+              >
+                {showDone ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                ✓ Done today · {doneItems.length}
+              </button>
+
+              {showDone && (
+                <div style={{ display: "grid", gap: 4 }}>
+                  {doneItems.map((item) => {
+                    const style = KIND_STYLE[item.kind];
+                    return (
+                      <div
+                        key={`done-${item.key}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr auto" : "auto auto 1fr auto",
+                          gap: isMobile ? 8 : 14,
+                          alignItems: "center",
+                          padding: "6px 12px",
+                          border: "1px solid var(--rim)",
+                          borderLeft: `3px solid color-mix(in srgb, ${style.color} 50%, transparent)`,
+                          borderRadius: 2,
+                          opacity: 0.55,
+                          background: "transparent",
+                        }}
+                      >
+                        <span style={{
+                          fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700,
+                          color: "var(--text-mid)", textDecoration: "line-through",
+                        }}>
+                          {item.ticker}
+                        </span>
+                        {!isMobile && (
+                          <span style={{
+                            fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em",
+                            textTransform: "uppercase", color: "var(--text-dim)", whiteSpace: "nowrap",
+                          }}>
+                            {style.label}
+                          </span>
+                        )}
+                        <span style={{
+                          fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {item.label} · {item.context}
+                        </span>
+                        <button
+                          onClick={() => restore(item.key)}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            background: "none", border: "1px solid var(--rim)",
+                            color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 8,
+                            letterSpacing: "0.12em", textTransform: "uppercase",
+                            padding: "4px 8px", cursor: "pointer", borderRadius: 2,
+                          }}
+                          title="Restore to active"
+                        >
+                          <RotateCcw size={10} /> Restore
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
