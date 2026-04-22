@@ -7,6 +7,7 @@ import ReviewQueue from "@/components/ReviewQueue";
 import ActionInbox from "@/components/ActionInbox";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
