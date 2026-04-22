@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { parseAllFlags, type ReviewFlag } from "@/components/ReviewQueue";
@@ -376,13 +376,43 @@ interface Props {
   earnings: LiveEarningsCalendarItem[];
 }
 
+const OPEN_ROWS_STORAGE_KEY = "stellar.actionInbox.openRows.v1";
+
 export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
-  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(OPEN_ROWS_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>).filter(([, v]) => v === true),
+        ) as Record<string, boolean>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  });
 
   const items = useMemo(() => buildInbox(holdings, watchlist, earnings), [holdings, watchlist, earnings]);
+
+  // Persist expanded-row state across reloads/sessions.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const onlyTrue = Object.fromEntries(
+        Object.entries(openRows).filter(([, v]) => v === true),
+      );
+      window.localStorage.setItem(OPEN_ROWS_STORAGE_KEY, JSON.stringify(onlyTrue));
+    } catch {
+      // ignore quota / privacy-mode failures
+    }
+  }, [openRows]);
 
   if (items.length === 0) {
     return (
