@@ -378,6 +378,35 @@ interface Props {
 
 const OPEN_ROWS_STORAGE_KEY = "stellar.actionInbox.openRows.v1";
 
+function ExplainRow({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(86px, auto) 1fr", gap: 12, alignItems: "baseline" }}>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 8,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-dim)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          lineHeight: 1.5,
+          color: accent ? "var(--gold)" : "var(--text-mid)",
+          fontWeight: accent ? 600 : 400,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(true);
