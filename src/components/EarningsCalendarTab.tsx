@@ -1,6 +1,7 @@
 import { LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 
 interface Props {
@@ -148,19 +149,22 @@ export default function EarningsCalendarTab({ items }: Props) {
                         >
                           📋 Prep
                         </button>
-                        <button
-                          title={`Post-earnings thesis check for ${item.ticker}`}
-                          onClick={async () => {
-                            await openClaudeWithPrompt("earnings_post", {
-                              ticker: item.ticker,
-                              fiscal_period: item.fiscalPeriod || "—",
-                              earnings_date: item.nextEarningsDate || "—",
-                            }, (m) => toast(m));
+                        <ClaudePromptButton
+                          templateKey="earnings_post"
+                          context={{
+                            ticker: item.ticker,
+                            fiscal_period: item.fiscalPeriod || "—",
+                            earnings_date: item.nextEarningsDate || "—",
                           }}
-                          style={{ background: "none", border: "1px solid var(--accent)", color: "var(--accent)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s" }}
+                          style={{
+                            border: "1px solid var(--accent)",
+                            color: "var(--accent)",
+                            padding: "3px 8px",
+                            fontSize: 9,
+                          }}
                         >
                           🔬 Post
-                        </button>
+                        </ClaudePromptButton>
                       </div>
                     </td>
                   </tr>

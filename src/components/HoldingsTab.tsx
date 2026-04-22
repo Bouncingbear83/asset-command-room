@@ -11,6 +11,7 @@ import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQu
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
 import { HoldingsHeader } from "@/components/holdings/HoldingsHeader";
@@ -607,24 +608,21 @@ function UnifiedView({
                           <td style={{ padding: cellPad }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <HoldStatusBadge status={h.alert_status} />
-                              <button
-                                title={`Deep dive ${h.ticker}`}
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  const aumPct = totalAum > 0 ? ((h.mv || 0) / totalAum) * 100 : 0;
-                                  await openClaudeWithPrompt("holdings_deep_dive", {
-                                    ticker: h.ticker,
-                                    mv: Math.round(h.mv || 0),
-                                    aum_pct: aumPct.toFixed(1),
-                                    gl_pct: h.gl != null ? h.gl.toFixed(1) : "—",
-                                    add_trigger: h.add_trigger || "—",
-                                    exit_trigger: h.exit_trigger || "—",
-                                  }, (m) => toast(m));
+                              <ClaudePromptButton
+                                templateKey="holdings_deep_dive"
+                                context={{
+                                  ticker: h.ticker,
+                                  mv: Math.round(h.mv || 0),
+                                  aum_pct: (totalAum > 0 ? ((h.mv || 0) / totalAum) * 100 : 0).toFixed(1),
+                                  gl_pct: h.gl != null ? h.gl.toFixed(1) : "—",
+                                  add_trigger: h.add_trigger || "—",
+                                  exit_trigger: h.exit_trigger || "—",
                                 }}
-                                style={{ background: "none", border: "1px solid var(--rim)", color: "var(--accent)", cursor: "pointer", padding: "2px 4px", borderRadius: 2, display: "inline-flex", alignItems: "center", transition: "color 0.2s" }}
+                                stopPropagation
+                                style={{ border: "1px solid var(--rim)", padding: "2px 4px", display: "inline-flex", alignItems: "center" }}
                               >
                                 <Microscope size={11} />
-                              </button>
+                              </ClaudePromptButton>
                               <span style={{ marginLeft: "auto", color: "var(--text-dim)", display: "inline-flex" }}>
                                 {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                               </span>

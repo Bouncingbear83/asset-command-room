@@ -2,6 +2,7 @@ import { CSSProperties, useState } from "react";
 import type { AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
 import { PriceChart } from "@/components/intelligence/PriceChart";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import "./AssetExpansion.css";
 
@@ -582,34 +583,29 @@ export function AssetExpansion({ asset }: Props) {
           color: "var(--text-dim)",
           letterSpacing: "0.06em",
         }}>
-          <button
-            type="button"
-            onClick={async (e) => {
-              e.stopPropagation();
-              await openClaudeWithPrompt("intelligence_deep_dive", {
-                ticker: asset.ticker,
-                name: asset.name,
-                layer: asset.layer ?? "—",
-                score: Math.round(asset.score),
-                tier: asset.tier ?? "—",
-                held_status: asset.held_status,
-              }, (m) => toast(m));
+          <ClaudePromptButton
+            templateKey="intelligence_deep_dive"
+            context={{
+              ticker: asset.ticker,
+              name: asset.name,
+              layer: asset.layer ?? "—",
+              score: Math.round(asset.score),
+              tier: asset.tier ?? "—",
+              held_status: asset.held_status,
             }}
+            stopPropagation
             style={{
               padding: "4px 12px",
               background: "transparent",
               color: "var(--gold)",
               border: "1px solid var(--gold-dim)",
-              borderRadius: 2,
-              fontFamily: "var(--font-mono)",
               fontSize: 10,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              cursor: "pointer",
             }}
           >
             Deep dive →
-          </button>
+          </ClaudePromptButton>
           <span>·</span>
           <span>Buy range: {formatBuyRange(asset.buy_range.low, asset.buy_range.high, asset.buy_range.currency)}</span>
           <span>·</span>

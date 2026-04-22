@@ -7,6 +7,7 @@ import ReviewQueue from "@/components/ReviewQueue";
 import ActionInbox from "@/components/ActionInbox";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
@@ -245,19 +246,16 @@ function QuickCommandsSection({ holdings, layers, watchlist, isMobile }: { holdi
           const promptText = buildPrompt(cmd.templateKey);
           return (
             <div key={cmd.label} style={{ display: "flex", gap: 0 }}>
-              <button
-                type="button"
-                onClick={async () => {
-                  await openClaudeWithPrompt(cmd.templateKey, {}, (m) => toast(m));
-                }}
-                style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: isMobile ? "10px 12px" : "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", textAlign: "left", textTransform: "uppercase", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 8 }}
+              <ClaudePromptButton
+                templateKey={cmd.templateKey}
+                style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--rim)", borderRight: "none", color: "var(--text-mid)", padding: isMobile ? "10px 12px" : "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", textAlign: "left", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8, whiteSpace: "normal" }}
               >
                 {cmd.icon && <span style={{ fontSize: 14 }}>{cmd.icon}</span>}
                 <div>
                   <div>{cmd.label}</div>
                   {cmd.subtitle && <div style={{ fontSize: 8, color: "var(--text-dim)", textTransform: "none", letterSpacing: "0.02em", marginTop: 2 }}>{cmd.subtitle}</div>}
                 </div>
-              </button>
+              </ClaudePromptButton>
               <button onClick={() => copyToClipboard(promptText)} title="Copy prompt" style={{ background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "0 10px", fontFamily: "var(--font-mono)", fontSize: 10, cursor: "pointer", transition: "all 0.2s" }}>⧉</button>
             </div>
           );
