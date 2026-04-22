@@ -11,6 +11,7 @@ import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQu
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
 import { HoldingsHeader } from "@/components/holdings/HoldingsHeader";
