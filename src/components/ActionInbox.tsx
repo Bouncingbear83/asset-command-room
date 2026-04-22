@@ -521,14 +521,17 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
     );
   }
 
-  const highCount = items.filter((i) => i.urgency <= 1).length;
-  const visible = showAll ? items : items.slice(0, 8);
+  const activeItems = items.filter((i) => !isDone(i.key));
+  const doneItems = items.filter((i) => isDone(i.key));
+  const highCount = activeItems.filter((i) => i.urgency <= 1).length;
+  const visible = showAll ? activeItems : activeItems.slice(0, 8);
   const mp = isMobile ? "10px 12px" : "14px 20px";
+  const allCleared = activeItems.length === 0;
 
   return (
     <div style={{
       background: "var(--panel)", border: "1px solid var(--rim)",
-      borderLeft: "3px solid var(--gold)", marginBottom: 16,
+      borderLeft: `3px solid ${allCleared ? "var(--green)" : "var(--gold)"}`, marginBottom: 16,
     }}>
       <div
         onClick={() => setExpanded(!expanded)}
@@ -538,12 +541,13 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--gold)" }}>
-            ⚡ Today's Decisions
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: allCleared ? "var(--green)" : "var(--gold)" }}>
+            {allCleared ? "✅ All cleared for today" : "⚡ Today's Decisions"}
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.1em" }}>
-            {items.length} item{items.length !== 1 ? "s" : ""}
+            {activeItems.length} open
             {highCount > 0 && <span style={{ color: "var(--red)", marginLeft: 6 }}>· {highCount} urgent</span>}
+            {doneItems.length > 0 && <span style={{ marginLeft: 6 }}>· {doneItems.length} done</span>}
           </span>
         </div>
         <div style={{ color: "var(--text-dim)" }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
