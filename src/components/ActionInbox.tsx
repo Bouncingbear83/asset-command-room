@@ -532,6 +532,32 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                   >
                     <div
                       style={{
+                        background: "color-mix(in srgb, var(--gold) 6%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--gold) 22%, transparent)",
+                        borderLeft: "2px solid var(--gold)",
+                        borderRadius: 2,
+                        padding: isMobile ? "10px 12px" : "12px 14px",
+                        display: "grid",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 8,
+                          letterSpacing: "0.18em",
+                          textTransform: "uppercase",
+                          color: "var(--gold)",
+                        }}
+                      >
+                        💡 Explain this signal
+                      </div>
+                      <ExplainRow label="Trigger" value={item.explain.trigger} />
+                      <ExplainRow label="Thesis state" value={item.explain.thesis} />
+                      <ExplainRow label="Recommended" value={item.explain.action} accent />
+                    </div>
+                    <div
+                      style={{
                         display: "grid",
                         gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))",
                         gap: "8px 16px",
