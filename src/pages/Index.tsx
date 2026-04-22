@@ -64,6 +64,24 @@ export default function Index() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Sync active tab → URL (?tab=slug); default Command emits no param.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const slug = TAB_SLUGS[active];
+    if (active === "Command") params.delete("tab");
+    else params.set("tab", slug);
+    const next = params.toString();
+    const url = `${window.location.pathname}${next ? `?${next}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", url);
+  }, [active]);
+
+  // Sync URL → active tab on browser back/forward.
+  useEffect(() => {
+    const onPop = () => setActive(tabFromUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   const s: Record<string, React.CSSProperties> = {
     app: { minHeight: "100vh", background: "var(--void)" },
     sep: { color: "var(--rim)", fontStyle: "normal", fontFamily: "var(--font-mono)", fontSize: 12 },
