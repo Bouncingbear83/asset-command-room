@@ -8,6 +8,7 @@ import type { WatchlistScoreEntry } from "@/hooks/useWatchlistScores";
 import type { EntryZone } from "@/lib/parseEntryTarget";
 import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
@@ -199,35 +200,9 @@ function TrajectoryArrow({ pct }: { pct: number | null }) {
 }
 
 function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.MouseEvent) => void }) {
-  const handleDeepDive = async (e: React.MouseEvent) => {
-    stop(e);
-    await openClaudeWithPrompt("watchlist_deep_dive", {
-      ticker: item.ticker,
-      name: item.name,
-      layer: item.layer,
-      status: item.status,
-      entry_target: item.entry || "—",
-      thesis: item.rationale || "—",
-    }, (m) => toast(m));
-  };
-
   const handleEarnings = (e: React.MouseEvent) => {
     stop(e);
     triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}`);
-  };
-
-  const handleReview = async (e: React.MouseEvent) => {
-    stop(e);
-    // Repointed from the broken stellar-watchlist-review webhook to the
-    // Claude project deep-link with a pre-filled review prompt.
-    await openClaudeWithPrompt("watchlist_review", {
-      ticker: item.ticker,
-      name: item.name,
-      layer: item.layer,
-      status: item.status,
-      trigger_condition: item.trigger || "—",
-      entry_target: item.entry || "—",
-    }, (m) => toast(m));
   };
 
   const btn: CSSProperties = {
@@ -246,8 +221,36 @@ function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.Mo
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       <button onClick={handleEarnings} style={btn}>📋 Earnings Prep</button>
-      <button onClick={handleReview} style={btn}>🔄 Review</button>
-      <button onClick={handleDeepDive} style={{ ...btn, color: "var(--accent)" }}>🔬 Deep Dive</button>
+      <ClaudePromptButton
+        templateKey="watchlist_review"
+        context={{
+          ticker: item.ticker,
+          name: item.name,
+          layer: item.layer,
+          status: item.status,
+          trigger_condition: item.trigger || "—",
+          entry_target: item.entry || "—",
+        }}
+        stopPropagation
+        style={{ ...btn, color: "var(--text-dim)", border: "1px solid var(--rim)" }}
+      >
+        🔄 Review
+      </ClaudePromptButton>
+      <ClaudePromptButton
+        templateKey="watchlist_deep_dive"
+        context={{
+          ticker: item.ticker,
+          name: item.name,
+          layer: item.layer,
+          status: item.status,
+          entry_target: item.entry || "—",
+          thesis: item.rationale || "—",
+        }}
+        stopPropagation
+        style={{ ...btn, color: "var(--accent)" }}
+      >
+        🔬 Deep Dive
+      </ClaudePromptButton>
     </div>
   );
 }
