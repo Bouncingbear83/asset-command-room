@@ -339,18 +339,17 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             </span>
           )}
           {!hideActions && (
-            <button
-              onClick={async (e) => {
-                stop(e);
-                await openClaudeWithPrompt("watchlist_review", {
-                  ticker: item.ticker,
-                  name: item.name,
-                  layer: item.layer,
-                  status: item.status,
-                  trigger_condition: item.trigger || "—",
-                  entry_target: item.entry || "—",
-                }, (m) => toast(m));
+            <ClaudePromptButton
+              templateKey="watchlist_review"
+              context={{
+                ticker: item.ticker,
+                name: item.name,
+                layer: item.layer,
+                status: item.status,
+                trigger_condition: item.trigger || "—",
+                entry_target: item.entry || "—",
               }}
+              stopPropagation
               style={{
                 background: "none",
                 border: "1px solid var(--rim)",
@@ -359,12 +358,10 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
                 fontSize: 9,
                 letterSpacing: "0.08em",
                 padding: "3px 9px",
-                borderRadius: 2,
-                cursor: "pointer",
               }}
             >
               Review →
-            </button>
+            </ClaudePromptButton>
           )}
           {isMobile && <ChevronRight size={12} style={{ color: "var(--text-dim)" }} />}
         </div>
