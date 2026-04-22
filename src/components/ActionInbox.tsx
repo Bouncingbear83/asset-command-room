@@ -377,6 +377,13 @@ interface Props {
 }
 
 const OPEN_ROWS_STORAGE_KEY = "stellar.actionInbox.openRows.v1";
+const DONE_STORAGE_KEY = "stellar.actionInbox.done.v1";
+
+/** Today's local-date string — used to namespace "done" so items auto-return on next snapshot. */
+function todayStamp(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function ExplainRow({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
