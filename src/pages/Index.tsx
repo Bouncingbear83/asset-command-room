@@ -16,6 +16,21 @@ import IntelligenceTab from "@/pages/IntelligenceTab";
 const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Intelligence", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
+const TAB_SLUGS: Record<Tab, string> = {
+  Command: "command", Monitor: "monitor", Watchlist: "watchlist", Layers: "layers",
+  Intelligence: "intelligence", Returns: "returns", Holdings: "holdings",
+  Transactions: "transactions", JISAs: "jisas", "Earnings Calendar": "earnings",
+};
+const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
+  Object.entries(TAB_SLUGS).map(([t, s]) => [s, t as Tab]),
+);
+
+function tabFromUrl(): Tab {
+  if (typeof window === "undefined") return "Command";
+  const slug = new URLSearchParams(window.location.search).get("tab");
+  return (slug && SLUG_TO_TAB[slug]) || "Command";
+}
+
 function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>["macroBanner"]) {
   if (!macroBanner) return false;
   return Object.values(macroBanner).some((value) => value !== null && value !== "");
@@ -26,7 +41,7 @@ function formatPercent(value: number) {
 }
 
 export default function Index() {
-  const [active, setActive] = useState<Tab>("Command");
+  const [active, setActive] = useState<Tab>(tabFromUrl);
   const [macroBannerOpen, setMacroBannerOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const portfolio = usePortfolioData();
