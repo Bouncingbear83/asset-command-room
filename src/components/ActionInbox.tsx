@@ -146,6 +146,15 @@ function buildInbox(
           { label: "Add trigger", value: fmt(h.add_trigger), full: true },
         ],
         longNote: h.notes,
+        explain: {
+          trigger: breached
+            ? `Price ${price.toFixed(2)} has crossed the exit stop at ${triggerExit.toFixed(2)} (${Math.abs(pct).toFixed(1)}% past the line).`
+            : `Price ${price.toFixed(2)} is ${Math.abs(pct).toFixed(1)}% above the exit stop at ${triggerExit.toFixed(2)} — inside the proximity buffer.`,
+          thesis: `${fmt(h.layer, "Unknown layer")} · ${fmt(h.account, "—")} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.${h.exit_trigger ? ` Stop rule: ${h.exit_trigger}.` : ""}`,
+          action: breached
+            ? `Stop rule has fired — execute the exit per doctrine unless thesis has visibly changed in your favour. Open the deep dive to confirm before trimming/exiting.`
+            : `No action yet — monitor closely; tighten attention on next session and pre-decide trim vs. exit if the stop fires.`,
+        },
       });
     } else if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * (1 + ZONE_PROXIMITY_THRESHOLD)) {
       const pct = ((triggerAdd - price) / triggerAdd * 100);
