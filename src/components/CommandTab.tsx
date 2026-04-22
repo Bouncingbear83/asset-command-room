@@ -4,6 +4,7 @@ import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/useP
 import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
+import ActionInbox from "@/components/ActionInbox";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
 import { toast } from "sonner";
@@ -617,7 +618,10 @@ export default function CommandTab() {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, alignItems: "start" }}>
-        {/* Review Queue Banner */}
+        {/* Today's Decisions — unified action inbox */}
+        <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
+
+        {/* Review Queue Banner (full detail, collapsed by default) */}
         <ReviewQueue holdings={holdings} compact />
 
         {/* Latest Research Cards */}
