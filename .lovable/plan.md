@@ -1,41 +1,74 @@
 
 
-## Problem
-`VITE_APP_PASSWORD_HASH` was rejected from the Cloud → Secrets panel because `VITE_`-prefixed vars are build-time values, not runtime secrets. The current `PasswordGate` reads `import.meta.env.VITE_APP_PASSWORD_HASH`, which only works if the var is set as a **Build Secret** (Workspace Settings → Build Secrets) before the bundle is built.
+## Suggestions — pick one (or more)
 
-## Options
+Based on a sweep of the dashboard, here are the highest-leverage things to tackle next, ranked by impact × effort.
 
-### Option A — Use Build Secrets (keeps current architecture)
-You set the hash once in Workspace Settings → Build Secrets, republish, and it works. Nothing in the code changes.
+---
 
-Steps for you:
-1. Compute the SHA-256 of `245224` (I can give it to you directly — see below).
-2. Open **Workspace Settings → Build Secrets** (workspace-level, not project-level).
-3. Add `VITE_APP_PASSWORD_HASH = <hash>`.
-4. Republish.
+### 1. Unified "Action Inbox" on the Command tab ★ recommended
+Right now actionable signals are spread across four places: Zone Alert Banner, Review Queue, Earnings Calendar (red/amber rows), and Watchlist "in zone" rows. You have to tab-hop to see everything that needs a decision today.
 
-Hash for `245224`:
-```
-4f8d9e... (I'll compute and paste the exact value in chat after you pick this option)
-```
+**Build:** A single ranked list at the top of Command tab — "Today's Decisions" — that merges:
+- Zone breaches (cap/floor) from HOLDINGS
+- W_EXIT / Q_REVIEW flags from Review Queue
+- Earnings reporting in next 5 days
+- Watchlist names with `vsTarget ≤ 0` (in entry zone)
+- Stale watchlist reviews (overdue)
 
-### Option B — Hard-code the hash in `PasswordGate.tsx` (simplest)
-Replace the env-var lookup with a constant. The hash is not the password — it's a one-way digest, safe to commit. Anyone with the bundle can already see it either way (this gate is a deterrent, not real security, as noted in the original plan).
+Each row: ticker · signal type · one-line context · "Deep Dive" button (already wired to Claude). Sorted by urgency.
 
-Change in `src/components/PasswordGate.tsx`:
-- Remove the `import.meta.env.VITE_APP_PASSWORD_HASH` lookup and the env-var warning `useEffect`.
-- Replace `FALLBACK_HASH` with the real SHA-256 of `245224` as the single `EXPECTED_HASH` constant.
-- Compare against that constant directly.
+**Why:** Collapses 4 scan-locations into 1. Matches how you actually use the dashboard each morning.
 
-No env vars, no Build Secrets, no republish dance. To change the password later, you give me the new password, I update the constant, done.
+---
 
-## Recommendation
-**Option B.** The whole point of the env var was "don't put the password in source" — but we're storing the *hash*, not the password, and the hash ships in the JS bundle anyway. The env var adds zero security here, only friction. Hard-coding the hash is functionally identical and removes the Build Secrets step entirely.
+### 2. Persist the active tab in the URL
+Refresh / share-link currently dumps you back on Command. Switching tab doesn't update the URL.
 
-## Files touched (Option B)
-- `src/components/PasswordGate.tsx` — replace fallback + env lookup with a single `EXPECTED_HASH` constant set to the SHA-256 of `245224`.
+**Build:** Sync `active` tab state with `?tab=watchlist` query param (you already have `url-state.ts` and `url-state-holdings.ts` patterns). Two-way bind on mount + change.
 
-## Out of scope
-- No change to session storage behaviour, UI, or routing.
-- No move to real auth.
+**Why:** Tiny change, large UX win. Lets you bookmark "Holdings → grouped by account, sorted by P&L".
+
+---
+
+### 3. Claude prompt previews on hover
+The copy-then-paste flow is solid but blind — you don't see what got copied until it's in Claude.
+
+**Build:** Tooltip on every Claude button showing the exact prompt that will be copied. Uses existing `buildPrompt()` from `claudePromptUrl.ts`. Read-only, no behaviour change.
+
+**Why:** Quick confidence check before opening a new tab. Catches stale context (e.g. wrong ticker selected in the dropdown).
+
+---
+
+### 4. Position-sizing calculator on the Watchlist "in zone" rows
+When a watchlist name hits its entry zone, the next decision is *how much*. You currently have to mentally combine: layer gap, account cash, deploy target, concentration cap.
+
+**Build:** When a watchlist row's `vsTarget ≤ 0`, surface a small "Suggested size" line:
+- Pulls from layer gap (from LAYERS) + available cash (CASH) + deploy target (col N) + tier-based AUM cap
+- Outputs: "£X into SIPP / £Y into ISA — fills layer gap to Z%"
+
+**Why:** Closes the loop from signal → decision → execution. Removes the manual cross-reference.
+
+---
+
+### 5. Snapshot diff banner — "What changed since yesterday"
+You have `daily_prices` + nightly snapshots in Supabase but no surfaced delta view.
+
+**Build:** Small collapsible banner under Sync status: "Since yesterday's close: 3 zone alerts new, AVGO +4.2%, RKLB triggered ADD, 1 watchlist review overdue". One DB call, derived client-side.
+
+**Why:** The "what do I need to know" answer in 2 seconds, before you've clicked anything.
+
+---
+
+### 6. Mobile polish pass on Command tab
+Command tab is the daily driver but the deploy queue and zone alert banner overflow horizontally on phones. Other tabs (Holdings, Watchlist) already have mobile patterns; Command does not consistently.
+
+**Build:** Apply the existing mobile patterns (horizontal-scroll chips, stacked cards) to the Command tab's three densest blocks: Quick Commands grid, Deploy Queue, Today's Movers.
+
+---
+
+### My pick
+**#1 (Action Inbox) + #2 (URL tab persistence) together.** Inbox is the strategic win; URL persistence is the tiny quality-of-life fix that should ride along. Both touch `Index.tsx` and `CommandTab.tsx` so the diff stays contained.
+
+Tell me which (or which combination) and I'll plan the implementation.
 
