@@ -194,6 +194,8 @@ function buildInbox(
             : `Stage the order — pre-decide tranche size and account so you can execute fast if it ticks into the zone.`,
         },
       });
+    }
+  });
 
   // 2. Review flags
   const flags: ReviewFlag[] = parseAllFlags(holdings);
