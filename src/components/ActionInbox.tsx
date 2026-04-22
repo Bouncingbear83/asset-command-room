@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { parseAllFlags, type ReviewFlag } from "@/components/ReviewQueue";
@@ -43,6 +43,11 @@ interface InboxItem {
   templateContext: PromptContext;
   details: DetailField[];
   longNote?: string;    // free-form note shown at bottom of expansion
+  explain: {
+    trigger: string;    // what fired
+    thesis: string;     // current thesis state / portfolio context
+    action: string;     // recommended next step
+  };
 }
 
 const KIND_STYLE: Record<SignalKind, { color: string; bg: string; label: string; emoji: string }> = {
@@ -141,6 +146,15 @@ function buildInbox(
           { label: "Add trigger", value: fmt(h.add_trigger), full: true },
         ],
         longNote: h.notes,
+        explain: {
+          trigger: breached
+            ? `Price ${price.toFixed(2)} has crossed the exit stop at ${triggerExit.toFixed(2)} (${Math.abs(pct).toFixed(1)}% past the line).`
+            : `Price ${price.toFixed(2)} is ${Math.abs(pct).toFixed(1)}% above the exit stop at ${triggerExit.toFixed(2)} — inside the proximity buffer.`,
+          thesis: `${fmt(h.layer, "Unknown layer")} · ${fmt(h.account, "—")} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.${h.exit_trigger ? ` Stop rule: ${h.exit_trigger}.` : ""}`,
+          action: breached
+            ? `Stop rule has fired — execute the exit per doctrine unless thesis has visibly changed in your favour. Open the deep dive to confirm before trimming/exiting.`
+            : `No action yet — monitor closely; tighten attention on next session and pre-decide trim vs. exit if the stop fires.`,
+        },
       });
     } else if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * (1 + ZONE_PROXIMITY_THRESHOLD)) {
       const pct = ((triggerAdd - price) / triggerAdd * 100);
@@ -170,6 +184,15 @@ function buildInbox(
           { label: "Deploy note", value: fmt(h.deploy_note), full: true },
         ],
         longNote: h.notes,
+        explain: {
+          trigger: inside
+            ? `Price ${price.toFixed(2)} has reached the add trigger at ${triggerAdd.toFixed(2)} (${Math.abs(pct).toFixed(1)}% inside the buy zone).`
+            : `Price ${price.toFixed(2)} is ${Math.abs(pct).toFixed(1)}% above the add trigger at ${triggerAdd.toFixed(2)} — within proximity buffer.`,
+          thesis: `${fmt(h.layer, "Unknown layer")} · ${fmt(h.account, "—")} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.${h.deploy_target_gbp ? ` Deploy target: ${formatGBP(h.deploy_target_gbp)}.` : ""}${h.add_trigger ? ` Add rule: ${h.add_trigger}.` : ""}`,
+          action: inside
+            ? `Add tranche is eligible — confirm cash, layer headroom and concentration cap, then size per doctrine. Open the deep dive to validate before firing.`
+            : `Stage the order — pre-decide tranche size and account so you can execute fast if it ticks into the zone.`,
+        },
       });
     }
   });
@@ -209,6 +232,18 @@ function buildInbox(
           : []),
       ],
       longNote: f.reason,
+      explain: {
+        trigger: `${f.flagType.replace(/_/g, " ")} flagged on ${fmt(f.date, "an unknown date")} via ${f.prefix.replace(/_/g, " ")} (priority ${f.priority}).`,
+        thesis: h
+          ? `${fmt(h.layer)} · ${fmt(h.account)} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.`
+          : `Position context not currently in HOLDINGS — likely a watchlist or recently-exited name.`,
+        action:
+          f.priority === "HIGH"
+            ? `Treat as a doctrine review now — write the verdict (hold / size up / size down / exit) before market open. Open the deep dive to test thesis vs the flag.`
+            : f.priority === "MEDIUM"
+              ? `Schedule a focused review this week — confirm whether the flag changes 6D scoring or the kill condition.`
+              : `Log the flag — no immediate action required, revisit during the next portfolio sweep.`,
+      },
     });
   });
 
@@ -243,6 +278,15 @@ function buildInbox(
             ]
           : [{ label: "Position", value: "Not held" }]),
       ],
+      explain: {
+        trigger: `Earnings ${d === 0 ? "today" : d === 1 ? "tomorrow" : `in ${d} days`} (${fmt(e.fiscalPeriod, "period TBC")}, ${e.confirmed ? "confirmed" : "estimated"}).`,
+        thesis: h
+          ? `Held in ${fmt(h.layer)} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.`
+          : `Not currently a holding — earnings only matters if it informs a watchlist trigger.`,
+        action: h
+          ? `Pre-earnings: write down what would change the 6D thesis (substrate, demand, moat, valuation). Post-earnings: produce a research commit if scores change.`
+          : `Optional read — only worth time if a related watchlist name keys off this print.`,
+      },
     });
   });
 
@@ -278,6 +322,11 @@ function buildInbox(
         { label: "Trigger condition", value: fmt(w.trigger), full: true },
       ],
       longNote: w.rationale,
+      explain: {
+        trigger: `${w.ticker} is trading ${pct.toFixed(1)}% vs the entry midpoint of ${w.entry || "—"} — inside your buy zone.`,
+        thesis: `${fmt(w.layer)} watchlist · status ${fmt(w.status)}.${w.trigger ? ` Trigger condition: ${w.trigger}.` : ""}${w.deploy_amount_gbp > 0 ? ` Pre-sized deploy: ${formatGBP(w.deploy_amount_gbp)}.` : ""}`,
+        action: `Confirm cash + layer headroom + concentration cap, then deploy ${w.deploy_amount_gbp > 0 ? formatGBP(w.deploy_amount_gbp) : "the planned tranche"} per the entry sequencing in the deep dive.`,
+      },
     });
   });
 
@@ -308,6 +357,13 @@ function buildInbox(
         { label: "Trigger condition", value: fmt(w.trigger), full: true },
       ],
       longNote: w.triggerReviewNote || w.rationale,
+      explain: {
+        trigger: `Trigger review for ${w.ticker} is ${since} day${since === 1 ? "" : "s"} stale (last reviewed ${fmt(w.triggerReviewDate, "—")}).`,
+        thesis: `${fmt(w.layer)} watchlist · status ${fmt(w.status)}.${w.trigger ? ` Stated trigger: ${w.trigger}.` : ""}`,
+        action: since > 30
+          ? `Decide now: refresh trigger / upgrade to active / demote to research / reject. Don't let stale theses clutter the queue.`
+          : `Refresh the trigger this week — confirm it still maps to a real entry condition or retire the row.`,
+      },
     });
   });
 
@@ -320,13 +376,72 @@ interface Props {
   earnings: LiveEarningsCalendarItem[];
 }
 
+const OPEN_ROWS_STORAGE_KEY = "stellar.actionInbox.openRows.v1";
+
+function ExplainRow({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(86px, auto) 1fr", gap: 12, alignItems: "baseline" }}>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 8,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-dim)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          lineHeight: 1.5,
+          color: accent ? "var(--gold)" : "var(--text-mid)",
+          fontWeight: accent ? 600 : 400,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
-  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(OPEN_ROWS_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>).filter(([, v]) => v === true),
+        ) as Record<string, boolean>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  });
 
   const items = useMemo(() => buildInbox(holdings, watchlist, earnings), [holdings, watchlist, earnings]);
+
+  // Persist expanded-row state across reloads/sessions.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const onlyTrue = Object.fromEntries(
+        Object.entries(openRows).filter(([, v]) => v === true),
+      );
+      window.localStorage.setItem(OPEN_ROWS_STORAGE_KEY, JSON.stringify(onlyTrue));
+    } catch {
+      // ignore quota / privacy-mode failures
+    }
+  }, [openRows]);
 
   if (items.length === 0) {
     return (
@@ -444,6 +559,32 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                       background: "color-mix(in srgb, var(--panel) 70%, transparent)",
                     }}
                   >
+                    <div
+                      style={{
+                        background: "color-mix(in srgb, var(--gold) 6%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--gold) 22%, transparent)",
+                        borderLeft: "2px solid var(--gold)",
+                        borderRadius: 2,
+                        padding: isMobile ? "10px 12px" : "12px 14px",
+                        display: "grid",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 8,
+                          letterSpacing: "0.18em",
+                          textTransform: "uppercase",
+                          color: "var(--gold)",
+                        }}
+                      >
+                        💡 Explain this signal
+                      </div>
+                      <ExplainRow label="Trigger" value={item.explain.trigger} />
+                      <ExplainRow label="Thesis state" value={item.explain.thesis} />
+                      <ExplainRow label="Recommended" value={item.explain.action} accent />
+                    </div>
                     <div
                       style={{
                         display: "grid",
