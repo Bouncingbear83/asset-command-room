@@ -232,6 +232,18 @@ function buildInbox(
           : []),
       ],
       longNote: f.reason,
+      explain: {
+        trigger: `${f.flagType.replace(/_/g, " ")} flagged on ${fmt(f.date, "an unknown date")} via ${f.prefix.replace(/_/g, " ")} (priority ${f.priority}).`,
+        thesis: h
+          ? `${fmt(h.layer)} · ${fmt(h.account)} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.`
+          : `Position context not currently in HOLDINGS — likely a watchlist or recently-exited name.`,
+        action:
+          f.priority === "HIGH"
+            ? `Treat as a doctrine review now — write the verdict (hold / size up / size down / exit) before market open. Open the deep dive to test thesis vs the flag.`
+            : f.priority === "MEDIUM"
+              ? `Schedule a focused review this week — confirm whether the flag changes 6D scoring or the kill condition.`
+              : `Log the flag — no immediate action required, revisit during the next portfolio sweep.`,
+      },
     });
   });
 
@@ -266,6 +278,15 @@ function buildInbox(
             ]
           : [{ label: "Position", value: "Not held" }]),
       ],
+      explain: {
+        trigger: `Earnings ${d === 0 ? "today" : d === 1 ? "tomorrow" : `in ${d} days`} (${fmt(e.fiscalPeriod, "period TBC")}, ${e.confirmed ? "confirmed" : "estimated"}).`,
+        thesis: h
+          ? `Held in ${fmt(h.layer)} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.`
+          : `Not currently a holding — earnings only matters if it informs a watchlist trigger.`,
+        action: h
+          ? `Pre-earnings: write down what would change the 6D thesis (substrate, demand, moat, valuation). Post-earnings: produce a research commit if scores change.`
+          : `Optional read — only worth time if a related watchlist name keys off this print.`,
+      },
     });
   });
 
@@ -301,6 +322,11 @@ function buildInbox(
         { label: "Trigger condition", value: fmt(w.trigger), full: true },
       ],
       longNote: w.rationale,
+      explain: {
+        trigger: `${w.ticker} is trading ${pct.toFixed(1)}% vs the entry midpoint of ${w.entry || "—"} — inside your buy zone.`,
+        thesis: `${fmt(w.layer)} watchlist · status ${fmt(w.status)}.${w.trigger ? ` Trigger condition: ${w.trigger}.` : ""}${w.deploy_amount_gbp > 0 ? ` Pre-sized deploy: ${formatGBP(w.deploy_amount_gbp)}.` : ""}`,
+        action: `Confirm cash + layer headroom + concentration cap, then deploy ${w.deploy_amount_gbp > 0 ? formatGBP(w.deploy_amount_gbp) : "the planned tranche"} per the entry sequencing in the deep dive.`,
+      },
     });
   });
 
