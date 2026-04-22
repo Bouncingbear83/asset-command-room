@@ -722,13 +722,47 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                         </span>
                       </div>
                     )}
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        borderTop: "1px dashed var(--rim)",
+                        paddingTop: 10,
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markDone(item.key);
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "color-mix(in srgb, var(--green) 10%, transparent)",
+                          border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)",
+                          color: "var(--green)",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 9,
+                          letterSpacing: "0.14em",
+                          textTransform: "uppercase",
+                          padding: "6px 12px",
+                          borderRadius: 2,
+                          cursor: "pointer",
+                        }}
+                        title="Hide until next snapshot"
+                      >
+                        <Check size={11} /> Mark done
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
 
-          {items.length > 8 && (
+          {activeItems.length > 8 && (
             <button
               onClick={() => setShowAll((s) => !s)}
               style={{
@@ -738,8 +772,84 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                 cursor: "pointer", borderRadius: 2, justifySelf: "start",
               }}
             >
-              {showAll ? `Show top 8` : `Show all ${items.length}`}
+              {showAll ? `Show top 8` : `Show all ${activeItems.length}`}
             </button>
+          )}
+
+          {doneItems.length > 0 && (
+            <div style={{ marginTop: 10, borderTop: "1px solid var(--rim)", paddingTop: 10, display: "grid", gap: 6 }}>
+              <button
+                onClick={() => setShowDone((s) => !s)}
+                style={{
+                  background: "none", border: "none", color: "var(--text-dim)",
+                  fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.14em",
+                  textTransform: "uppercase", padding: 0, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 6, justifySelf: "start",
+                }}
+              >
+                {showDone ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                ✓ Done today · {doneItems.length}
+              </button>
+
+              {showDone && (
+                <div style={{ display: "grid", gap: 4 }}>
+                  {doneItems.map((item) => {
+                    const style = KIND_STYLE[item.kind];
+                    return (
+                      <div
+                        key={`done-${item.key}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr auto" : "auto auto 1fr auto",
+                          gap: isMobile ? 8 : 14,
+                          alignItems: "center",
+                          padding: "6px 12px",
+                          border: "1px solid var(--rim)",
+                          borderLeft: `3px solid color-mix(in srgb, ${style.color} 50%, transparent)`,
+                          borderRadius: 2,
+                          opacity: 0.55,
+                          background: "transparent",
+                        }}
+                      >
+                        <span style={{
+                          fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700,
+                          color: "var(--text-mid)", textDecoration: "line-through",
+                        }}>
+                          {item.ticker}
+                        </span>
+                        {!isMobile && (
+                          <span style={{
+                            fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em",
+                            textTransform: "uppercase", color: "var(--text-dim)", whiteSpace: "nowrap",
+                          }}>
+                            {style.label}
+                          </span>
+                        )}
+                        <span style={{
+                          fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {item.label} · {item.context}
+                        </span>
+                        <button
+                          onClick={() => restore(item.key)}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            background: "none", border: "1px solid var(--rim)",
+                            color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 8,
+                            letterSpacing: "0.12em", textTransform: "uppercase",
+                            padding: "4px 8px", cursor: "pointer", borderRadius: 2,
+                          }}
+                          title="Restore to active"
+                        >
+                          <RotateCcw size={10} /> Restore
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
