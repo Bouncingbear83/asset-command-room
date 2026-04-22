@@ -435,6 +435,27 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
     }
   });
 
+  // "Done" map: { [itemKey]: snapshotStamp }. An item is considered done only
+  // while its stored stamp matches today's stamp — next snapshot it returns.
+  const [doneMap, setDoneMap] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(DONE_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return {};
+      const today = todayStamp();
+      // Drop any entries from previous days at load time.
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>)
+          .filter(([, v]) => typeof v === "string" && v === today),
+      ) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  });
+  const [showDone, setShowDone] = useState(false);
+
   const items = useMemo(() => buildInbox(holdings, watchlist, earnings), [holdings, watchlist, earnings]);
 
   // Persist expanded-row state across reloads/sessions.
@@ -449,6 +470,39 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
       // ignore quota / privacy-mode failures
     }
   }, [openRows]);
+
+  // Persist "done" map.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DONE_STORAGE_KEY, JSON.stringify(doneMap));
+    } catch {
+      // ignore
+    }
+  }, [doneMap]);
+
+  const today = todayStamp();
+  const isDone = useCallback((key: string) => doneMap[key] === today, [doneMap, today]);
+
+  const markDone = useCallback((key: string) => {
+    setDoneMap((m) => ({ ...m, [key]: todayStamp() }));
+    // Collapse the row when marking done so it disappears cleanly.
+    setOpenRows((s) => {
+      if (!s[key]) return s;
+      const next = { ...s };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const restore = useCallback((key: string) => {
+    setDoneMap((m) => {
+      if (!(key in m)) return m;
+      const next = { ...m };
+      delete next[key];
+      return next;
+    });
+  }, []);
 
   if (items.length === 0) {
     return (
