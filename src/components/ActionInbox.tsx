@@ -43,6 +43,11 @@ interface InboxItem {
   templateContext: PromptContext;
   details: DetailField[];
   longNote?: string;    // free-form note shown at bottom of expansion
+  explain: {
+    trigger: string;    // what fired
+    thesis: string;     // current thesis state / portfolio context
+    action: string;     // recommended next step
+  };
 }
 
 const KIND_STYLE: Record<SignalKind, { color: string; bg: string; label: string; emoji: string }> = {
