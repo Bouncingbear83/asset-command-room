@@ -184,9 +184,16 @@ function buildInbox(
           { label: "Deploy note", value: fmt(h.deploy_note), full: true },
         ],
         longNote: h.notes,
+        explain: {
+          trigger: inside
+            ? `Price ${price.toFixed(2)} has reached the add trigger at ${triggerAdd.toFixed(2)} (${Math.abs(pct).toFixed(1)}% inside the buy zone).`
+            : `Price ${price.toFixed(2)} is ${Math.abs(pct).toFixed(1)}% above the add trigger at ${triggerAdd.toFixed(2)} — within proximity buffer.`,
+          thesis: `${fmt(h.layer, "Unknown layer")} · ${fmt(h.account, "—")} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.${h.deploy_target_gbp ? ` Deploy target: ${formatGBP(h.deploy_target_gbp)}.` : ""}${h.add_trigger ? ` Add rule: ${h.add_trigger}.` : ""}`,
+          action: inside
+            ? `Add tranche is eligible — confirm cash, layer headroom and concentration cap, then size per doctrine. Open the deep dive to validate before firing.`
+            : `Stage the order — pre-decide tranche size and account so you can execute fast if it ticks into the zone.`,
+        },
       });
-    }
-  });
 
   // 2. Review flags
   const flags: ReviewFlag[] = parseAllFlags(holdings);
