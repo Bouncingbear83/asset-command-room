@@ -3,21 +3,16 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { parseAllFlags, type ReviewFlag } from "@/components/ReviewQueue";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { openClaudeWithPrompt, type PromptTemplateKey, type PromptContext } from "@/lib/claudePromptUrl";
-import { toast } from "sonner";
+import { type PromptTemplateKey, type PromptContext } from "@/lib/claudePromptUrl";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 
 /**
  * Action Inbox — single ranked "Today's Decisions" list.
  *
- * Merges:
- *  - Zone breaches (cap/floor) from HOLDINGS  (EXIT_ZONE / ADD_ZONE)
- *  - Review flags (W_EXIT / Q_REVIEW / etc.)  via parseAllFlags
- *  - Earnings reporting in next 5 days
- *  - Watchlist names with current ≤ entry midpoint (in entry zone)
- *  - Stale watchlist reviews (overdue: TRIGGER_REVIEW_DATE > 14 days old)
- *
- * Each row: ticker · signal type · context · "Deep Dive" → Claude.
- * Sorted by urgency (lower number = more urgent).
+ * Each row is collapsible: click anywhere on the summary to reveal
+ * full context (triggers, notes, key fields, exact Claude prompt)
+ * without leaving the dashboard. The "Deep Dive ➜" button still
+ * fires the Claude flow and shows a hover preview of its prompt.
  */
 
 type SignalKind =
@@ -30,6 +25,13 @@ type SignalKind =
   | "WATCH_IN_ZONE"
   | "WATCH_STALE";
 
+interface DetailField {
+  label: string;
+  value: string;
+  full?: boolean;     // span both columns when true
+  mono?: boolean;     // use monospace font (default true)
+}
+
 interface InboxItem {
   key: string;
   ticker: string;
@@ -39,6 +41,8 @@ interface InboxItem {
   urgency: number;      // 0 = highest
   templateKey: PromptTemplateKey;
   templateContext: PromptContext;
+  details: DetailField[];
+  longNote?: string;    // free-form note shown at bottom of expansion
 }
 
 const KIND_STYLE: Record<SignalKind, { color: string; bg: string; label: string; emoji: string }> = {
@@ -84,6 +88,17 @@ function formatGBP(value: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 }).format(value || 0);
 }
 
+function fmtPct(n: number | null | undefined, digits = 1) {
+  if (n == null || isNaN(n)) return "—";
+  return `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
+}
+
+function fmt(value: unknown, fallback = "—"): string {
+  if (value == null) return fallback;
+  const s = String(value).trim();
+  return s === "" ? fallback : s;
+}
+
 function buildInbox(
   holdings: LiveHolding[],
   watchlist: LiveWatchItem[],
@@ -113,6 +128,19 @@ function buildInbox(
           ticker: h.ticker, mv: Math.round(h.mv), aum_pct: h.aum_pct?.toFixed(1) ?? "—",
           gl_pct: h.gl?.toFixed(1) ?? "—", add_trigger: h.add_trigger || "—", exit_trigger: h.exit_trigger || "—",
         },
+        details: [
+          { label: "Name", value: fmt(h.name) },
+          { label: "Layer / Acct", value: `${fmt(h.layer)} · ${fmt(h.account)}` },
+          { label: "Price", value: `${price.toFixed(2)} ${fmt(h.currency, "")}`.trim() },
+          { label: "Stop", value: `${triggerExit.toFixed(2)} (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% to breach)` },
+          { label: "MV", value: formatGBP(h.mv) },
+          { label: "AUM %", value: fmtPct(h.aum_pct) },
+          { label: "G/L %", value: fmtPct(h.gl) },
+          { label: "Day %", value: fmtPct(h.day) },
+          { label: "Exit trigger", value: fmt(h.exit_trigger), full: true },
+          { label: "Add trigger", value: fmt(h.add_trigger), full: true },
+        ],
+        longNote: h.notes,
       });
     } else if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * (1 + ZONE_PROXIMITY_THRESHOLD)) {
       const pct = ((triggerAdd - price) / triggerAdd * 100);
@@ -129,6 +157,19 @@ function buildInbox(
           ticker: h.ticker, mv: Math.round(h.mv), aum_pct: h.aum_pct?.toFixed(1) ?? "—",
           gl_pct: h.gl?.toFixed(1) ?? "—", add_trigger: h.add_trigger || "—", exit_trigger: h.exit_trigger || "—",
         },
+        details: [
+          { label: "Name", value: fmt(h.name) },
+          { label: "Layer / Acct", value: `${fmt(h.layer)} · ${fmt(h.account)}` },
+          { label: "Price", value: `${price.toFixed(2)} ${fmt(h.currency, "")}`.trim() },
+          { label: "Add trigger", value: `${triggerAdd.toFixed(2)} (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% to fire)` },
+          { label: "Deploy target", value: h.deploy_target_gbp ? formatGBP(h.deploy_target_gbp) : "—" },
+          { label: "AUM %", value: fmtPct(h.aum_pct) },
+          { label: "MV", value: formatGBP(h.mv) },
+          { label: "G/L %", value: fmtPct(h.gl) },
+          { label: "Add condition", value: fmt(h.add_trigger), full: true },
+          { label: "Deploy note", value: fmt(h.deploy_note), full: true },
+        ],
+        longNote: h.notes,
       });
     }
   });
@@ -139,6 +180,7 @@ function buildInbox(
     if (f.isStale) return;
     const kind: SignalKind = f.priority === "HIGH" ? "REVIEW_HIGH" : f.priority === "MEDIUM" ? "REVIEW_MED" : "REVIEW_LOW";
     const urgency = f.priority === "HIGH" ? 1 : f.priority === "MEDIUM" ? 4 : 6;
+    const h = holdings.find((x) => x.ticker.toUpperCase() === f.ticker.toUpperCase());
     items.push({
       key: `flag-${f.ticker}-${f.prefix}`,
       ticker: f.ticker,
@@ -148,9 +190,25 @@ function buildInbox(
       urgency,
       templateKey: "holdings_deep_dive",
       templateContext: {
-        ticker: f.ticker, mv: "—", aum_pct: "—", gl_pct: "—",
+        ticker: f.ticker, mv: h ? Math.round(h.mv) : "—", aum_pct: h?.aum_pct?.toFixed(1) ?? "—",
+        gl_pct: h?.gl?.toFixed(1) ?? "—",
         add_trigger: f.flagType, exit_trigger: f.reason || "—",
       },
+      details: [
+        { label: "Flag type", value: f.flagType },
+        { label: "Prefix", value: f.prefix },
+        { label: "Priority", value: f.priority },
+        { label: "Flagged", value: fmt(f.date) },
+        ...(h
+          ? [
+              { label: "Layer / Acct", value: `${fmt(h.layer)} · ${fmt(h.account)}` },
+              { label: "MV", value: formatGBP(h.mv) },
+              { label: "AUM %", value: fmtPct(h.aum_pct) },
+              { label: "G/L %", value: fmtPct(h.gl) },
+            ]
+          : []),
+      ],
+      longNote: f.reason,
     });
   });
 
@@ -159,6 +217,7 @@ function buildInbox(
     const d = daysUntil(e.nextEarningsDate);
     if (d < 0 || d > 5) return;
     const urgency = d <= 1 ? 1 : d <= 2 ? 2 : 3;
+    const h = holdings.find((x) => x.ticker.toUpperCase() === e.ticker.toUpperCase());
     items.push({
       key: `earn-${e.ticker}-${e.nextEarningsDate}`,
       ticker: e.ticker,
@@ -170,6 +229,20 @@ function buildInbox(
       templateContext: {
         ticker: e.ticker, fiscal_period: e.fiscalPeriod || "—", earnings_date: e.nextEarningsDate,
       },
+      details: [
+        { label: "Reports", value: fmt(e.nextEarningsDate) },
+        { label: "Period", value: fmt(e.fiscalPeriod) },
+        { label: "Confirmed", value: e.confirmed ? "Yes" : "Estimated" },
+        { label: "Last updated", value: fmt(e.lastUpdated) },
+        ...(h
+          ? [
+              { label: "Position MV", value: formatGBP(h.mv) },
+              { label: "AUM %", value: fmtPct(h.aum_pct) },
+              { label: "G/L %", value: fmtPct(h.gl) },
+              { label: "Layer", value: fmt(h.layer) },
+            ]
+          : [{ label: "Position", value: "Not held" }]),
+      ],
     });
   });
 
@@ -193,6 +266,18 @@ function buildInbox(
         ticker: w.ticker, name: w.name, layer: w.layer, status: w.status,
         entry_target: w.entry, thesis: w.rationale || "—",
       },
+      details: [
+        { label: "Name", value: fmt(w.name) },
+        { label: "Layer", value: fmt(w.layer) },
+        { label: "Status", value: fmt(w.status) },
+        { label: "Current", value: `${current.toFixed(2)} ${fmt(w.currency, "")}`.trim() },
+        { label: "Entry target", value: fmt(w.entry) },
+        { label: "vs midpoint", value: fmtPct(pct) },
+        { label: "Deploy size", value: w.deploy_amount_gbp > 0 ? formatGBP(w.deploy_amount_gbp) : "—" },
+        { label: "Last checked", value: fmt(w.lastChecked) },
+        { label: "Trigger condition", value: fmt(w.trigger), full: true },
+      ],
+      longNote: w.rationale,
     });
   });
 
@@ -212,6 +297,17 @@ function buildInbox(
         ticker: w.ticker, name: w.name, layer: w.layer, status: w.status,
         trigger_condition: w.trigger || "—", entry_target: w.entry,
       },
+      details: [
+        { label: "Name", value: fmt(w.name) },
+        { label: "Layer", value: fmt(w.layer) },
+        { label: "Status", value: fmt(w.status) },
+        { label: "Last reviewed", value: fmt(w.triggerReviewDate) },
+        { label: "Days stale", value: String(since) },
+        { label: "Entry target", value: fmt(w.entry) },
+        { label: "Current", value: w.current != null ? w.current.toFixed(2) : "—" },
+        { label: "Trigger condition", value: fmt(w.trigger), full: true },
+      ],
+      longNote: w.triggerReviewNote || w.rationale,
     });
   });
 
@@ -228,6 +324,7 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
 
   const items = useMemo(() => buildInbox(holdings, watchlist, earnings), [holdings, watchlist, earnings]);
 
@@ -280,53 +377,147 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
         <div style={{ padding: mp, display: "grid", gap: 6 }}>
           {visible.map((item) => {
             const style = KIND_STYLE[item.kind];
+            const isOpen = !!openRows[item.key];
             return (
-              <div key={item.key} style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "auto auto 1fr auto",
-                gap: isMobile ? 6 : 14,
-                alignItems: "center",
-                background: style.bg,
-                border: "1px solid var(--rim)",
-                borderLeft: `3px solid ${style.color}`,
-                padding: "10px 14px",
-                borderRadius: 2,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: isMobile ? 0 : 90 }}>
-                  <span style={{ fontSize: 12 }}>{style.emoji}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>
-                    {item.ticker}
-                  </span>
-                </div>
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em",
-                  textTransform: "uppercase", color: style.color, whiteSpace: "nowrap",
-                  padding: "2px 8px", borderRadius: 2,
-                  border: `1px solid color-mix(in srgb, ${style.color} 30%, transparent)`,
-                  justifySelf: "start",
-                }}>
-                  {style.label} · {item.label}
-                </span>
-                <div style={{
-                  fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)",
-                  lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis",
-                  whiteSpace: isMobile ? "normal" : "nowrap",
-                }}>
-                  {item.context}
-                </div>
-                <button
-                  onClick={async () => {
-                    await openClaudeWithPrompt(item.templateKey, item.templateContext, (m) => toast(m));
-                  }}
+              <div
+                key={item.key}
+                style={{
+                  background: style.bg,
+                  border: "1px solid var(--rim)",
+                  borderLeft: `3px solid ${style.color}`,
+                  borderRadius: 2,
+                }}
+              >
+                <div
+                  onClick={() => setOpenRows((s) => ({ ...s, [item.key]: !s[item.key] }))}
                   style={{
-                    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em",
-                    background: "none", border: "1px solid var(--accent)", color: "var(--accent)",
-                    cursor: "pointer", padding: "4px 12px", borderRadius: 2, whiteSpace: "nowrap",
-                    justifySelf: isMobile ? "stretch" : "end",
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "auto auto auto 1fr auto",
+                    gap: isMobile ? 6 : 14,
+                    alignItems: "center",
+                    padding: "10px 14px",
+                    cursor: "pointer",
                   }}
                 >
-                  Deep Dive ➜
-                </button>
+                  <div style={{ color: "var(--text-dim)", display: isMobile ? "none" : "flex", alignItems: "center" }}>
+                    {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: isMobile ? 0 : 90 }}>
+                    <span style={{ fontSize: 12 }}>{style.emoji}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>
+                      {item.ticker}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em",
+                    textTransform: "uppercase", color: style.color, whiteSpace: "nowrap",
+                    padding: "2px 8px", borderRadius: 2,
+                    border: `1px solid color-mix(in srgb, ${style.color} 30%, transparent)`,
+                    justifySelf: "start",
+                  }}>
+                    {style.label} · {item.label}
+                  </span>
+                  <div style={{
+                    fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)",
+                    lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis",
+                    whiteSpace: isMobile ? "normal" : "nowrap",
+                  }}>
+                    {item.context}
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()} style={{ justifySelf: isMobile ? "stretch" : "end" }}>
+                    <ClaudePromptButton
+                      templateKey={item.templateKey}
+                      context={item.templateContext}
+                      stopPropagation
+                      style={{ width: isMobile ? "100%" : undefined }}
+                    />
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div
+                    style={{
+                      borderTop: "1px solid var(--rim)",
+                      padding: isMobile ? "12px 14px" : "14px 18px 16px 18px",
+                      display: "grid",
+                      gap: 12,
+                      background: "color-mix(in srgb, var(--panel) 70%, transparent)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0, 1fr))",
+                        gap: "8px 16px",
+                      }}
+                    >
+                      {item.details.map((d, i) => (
+                        <div
+                          key={`${item.key}-d-${i}`}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                            gridColumn: d.full ? "1 / -1" : undefined,
+                            minWidth: 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: "var(--font-mono)",
+                              fontSize: 8,
+                              letterSpacing: "0.14em",
+                              textTransform: "uppercase",
+                              color: "var(--text-dim)",
+                            }}
+                          >
+                            {d.label}
+                          </span>
+                          <span
+                            style={{
+                              fontFamily: d.mono === false ? "var(--font-ui)" : "var(--font-mono)",
+                              fontSize: 11,
+                              color: "var(--text-mid)",
+                              wordBreak: "break-word",
+                              whiteSpace: d.full ? "normal" : "nowrap",
+                              overflow: d.full ? "visible" : "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {d.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {item.longNote && item.longNote.trim() !== "" && (
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 8,
+                            letterSpacing: "0.14em",
+                            textTransform: "uppercase",
+                            color: "var(--text-dim)",
+                          }}
+                        >
+                          Notes
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 11,
+                            color: "var(--text-mid)",
+                            lineHeight: 1.5,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {item.longNote}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
