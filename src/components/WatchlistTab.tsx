@@ -15,6 +15,18 @@ interface Props {
 
 const OVERDUE_DAYS = 14;
 
+// Normalize status values to a canonical token: uppercase, alphanumeric only.
+// "PRE-IPO", "PRE_IPO", "pre ipo" → "PREIPO".
+function normStatus(s: string | null | undefined): string {
+  return String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+const PREIPO = "PREIPO";
+const RESEARCH = "RESEARCH";
+const MONITOR = "MONITOR";
+const EXITED = "EXITED";
+const BUY = "BUY";
+const ACTIVE = "ACTIVE";
+
 function daysSince(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
