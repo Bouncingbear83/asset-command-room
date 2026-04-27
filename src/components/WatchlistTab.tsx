@@ -500,6 +500,10 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
             {counts.total} total ·{" "}
+            <span style={{ color: counts.buys > 0 ? "var(--green)" : "var(--text-dim)", fontWeight: counts.buys > 0 ? 700 : 400 }}>
+              {counts.buys} BUY
+            </span>{" "}
+            ·{" "}
             <span style={{ color: counts.inZ > 0 ? "var(--green)" : "var(--text-dim)", fontWeight: counts.inZ > 0 ? 700 : 400 }}>
               {counts.inZ} IN ZONE
             </span>{" "}
