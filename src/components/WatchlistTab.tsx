@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
