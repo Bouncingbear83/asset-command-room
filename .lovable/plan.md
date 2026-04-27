@@ -1,74 +1,45 @@
+## Watchlist coverage check — findings
 
+### Data fetch: ✅ all rows captured
 
-## Suggestions — pick one (or more)
+- Google Sheet (gid `496665408`) currently has **55 data rows** (sheet rows 2–57, ending at "Nutrien Ltd / NTR").
+- `usePortfolioData` fetches `A1:N80`, which comfortably covers everything.
+- `parseWatchlist` keeps every row that has a name *or* ticker. No truncation occurs at the data layer.
 
-Based on a sweep of the dashboard, here are the highest-leverage things to tackle next, ranked by impact × effort.
+### Rendering: ❌ several rows silently disappear
 
----
+The fetch is healthy, but `WatchlistTab.tsx` only renders rows that fall into one of these buckets: **In Zone, Approaching, Overdue Review, Waiting (by layer), Monitoring, Research, Pre-IPO**.
 
-### 1. Unified "Action Inbox" on the Command tab ★ recommended
-Right now actionable signals are spread across four places: Zone Alert Banner, Review Queue, Earnings Calendar (red/amber rows), and Watchlist "in zone" rows. You have to tab-hop to see everything that needs a decision today.
+Status values currently on the sheet:
 
-**Build:** A single ranked list at the top of Command tab — "Today's Decisions" — that merges:
-- Zone breaches (cap/floor) from HOLDINGS
-- W_EXIT / Q_REVIEW flags from Review Queue
-- Earnings reporting in next 5 days
-- Watchlist names with `vsTarget ≤ 0` (in entry zone)
-- Stale watchlist reviews (overdue)
+| STATUS    | Count | Rendered? |
+|-----------|------:|-----------|
+| `WAIT`    | 31    | ✅ falls into Waiting/Approaching/In-Zone via zone logic |
+| `RESEARCH`| 8     | ✅ Research section |
+| `PRE-IPO` | 7     | ✅ Pre-IPO section |
+| `WATCH`   | 3     | ⚠️ only rendered if zone logic catches it; otherwise dropped from Waiting bucket only because Waiting filters by `zoneStatus === "WAITING"` (works) — actually OK |
+| `BUY`     | 3     | ❌ **dropped** — no bucket matches `BUY`; only appears if it happens to be IN_ZONE/APPROACHING |
+| `PRE_IPO` | 2     | ❌ **dropped** — bucket checks `"PRE-IPO"` (hyphen) not `"PRE_IPO"` (underscore) |
+| `ACTIVE`  | 1     | ❌ **dropped** — no bucket matches `ACTIVE` |
 
-Each row: ticker · signal type · one-line context · "Deep Dive" button (already wired to Claude). Sorted by urgency.
+That's up to **6 rows invisible** depending on their price/zone state, plus `WATCH` rows are at the mercy of zone classification.
 
-**Why:** Collapses 4 scan-locations into 1. Matches how you actually use the dashboard each morning.
+There is also no `EXITED` status currently on the sheet, but the code intentionally hides it everywhere — worth confirming that's still desired.
 
----
+### Fix plan
 
-### 2. Persist the active tab in the URL
-Refresh / share-link currently dumps you back on Command. Switching tab doesn't update the URL.
+1. **Normalize PRE-IPO status** in the bucket filters so both `PRE-IPO` and `PRE_IPO` match (strip non-alphanumerics or accept both spellings). Updates: `preIpo` filter + the three `skipStatus` sets.
+2. **Add a `BUY` / `ACTIVE` "Active Buys" section** above In Zone (or fold them into In Zone) so those statuses surface explicitly. These are the highest-priority statuses on the sheet and currently can vanish.
+3. **Add a fallback "Other" / "Uncategorised" section** at the bottom that renders any row not picked up by an existing bucket. This guarantees all 55 rows are always visible and prevents future status typos from silently hiding rows.
+4. **Update header counts** to include the new sections so totals reconcile to `derived.length`.
+5. **Add a dev assertion in `WatchlistTab`** (console.warn in dev only) when `rendered.length !== derived.length`, so future drift is caught early.
 
-**Build:** Sync `active` tab state with `?tab=watchlist` query param (you already have `url-state.ts` and `url-state-holdings.ts` patterns). Two-way bind on mount + change.
+No data layer / Supabase changes needed — purely UI bucketing in `src/components/WatchlistTab.tsx`.
 
-**Why:** Tiny change, large UX win. Lets you bookmark "Holdings → grouped by account, sorted by P&L".
+### Files touched
 
----
+- `src/components/WatchlistTab.tsx` — bucket filters, new Active Buys + Uncategorised sections, header counts, dev warning.
 
-### 3. Claude prompt previews on hover
-The copy-then-paste flow is solid but blind — you don't see what got copied until it's in Claude.
+### Out of scope
 
-**Build:** Tooltip on every Claude button showing the exact prompt that will be copied. Uses existing `buildPrompt()` from `claudePromptUrl.ts`. Read-only, no behaviour change.
-
-**Why:** Quick confidence check before opening a new tab. Catches stale context (e.g. wrong ticker selected in the dropdown).
-
----
-
-### 4. Position-sizing calculator on the Watchlist "in zone" rows
-When a watchlist name hits its entry zone, the next decision is *how much*. You currently have to mentally combine: layer gap, account cash, deploy target, concentration cap.
-
-**Build:** When a watchlist row's `vsTarget ≤ 0`, surface a small "Suggested size" line:
-- Pulls from layer gap (from LAYERS) + available cash (CASH) + deploy target (col N) + tier-based AUM cap
-- Outputs: "£X into SIPP / £Y into ISA — fills layer gap to Z%"
-
-**Why:** Closes the loop from signal → decision → execution. Removes the manual cross-reference.
-
----
-
-### 5. Snapshot diff banner — "What changed since yesterday"
-You have `daily_prices` + nightly snapshots in Supabase but no surfaced delta view.
-
-**Build:** Small collapsible banner under Sync status: "Since yesterday's close: 3 zone alerts new, AVGO +4.2%, RKLB triggered ADD, 1 watchlist review overdue". One DB call, derived client-side.
-
-**Why:** The "what do I need to know" answer in 2 seconds, before you've clicked anything.
-
----
-
-### 6. Mobile polish pass on Command tab
-Command tab is the daily driver but the deploy queue and zone alert banner overflow horizontally on phones. Other tabs (Holdings, Watchlist) already have mobile patterns; Command does not consistently.
-
-**Build:** Apply the existing mobile patterns (horizontal-scroll chips, stacked cards) to the Command tab's three densest blocks: Quick Commands grid, Deploy Queue, Today's Movers.
-
----
-
-### My pick
-**#1 (Action Inbox) + #2 (URL tab persistence) together.** Inbox is the strategic win; URL persistence is the tiny quality-of-life fix that should ride along. Both touch `Index.tsx` and `CommandTab.tsx` so the diff stays contained.
-
-Tell me which (or which combination) and I'll plan the implementation.
-
+- Cleaning up the sheet itself (e.g. converting `PRE_IPO` → `PRE-IPO`, deciding whether `ACTIVE` should be retired). Happy to flag these to you separately once the UI no longer hides them.
