@@ -743,6 +743,16 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         </div>
       )}
 
+      {/* ── 8. UNCATEGORISED (fallback — any row not picked up above) ── */}
+      {uncategorised.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Uncategorised" count={uncategorised.length} dotColor="var(--text-dim)" />
+          {uncategorised.map((r) => (
+            <WatchlistCard key={`uncat-${r.item.ticker}`} row={r} variant="compact" />
+          ))}
+        </div>
+      )}
+
       {/* Loading hint when sparkline data is still being fetched */}
       {trajLoading && (
         <div style={{ marginTop: 12 }}>
