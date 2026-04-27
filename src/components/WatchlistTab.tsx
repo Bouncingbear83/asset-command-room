@@ -584,6 +584,16 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         </div>
       )}
 
+      {/* ── 0. ACTIVE BUYS (status = BUY / ACTIVE) ── */}
+      {activeBuys.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Active Buys" count={activeBuys.length} dotColor="var(--green)" />
+          {activeBuys.map((r) => (
+            <WatchlistCard key={`buy-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
+          ))}
+        </div>
+      )}
+
       {/* ── 1. IN ZONE ── */}
       {inZone.length > 0 ? (
         <div style={sectionStyle}>
