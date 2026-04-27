@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
@@ -14,6 +14,18 @@ interface Props {
 }
 
 const OVERDUE_DAYS = 14;
+
+// Normalize status values to a canonical token: uppercase, alphanumeric only.
+// "PRE-IPO", "PRE_IPO", "pre ipo" → "PREIPO".
+function normStatus(s: string | null | undefined): string {
+  return String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+const PREIPO = "PREIPO";
+const RESEARCH = "RESEARCH";
+const MONITOR = "MONITOR";
+const EXITED = "EXITED";
+const BUY = "BUY";
+const ACTIVE = "ACTIVE";
 
 function daysSince(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
@@ -280,24 +292,43 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   }, [derived, search, layerFilter, statusFilter]);
 
   // ── Bucket rows ──
-  const inZone = useMemo(
-    () => filtered.filter((r) => r.zoneStatus === "IN_ZONE"),
+  // Active Buys: explicit BUY / ACTIVE statuses surface above zone-derived buckets.
+  const activeBuys = useMemo(
+    () =>
+      filtered
+        .filter((r) => {
+          const s = normStatus(r.item.status);
+          return s === BUY || s === ACTIVE;
+        })
+        .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
     [filtered],
+  );
+  const activeBuyIds = useMemo(
+    () => new Set(activeBuys.map((r) => r.item.ticker)),
+    [activeBuys],
+  );
+
+  const inZone = useMemo(
+    () =>
+      filtered.filter(
+        (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
+      ),
+    [filtered, activeBuyIds],
   );
 
   const approaching = useMemo(
     () =>
       filtered
-        .filter((r) => r.zoneStatus === "APPROACHING")
+        .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker))
         .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
-    [filtered],
+    [filtered, activeBuyIds],
   );
 
-  // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR
+  // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
   const overdue = useMemo(() => {
-    const skipStatus = new Set(["EXITED", "PRE-IPO", "RESEARCH", "MONITOR"]);
+    const skipStatus = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
     return filtered
-      .filter((r) => r.isOverdue && !skipStatus.has(r.item.status?.trim().toUpperCase()))
+      .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
       .sort((a, b) => (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0));
   }, [filtered]);
 
@@ -305,13 +336,14 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
 
   // Waiting: priced & WAITING & not already shown above
   const waiting = useMemo(() => {
-    const skipStatus = new Set(["MONITOR", "RESEARCH", "PRE-IPO", "EXITED"]);
+    const skipStatus = new Set([MONITOR, RESEARCH, PREIPO, EXITED, BUY, ACTIVE]);
     return filtered
       .filter(
         (r) =>
           r.zoneStatus === "WAITING" &&
           !overdueIds.has(r.item.ticker) &&
-          !skipStatus.has(r.item.status?.trim().toUpperCase()),
+          !activeBuyIds.has(r.item.ticker) &&
+          !skipStatus.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
         // Score desc if both have scores; otherwise gap asc
@@ -320,7 +352,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds]);
+  }, [filtered, overdueIds, activeBuyIds]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
@@ -336,7 +368,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const monitoring = useMemo(
     () =>
       filtered
-        .filter((r) => r.item.status?.trim().toUpperCase() === "MONITOR")
+        .filter((r) => normStatus(r.item.status) === MONITOR)
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
@@ -346,17 +378,63 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       monitoring.map((r) => r.item.ticker.trim().toUpperCase()),
     );
     return filtered
-      .filter((r) => r.item.status?.trim().toUpperCase() === "RESEARCH")
+      .filter((r) => normStatus(r.item.status) === RESEARCH)
       .filter((r) => !monitorTickers.has(r.item.ticker.trim().toUpperCase()))
       .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
   }, [filtered, monitoring]);
   const preIpo = useMemo(
     () =>
       filtered
-        .filter((r) => r.item.status?.trim().toUpperCase() === "PRE-IPO")
+        .filter((r) => normStatus(r.item.status) === PREIPO)
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
+
+  // Fallback: any filtered row not picked up by an existing bucket. Guarantees
+  // every row from the sheet is visible, even if its STATUS is unexpected.
+  const uncategorised = useMemo(() => {
+    const seen = new Set<string>([
+      ...activeBuys.map((r) => r.item.ticker),
+      ...inZone.map((r) => r.item.ticker),
+      ...approaching.map((r) => r.item.ticker),
+      ...overdue.map((r) => r.item.ticker),
+      ...waiting.map((r) => r.item.ticker),
+      ...monitoring.map((r) => r.item.ticker),
+      ...research.map((r) => r.item.ticker),
+      ...preIpo.map((r) => r.item.ticker),
+    ]);
+    return filtered
+      .filter((r) => !seen.has(r.item.ticker) && normStatus(r.item.status) !== EXITED)
+      .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
+  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo]);
+
+  // Dev-only drift warning: if the rendered row total drifts from the filtered total
+  // (excluding intentionally-hidden EXITED), surface it in the console.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const renderedTickers = new Set<string>([
+      ...activeBuys.map((r) => r.item.ticker),
+      ...inZone.map((r) => r.item.ticker),
+      ...approaching.map((r) => r.item.ticker),
+      ...overdue.map((r) => r.item.ticker),
+      ...waiting.map((r) => r.item.ticker),
+      ...monitoring.map((r) => r.item.ticker),
+      ...research.map((r) => r.item.ticker),
+      ...preIpo.map((r) => r.item.ticker),
+      ...uncategorised.map((r) => r.item.ticker),
+    ]);
+    const visibleSource = filtered.filter((r) => normStatus(r.item.status) !== EXITED);
+    if (renderedTickers.size !== visibleSource.length) {
+      const missing = visibleSource
+        .filter((r) => !renderedTickers.has(r.item.ticker))
+        .map((r) => `${r.item.ticker} (${r.item.status})`);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[WatchlistTab] Rendered ${renderedTickers.size} of ${visibleSource.length} rows. Missing:`,
+        missing,
+      );
+    }
+  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, uncategorised]);
 
   // Header counts (live, not bucketed — recomputed from `derived` so they reflect entire watchlist regardless of filters)
   const counts = useMemo(() => {
@@ -364,10 +442,14 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
     const inZ = derived.filter((r) => r.zoneStatus === "IN_ZONE").length;
     const appr = derived.filter((r) => r.zoneStatus === "APPROACHING").length;
     const od = derived.filter((r) => {
-      const skip = new Set(["EXITED", "PRE-IPO", "RESEARCH", "MONITOR"]);
-      return r.isOverdue && !skip.has(r.item.status?.trim().toUpperCase());
+      const skip = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
+      return r.isOverdue && !skip.has(normStatus(r.item.status));
     }).length;
-    return { total, inZ, appr, od };
+    const buys = derived.filter((r) => {
+      const s = normStatus(r.item.status);
+      return s === BUY || s === ACTIVE;
+    }).length;
+    return { total, inZ, appr, od, buys };
   }, [derived]);
 
   const pauseActive = (macroState["PAUSE_ACTIVE"]?.currentValue || "").trim().toUpperCase() === "YES";
@@ -418,6 +500,10 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
             {counts.total} total ·{" "}
+            <span style={{ color: counts.buys > 0 ? "var(--green)" : "var(--text-dim)", fontWeight: counts.buys > 0 ? 700 : 400 }}>
+              {counts.buys} BUY
+            </span>{" "}
+            ·{" "}
             <span style={{ color: counts.inZ > 0 ? "var(--green)" : "var(--text-dim)", fontWeight: counts.inZ > 0 ? 700 : 400 }}>
               {counts.inZ} IN ZONE
             </span>{" "}
@@ -495,6 +581,16 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
           }}
         >
           ⛔ MACRO PAUSE ACTIVE — NO NEW BUYS
+        </div>
+      )}
+
+      {/* ── 0. ACTIVE BUYS (status = BUY / ACTIVE) ── */}
+      {activeBuys.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Active Buys" count={activeBuys.length} dotColor="var(--green)" />
+          {activeBuys.map((r) => (
+            <WatchlistCard key={`buy-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
+          ))}
         </div>
       )}
 
@@ -644,6 +740,16 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
                 </span>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* ── 8. UNCATEGORISED (fallback — any row not picked up above) ── */}
+      {uncategorised.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Uncategorised" count={uncategorised.length} dotColor="var(--text-dim)" />
+          {uncategorised.map((r) => (
+            <WatchlistCard key={`uncat-${r.item.ticker}`} row={r} variant="compact" />
+          ))}
         </div>
       )}
 
