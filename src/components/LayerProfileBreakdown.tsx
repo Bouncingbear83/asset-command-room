@@ -255,9 +255,10 @@ export function LayerProfileBreakdown({ layerName, index, layerCurrentPct }: Bar
               title={tooltip}
               style={{
                 width: `${widthPct}%`,
-                background: fillFor(key),
-                backgroundSize: backgroundSizeFor(key),
-                backgroundColor: key === "GENERIC_COMPOUNDER" ? "rgba(125,164,216,0.18)" : undefined,
+                height: "100%",
+                backgroundColor: segmentBackgroundColor(key),
+                backgroundImage: segmentBackgroundImage(key),
+                backgroundSize: segmentBackgroundSize(key),
                 position: "relative",
               }}
             />
