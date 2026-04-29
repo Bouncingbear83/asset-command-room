@@ -68,17 +68,30 @@ function paletteFor(key: ProfileBreakdownKey) {
   return PROFILE_PALETTE[key as ReturnProfile];
 }
 
-/** Stellar = solid; Generic = lighter / hatched. Other profiles = solid palette colour. */
-function fillFor(key: ProfileBreakdownKey): string {
-  const p = paletteFor(key);
+/**
+ * Colour application is split across `backgroundColor` (solid fill) and
+ * `backgroundImage` (diagonal stripes for GENERIC_COMPOUNDER) so we never
+ * use the `background:` shorthand — that shorthand was silently dropping
+ * non-Compounder fills in some browsers, leaving Reclass/Cycle/Hedge/etc.
+ * segments invisible against the dark track.
+ */
+function segmentBackgroundColor(key: ProfileBreakdownKey): string {
   if (key === "GENERIC_COMPOUNDER") {
-    // Outlined / faded variant so the two compounder bands read as siblings.
-    return `linear-gradient(135deg, ${p.fg} 25%, transparent 25%, transparent 50%, ${p.fg} 50%, ${p.fg} 75%, transparent 75%, transparent)`;
+    // Faded blue wash sits under the diagonal stripes.
+    return "rgba(125,164,216,0.18)";
   }
-  return p.fg;
+  return paletteFor(key).fg;
 }
 
-function backgroundSizeFor(key: ProfileBreakdownKey): string | undefined {
+function segmentBackgroundImage(key: ProfileBreakdownKey): string {
+  if (key === "GENERIC_COMPOUNDER") {
+    const fg = paletteFor(key).fg;
+    return `linear-gradient(135deg, ${fg} 25%, transparent 25%, transparent 50%, ${fg} 50%, ${fg} 75%, transparent 75%, transparent)`;
+  }
+  return "none";
+}
+
+function segmentBackgroundSize(key: ProfileBreakdownKey): string | undefined {
   return key === "GENERIC_COMPOUNDER" ? "6px 6px" : undefined;
 }
 
