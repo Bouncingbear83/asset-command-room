@@ -27,6 +27,9 @@ import {
   EMPTY_TREND,
   EMPTY_SCORE_TREND,
   BuyDistance,
+  ReturnProfile,
+  RETURN_PROFILE_VALUES,
+  CompounderSubtype,
 } from "@/types/intelligence";
 
 // ── Rationale row shapes (subset of Supabase tables) ────────────────────────
@@ -120,6 +123,19 @@ function normalizeHeldStatus(raw: unknown, ticker: string): HeldStatus {
   if ((HELD_STATUS_VALUES as string[]).includes(upper)) return upper as HeldStatus;
   console.warn(`[useAssetIntelligence] Unknown Held_Status "${raw}" for ${ticker} — defaulting to RESEARCH`);
   return "RESEARCH";
+}
+
+function normalizeReturnProfile(raw: unknown): ReturnProfile | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (!upper) return null;
+  return (RETURN_PROFILE_VALUES as string[]).includes(upper) ? (upper as ReturnProfile) : null;
+}
+
+function normalizeCompounderSubtype(raw: unknown): CompounderSubtype | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (upper === "STELLAR_COMPOUNDER" || upper === "STELLAR") return "STELLAR_COMPOUNDER";
+  if (upper === "GENERIC_COMPOUNDER" || upper === "GENERIC") return "GENERIC_COMPOUNDER";
+  return null;
 }
 
 function deriveDisruptionStatus(rawStatus: unknown, total: number): DisruptionStatus {
@@ -381,11 +397,17 @@ function buildOne(
   }
   const buy_distance = computeBuyDistance(current_price, lowFinal, highFinal);
 
+  const return_profile = normalizeReturnProfile((s as { returnProfile?: unknown }).returnProfile);
+  const rawSubtype = normalizeCompounderSubtype((s as { compounderSubtype?: unknown }).compounderSubtype);
+  const compounder_subtype = return_profile === "COMPOUNDER" ? rawSubtype : null;
+
   return {
     ticker,
     name: String(s.name ?? ""),
     layer,
     held_status,
+    return_profile,
+    compounder_subtype,
     score: toNum0(s.score),
     tier: normalizeTier(s.tier),
     sub_scores: {

@@ -12,13 +12,16 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
-import type { GroupBy, SortField } from "@/lib/url-state";
+import type { GroupBy, SortField, ProfileFilterKey } from "@/lib/url-state";
+import { PROFILE_FILTER_KEYS } from "@/lib/url-state";
+import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL } from "./profileChips";
 
 interface Props {
   assets: AssetIntelligence[];
   total: number;
   statusFilter: HeldStatus[];
   layerFilter: Layer[];
+  profileFilter: ProfileFilterKey[];
   search: string;
   groupBy: GroupBy;
   sortField: SortField;
@@ -27,6 +30,8 @@ interface Props {
   onResetStatus: () => void;
   onToggleLayer: (l: Layer) => void;
   onResetLayer: () => void;
+  onToggleProfile: (p: ProfileFilterKey) => void;
+  onResetProfile: () => void;
   onSearchChange: (v: string) => void;
   onGroupChange: (g: GroupBy) => void;
   onSortChange: (field: SortField, dir: "asc" | "desc") => void;
@@ -62,9 +67,12 @@ export function IntelligenceFilters({
   onResetStatus,
   onToggleLayer,
   onResetLayer,
+  onToggleProfile,
+  onResetProfile,
   onSearchChange,
   onGroupChange,
   onSortChange,
+  profileFilter,
 }: Props) {
   // Counts always on full set so users can see distribution regardless of active filters.
   const statusCounts: Record<HeldStatus, number> = {
@@ -72,13 +80,30 @@ export function IntelligenceFilters({
   };
   for (const a of assets) statusCounts[a.held_status]++;
 
+  // Profile counts (held positions only — RETURN_PROFILE is meaningless for unheld)
+  const profileCounts: Record<ProfileFilterKey, number> = {
+    STELLAR_COMPOUNDER: 0, GENERIC_COMPOUNDER: 0, RECLASSIFICATION: 0,
+    CYCLE: 0, HEDGE: 0, VEHICLE: 0, PRE_PRODUCTION: 0,
+  };
+  for (const a of assets) {
+    if (!a.return_profile) continue;
+    if (a.return_profile === "COMPOUNDER") {
+      if (a.compounder_subtype === "STELLAR_COMPOUNDER") profileCounts.STELLAR_COMPOUNDER++;
+      else if (a.compounder_subtype === "GENERIC_COMPOUNDER") profileCounts.GENERIC_COMPOUNDER++;
+    } else if (a.return_profile !== "CASH") {
+      profileCounts[a.return_profile as ProfileFilterKey]++;
+    }
+  }
+
   const layersInUse = new Set(assets.map((a) => a.layer).filter((l): l is Layer => l !== null));
   const allStatusesActive = statusFilter.length === 0;
   const allLayersActive = layerFilter.length === 0;
+  const allProfilesActive = profileFilter.length === 0;
 
   const activeCount =
     (statusFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
+    (profileFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
   const chipsBlock = (
@@ -120,6 +145,48 @@ export function IntelligenceFilters({
               active={!allLayersActive && layerFilter.includes(l)}
               onClick={() => onToggleLayer(l)}
               ariaLabel={`Filter ${l}${present ? "" : " (no assets)"}`}
+            />
+          );
+        })}
+      </ChipGroup>
+
+      {/* Row 4: profile chips (Stellar Doctrine v2.4) */}
+      <ChipGroup ariaLabel="Filter by return profile">
+        <Chip
+          label="All Profiles"
+          active={allProfilesActive}
+          onClick={onResetProfile}
+          ariaLabel="Reset profile filters"
+        />
+        {PROFILE_FILTER_KEYS.map((p) => {
+          const isActive = !allProfilesActive && profileFilter.includes(p);
+          // Derive colored swatch using profile palette
+          const labelText =
+            p === "STELLAR_COMPOUNDER" ? "Stellar Comp"
+            : p === "GENERIC_COMPOUNDER" ? "Generic Comp"
+            : PROFILE_LABEL[p as keyof typeof PROFILE_LABEL] ?? p;
+          // colour swatch
+          const swatchStyle =
+            p === "STELLAR_COMPOUNDER" ? subtypeChipStyle("STELLAR_COMPOUNDER")
+            : p === "GENERIC_COMPOUNDER" ? subtypeChipStyle("GENERIC_COMPOUNDER")
+            : profileChipStyle(p as never);
+          const swatch = (
+            <span style={{
+              display: "inline-block",
+              width: 8, height: 8, borderRadius: 2, marginRight: 2,
+              background: swatchStyle.background as string,
+              border: `1px solid ${swatchStyle.border as string}`,
+            }} aria-hidden />
+          );
+          return (
+            <Chip
+              key={p}
+              label={labelText}
+              count={profileCounts[p]}
+              active={isActive}
+              onClick={() => onToggleProfile(p)}
+              ariaLabel={`Filter ${labelText}`}
+              icon={swatch}
             />
           );
         })}

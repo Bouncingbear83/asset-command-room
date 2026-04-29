@@ -5,15 +5,18 @@ import { IntelligenceFilters } from "@/components/intelligence/IntelligenceFilte
 import { IntelligenceListHeader } from "@/components/intelligence/IntelligenceListHeader";
 import { IntelligenceGroupHeader } from "@/components/intelligence/IntelligenceGroupHeader";
 import { IntelligenceHeader } from "@/components/intelligence/IntelligenceHeader";
+import { ProfileMixWidget } from "@/components/intelligence/ProfileMixWidget";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
 import { usePortfolioData, type LiveLayer } from "@/hooks/usePortfolioData";
 import {
   DEFAULT_STATE,
   stateFromParams,
   stateToParams,
+  PROFILE_FILTER_KEYS,
   type GroupBy,
   type SortField,
   type IntelligenceUiState,
+  type ProfileFilterKey,
 } from "@/lib/url-state";
 import type { AssetIntelligence, HeldStatus, Layer, Tier } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
@@ -164,6 +167,16 @@ export default function IntelligenceTab() {
   };
   const resetLayer = () => update({ layerFilter: [] });
 
+  const toggleProfile = (p: ProfileFilterKey) => {
+    setState((prev) => {
+      const has = prev.profileFilter.includes(p);
+      const next = has ? prev.profileFilter.filter((x) => x !== p) : [...prev.profileFilter, p];
+      const allOn = PROFILE_FILTER_KEYS.every((v) => next.includes(v));
+      return { ...prev, profileFilter: allOn ? [] : next };
+    });
+  };
+  const resetProfile = () => update({ profileFilter: [] });
+
   const handleSort = (field: SortField) => {
     setState((prev) => {
       if (prev.sortField === field) {
@@ -180,10 +193,23 @@ export default function IntelligenceTab() {
   // ── Pipeline ─────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = state.search.trim().toLowerCase();
+    const profileSet = new Set(state.profileFilter);
     return data.filter((a) => {
       if (state.statusFilter.length > 0 && !state.statusFilter.includes(a.held_status)) return false;
       if (state.layerFilter.length > 0) {
         if (!a.layer || !state.layerFilter.includes(a.layer)) return false;
+      }
+      if (state.profileFilter.length > 0) {
+        if (!a.return_profile) return false;
+        // Map asset → ProfileFilterKey
+        let key: ProfileFilterKey | null = null;
+        if (a.return_profile === "COMPOUNDER") {
+          if (a.compounder_subtype === "STELLAR_COMPOUNDER") key = "STELLAR_COMPOUNDER";
+          else if (a.compounder_subtype === "GENERIC_COMPOUNDER") key = "GENERIC_COMPOUNDER";
+        } else if (a.return_profile !== "CASH") {
+          key = a.return_profile as ProfileFilterKey;
+        }
+        if (!key || !profileSet.has(key)) return false;
       }
       if (q) {
         const hay = `${a.ticker} ${a.name}`.toLowerCase();
@@ -191,7 +217,7 @@ export default function IntelligenceTab() {
       }
       return true;
     });
-  }, [data, state.statusFilter, state.layerFilter, state.search]);
+  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => compareAssets(a, b, state.sortField, state.sortDir));
@@ -285,11 +311,14 @@ export default function IntelligenceTab() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: "12px 0" }}>
+      <ProfileMixWidget assets={data} />
+
       <IntelligenceFilters
         assets={data}
         total={data.length}
         statusFilter={state.statusFilter}
         layerFilter={state.layerFilter}
+        profileFilter={state.profileFilter}
         search={state.search}
         groupBy={state.groupBy}
         sortField={state.sortField}
@@ -298,6 +327,8 @@ export default function IntelligenceTab() {
         onResetStatus={resetStatus}
         onToggleLayer={toggleLayer}
         onResetLayer={resetLayer}
+        onToggleProfile={toggleProfile}
+        onResetProfile={resetProfile}
         onSearchChange={(v) => update({ search: v })}
         onGroupChange={(g) => update({ groupBy: g })}
         onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}
