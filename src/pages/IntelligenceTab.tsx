@@ -192,10 +192,23 @@ export default function IntelligenceTab() {
   // ── Pipeline ─────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = state.search.trim().toLowerCase();
+    const profileSet = new Set(state.profileFilter);
     return data.filter((a) => {
       if (state.statusFilter.length > 0 && !state.statusFilter.includes(a.held_status)) return false;
       if (state.layerFilter.length > 0) {
         if (!a.layer || !state.layerFilter.includes(a.layer)) return false;
+      }
+      if (state.profileFilter.length > 0) {
+        if (!a.return_profile) return false;
+        // Map asset → ProfileFilterKey
+        let key: ProfileFilterKey | null = null;
+        if (a.return_profile === "COMPOUNDER") {
+          if (a.compounder_subtype === "STELLAR_COMPOUNDER") key = "STELLAR_COMPOUNDER";
+          else if (a.compounder_subtype === "GENERIC_COMPOUNDER") key = "GENERIC_COMPOUNDER";
+        } else if (a.return_profile !== "CASH") {
+          key = a.return_profile as ProfileFilterKey;
+        }
+        if (!key || !profileSet.has(key)) return false;
       }
       if (q) {
         const hay = `${a.ticker} ${a.name}`.toLowerCase();
@@ -203,7 +216,7 @@ export default function IntelligenceTab() {
       }
       return true;
     });
-  }, [data, state.statusFilter, state.layerFilter, state.search]);
+  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => compareAssets(a, b, state.sortField, state.sortDir));
