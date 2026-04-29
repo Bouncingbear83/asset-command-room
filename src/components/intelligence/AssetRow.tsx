@@ -455,6 +455,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <DisruptionBadgeInline asset={asset} />
         </div>
 
+        {asset.return_profile && (
+          <div style={{ padding: "0 10px 4px" }}>
+            <ProfileChips asset={asset} compact />
+          </div>
+        )}
+
         <div className="asset-row-mobile-bars">
           <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
           <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
@@ -525,6 +531,11 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
             }}>
               SIPP+ISA
             </span>
+          )}
+          {asset.return_profile && (
+            <div style={{ marginTop: 3 }}>
+              <ProfileChips asset={asset} compact />
+            </div>
           )}
         </div>
 
