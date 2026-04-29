@@ -4,10 +4,30 @@
  */
 
 import type { HeldStatus, Layer } from "@/types/intelligence";
-import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
+import { HELD_STATUS_VALUES, LAYER_VALUES, RETURN_PROFILE_VALUES } from "@/types/intelligence";
 
 export type SortField = "score" | "ticker" | "layer" | "disruption" | "buy_distance";
 export type GroupBy = "none" | "layer" | "status" | "tier";
+
+/** Profile filter token — RETURN_PROFILE values plus split for COMPOUNDER subtypes. */
+export type ProfileFilterKey =
+  | "STELLAR_COMPOUNDER"
+  | "GENERIC_COMPOUNDER"
+  | "RECLASSIFICATION"
+  | "CYCLE"
+  | "HEDGE"
+  | "VEHICLE"
+  | "PRE_PRODUCTION";
+
+export const PROFILE_FILTER_KEYS: ProfileFilterKey[] = [
+  "STELLAR_COMPOUNDER",
+  "GENERIC_COMPOUNDER",
+  "RECLASSIFICATION",
+  "CYCLE",
+  "HEDGE",
+  "VEHICLE",
+  "PRE_PRODUCTION",
+];
 
 export interface IntelligenceUiState {
   sortField: SortField;
@@ -15,6 +35,7 @@ export interface IntelligenceUiState {
   groupBy: GroupBy;
   statusFilter: HeldStatus[]; // empty = all
   layerFilter: Layer[];       // empty = all
+  profileFilter: ProfileFilterKey[]; // empty = all
   search: string;
 }
 
@@ -24,6 +45,7 @@ export const DEFAULT_STATE: IntelligenceUiState = {
   groupBy: "none",
   statusFilter: [],
   layerFilter: [],
+  profileFilter: [],
   search: "",
 };
 
@@ -56,12 +78,21 @@ export function stateFromParams(params: URLSearchParams): IntelligenceUiState {
         .filter((l): l is Layer => Boolean(l))
     : [];
 
+  const profileRaw = params.get("profile");
+  const profileFilter: ProfileFilterKey[] = profileRaw
+    ? profileRaw
+        .split(",")
+        .map((s) => s.trim().toUpperCase().replace(/[\s-]+/g, "_"))
+        .filter((s): s is ProfileFilterKey => (PROFILE_FILTER_KEYS as string[]).includes(s))
+    : [];
+
   return {
     sortField,
     sortDir: dir,
     groupBy,
     statusFilter,
     layerFilter,
+    profileFilter,
     search: params.get("q") ?? "",
   };
 }
@@ -69,11 +100,13 @@ export function stateFromParams(params: URLSearchParams): IntelligenceUiState {
 export function stateToParams(state: IntelligenceUiState): URLSearchParams {
   const out = new URLSearchParams();
   const sortKey = `${state.sortDir === "desc" ? "-" : ""}${state.sortField}`;
-  // Only emit non-defaults to keep URLs clean.
   if (sortKey !== "-score") out.set("sort", sortKey);
   if (state.groupBy !== "none") out.set("group", state.groupBy);
   if (state.statusFilter.length > 0) out.set("status", state.statusFilter.join(","));
   if (state.layerFilter.length > 0) out.set("layer", state.layerFilter.join(","));
+  if (state.profileFilter.length > 0) out.set("profile", state.profileFilter.join(","));
   if (state.search.trim() !== "") out.set("q", state.search.trim());
   return out;
 }
+
+export { RETURN_PROFILE_VALUES };
