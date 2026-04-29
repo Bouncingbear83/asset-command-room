@@ -463,6 +463,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             </span>
           );
         })()}
+        <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {item.name}
         </span>
