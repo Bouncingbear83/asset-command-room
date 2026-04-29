@@ -961,6 +961,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
                 >
                   {r.item.layer}
                 </span>
+                <ProfileChip profile={r.return_profile} subtype={r.compounder_subtype} />
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
