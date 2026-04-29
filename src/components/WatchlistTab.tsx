@@ -280,11 +280,15 @@ function SkeletonRow() {
 
 // ── Page ──
 
-export default function WatchlistTab({ liveData, macroState }: Props) {
+export default function WatchlistTab({ liveData, macroState, scores = [] }: Props) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [layerFilter, setLayerFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [profileFilter, setProfileFilter] = useState<Set<ProfileFilterKey>>(
+    () => new Set(PROFILE_FILTER_KEYS),
+  );
+  const [profileSort, setProfileSort] = useState(false);
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
@@ -304,6 +308,22 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const { byTicker: traj, loading: trajLoading } = useWatchlistHistory(allTickers);
   const { byTicker: scoresByTicker } = useWatchlistScores(allTickers);
 
+  // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
+  const profileByTicker = useMemo(() => {
+    const map = new Map<string, { profile: ReturnProfile | null; subtype: CompounderSubtype | null }>();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
+      const profile = normalizeProfile(s.returnProfile);
+      const subtype = profile === "COMPOUNDER" ? normalizeSubtype(s.compounderSubtype) : null;
+      const entry = { profile, subtype };
+      map.set(t, entry);
+      const stripped = stripSuffix(t);
+      if (stripped && stripped !== t && !map.has(stripped)) map.set(stripped, entry);
+    }
+    return map;
+  }, [scores]);
+
   // Layer + status filter options
   const layerOptions = useMemo(
     () => Array.from(new Set(liveData.map((d) => d.layer).filter(Boolean))).sort(),
@@ -320,6 +340,8 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       const ticker = item.ticker?.trim().toUpperCase() ?? "";
       const trajectory = traj[ticker] ?? null;
       const score = scoresByTicker[ticker] ?? null;
+      const profileEntry =
+        profileByTicker.get(ticker) ?? profileByTicker.get(stripSuffix(ticker)) ?? null;
 
       const zone = parseEntryTarget(item.entry, item.triggerPriceNumeric);
 
@@ -361,20 +383,42 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         isOverdue,
         trajectory,
         score,
+        return_profile: profileEntry?.profile ?? null,
+        compounder_subtype: profileEntry?.subtype ?? null,
       };
     });
-  }, [liveData, traj, scoresByTicker]);
+  }, [liveData, traj, scoresByTicker, profileByTicker]);
 
   // Apply search + filter chips
+  const allProfilesSelected = profileFilter.size === PROFILE_FILTER_KEYS.length;
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return derived.filter((r) => {
       if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
       if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
       if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      // Profile filter — only restrict rows that HAVE a profile. Rows without profile
+      // (REJECTED/EXITED, or any unscored row) always pass so the filter only narrows
+      // the universe of profile-tagged signals it's intended to control.
+      if (!allProfilesSelected) {
+        const key = profileKeyFor(r.return_profile, r.compounder_subtype);
+        if (key && !profileFilter.has(key)) return false;
+      }
       return true;
     });
-  }, [derived, search, layerFilter, statusFilter]);
+  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected]);
+
+  const toggleProfile = (k: ProfileFilterKey) => {
+    setProfileFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      // Never allow zero-selection — empty == "all" semantically. Restore all.
+      if (next.size === 0) return new Set(PROFILE_FILTER_KEYS);
+      return next;
+    });
+  };
+  const resetProfileFilter = () => setProfileFilter(new Set(PROFILE_FILTER_KEYS));
 
   // ── Bucket rows ──
   // Active Buys: explicit BUY / ACTIVE statuses surface above zone-derived buckets.
