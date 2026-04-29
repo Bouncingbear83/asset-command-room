@@ -1,12 +1,25 @@
-import { LiveLayer, LiveNarrativeData, LiveWatchItem } from "@/hooks/usePortfolioData";
+import { LiveLayer, LiveNarrativeData, LiveWatchItem, LiveHolding, LiveScore } from "@/hooks/usePortfolioData";
 import React, { useMemo } from "react";
 import { triggerWebhook } from "@/lib/webhooks";
 import LayersAllocation from "./LayersAllocation";
+import {
+  buildProfileMixIndex,
+  LayerProfileBreakdown,
+  ProfileLegend,
+  ProfileMatrix,
+  type ProfileBreakdownKey,
+} from "./LayerProfileBreakdown";
 
 interface Props {
   liveData: LiveLayer[];
   watchlist: LiveWatchItem[];
   narrative: LiveNarrativeData;
+  /** Held positions (sipp + isa + jisa, mapped to LiveHolding shape) — needed for profile-by-layer AUM. */
+  holdings?: LiveHolding[];
+  /** SCORES sheet rows — provides RETURN_PROFILE / COMPOUNDER_SUBTYPE per ticker. */
+  scores?: LiveScore[];
+  /** Deep-link from a matrix cell into Holdings tab filtered to those tickers. */
+  onNavigateToHoldings?: (tickers: string[]) => void;
 }
 
 /* ── colour palette for layers without explicit hex ── */
