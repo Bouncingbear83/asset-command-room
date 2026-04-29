@@ -170,7 +170,23 @@ export default function Index() {
         {active === "Command" && <CommandTab />}
         {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} scores={portfolio.scores} />}
-        {active === "Layers" && <LayersTab liveData={portfolio.layers} watchlist={portfolio.watchlist} narrative={portfolio.narrativeData} />}
+        {active === "Layers" && (
+          <LayersTab
+            liveData={portfolio.layers}
+            watchlist={portfolio.watchlist}
+            narrative={portfolio.narrativeData}
+            holdings={[...portfolio.sipp, ...portfolio.isa]}
+            scores={portfolio.scores}
+            onNavigateToHoldings={(tickers) => {
+              const params = new URLSearchParams(window.location.search);
+              params.set("tab", "holdings");
+              if (tickers.length > 0) params.set("tickers", tickers.join(","));
+              else params.delete("tickers");
+              window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
+              setActive("Holdings");
+            }}
+          />
+        )}
         {active === "Intelligence" && <IntelligenceTab />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
