@@ -67,9 +67,12 @@ export function IntelligenceFilters({
   onResetStatus,
   onToggleLayer,
   onResetLayer,
+  onToggleProfile,
+  onResetProfile,
   onSearchChange,
   onGroupChange,
   onSortChange,
+  profileFilter,
 }: Props) {
   // Counts always on full set so users can see distribution regardless of active filters.
   const statusCounts: Record<HeldStatus, number> = {
@@ -77,13 +80,30 @@ export function IntelligenceFilters({
   };
   for (const a of assets) statusCounts[a.held_status]++;
 
+  // Profile counts (held positions only — RETURN_PROFILE is meaningless for unheld)
+  const profileCounts: Record<ProfileFilterKey, number> = {
+    STELLAR_COMPOUNDER: 0, GENERIC_COMPOUNDER: 0, RECLASSIFICATION: 0,
+    CYCLE: 0, HEDGE: 0, VEHICLE: 0, PRE_PRODUCTION: 0,
+  };
+  for (const a of assets) {
+    if (!a.return_profile) continue;
+    if (a.return_profile === "COMPOUNDER") {
+      if (a.compounder_subtype === "STELLAR_COMPOUNDER") profileCounts.STELLAR_COMPOUNDER++;
+      else if (a.compounder_subtype === "GENERIC_COMPOUNDER") profileCounts.GENERIC_COMPOUNDER++;
+    } else if (a.return_profile !== "CASH") {
+      profileCounts[a.return_profile as ProfileFilterKey]++;
+    }
+  }
+
   const layersInUse = new Set(assets.map((a) => a.layer).filter((l): l is Layer => l !== null));
   const allStatusesActive = statusFilter.length === 0;
   const allLayersActive = layerFilter.length === 0;
+  const allProfilesActive = profileFilter.length === 0;
 
   const activeCount =
     (statusFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
+    (profileFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
   const chipsBlock = (
