@@ -24,6 +24,29 @@ export const LAYER_VALUES: Layer[] = [
   "Hedge",
 ];
 
+// ── Return Profile (Stellar Doctrine v2.4) ─────────────────────────────────
+
+export type ReturnProfile =
+  | "COMPOUNDER"
+  | "RECLASSIFICATION"
+  | "CYCLE"
+  | "HEDGE"
+  | "VEHICLE"
+  | "PRE_PRODUCTION"
+  | "CASH";
+
+export const RETURN_PROFILE_VALUES: ReturnProfile[] = [
+  "COMPOUNDER",
+  "RECLASSIFICATION",
+  "CYCLE",
+  "HEDGE",
+  "VEHICLE",
+  "PRE_PRODUCTION",
+  "CASH",
+];
+
+export type CompounderSubtype = "STELLAR_COMPOUNDER" | "GENERIC_COMPOUNDER";
+
 export type HeldStatus =
   | "HELD"
   | "WATCHLIST"
@@ -173,6 +196,10 @@ export interface AssetIntelligence {
   name: string;
   layer: Layer | null;
   held_status: HeldStatus;
+
+  // Doctrine v2.4 classification (null when sheet cell empty)
+  return_profile: ReturnProfile | null;
+  compounder_subtype: CompounderSubtype | null;
 
   // Scoring
   score: number;
