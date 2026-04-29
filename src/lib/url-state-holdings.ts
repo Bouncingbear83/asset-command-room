@@ -33,6 +33,9 @@ export interface HoldingsUiState {
   actionFilter: string[];             // uppercase+underscore, empty = all
   factorFilter: string[];             // uppercase+underscore, empty = all
   layerFilter: Layer[];               // empty = all
+  /** Restrict to an explicit ticker set (case-insensitive). Empty = no restriction.
+   *  Used by deep-links (e.g. Layers tab matrix cell → "show me these holdings"). */
+  tickers: string[];
   search: string;
 }
 
@@ -44,6 +47,7 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
   actionFilter: [],
   factorFilter: [],
   layerFilter: [],
+  tickers: [],
   search: "",
 };
 
