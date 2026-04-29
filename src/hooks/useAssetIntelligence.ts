@@ -397,11 +397,17 @@ function buildOne(
   }
   const buy_distance = computeBuyDistance(current_price, lowFinal, highFinal);
 
+  const return_profile = normalizeReturnProfile((s as { returnProfile?: unknown }).returnProfile);
+  const rawSubtype = normalizeCompounderSubtype((s as { compounderSubtype?: unknown }).compounderSubtype);
+  const compounder_subtype = return_profile === "COMPOUNDER" ? rawSubtype : null;
+
   return {
     ticker,
     name: String(s.name ?? ""),
     layer,
     held_status,
+    return_profile,
+    compounder_subtype,
     score: toNum0(s.score),
     tier: normalizeTier(s.tier),
     sub_scores: {
