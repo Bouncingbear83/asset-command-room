@@ -11,9 +11,11 @@ import {
   DEFAULT_STATE,
   stateFromParams,
   stateToParams,
+  PROFILE_FILTER_KEYS,
   type GroupBy,
   type SortField,
   type IntelligenceUiState,
+  type ProfileFilterKey,
 } from "@/lib/url-state";
 import type { AssetIntelligence, HeldStatus, Layer, Tier } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
@@ -163,6 +165,16 @@ export default function IntelligenceTab() {
     });
   };
   const resetLayer = () => update({ layerFilter: [] });
+
+  const toggleProfile = (p: ProfileFilterKey) => {
+    setState((prev) => {
+      const has = prev.profileFilter.includes(p);
+      const next = has ? prev.profileFilter.filter((x) => x !== p) : [...prev.profileFilter, p];
+      const allOn = PROFILE_FILTER_KEYS.every((v) => next.includes(v));
+      return { ...prev, profileFilter: allOn ? [] : next };
+    });
+  };
+  const resetProfile = () => update({ profileFilter: [] });
 
   const handleSort = (field: SortField) => {
     setState((prev) => {
