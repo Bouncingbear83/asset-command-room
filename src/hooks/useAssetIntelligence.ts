@@ -27,6 +27,9 @@ import {
   EMPTY_TREND,
   EMPTY_SCORE_TREND,
   BuyDistance,
+  ReturnProfile,
+  RETURN_PROFILE_VALUES,
+  CompounderSubtype,
 } from "@/types/intelligence";
 
 // ── Rationale row shapes (subset of Supabase tables) ────────────────────────
@@ -122,7 +125,18 @@ function normalizeHeldStatus(raw: unknown, ticker: string): HeldStatus {
   return "RESEARCH";
 }
 
-function deriveDisruptionStatus(rawStatus: unknown, total: number): DisruptionStatus {
+function normalizeReturnProfile(raw: unknown): ReturnProfile | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (!upper) return null;
+  return (RETURN_PROFILE_VALUES as string[]).includes(upper) ? (upper as ReturnProfile) : null;
+}
+
+function normalizeCompounderSubtype(raw: unknown): CompounderSubtype | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (upper === "STELLAR_COMPOUNDER" || upper === "STELLAR") return "STELLAR_COMPOUNDER";
+  if (upper === "GENERIC_COMPOUNDER" || upper === "GENERIC") return "GENERIC_COMPOUNDER";
+  return null;
+}
   const s = String(rawStatus ?? "").trim().toUpperCase();
   if (s === "GREEN" || s === "AMBER" || s === "RED") return s as DisruptionStatus;
   if (total >= 70) return "GREEN";
