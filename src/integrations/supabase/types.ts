@@ -535,6 +535,7 @@ export type Database = {
           action: string | null
           buy_high: number | null
           buy_low: number | null
+          compounder_subtype: string | null
           created_at: string
           demand: number
           disruption: number
@@ -542,6 +543,7 @@ export type Database = {
           layer: string
           mgmt: number
           moat: number
+          return_profile: string | null
           score: number
           snapshot_date: string
           source: string
@@ -554,6 +556,7 @@ export type Database = {
           action?: string | null
           buy_high?: number | null
           buy_low?: number | null
+          compounder_subtype?: string | null
           created_at?: string
           demand: number
           disruption: number
@@ -561,6 +564,7 @@ export type Database = {
           layer: string
           mgmt: number
           moat: number
+          return_profile?: string | null
           score: number
           snapshot_date: string
           source?: string
@@ -573,6 +577,7 @@ export type Database = {
           action?: string | null
           buy_high?: number | null
           buy_low?: number | null
+          compounder_subtype?: string | null
           created_at?: string
           demand?: number
           disruption?: number
@@ -580,6 +585,7 @@ export type Database = {
           layer?: string
           mgmt?: number
           moat?: number
+          return_profile?: string | null
           score?: number
           snapshot_date?: string
           source?: string
