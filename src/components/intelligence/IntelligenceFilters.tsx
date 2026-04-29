@@ -14,7 +14,7 @@ import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence"
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
 import type { GroupBy, SortField, ProfileFilterKey } from "@/lib/url-state";
 import { PROFILE_FILTER_KEYS } from "@/lib/url-state";
-import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
+import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL } from "./profileChips";
 
 interface Props {
   assets: AssetIntelligence[];
