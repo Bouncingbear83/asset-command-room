@@ -149,6 +149,48 @@ export function IntelligenceFilters({
           );
         })}
       </ChipGroup>
+
+      {/* Row 4: profile chips (Stellar Doctrine v2.4) */}
+      <ChipGroup ariaLabel="Filter by return profile">
+        <Chip
+          label="All Profiles"
+          active={allProfilesActive}
+          onClick={onResetProfile}
+          ariaLabel="Reset profile filters"
+        />
+        {PROFILE_FILTER_KEYS.map((p) => {
+          const isActive = !allProfilesActive && profileFilter.includes(p);
+          // Derive colored swatch using profile palette
+          const labelText =
+            p === "STELLAR_COMPOUNDER" ? "Stellar Comp"
+            : p === "GENERIC_COMPOUNDER" ? "Generic Comp"
+            : PROFILE_LABEL[p as keyof typeof PROFILE_LABEL] ?? p;
+          // colour swatch
+          const swatchStyle =
+            p === "STELLAR_COMPOUNDER" ? subtypeChipStyle("STELLAR_COMPOUNDER")
+            : p === "GENERIC_COMPOUNDER" ? subtypeChipStyle("GENERIC_COMPOUNDER")
+            : profileChipStyle(p as never);
+          const swatch = (
+            <span style={{
+              display: "inline-block",
+              width: 8, height: 8, borderRadius: 2, marginRight: 2,
+              background: swatchStyle.background as string,
+              border: `1px solid ${swatchStyle.border as string}`,
+            }} aria-hidden />
+          );
+          return (
+            <Chip
+              key={p}
+              label={labelText}
+              count={profileCounts[p]}
+              active={isActive}
+              onClick={() => onToggleProfile(p)}
+              ariaLabel={`Filter ${labelText}`}
+              icon={swatch}
+            />
+          );
+        })}
+      </ChipGroup>
     </>
   );
 
