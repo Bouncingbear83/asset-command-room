@@ -10,6 +10,13 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
+import type { ReturnProfile, CompounderSubtype } from "@/types/intelligence";
+import {
+  PROFILE_LABEL,
+  SUBTYPE_LABEL,
+  profileChipStyle,
+  subtypeChipStyle,
+} from "@/components/intelligence/profileChips";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
@@ -25,6 +32,33 @@ export interface DerivedRow {
   isOverdue: boolean;
   trajectory: WatchlistTrajectory | null;
   score: WatchlistScoreEntry | null;
+  /** Doctrine v2.4 RETURN_PROFILE; null when blank (REJECTED/EXITED). */
+  return_profile: ReturnProfile | null;
+  /** Sub-type (only when return_profile === "COMPOUNDER"). */
+  compounder_subtype: CompounderSubtype | null;
+}
+
+/** Tiny inline chip pair used on watchlist rows. */
+export function ProfileChip({
+  profile,
+  subtype,
+}: {
+  profile: ReturnProfile | null;
+  subtype?: CompounderSubtype | null;
+}) {
+  if (!profile) return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+      <span style={profileChipStyle(profile)} title={`Return profile: ${profile}`}>
+        {PROFILE_LABEL[profile]}
+      </span>
+      {subtype && (
+        <span style={subtypeChipStyle(subtype)} title={`Subtype: ${subtype}`}>
+          {SUBTYPE_LABEL[subtype]}
+        </span>
+      )}
+    </span>
+  );
 }
 
 interface Props {
