@@ -1,16 +1,101 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
+import { LiveWatchItem, LiveMacroState, LiveScore } from "@/hooks/usePortfolioData";
 import { parseEntryTarget } from "@/lib/parseEntryTarget";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
-import { WatchlistCard, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
+import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+import {
+  RETURN_PROFILE_VALUES,
+  type ReturnProfile,
+  type CompounderSubtype,
+} from "@/types/intelligence";
+import { PROFILE_LABEL } from "@/components/intelligence/profileChips";
 
 interface Props {
   liveData: LiveWatchItem[];
   macroState: LiveMacroState;
+  /** SCORES sheet rows — used to attach RETURN_PROFILE / COMPOUNDER_SUBTYPE to watchlist rows. */
+  scores?: LiveScore[];
+}
+
+// ── Profile filter keys (compounder split into Stellar / Generic, matches Intelligence tab) ──
+type ProfileFilterKey =
+  | "STELLAR_COMPOUNDER"
+  | "GENERIC_COMPOUNDER"
+  | "RECLASSIFICATION"
+  | "CYCLE"
+  | "HEDGE"
+  | "VEHICLE"
+  | "PRE_PRODUCTION";
+
+const PROFILE_FILTER_KEYS: ProfileFilterKey[] = [
+  "STELLAR_COMPOUNDER",
+  "GENERIC_COMPOUNDER",
+  "RECLASSIFICATION",
+  "CYCLE",
+  "HEDGE",
+  "VEHICLE",
+  "PRE_PRODUCTION",
+];
+
+const PROFILE_FILTER_LABEL: Record<ProfileFilterKey, string> = {
+  STELLAR_COMPOUNDER: "Stellar Compounder",
+  GENERIC_COMPOUNDER: "Generic Compounder",
+  RECLASSIFICATION: PROFILE_LABEL.RECLASSIFICATION,
+  CYCLE: PROFILE_LABEL.CYCLE,
+  HEDGE: PROFILE_LABEL.HEDGE,
+  VEHICLE: PROFILE_LABEL.VEHICLE,
+  PRE_PRODUCTION: PROFILE_LABEL.PRE_PRODUCTION,
+};
+
+function profileKeyFor(p: ReturnProfile | null, sub: CompounderSubtype | null): ProfileFilterKey | null {
+  if (!p) return null;
+  if (p === "COMPOUNDER") {
+    if (sub === "STELLAR_COMPOUNDER") return "STELLAR_COMPOUNDER";
+    if (sub === "GENERIC_COMPOUNDER") return "GENERIC_COMPOUNDER";
+    return null;
+  }
+  if (p === "CASH") return null;
+  return p as ProfileFilterKey;
+}
+
+// Sort rank — Stellar first then Generic, then doctrine order, then empty.
+const PROFILE_SORT_RANK: Record<string, number> = {
+  STELLAR_COMPOUNDER: 0,
+  GENERIC_COMPOUNDER: 1,
+  RECLASSIFICATION: 2,
+  CYCLE: 3,
+  HEDGE: 4,
+  VEHICLE: 5,
+  PRE_PRODUCTION: 6,
+};
+function profileSortRank(p: ReturnProfile | null, sub: CompounderSubtype | null): number {
+  if (!p) return 99;
+  if (p === "COMPOUNDER") {
+    if (sub === "STELLAR_COMPOUNDER") return 0;
+    if (sub === "GENERIC_COMPOUNDER") return 1;
+    return 1.5;
+  }
+  return PROFILE_SORT_RANK[p] ?? 99;
+}
+
+function stripSuffix(t: string): string {
+  return t.replace(/[.\-][A-Z0-9]{1,3}$/i, "");
+}
+
+function normalizeProfile(raw: unknown): ReturnProfile | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (!upper) return null;
+  return (RETURN_PROFILE_VALUES as string[]).includes(upper) ? (upper as ReturnProfile) : null;
+}
+function normalizeSubtype(raw: unknown): CompounderSubtype | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (upper === "STELLAR_COMPOUNDER" || upper === "STELLAR") return "STELLAR_COMPOUNDER";
+  if (upper === "GENERIC_COMPOUNDER" || upper === "GENERIC") return "GENERIC_COMPOUNDER";
+  return null;
 }
 
 const OVERDUE_DAYS = 14;
