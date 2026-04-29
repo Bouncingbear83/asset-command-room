@@ -422,6 +422,12 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
   // ── Bucket rows ──
   // Active Buys: explicit BUY / ACTIVE statuses surface above zone-derived buckets.
+  // When Profile sort is active, this comparator runs before the bucket's
+  // existing tie-breaker so within each bucket profile order wins.
+  const byProfileFirst = (a: DerivedRow, b: DerivedRow): number =>
+    profileSortRank(a.return_profile, a.compounder_subtype) -
+    profileSortRank(b.return_profile, b.compounder_subtype);
+
   const activeBuys = useMemo(
     () =>
       filtered
@@ -429,28 +435,39 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           const s = normStatus(r.item.status);
           return s === BUY || s === ACTIVE;
         })
-        .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
-    [filtered],
+        .sort((a, b) => {
+          if (profileSort) {
+            const p = byProfileFirst(a, b);
+            if (p !== 0) return p;
+          }
+          return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
+        }),
+    [filtered, profileSort],
   );
   const activeBuyIds = useMemo(
     () => new Set(activeBuys.map((r) => r.item.ticker)),
     [activeBuys],
   );
 
-  const inZone = useMemo(
-    () =>
-      filtered.filter(
-        (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
-      ),
-    [filtered, activeBuyIds],
-  );
+  const inZone = useMemo(() => {
+    const rows = filtered.filter(
+      (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
+    );
+    return profileSort ? [...rows].sort(byProfileFirst) : rows;
+  }, [filtered, activeBuyIds, profileSort]);
 
   const approaching = useMemo(
     () =>
       filtered
         .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker))
-        .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
-    [filtered, activeBuyIds],
+        .sort((a, b) => {
+          if (profileSort) {
+            const p = byProfileFirst(a, b);
+            if (p !== 0) return p;
+          }
+          return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
+        }),
+    [filtered, activeBuyIds, profileSort],
   );
 
   // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
@@ -458,8 +475,14 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     const skipStatus = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
     return filtered
       .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
-      .sort((a, b) => (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0));
-  }, [filtered]);
+      .sort((a, b) => {
+        if (profileSort) {
+          const p = byProfileFirst(a, b);
+          if (p !== 0) return p;
+        }
+        return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
+      });
+  }, [filtered, profileSort]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
@@ -475,13 +498,17 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           !skipStatus.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
+        if (profileSort) {
+          const p = byProfileFirst(a, b);
+          if (p !== 0) return p;
+        }
         // Score desc if both have scores; otherwise gap asc
         const sa = a.score?.total_score ?? null;
         const sb = b.score?.total_score ?? null;
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds]);
+  }, [filtered, overdueIds, activeBuyIds, profileSort]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
