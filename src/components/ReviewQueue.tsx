@@ -374,13 +374,34 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
             const priorityItems = visibleFlags.filter(f => f.priority === priority);
             if (priorityItems.length === 0) return null;
 
-            // Group by flagType within this priority bucket, preserving first-seen order.
-            const groupOrder: string[] = [];
+            // Group by flagType within this priority bucket.
+            // PROFILE_* groups must render in a fixed doctrine order:
+            //   PROFILE_LADDER → PROFILE_MIX → PROFILE_TRANSITION → PROFILE_STALE
+            // Non-profile flagTypes preserve first-seen order and render after profile groups.
+            const PROFILE_GROUP_ORDER = [
+              "PROFILE_LADDER",
+              "PROFILE_MIX",
+              "PROFILE_TRANSITION",
+              "PROFILE_STALE",
+            ] as const;
+            const profileRank = (ft: string) => {
+              const i = (PROFILE_GROUP_ORDER as readonly string[]).indexOf(ft);
+              return i === -1 ? Number.POSITIVE_INFINITY : i;
+            };
+
+            const seenOrder: string[] = [];
             const groupMap = new Map<string, ReviewFlag[]>();
             for (const f of priorityItems) {
-              if (!groupMap.has(f.flagType)) { groupMap.set(f.flagType, []); groupOrder.push(f.flagType); }
+              if (!groupMap.has(f.flagType)) { groupMap.set(f.flagType, []); seenOrder.push(f.flagType); }
               groupMap.get(f.flagType)!.push(f);
             }
+            const groupOrder = [...seenOrder].sort((a, b) => {
+              const ra = profileRank(a);
+              const rb = profileRank(b);
+              if (ra !== rb) return ra - rb;
+              // Same rank (both profile with same key — impossible — or both non-profile): preserve insertion order
+              return seenOrder.indexOf(a) - seenOrder.indexOf(b);
+            });
 
             return (
               <div key={priority} style={{ marginBottom: 14 }}>
