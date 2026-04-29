@@ -5,6 +5,7 @@ import { IntelligenceFilters } from "@/components/intelligence/IntelligenceFilte
 import { IntelligenceListHeader } from "@/components/intelligence/IntelligenceListHeader";
 import { IntelligenceGroupHeader } from "@/components/intelligence/IntelligenceGroupHeader";
 import { IntelligenceHeader } from "@/components/intelligence/IntelligenceHeader";
+import { ProfileMixWidget } from "@/components/intelligence/ProfileMixWidget";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
 import { usePortfolioData, type LiveLayer } from "@/hooks/usePortfolioData";
 import {
