@@ -75,13 +75,24 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
   });
   const layerNarrative = narrative.layer_narrative || "";
 
+  // Build profile-by-layer index from holdings × scores (HOLDINGS rows are
+  // already held positions, so no extra Held_Status filter is needed).
+  const profileMix = useMemo(() => buildProfileMixIndex(holdings, scores), [holdings, scores]);
+  const matrixLayerOrder = useMemo(
+    () => investedLayers.map((l) => l.name).filter(Boolean),
+    [investedLayers],
+  );
+
   /* Assign colors to layers */
   return (
     <div>
+      {/* ── Profile legend (colour key for breakdown bars + matrix) ── */}
+      <ProfileLegend />
+
       {/* ── Horizontal Bar Chart ── */}
       <LayersAllocation layers={liveData} />
 
-      {/* ── Detail table: Key Holdings + MV ── */}
+      {/* ── Detail table: Key Holdings + MV + per-layer profile breakdown ── */}
       <div style={card}>
         <div style={cardHeader}>
           <span style={cardTitle}>Layer Detail</span>
@@ -95,25 +106,42 @@ export default function LayersTab({ liveData, watchlist, narrative }: Props) {
           </div>
           {chartLayers.map((layer, i) => {
             const color = layer.hexColor || LAYER_COLORS[i % LAYER_COLORS.length] || "var(--text-mid)";
+            const isCashRow = layer.name.toUpperCase() === "CASH";
             return (
-              <div key={`detail-${i}`} style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)", alignItems: "center" }}>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
-                {layer.name.toUpperCase() !== "CASH" && (
-                  <button
-                    title={`Scan ${layer.name}`}
-                    onClick={() => triggerWebhook("stellar-layer-scan", { layer: layer.name }, `Layer scan triggered for ${layer.name}. Check email.`)}
-                    style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s", justifySelf: "center" }}
-                  >
-                    🔍
-                  </button>
+              <div key={`detail-${i}`} style={{ padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
+                  {!isCashRow && (
+                    <button
+                      title={`Scan ${layer.name}`}
+                      onClick={() => triggerWebhook("stellar-layer-scan", { layer: layer.name }, `Layer scan triggered for ${layer.name}. Check email.`)}
+                      style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em", transition: "color 0.2s", justifySelf: "center" }}
+                    >
+                      🔍
+                    </button>
+                  )}
+                </div>
+                {!isCashRow && (
+                  <LayerProfileBreakdown layerName={layer.name} index={profileMix} layerCurrentPct={layer.current} />
                 )}
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* ── Substrate × Return Profile matrix ── */}
+      <ProfileMatrix
+        index={profileMix}
+        layerOrder={matrixLayerOrder}
+        onCellClick={
+          onNavigateToHoldings
+            ? (_layer: string, _profile: ProfileBreakdownKey, tickers: string[]) => onNavigateToHoldings(tickers)
+            : undefined
+        }
+      />
 
       {/* ── Gap Actions + Pre-IPO ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
