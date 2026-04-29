@@ -718,7 +718,86 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+          <button
+            onClick={() => setProfileSort((v) => !v)}
+            aria-pressed={profileSort}
+            style={{
+              ...selectStyle,
+              cursor: "pointer",
+              color: profileSort ? "var(--gold)" : "var(--text-mid)",
+              borderColor: profileSort ? "var(--gold)" : "var(--rim)",
+            }}
+            title="Sort each section by RETURN_PROFILE (Stellar → Generic → Reclass → Cycle → Hedge → Vehicle → Pre-Prod → empty)"
+          >
+            {profileSort ? "Sort: Profile ✓" : "Sort: Profile"}
+          </button>
         </div>
+      </div>
+
+      {/* ── Profile filter chips ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
+          padding: isMobile ? "0 14px 10px" : "0 18px 12px",
+          marginTop: -6,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.15em",
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+            marginRight: 4,
+          }}
+        >
+          Profile
+        </span>
+        <button
+          onClick={resetProfileFilter}
+          style={{
+            background: allProfilesSelected ? "rgba(201,168,76,0.12)" : "transparent",
+            border: `1px solid ${allProfilesSelected ? "var(--gold)" : "var(--rim)"}`,
+            color: allProfilesSelected ? "var(--gold)" : "var(--text-dim)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            padding: "3px 8px",
+            borderRadius: 2,
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          All
+        </button>
+        {PROFILE_FILTER_KEYS.map((k) => {
+          const active = profileFilter.has(k) && !allProfilesSelected;
+          return (
+            <button
+              key={k}
+              onClick={() => toggleProfile(k)}
+              style={{
+                background: active ? "rgba(201,168,76,0.12)" : "transparent",
+                border: `1px solid ${active ? "var(--gold)" : "var(--rim)"}`,
+                color: active ? "var(--gold)" : profileFilter.has(k) ? "var(--text-mid)" : "var(--text-dim)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                padding: "3px 8px",
+                borderRadius: 2,
+                cursor: "pointer",
+                opacity: profileFilter.has(k) ? 1 : 0.45,
+              }}
+              aria-pressed={profileFilter.has(k)}
+            >
+              {PROFILE_FILTER_LABEL[k]}
+            </button>
+          );
+        })}
       </div>
 
       {pauseActive && (
