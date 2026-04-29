@@ -33,6 +33,9 @@ export interface HoldingsUiState {
   actionFilter: string[];             // uppercase+underscore, empty = all
   factorFilter: string[];             // uppercase+underscore, empty = all
   layerFilter: Layer[];               // empty = all
+  /** Restrict to an explicit ticker set (case-insensitive). Empty = no restriction.
+   *  Used by deep-links (e.g. Layers tab matrix cell → "show me these holdings"). */
+  tickers: string[];
   search: string;
 }
 
@@ -44,6 +47,7 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
   actionFilter: [],
   factorFilter: [],
   layerFilter: [],
+  tickers: [],
   search: "",
 };
 
@@ -112,6 +116,14 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
         .filter((l): l is Layer => Boolean(l))
     : [];
 
+  const tickersRaw = params.get("tickers");
+  const tickers: string[] = tickersRaw
+    ? tickersRaw
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean)
+    : [];
+
   return {
     sortField,
     sortDir: dir,
@@ -120,6 +132,7 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
     actionFilter,
     factorFilter,
     layerFilter,
+    tickers,
     search: params.get("q") ?? "",
   };
 }
@@ -133,6 +146,7 @@ export function holdingsStateToParams(state: HoldingsUiState): URLSearchParams {
   if (state.actionFilter.length > 0) out.set("action", state.actionFilter.join(","));
   if (state.factorFilter.length > 0) out.set("factor", state.factorFilter.join(","));
   if (state.layerFilter.length > 0) out.set("layer", state.layerFilter.join(","));
+  if (state.tickers.length > 0) out.set("tickers", state.tickers.join(","));
   if (state.search.trim() !== "") out.set("q", state.search.trim());
   return out;
 }

@@ -968,8 +968,10 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   // ── Filter pipeline (CASH always passes through) ─────────────────────────
   const filteredHoldings = useMemo(() => {
     const q = state.search.trim().toLowerCase();
+    const tickerSet = state.tickers.length > 0 ? new Set(state.tickers.map((t) => t.toUpperCase())) : null;
     return allHoldings.filter((h) => {
       if (isCash(h)) return true;
+      if (tickerSet && !tickerSet.has(String(h.ticker ?? "").trim().toUpperCase())) return false;
       if (state.accountFilter.length > 0) {
         const a = normalizeAccount(h.account);
         if (!a || !state.accountFilter.includes(a)) return false;
@@ -993,7 +995,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       }
       return true;
     });
-  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.search]);
+  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.tickers, state.search]);
 
   const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
 
@@ -1048,6 +1050,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     state.actionFilter.length > 0 ||
     state.factorFilter.length > 0 ||
     state.layerFilter.length > 0 ||
+    state.tickers.length > 0 ||
     state.search.trim() !== "";
 
   return (
@@ -1067,6 +1070,48 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
           <PriceMapView allHoldings={allHoldings} priceData={priceData} />
         ) : (
           <>
+            {state.tickers.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 16px",
+                  background: "rgba(201,168,76,0.08)",
+                  borderBottom: "1px solid var(--rim)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  color: "var(--gold)",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                <span style={{ textTransform: "uppercase", fontWeight: 700 }}>
+                  Pinned · {state.tickers.length} ticker{state.tickers.length > 1 ? "s" : ""}
+                </span>
+                <span style={{ color: "var(--text-mid)", textTransform: "none", letterSpacing: 0 }}>
+                  {state.tickers.slice(0, 8).join(", ")}
+                  {state.tickers.length > 8 ? `, +${state.tickers.length - 8} more` : ""}
+                </span>
+                <button
+                  onClick={() => update({ tickers: [] })}
+                  style={{
+                    marginLeft: "auto",
+                    background: "transparent",
+                    border: "1px solid var(--rim)",
+                    color: "var(--text-dim)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    padding: "3px 8px",
+                    borderRadius: 2,
+                    cursor: "pointer",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <HoldingsHeader
               positionCount={positions.length}
               accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"] }}
