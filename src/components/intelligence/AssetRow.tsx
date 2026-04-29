@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 import type { AssetIntelligence, BuyDistance, HeldStatus, Layer, ScoreTrend } from "@/types/intelligence";
 import { AssetExpansion } from "./AssetExpansion";
 import { COL } from "./columns";
+import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
 import "./AssetRow.css";
 
 interface Props {
@@ -380,6 +381,27 @@ function DisruptionBadgeInline({ asset }: { asset: AssetIntelligence }) {
       letterSpacing: "0.1em", borderRadius: 2, whiteSpace: "nowrap",
       flexShrink: 0, background: c.bg, color: c.fg, border: `1px solid ${c.border}`,
     }}>{asset.disruption.status} {Math.round(asset.disruption.total)}</span>
+  );
+}
+
+// ── Profile chip pair (RETURN_PROFILE + optional COMPOUNDER subtype) ────────
+
+function ProfileChips({ asset, compact = false }: { asset: AssetIntelligence; compact?: boolean }) {
+  if (!asset.return_profile) return null;
+  const profileStyle = profileChipStyle(asset.return_profile);
+  const subtypeStyle = asset.compounder_subtype ? subtypeChipStyle(asset.compounder_subtype) : null;
+  const sizeOverride: CSSProperties = compact ? { fontSize: 8, padding: "1px 5px", letterSpacing: "0.08em" } : {};
+  return (
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+      <span style={{ ...profileStyle, ...sizeOverride }} title={`Return profile: ${asset.return_profile}`}>
+        {PROFILE_LABEL[asset.return_profile]}
+      </span>
+      {asset.compounder_subtype && subtypeStyle && (
+        <span style={{ ...subtypeStyle, ...sizeOverride }} title={`Subtype: ${asset.compounder_subtype}`}>
+          {SUBTYPE_LABEL[asset.compounder_subtype]}
+        </span>
+      )}
+    </div>
   );
 }
 
