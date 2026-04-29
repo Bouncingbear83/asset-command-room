@@ -968,8 +968,10 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   // ── Filter pipeline (CASH always passes through) ─────────────────────────
   const filteredHoldings = useMemo(() => {
     const q = state.search.trim().toLowerCase();
+    const tickerSet = state.tickers.length > 0 ? new Set(state.tickers.map((t) => t.toUpperCase())) : null;
     return allHoldings.filter((h) => {
       if (isCash(h)) return true;
+      if (tickerSet && !tickerSet.has(String(h.ticker ?? "").trim().toUpperCase())) return false;
       if (state.accountFilter.length > 0) {
         const a = normalizeAccount(h.account);
         if (!a || !state.accountFilter.includes(a)) return false;
@@ -993,7 +995,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       }
       return true;
     });
-  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.search]);
+  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.tickers, state.search]);
 
   const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
 
