@@ -58,7 +58,14 @@ const cardTitle: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSiz
 const emptyState: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", padding: "14px 0 4px" };
 
 
-export default function LayersTab({ liveData, watchlist, narrative }: Props) {
+export default function LayersTab({
+  liveData,
+  watchlist,
+  narrative,
+  holdings = [],
+  scores = [],
+  onNavigateToHoldings,
+}: Props) {
   const allLayers = liveData;
   const totalRow = allLayers.find((l) => l.name.toUpperCase() === "TOTAL");
   const cashRow = allLayers.find((l) => l.name.toUpperCase() === "CASH");

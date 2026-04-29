@@ -1,45 +1,64 @@
-## Watchlist coverage check — findings
+## Goal
 
-### Data fetch: ✅ all rows captured
+Wire up the new `LayerProfileBreakdown` props in `LayersTab`, then pass `holdings`, `scores`, and a navigation handler from `Index.tsx` so that the Layers tab actually renders profile-by-layer bars and the matrix can deep-link into Holdings filtered to the clicked tickers.
 
-- Google Sheet (gid `496665408`) currently has **55 data rows** (sheet rows 2–57, ending at "Nutrien Ltd / NTR").
-- `usePortfolioData` fetches `A1:N80`, which comfortably covers everything.
-- `parseWatchlist` keeps every row that has a name *or* ticker. No truncation occurs at the data layer.
+## Changes
 
-### Rendering: ❌ several rows silently disappear
+### 1. `src/components/LayersTab.tsx`
 
-The fetch is healthy, but `WatchlistTab.tsx` only renders rows that fall into one of these buckets: **In Zone, Approaching, Overdue Review, Waiting (by layer), Monitoring, Research, Pre-IPO**.
+Update the function signature to destructure the three new props that already exist on the `Props` interface:
 
-Status values currently on the sheet:
+```ts
+export default function LayersTab({
+  liveData,
+  watchlist,
+  narrative,
+  holdings = [],
+  scores = [],
+  onNavigateToHoldings,
+}: Props) {
+```
 
-| STATUS    | Count | Rendered? |
-|-----------|------:|-----------|
-| `WAIT`    | 31    | ✅ falls into Waiting/Approaching/In-Zone via zone logic |
-| `RESEARCH`| 8     | ✅ Research section |
-| `PRE-IPO` | 7     | ✅ Pre-IPO section |
-| `WATCH`   | 3     | ⚠️ only rendered if zone logic catches it; otherwise dropped from Waiting bucket only because Waiting filters by `zoneStatus === "WAITING"` (works) — actually OK |
-| `BUY`     | 3     | ❌ **dropped** — no bucket matches `BUY`; only appears if it happens to be IN_ZONE/APPROACHING |
-| `PRE_IPO` | 2     | ❌ **dropped** — bucket checks `"PRE-IPO"` (hyphen) not `"PRE_IPO"` (underscore) |
-| `ACTIVE`  | 1     | ❌ **dropped** — no bucket matches `ACTIVE` |
+No other changes needed — the body already references `holdings`, `scores`, and `onNavigateToHoldings`.
 
-That's up to **6 rows invisible** depending on their price/zone state, plus `WATCH` rows are at the mercy of zone classification.
+### 2. `src/pages/Index.tsx`
 
-There is also no `EXITED` status currently on the sheet, but the code intentionally hides it everywhere — worth confirming that's still desired.
+Update the `LayersTab` render line (currently line 173) to:
 
-### Fix plan
+- Pass `portfolio.sipp + portfolio.isa` (already-held positions in `LiveHolding` shape) as `holdings`.
+- Pass `portfolio.scores` as `scores`.
+- Pass an `onNavigateToHoldings` handler that:
+  1. Updates the URL search params to `?tab=holdings&tickers=TICK1,TICK2,...` using the existing `setSearchParams` / URL machinery.
+  2. Switches the active tab to `"Holdings"` via `setActive("Holdings")`.
 
-1. **Normalize PRE-IPO status** in the bucket filters so both `PRE-IPO` and `PRE_IPO` match (strip non-alphanumerics or accept both spellings). Updates: `preIpo` filter + the three `skipStatus` sets.
-2. **Add a `BUY` / `ACTIVE` "Active Buys" section** above In Zone (or fold them into In Zone) so those statuses surface explicitly. These are the highest-priority statuses on the sheet and currently can vanish.
-3. **Add a fallback "Other" / "Uncategorised" section** at the bottom that renders any row not picked up by an existing bucket. This guarantees all 55 rows are always visible and prevents future status typos from silently hiding rows.
-4. **Update header counts** to include the new sections so totals reconcile to `derived.length`.
-5. **Add a dev assertion in `WatchlistTab`** (console.warn in dev only) when `rendered.length !== derived.length`, so future drift is caught early.
+Concretely:
 
-No data layer / Supabase changes needed — purely UI bucketing in `src/components/WatchlistTab.tsx`.
+```tsx
+{active === "Layers" && (
+  <LayersTab
+    liveData={portfolio.layers}
+    watchlist={portfolio.watchlist}
+    narrative={portfolio.narrativeData}
+    holdings={[...portfolio.sipp, ...portfolio.isa]}
+    scores={portfolio.scores}
+    onNavigateToHoldings={(tickers) => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("tab", "holdings");
+      if (tickers.length > 0) params.set("tickers", tickers.join(","));
+      else params.delete("tickers");
+      window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
+      setActive("Holdings");
+    }}
+  />
+)}
+```
 
-### Files touched
+The existing `tab → URL` sync effect in `Index.tsx` will then re-normalise the URL on the next tick, but the `tickers` param survives because the Holdings tab reads it on mount via `holdingsStateFromParams(searchParams)`.
 
-- `src/components/WatchlistTab.tsx` — bucket filters, new Active Buys + Uncategorised sections, header counts, dev warning.
+JISA holdings are intentionally excluded from the layer profile mix (consistent with the existing Layers tab using `portfolio.layers`, which is sourced from the main LAYERS sheet, not JISA).
 
-### Out of scope
+## Out of scope
 
-- Cleaning up the sheet itself (e.g. converting `PRE_IPO` → `PRE-IPO`, deciding whether `ACTIVE` should be retired). Happy to flag these to you separately once the UI no longer hides them.
+- No schema changes.
+- No new doctrine bands or per-layer profile targets.
+- No edits to `LayerProfileBreakdown.tsx`, `HoldingsTab.tsx`, or `url-state-holdings.ts` (already done in the prior step).
