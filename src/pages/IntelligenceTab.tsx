@@ -310,11 +310,14 @@ export default function IntelligenceTab() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: "12px 0" }}>
+      <ProfileMixWidget assets={data} />
+
       <IntelligenceFilters
         assets={data}
         total={data.length}
         statusFilter={state.statusFilter}
         layerFilter={state.layerFilter}
+        profileFilter={state.profileFilter}
         search={state.search}
         groupBy={state.groupBy}
         sortField={state.sortField}
@@ -323,6 +326,8 @@ export default function IntelligenceTab() {
         onResetStatus={resetStatus}
         onToggleLayer={toggleLayer}
         onResetLayer={resetLayer}
+        onToggleProfile={toggleProfile}
+        onResetProfile={resetProfile}
         onSearchChange={(v) => update({ search: v })}
         onGroupChange={(g) => update({ groupBy: g })}
         onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}
