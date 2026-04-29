@@ -348,9 +348,9 @@ export function ProfileLegend() {
               width: 10,
               height: 10,
               borderRadius: "50%",
-              background: fillFor(k),
-              backgroundSize: backgroundSizeFor(k),
-              backgroundColor: k === "GENERIC_COMPOUNDER" ? "rgba(125,164,216,0.2)" : undefined,
+              backgroundColor: segmentBackgroundColor(k),
+              backgroundImage: segmentBackgroundImage(k),
+              backgroundSize: segmentBackgroundSize(k),
               border: "1px solid rgba(255,255,255,0.08)",
             }}
           />
