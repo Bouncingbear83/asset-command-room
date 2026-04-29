@@ -287,9 +287,9 @@ export function LayerProfileBreakdown({ layerName, index, layerCurrentPct }: Bar
               style={{
                 width: 8,
                 height: 8,
-                background: fillFor(key),
-                backgroundSize: backgroundSizeFor(key),
-                backgroundColor: key === "GENERIC_COMPOUNDER" ? "rgba(125,164,216,0.18)" : undefined,
+                backgroundColor: segmentBackgroundColor(key),
+                backgroundImage: segmentBackgroundImage(key),
+                backgroundSize: segmentBackgroundSize(key),
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             />
