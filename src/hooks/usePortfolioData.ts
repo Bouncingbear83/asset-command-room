@@ -427,6 +427,8 @@ function parseScores(rows: Record<string, any>[]) {
       heldStatus: String(findCol(row, "Held_Status", "held_status", "HELD_STATUS") ?? ""),
       reclassStatus: String(findCol(row, "RECLASS_STATUS", "reclass_status", "Reclass_Status") ?? ""),
       thesisAgeMonths: parseNum(findCol(row, "THESIS_AGE_MONTHS", "thesis_age_months", "Thesis_Age_Months")),
+      returnProfile: String(findCol(row, "RETURN_PROFILE", "return_profile", "Return_Profile") ?? ""),
+      compounderSubtype: String(findCol(row, "COMPOUNDER_SUBTYPE", "compounder_subtype", "Compounder_Subtype") ?? ""),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 }
