@@ -137,6 +137,8 @@ function normalizeCompounderSubtype(raw: unknown): CompounderSubtype | null {
   if (upper === "GENERIC_COMPOUNDER" || upper === "GENERIC") return "GENERIC_COMPOUNDER";
   return null;
 }
+
+function deriveDisruptionStatus(rawStatus: unknown, total: number): DisruptionStatus {
   const s = String(rawStatus ?? "").trim().toUpperCase();
   if (s === "GREEN" || s === "AMBER" || s === "RED") return s as DisruptionStatus;
   if (total >= 70) return "GREEN";
