@@ -10,6 +10,13 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
+import type { ReturnProfile, CompounderSubtype } from "@/types/intelligence";
+import {
+  PROFILE_LABEL,
+  SUBTYPE_LABEL,
+  profileChipStyle,
+  subtypeChipStyle,
+} from "@/components/intelligence/profileChips";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
@@ -25,6 +32,33 @@ export interface DerivedRow {
   isOverdue: boolean;
   trajectory: WatchlistTrajectory | null;
   score: WatchlistScoreEntry | null;
+  /** Doctrine v2.4 RETURN_PROFILE; null when blank (REJECTED/EXITED). */
+  return_profile: ReturnProfile | null;
+  /** Sub-type (only when return_profile === "COMPOUNDER"). */
+  compounder_subtype: CompounderSubtype | null;
+}
+
+/** Tiny inline chip pair used on watchlist rows. */
+export function ProfileChip({
+  profile,
+  subtype,
+}: {
+  profile: ReturnProfile | null;
+  subtype?: CompounderSubtype | null;
+}) {
+  if (!profile) return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+      <span style={profileChipStyle(profile)} title={`Return profile: ${profile}`}>
+        {PROFILE_LABEL[profile]}
+      </span>
+      {subtype && (
+        <span style={subtypeChipStyle(subtype)} title={`Subtype: ${subtype}`}>
+          {SUBTYPE_LABEL[subtype]}
+        </span>
+      )}
+    </span>
+  );
 }
 
 interface Props {
@@ -305,6 +339,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             {item.name}
           </span>
           <LayerChip layer={item.layer} />
+          <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
             Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
           </span>
@@ -428,6 +463,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             </span>
           );
         })()}
+        <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {item.name}
         </span>

@@ -1,16 +1,101 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { LiveWatchItem, LiveMacroState } from "@/hooks/usePortfolioData";
+import { LiveWatchItem, LiveMacroState, LiveScore } from "@/hooks/usePortfolioData";
 import { parseEntryTarget } from "@/lib/parseEntryTarget";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
-import { WatchlistCard, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
+import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+import {
+  RETURN_PROFILE_VALUES,
+  type ReturnProfile,
+  type CompounderSubtype,
+} from "@/types/intelligence";
+import { PROFILE_LABEL } from "@/components/intelligence/profileChips";
 
 interface Props {
   liveData: LiveWatchItem[];
   macroState: LiveMacroState;
+  /** SCORES sheet rows — used to attach RETURN_PROFILE / COMPOUNDER_SUBTYPE to watchlist rows. */
+  scores?: LiveScore[];
+}
+
+// ── Profile filter keys (compounder split into Stellar / Generic, matches Intelligence tab) ──
+type ProfileFilterKey =
+  | "STELLAR_COMPOUNDER"
+  | "GENERIC_COMPOUNDER"
+  | "RECLASSIFICATION"
+  | "CYCLE"
+  | "HEDGE"
+  | "VEHICLE"
+  | "PRE_PRODUCTION";
+
+const PROFILE_FILTER_KEYS: ProfileFilterKey[] = [
+  "STELLAR_COMPOUNDER",
+  "GENERIC_COMPOUNDER",
+  "RECLASSIFICATION",
+  "CYCLE",
+  "HEDGE",
+  "VEHICLE",
+  "PRE_PRODUCTION",
+];
+
+const PROFILE_FILTER_LABEL: Record<ProfileFilterKey, string> = {
+  STELLAR_COMPOUNDER: "Stellar Compounder",
+  GENERIC_COMPOUNDER: "Generic Compounder",
+  RECLASSIFICATION: PROFILE_LABEL.RECLASSIFICATION,
+  CYCLE: PROFILE_LABEL.CYCLE,
+  HEDGE: PROFILE_LABEL.HEDGE,
+  VEHICLE: PROFILE_LABEL.VEHICLE,
+  PRE_PRODUCTION: PROFILE_LABEL.PRE_PRODUCTION,
+};
+
+function profileKeyFor(p: ReturnProfile | null, sub: CompounderSubtype | null): ProfileFilterKey | null {
+  if (!p) return null;
+  if (p === "COMPOUNDER") {
+    if (sub === "STELLAR_COMPOUNDER") return "STELLAR_COMPOUNDER";
+    if (sub === "GENERIC_COMPOUNDER") return "GENERIC_COMPOUNDER";
+    return null;
+  }
+  if (p === "CASH") return null;
+  return p as ProfileFilterKey;
+}
+
+// Sort rank — Stellar first then Generic, then doctrine order, then empty.
+const PROFILE_SORT_RANK: Record<string, number> = {
+  STELLAR_COMPOUNDER: 0,
+  GENERIC_COMPOUNDER: 1,
+  RECLASSIFICATION: 2,
+  CYCLE: 3,
+  HEDGE: 4,
+  VEHICLE: 5,
+  PRE_PRODUCTION: 6,
+};
+function profileSortRank(p: ReturnProfile | null, sub: CompounderSubtype | null): number {
+  if (!p) return 99;
+  if (p === "COMPOUNDER") {
+    if (sub === "STELLAR_COMPOUNDER") return 0;
+    if (sub === "GENERIC_COMPOUNDER") return 1;
+    return 1.5;
+  }
+  return PROFILE_SORT_RANK[p] ?? 99;
+}
+
+function stripSuffix(t: string): string {
+  return t.replace(/[.\-][A-Z0-9]{1,3}$/i, "");
+}
+
+function normalizeProfile(raw: unknown): ReturnProfile | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (!upper) return null;
+  return (RETURN_PROFILE_VALUES as string[]).includes(upper) ? (upper as ReturnProfile) : null;
+}
+function normalizeSubtype(raw: unknown): CompounderSubtype | null {
+  const upper = String(raw ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (upper === "STELLAR_COMPOUNDER" || upper === "STELLAR") return "STELLAR_COMPOUNDER";
+  if (upper === "GENERIC_COMPOUNDER" || upper === "GENERIC") return "GENERIC_COMPOUNDER";
+  return null;
 }
 
 const OVERDUE_DAYS = 14;
@@ -195,11 +280,15 @@ function SkeletonRow() {
 
 // ── Page ──
 
-export default function WatchlistTab({ liveData, macroState }: Props) {
+export default function WatchlistTab({ liveData, macroState, scores = [] }: Props) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [layerFilter, setLayerFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [profileFilter, setProfileFilter] = useState<Set<ProfileFilterKey>>(
+    () => new Set(PROFILE_FILTER_KEYS),
+  );
+  const [profileSort, setProfileSort] = useState(false);
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
@@ -219,6 +308,22 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
   const { byTicker: traj, loading: trajLoading } = useWatchlistHistory(allTickers);
   const { byTicker: scoresByTicker } = useWatchlistScores(allTickers);
 
+  // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
+  const profileByTicker = useMemo(() => {
+    const map = new Map<string, { profile: ReturnProfile | null; subtype: CompounderSubtype | null }>();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
+      const profile = normalizeProfile(s.returnProfile);
+      const subtype = profile === "COMPOUNDER" ? normalizeSubtype(s.compounderSubtype) : null;
+      const entry = { profile, subtype };
+      map.set(t, entry);
+      const stripped = stripSuffix(t);
+      if (stripped && stripped !== t && !map.has(stripped)) map.set(stripped, entry);
+    }
+    return map;
+  }, [scores]);
+
   // Layer + status filter options
   const layerOptions = useMemo(
     () => Array.from(new Set(liveData.map((d) => d.layer).filter(Boolean))).sort(),
@@ -235,6 +340,8 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
       const ticker = item.ticker?.trim().toUpperCase() ?? "";
       const trajectory = traj[ticker] ?? null;
       const score = scoresByTicker[ticker] ?? null;
+      const profileEntry =
+        profileByTicker.get(ticker) ?? profileByTicker.get(stripSuffix(ticker)) ?? null;
 
       const zone = parseEntryTarget(item.entry, item.triggerPriceNumeric);
 
@@ -276,23 +383,51 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
         isOverdue,
         trajectory,
         score,
+        return_profile: profileEntry?.profile ?? null,
+        compounder_subtype: profileEntry?.subtype ?? null,
       };
     });
-  }, [liveData, traj, scoresByTicker]);
+  }, [liveData, traj, scoresByTicker, profileByTicker]);
 
   // Apply search + filter chips
+  const allProfilesSelected = profileFilter.size === PROFILE_FILTER_KEYS.length;
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return derived.filter((r) => {
       if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
       if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
       if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      // Profile filter — only restrict rows that HAVE a profile. Rows without profile
+      // (REJECTED/EXITED, or any unscored row) always pass so the filter only narrows
+      // the universe of profile-tagged signals it's intended to control.
+      if (!allProfilesSelected) {
+        const key = profileKeyFor(r.return_profile, r.compounder_subtype);
+        if (key && !profileFilter.has(key)) return false;
+      }
       return true;
     });
-  }, [derived, search, layerFilter, statusFilter]);
+  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected]);
+
+  const toggleProfile = (k: ProfileFilterKey) => {
+    setProfileFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      // Never allow zero-selection — empty == "all" semantically. Restore all.
+      if (next.size === 0) return new Set(PROFILE_FILTER_KEYS);
+      return next;
+    });
+  };
+  const resetProfileFilter = () => setProfileFilter(new Set(PROFILE_FILTER_KEYS));
 
   // ── Bucket rows ──
   // Active Buys: explicit BUY / ACTIVE statuses surface above zone-derived buckets.
+  // When Profile sort is active, this comparator runs before the bucket's
+  // existing tie-breaker so within each bucket profile order wins.
+  const byProfileFirst = (a: DerivedRow, b: DerivedRow): number =>
+    profileSortRank(a.return_profile, a.compounder_subtype) -
+    profileSortRank(b.return_profile, b.compounder_subtype);
+
   const activeBuys = useMemo(
     () =>
       filtered
@@ -300,28 +435,39 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
           const s = normStatus(r.item.status);
           return s === BUY || s === ACTIVE;
         })
-        .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
-    [filtered],
+        .sort((a, b) => {
+          if (profileSort) {
+            const p = byProfileFirst(a, b);
+            if (p !== 0) return p;
+          }
+          return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
+        }),
+    [filtered, profileSort],
   );
   const activeBuyIds = useMemo(
     () => new Set(activeBuys.map((r) => r.item.ticker)),
     [activeBuys],
   );
 
-  const inZone = useMemo(
-    () =>
-      filtered.filter(
-        (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
-      ),
-    [filtered, activeBuyIds],
-  );
+  const inZone = useMemo(() => {
+    const rows = filtered.filter(
+      (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
+    );
+    return profileSort ? [...rows].sort(byProfileFirst) : rows;
+  }, [filtered, activeBuyIds, profileSort]);
 
   const approaching = useMemo(
     () =>
       filtered
         .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker))
-        .sort((a, b) => (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)),
-    [filtered, activeBuyIds],
+        .sort((a, b) => {
+          if (profileSort) {
+            const p = byProfileFirst(a, b);
+            if (p !== 0) return p;
+          }
+          return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
+        }),
+    [filtered, activeBuyIds, profileSort],
   );
 
   // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
@@ -329,8 +475,14 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
     const skipStatus = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
     return filtered
       .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
-      .sort((a, b) => (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0));
-  }, [filtered]);
+      .sort((a, b) => {
+        if (profileSort) {
+          const p = byProfileFirst(a, b);
+          if (p !== 0) return p;
+        }
+        return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
+      });
+  }, [filtered, profileSort]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
@@ -346,13 +498,17 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
           !skipStatus.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
+        if (profileSort) {
+          const p = byProfileFirst(a, b);
+          if (p !== 0) return p;
+        }
         // Score desc if both have scores; otherwise gap asc
         const sa = a.score?.total_score ?? null;
         const sb = b.score?.total_score ?? null;
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds]);
+  }, [filtered, overdueIds, activeBuyIds, profileSort]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
@@ -562,7 +718,86 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+          <button
+            onClick={() => setProfileSort((v) => !v)}
+            aria-pressed={profileSort}
+            style={{
+              ...selectStyle,
+              cursor: "pointer",
+              color: profileSort ? "var(--gold)" : "var(--text-mid)",
+              borderColor: profileSort ? "var(--gold)" : "var(--rim)",
+            }}
+            title="Sort each section by RETURN_PROFILE (Stellar → Generic → Reclass → Cycle → Hedge → Vehicle → Pre-Prod → empty)"
+          >
+            {profileSort ? "Sort: Profile ✓" : "Sort: Profile"}
+          </button>
         </div>
+      </div>
+
+      {/* ── Profile filter chips ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
+          padding: isMobile ? "0 14px 10px" : "0 18px 12px",
+          marginTop: -6,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.15em",
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+            marginRight: 4,
+          }}
+        >
+          Profile
+        </span>
+        <button
+          onClick={resetProfileFilter}
+          style={{
+            background: allProfilesSelected ? "rgba(201,168,76,0.12)" : "transparent",
+            border: `1px solid ${allProfilesSelected ? "var(--gold)" : "var(--rim)"}`,
+            color: allProfilesSelected ? "var(--gold)" : "var(--text-dim)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            padding: "3px 8px",
+            borderRadius: 2,
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+        >
+          All
+        </button>
+        {PROFILE_FILTER_KEYS.map((k) => {
+          const active = profileFilter.has(k) && !allProfilesSelected;
+          return (
+            <button
+              key={k}
+              onClick={() => toggleProfile(k)}
+              style={{
+                background: active ? "rgba(201,168,76,0.12)" : "transparent",
+                border: `1px solid ${active ? "var(--gold)" : "var(--rim)"}`,
+                color: active ? "var(--gold)" : profileFilter.has(k) ? "var(--text-mid)" : "var(--text-dim)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                padding: "3px 8px",
+                borderRadius: 2,
+                cursor: "pointer",
+                opacity: profileFilter.has(k) ? 1 : 0.45,
+              }}
+              aria-pressed={profileFilter.has(k)}
+            >
+              {PROFILE_FILTER_LABEL[k]}
+            </button>
+          );
+        })}
       </div>
 
       {pauseActive && (
@@ -726,6 +961,7 @@ export default function WatchlistTab({ liveData, macroState }: Props) {
                 >
                   {r.item.layer}
                 </span>
+                <ProfileChip profile={r.return_profile} subtype={r.compounder_subtype} />
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
