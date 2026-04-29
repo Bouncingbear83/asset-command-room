@@ -12,13 +12,16 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
-import type { GroupBy, SortField } from "@/lib/url-state";
+import type { GroupBy, SortField, ProfileFilterKey } from "@/lib/url-state";
+import { PROFILE_FILTER_KEYS } from "@/lib/url-state";
+import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
 
 interface Props {
   assets: AssetIntelligence[];
   total: number;
   statusFilter: HeldStatus[];
   layerFilter: Layer[];
+  profileFilter: ProfileFilterKey[];
   search: string;
   groupBy: GroupBy;
   sortField: SortField;
@@ -27,6 +30,8 @@ interface Props {
   onResetStatus: () => void;
   onToggleLayer: (l: Layer) => void;
   onResetLayer: () => void;
+  onToggleProfile: (p: ProfileFilterKey) => void;
+  onResetProfile: () => void;
   onSearchChange: (v: string) => void;
   onGroupChange: (g: GroupBy) => void;
   onSortChange: (field: SortField, dir: "asc" | "desc") => void;
