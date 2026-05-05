@@ -623,6 +623,9 @@ export default function CommandTab() {
         {/* Review Queue Banner (full detail, collapsed by default) */}
         <ReviewQueue holdings={holdings} compact />
 
+        {/* Narrative Signals — realtime intel from ingest pipeline */}
+        <NarrativeSignalsCard />
+
         {/* Latest Research Cards */}
         {recentResearch.length > 0 && (
           <div style={card}>
