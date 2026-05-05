@@ -22,8 +22,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // TEMP: auth bypassed for smoke test
-    if (false && authHeader !== `Bearer ${ingestSecret}`) {
+    if (authHeader !== `Bearer ${ingestSecret}`) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: jsonHeaders },
