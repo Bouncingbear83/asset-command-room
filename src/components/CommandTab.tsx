@@ -5,6 +5,7 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import ActionInbox from "@/components/ActionInbox";
+import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
