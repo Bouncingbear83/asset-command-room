@@ -449,6 +449,72 @@ export type Database = {
         }
         Relationships: []
       }
+      narrative_signals: {
+        Row: {
+          created_at: string
+          headline: string | null
+          id: string
+          layer: string | null
+          matched_keywords: string | null
+          name: string
+          published_date: string | null
+          review_note: string | null
+          review_status: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          run_id: string
+          run_started_at: string
+          signal_class: string
+          snippet: string | null
+          source_table: string
+          strength: string
+          ticker: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          headline?: string | null
+          id?: string
+          layer?: string | null
+          matched_keywords?: string | null
+          name: string
+          published_date?: string | null
+          review_note?: string | null
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id: string
+          run_started_at: string
+          signal_class: string
+          snippet?: string | null
+          source_table: string
+          strength: string
+          ticker: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          headline?: string | null
+          id?: string
+          layer?: string | null
+          matched_keywords?: string | null
+          name?: string
+          published_date?: string | null
+          review_note?: string | null
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id?: string
+          run_started_at?: string
+          signal_class?: string
+          snippet?: string | null
+          source_table?: string
+          strength?: string
+          ticker?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       score_rationales: {
         Row: {
           action: string
