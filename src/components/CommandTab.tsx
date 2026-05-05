@@ -5,6 +5,7 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import ActionInbox from "@/components/ActionInbox";
+import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
@@ -621,6 +622,9 @@ export default function CommandTab() {
 
         {/* Review Queue Banner (full detail, collapsed by default) */}
         <ReviewQueue holdings={holdings} compact />
+
+        {/* Narrative Signals — realtime intel from ingest pipeline */}
+        <NarrativeSignalsCard />
 
         {/* Latest Research Cards */}
         {recentResearch.length > 0 && (
