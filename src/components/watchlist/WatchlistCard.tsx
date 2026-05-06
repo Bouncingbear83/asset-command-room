@@ -17,6 +17,7 @@ import {
   profileChipStyle,
   subtypeChipStyle,
 } from "@/components/intelligence/profileChips";
+import { DriverChip, StackBadge } from "@/components/holdings/DriverChip";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
