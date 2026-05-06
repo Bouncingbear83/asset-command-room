@@ -130,6 +130,87 @@ export default function DriversTab({ holdings }: Props) {
 
   const maxBarPct = Math.max(BREACH_PCT + 5, ...sortedGroups.map((g) => rowsByGroup.get(g)?.current_pct ?? 0));
 
+  // Heatmap: derive layer order dynamically from holdings, with a preferred order overlay.
+  const PREFERRED_LAYER_ORDER = ["Anchor", "Core", "Satellite", "Spec", "Hedge", "Cash"];
+  const layerOrder = useMemo(() => {
+    const present = new Set<string>();
+    for (const h of holdings) {
+      const l = String((h as any).layer ?? "").trim();
+      if (l) present.add(l);
+    }
+    const preferred = PREFERRED_LAYER_ORDER.filter((l) => present.has(l));
+    const extras = Array.from(present).filter((l) => !PREFERRED_LAYER_ORDER.includes(l)).sort();
+    return [...preferred, ...extras];
+  }, [holdings]);
+
+  // Matrix: { [driver]: { [layer]: { aum: number, count: number } } }
+  const matrix = useMemo(() => {
+    const m = new Map<string, Map<string, { aum: number; count: number }>>();
+    for (const h of holdings) {
+      const g = String((h as any).factor_group ?? "").trim().toUpperCase();
+      const l = String((h as any).layer ?? "").trim();
+      if (!g || !l) continue;
+      if (!m.has(g)) m.set(g, new Map());
+      const lm = m.get(g)!;
+      const cell = lm.get(l) ?? { aum: 0, count: 0 };
+      cell.aum += Number((h as any).aum_pct ?? 0);
+      cell.count += 1;
+      lm.set(l, cell);
+    }
+    return m;
+  }, [holdings]);
+
+  // Cap-tightening: per-driver drawdown series + portfolio drawdown proxy
+  const tightening = useMemo(() => {
+    if (distinctDays < 14) return null;
+    const dates = trendDates;
+    const groups = Array.from(trendByGroup.keys());
+    const ddByGroup = new Map<string, number[]>();
+    for (const g of groups) {
+      const series = trendByGroup.get(g)!.slice().sort((a, b) => a.date.localeCompare(b.date));
+      const byDate = new Map(series.map((p) => [p.date, p.pct]));
+      let peak = -Infinity;
+      const dd: number[] = [];
+      for (const d of dates) {
+        const v = byDate.get(d);
+        if (v == null) { dd.push(NaN); continue; }
+        peak = Math.max(peak, v);
+        dd.push(peak > 0 ? ((peak - v) / peak) * 100 : 0); // pp
+      }
+      ddByGroup.set(g, dd);
+    }
+    // Portfolio drawdown proxy: weight per-driver dd by latest current_pct
+    const totalLatest = Array.from(rowsByGroup.values()).reduce((s, r) => s + (r.current_pct || 0), 0) || 1;
+    const portfolioDd: number[] = dates.map((_, i) => {
+      let acc = 0, wsum = 0;
+      for (const g of groups) {
+        const v = ddByGroup.get(g)![i];
+        if (!isFinite(v)) continue;
+        const w = (rowsByGroup.get(g)?.current_pct ?? 0) / totalLatest;
+        acc += v * w;
+        wsum += w;
+      }
+      return wsum > 0 ? acc / wsum : 0;
+    });
+    const flagged: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number }[] = [];
+    const allRows: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number; isFlagged: boolean }[] = [];
+    const lastIdx = dates.length - 1;
+    for (const g of groups) {
+      const driverDd = ddByGroup.get(g)![lastIdx] ?? 0;
+      const pDd = portfolioDd[lastIdx] ?? 0;
+      const latest = rowsByGroup.get(g)?.current_pct ?? 0;
+      const delta = driverDd - pDd;
+      const isFlagged = delta >= TIGHTEN_DELTA_PP && latest >= TIGHTEN_MIN_LATEST_PCT;
+      const row = { group: g, driverDd, portfolioDd: pDd, delta, latest, isFlagged };
+      allRows.push(row);
+      if (isFlagged) flagged.push(row);
+    }
+    allRows.sort((a, b) => b.delta - a.delta);
+    return { dates, groups, ddByGroup, portfolioDd, allRows, flagged };
+  }, [distinctDays, trendDates, trendByGroup, rowsByGroup]);
+
+  const [heatMetric, setHeatMetric] = useState<"aum" | "count">("aum");
+
   if (loading) {
     return (
       <div style={{ padding: "24px var(--app-px, 40px)", ...monoSm }}>Loading driver concentration…</div>
