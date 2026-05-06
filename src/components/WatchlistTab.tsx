@@ -13,6 +13,11 @@ import {
   type CompounderSubtype,
 } from "@/types/intelligence";
 import { PROFILE_LABEL } from "@/components/intelligence/profileChips";
+import {
+  FACTOR_GROUP_VALUES,
+  STACK_LAYER_VALUES,
+  stackLayerOrder,
+} from "@/components/holdings/DriverChip";
 
 interface Props {
   liveData: LiveWatchItem[];
