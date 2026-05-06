@@ -104,6 +104,8 @@ function groupAssets(sorted: AssetIntelligence[], groupBy: GroupBy): GroupBucket
     if (groupBy === "layer") return a.layer ?? "Unclassified";
     if (groupBy === "status") return a.held_status;
     if (groupBy === "tier") return a.tier ?? "Untiered";
+    if (groupBy === "driver") return a.factor_group ?? "Undriven";
+    if (groupBy === "lband") return a.substrate_level ?? "Unrated";
     return "";
   };
 
@@ -118,7 +120,10 @@ function groupAssets(sorted: AssetIntelligence[], groupBy: GroupBy): GroupBucket
   let order: string[];
   if (groupBy === "layer") order = LAYER_ORDER as string[];
   else if (groupBy === "status") order = STATUS_ORDER as string[];
-  else order = TIER_ORDER as string[];
+  else if (groupBy === "tier") order = TIER_ORDER as string[];
+  else if (groupBy === "driver") order = [...FACTOR_GROUP_VALUES, "Undriven"];
+  else if (groupBy === "lband") order = ["L4", "L3", "L2", "L1", "Unrated"];
+  else order = [];
 
   const buckets: GroupBucket[] = [];
   for (const k of order) {
