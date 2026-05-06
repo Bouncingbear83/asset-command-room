@@ -70,6 +70,24 @@ function compareAssets(a: AssetIntelligence, b: AssetIntelligence, field: SortFi
       if (!Number.isFinite(br)) return -1;
       return sign * (ar - br);
     }
+    case "lband": {
+      // L4 highest. Null sorts to bottom.
+      const rank = (s: AssetIntelligence) => {
+        if (!s.substrate_level) return -1;
+        return Number(s.substrate_level.slice(1)); // L1 → 1, L4 → 4
+      };
+      const ar = rank(a);
+      const br = rank(b);
+      if (ar < 0 && br < 0) return 0;
+      if (ar < 0) return 1;
+      if (br < 0) return -1;
+      return sign * (ar - br);
+    }
+    case "stack": {
+      const ar = a.stack_layer ? stackLayerOrder(a.stack_layer) : 999;
+      const br = b.stack_layer ? stackLayerOrder(b.stack_layer) : 999;
+      return sign * (ar - br);
+    }
   }
 }
 
