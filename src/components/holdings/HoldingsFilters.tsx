@@ -78,6 +78,8 @@ const SORT_OPTIONS: MobileSortOption<HoldingsSortField>[] = [
   { field: "annReturn", dir: "desc", label: "Ann. return (high → low)" },
   { field: "ticker",    dir: "asc",  label: "Ticker (A → Z)" },
   { field: "action",    dir: "asc",  label: "Action" },
+  { field: "driver",    dir: "asc",  label: "Driver" },
+  { field: "stack",     dir: "asc",  label: "Stack" },
 ];
 
 const wrapDesktop: CSSProperties = {
