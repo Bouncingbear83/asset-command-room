@@ -238,6 +238,50 @@ export function IntelligenceFilters({
           );
         })}
       </ChipGroup>
+
+      {/* Row 5: L-band chips (v2.5) */}
+      <ChipGroup ariaLabel="Filter by L-band substrate level">
+        <Chip label="All L-bands" active={allLbandActive} onClick={onResetLband} ariaLabel="Reset L-band filters" />
+        {SUBSTRATE_LEVEL_VALUES.map((l) => {
+          const color = LBAND_COLORS[l];
+          const swatch = (
+            <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, marginRight: 2,
+              background: `color-mix(in srgb, ${color} 35%, transparent)`, border: `1px solid ${color}` }} aria-hidden />
+          );
+          return (
+            <Chip key={l} label={l} count={lbandCounts[l]}
+              active={!allLbandActive && lbandFilter.includes(l)}
+              onClick={() => onToggleLband(l)} icon={swatch} />
+          );
+        })}
+      </ChipGroup>
+
+      {/* Row 6: Stack layer chips */}
+      <ChipGroup ariaLabel="Filter by stack layer">
+        <Chip label="All Stack" active={allStackActive} onClick={onResetStack} ariaLabel="Reset stack filters" />
+        {STACK_LAYER_VALUES.filter((s) => s !== "N/A").map((s) => (
+          <Chip key={s} label={s.replace(/_/g, " ")} count={stackCounts.get(s) ?? 0}
+            active={!allStackActive && stackFilter.includes(s)}
+            onClick={() => onToggleStack(s)} />
+        ))}
+      </ChipGroup>
+
+      {/* Row 7: Driver (FACTOR_GROUP) chips */}
+      <ChipGroup ariaLabel="Filter by driver">
+        <Chip label="All Drivers" active={allDriverActive} onClick={onResetDriver} ariaLabel="Reset driver filters" />
+        {FACTOR_GROUP_VALUES.map((d) => {
+          const color = FACTOR_GROUP_COLORS[d];
+          const swatch = (
+            <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, marginRight: 2,
+              background: `color-mix(in srgb, ${color} 30%, transparent)`, border: `1px solid ${color}` }} aria-hidden />
+          );
+          return (
+            <Chip key={d} label={d.replace(/_/g, " ")} count={driverCounts.get(d) ?? 0}
+              active={!allDriverActive && driverFilter.includes(d)}
+              onClick={() => onToggleDriver(d)} icon={swatch} />
+          );
+        })}
+      </ChipGroup>
     </>
   );
 
