@@ -444,6 +444,24 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     profileSortRank(a.return_profile, a.compounder_subtype) -
     profileSortRank(b.return_profile, b.compounder_subtype);
 
+  const byExtraSort = (a: DerivedRow, b: DerivedRow): number => {
+    if (extraSort === "driver") {
+      return String(a.item.factor_group ?? "").localeCompare(String(b.item.factor_group ?? ""));
+    }
+    if (extraSort === "stack") {
+      return stackLayerOrder(a.item.stack_layer) - stackLayerOrder(b.item.stack_layer);
+    }
+    return 0;
+  };
+
+  const applySorts = (a: DerivedRow, b: DerivedRow): number => {
+    if (profileSort) {
+      const p = byProfileFirst(a, b);
+      if (p !== 0) return p;
+    }
+    return byExtraSort(a, b);
+  };
+
   const activeBuys = useMemo(
     () =>
       filtered
