@@ -405,6 +405,14 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
       if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
       if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      if (driverFilter.size > 0) {
+        const fg = String(r.item.factor_group ?? "").trim().toUpperCase();
+        if (!driverFilter.has(fg)) return false;
+      }
+      if (stackFilter.size > 0) {
+        const sl = String(r.item.stack_layer ?? "").trim().toUpperCase();
+        if (!stackFilter.has(sl)) return false;
+      }
       // Profile filter — only restrict rows that HAVE a profile. Rows without profile
       // (REJECTED/EXITED, or any unscored row) always pass so the filter only narrows
       // the universe of profile-tagged signals it's intended to control.
@@ -414,7 +422,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       }
       return true;
     });
-  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected]);
+  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected, driverFilter, stackFilter]);
 
   const toggleProfile = (k: ProfileFilterKey) => {
     setProfileFilter((prev) => {
