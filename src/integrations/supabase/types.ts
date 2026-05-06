@@ -221,6 +221,36 @@ export type Database = {
         }
         Relationships: []
       }
+      factor_group_weights: {
+        Row: {
+          created_at: string | null
+          current_pct: number | null
+          factor_group: string
+          id: number
+          mv_gbp: number | null
+          snapshot_date: string
+          source: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_pct?: number | null
+          factor_group: string
+          id?: number
+          mv_gbp?: number | null
+          snapshot_date: string
+          source?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_pct?: number | null
+          factor_group?: string
+          id?: number
+          mv_gbp?: number | null
+          snapshot_date?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       fx_rates: {
         Row: {
           created_at: string
@@ -258,6 +288,8 @@ export type Database = {
           created_at: string
           currency: string
           deploy_target_gbp: number | null
+          factor_group: string | null
+          factor_primary: string | null
           gl_pct: number | null
           id: number
           layer: string
@@ -266,6 +298,8 @@ export type Database = {
           shares: number
           snapshot_date: string
           source: string
+          stack_layer: string | null
+          substrate_level: string | null
           ticker: string
         }
         Insert: {
@@ -277,6 +311,8 @@ export type Database = {
           created_at?: string
           currency: string
           deploy_target_gbp?: number | null
+          factor_group?: string | null
+          factor_primary?: string | null
           gl_pct?: number | null
           id?: never
           layer: string
@@ -285,6 +321,8 @@ export type Database = {
           shares: number
           snapshot_date: string
           source?: string
+          stack_layer?: string | null
+          substrate_level?: string | null
           ticker: string
         }
         Update: {
@@ -296,6 +334,8 @@ export type Database = {
           created_at?: string
           currency?: string
           deploy_target_gbp?: number | null
+          factor_group?: string | null
+          factor_primary?: string | null
           gl_pct?: number | null
           id?: never
           layer?: string
@@ -304,6 +344,8 @@ export type Database = {
           shares?: number
           snapshot_date?: string
           source?: string
+          stack_layer?: string | null
+          substrate_level?: string | null
           ticker?: string
         }
         Relationships: []
