@@ -546,6 +546,11 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <LayerChip layer={asset.layer} />
         </div>
 
+        {/* Stack layer (v2.5) */}
+        <div style={{ width: COL.stack, minWidth: COL.stack, maxWidth: COL.stack, flexShrink: 0, textAlign: "center" }}>
+          {asset.stack_layer ? <StackBadge value={asset.stack_layer} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}
+        </div>
+
         {/* Score + trend Δ */}
         <div style={{ width: COL.score, minWidth: COL.score, maxWidth: COL.score, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600, color: scoreColor(asset.score), lineHeight: 1 }}>
