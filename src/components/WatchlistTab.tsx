@@ -853,6 +853,40 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         })}
       </div>
 
+      {/* ── Driver (FACTOR_GROUP) filter chips ── */}
+      <ChipFilterRow
+        label="Driver"
+        values={FACTOR_GROUP_VALUES as readonly string[]}
+        selected={driverFilter}
+        onToggle={(v) =>
+          setDriverFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(v)) next.delete(v);
+            else next.add(v);
+            return next;
+          })
+        }
+        onReset={() => setDriverFilter(new Set())}
+        isMobile={isMobile}
+      />
+
+      {/* ── Stack (STACK_LAYER) filter chips ── */}
+      <ChipFilterRow
+        label="Stack"
+        values={STACK_LAYER_VALUES as readonly string[]}
+        selected={stackFilter}
+        onToggle={(v) =>
+          setStackFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(v)) next.delete(v);
+            else next.add(v);
+            return next;
+          })
+        }
+        onReset={() => setStackFilter(new Set())}
+        isMobile={isMobile}
+      />
+
       {pauseActive && (
         <div
           style={{
