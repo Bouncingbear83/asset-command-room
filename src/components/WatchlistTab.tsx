@@ -494,13 +494,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       filtered
         .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker))
         .sort((a, b) => {
-          if (profileSort) {
-            const p = byProfileFirst(a, b);
-            if (p !== 0) return p;
-          }
+          const s = applySorts(a, b);
+          if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, activeBuyIds, profileSort],
+    [filtered, activeBuyIds, profileSort, extraSort],
   );
 
   // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
