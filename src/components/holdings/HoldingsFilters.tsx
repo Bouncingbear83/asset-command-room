@@ -111,31 +111,41 @@ function displayLabel(v: string): string {
 }
 
 export function HoldingsFilters({
-  accountCounts, actionCounts, factorCounts, layerCounts, totalPositions,
-  accountFilter, actionFilter, factorFilter, layerFilter, search, groupBy,
+  accountCounts, actionCounts, factorCounts, driverCounts, stackCounts, layerCounts, totalPositions,
+  accountFilter, actionFilter, factorFilter, driverFilter, stackFilter, layerFilter, search, groupBy,
   sortField, sortDir,
   onToggleAccount, onResetAccount,
   onToggleAction, onResetAction,
   onToggleFactor, onResetFactor,
+  onToggleDriver, onResetDriver,
+  onToggleStack, onResetStack,
   onToggleLayer, onResetLayer,
   onSearchChange, onGroupChange, onSortChange,
 }: Props) {
   const allAccountsActive = accountFilter.length === 0;
   const allActionsActive = actionFilter.length === 0;
   const allFactorsActive = factorFilter.length === 0;
+  const allDriversActive = driverFilter.length === 0;
+  const allStacksActive = stackFilter.length === 0;
   const allLayersActive = layerFilter.length === 0;
 
   // Sort action / factor chips by count desc for stable, useful ordering.
   const actionEntries = Object.entries(actionCounts).sort((a, b) => b[1] - a[1]);
   const factorEntries = Object.entries(factorCounts).sort((a, b) => b[1] - a[1]);
+  const driverEntries = Object.entries(driverCounts).sort((a, b) => b[1] - a[1]);
+  const stackEntries = Object.entries(stackCounts).sort((a, b) => b[1] - a[1]);
 
   const totalActions = actionEntries.reduce((s, [, n]) => s + n, 0);
   const totalFactors = factorEntries.reduce((s, [, n]) => s + n, 0);
+  const totalDrivers = driverEntries.reduce((s, [, n]) => s + n, 0);
+  const totalStacks  = stackEntries.reduce((s, [, n]) => s + n, 0);
 
   const activeCount =
     (accountFilter.length > 0 ? 1 : 0) +
     (actionFilter.length > 0 ? 1 : 0) +
     (factorFilter.length > 0 ? 1 : 0) +
+    (driverFilter.length > 0 ? 1 : 0) +
+    (stackFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
