@@ -201,6 +201,12 @@ export interface AssetIntelligence {
   return_profile: ReturnProfile | null;
   compounder_subtype: CompounderSubtype | null;
 
+  // Doctrine v2.5 (Research Commit owns; null/empty for anchor/ETF rows)
+  substrate_level: "L1" | "L2" | "L3" | "L4" | null;
+  stack_layer: string | null;
+  /** FACTOR_GROUP joined from HOLDINGS for HELD rows; null for unheld. */
+  factor_group: string | null;
+
   // Scoring
   score: number;
   tier: Tier | null;
