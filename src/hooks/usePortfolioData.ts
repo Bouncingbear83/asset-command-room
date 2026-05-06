@@ -955,7 +955,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N80" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
-        fetchSheet({ gid: GIDS.scores }).catch(() => []),
+        fetchSheet({ gid: GIDS.scores, range: "A1:AA" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
         fetchSheet({ gid: GIDS.monitor }).catch(() => []),
         fetchSheet({ gid: GIDS.disruption }).catch(() => []),
