@@ -1,4 +1,4 @@
-import { Layers, Tag, List, AlignJustify } from "lucide-react";
+import { Layers, Tag, List, AlignJustify, Boxes, Activity } from "lucide-react";
 import {
   Chip,
   ChipGroup,
@@ -12,8 +12,10 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { AssetIntelligence, HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
-import type { GroupBy, SortField, ProfileFilterKey } from "@/lib/url-state";
-import { PROFILE_FILTER_KEYS } from "@/lib/url-state";
+import type { GroupBy, SortField, ProfileFilterKey, SubstrateLevel, StackLayerKey, DriverKey } from "@/lib/url-state";
+import { PROFILE_FILTER_KEYS, SUBSTRATE_LEVEL_VALUES } from "@/lib/url-state";
+import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, FACTOR_GROUP_COLORS } from "@/components/holdings/DriverChip";
+import { LBAND_COLORS } from "./LBandPill";
 import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL } from "./profileChips";
 
 interface Props {
