@@ -401,6 +401,17 @@ function buildOne(
   const rawSubtype = normalizeCompounderSubtype((s as { compounderSubtype?: unknown }).compounderSubtype);
   const compounder_subtype = return_profile === "COMPOUNDER" ? rawSubtype : null;
 
+  const slRaw = String((s as { substrateLevel?: unknown }).substrateLevel ?? "").trim().toUpperCase();
+  const substrate_level = (["L1", "L2", "L3", "L4"] as const).find((l) => l === slRaw) ?? null;
+  const stRaw = String((s as { stackLayer?: unknown }).stackLayer ?? "").trim().toUpperCase();
+  const stack_layer = stRaw && stRaw !== "N/A" ? stRaw : null;
+  // factor_group joined from HOLDINGS for HELD rows
+  const factor_group = position?.factor_primary ? null : null; // placeholder, set below
+  const fgFromHolding = positionRows[0]?.factor_group
+    ? String(positionRows[0].factor_group).trim().toUpperCase()
+    : "";
+  const factor_group_final = fgFromHolding || null;
+
   return {
     ticker,
     name: String(s.name ?? ""),
@@ -408,6 +419,9 @@ function buildOne(
     held_status,
     return_profile,
     compounder_subtype,
+    substrate_level,
+    stack_layer,
+    factor_group: factor_group_final,
     score: toNum0(s.score),
     tier: normalizeTier(s.tier),
     sub_scores: {
