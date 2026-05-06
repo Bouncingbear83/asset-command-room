@@ -1059,6 +1059,20 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       return { ...prev, factorFilter: next };
     });
   };
+  const toggleDriver = (d: string) => {
+    setState((prev) => {
+      const has = prev.driverFilter.includes(d);
+      const next = has ? prev.driverFilter.filter((x) => x !== d) : [...prev.driverFilter, d];
+      return { ...prev, driverFilter: next };
+    });
+  };
+  const toggleStack = (s: string) => {
+    setState((prev) => {
+      const has = prev.stackFilter.includes(s);
+      const next = has ? prev.stackFilter.filter((x) => x !== s) : [...prev.stackFilter, s];
+      return { ...prev, stackFilter: next };
+    });
+  };
   const toggleLayer = (l: Layer) => {
     setState((prev) => {
       const has = prev.layerFilter.includes(l);
