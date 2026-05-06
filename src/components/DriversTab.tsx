@@ -246,7 +246,52 @@ export default function DriversTab({ holdings }: Props) {
         </div>
       </section>
 
-      {/* SECTION 2: Headroom cards */}
+      {/* SECTION 1b: Driver × Layer heatmap */}
+      <section style={card}>
+        <div style={cardHeader}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div>
+              <div style={cardTitle}>Driver × Layer Matrix</div>
+              <div style={{ ...monoSm, marginTop: 4 }}>
+                Cells = {heatMetric === "aum" ? "AUM% per (driver, layer) pair" : "position count per (driver, layer) pair"}
+              </div>
+            </div>
+            <div style={{ display: "inline-flex", border: "1px solid var(--rim)", borderRadius: 2, overflow: "hidden" }}>
+              {(["aum", "count"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setHeatMetric(m)}
+                  style={{
+                    padding: "5px 10px",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    background: heatMetric === m ? "var(--gold)" : "transparent",
+                    color: heatMetric === m ? "#0a0a1a" : "var(--text-mid)",
+                    border: "none",
+                  }}
+                >
+                  {m === "aum" ? "AUM %" : "Count"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={cardBody}>
+          {layerOrder.length === 0 || sortedGroups.length === 0 ? (
+            <div style={monoSm}>No holdings data to render matrix.</div>
+          ) : (
+            <DriverLayerHeatmap
+              groups={sortedGroups}
+              layers={layerOrder}
+              matrix={matrix}
+              metric={heatMetric}
+            />
+          )}
+        </div>
+      </section>
       <section style={card}>
         <div style={cardHeader}>
           <div style={cardTitle}>Driver Headroom</div>
