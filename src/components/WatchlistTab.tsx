@@ -527,17 +527,15 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           !skipStatus.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
-        if (profileSort) {
-          const p = byProfileFirst(a, b);
-          if (p !== 0) return p;
-        }
+        const s = applySorts(a, b);
+        if (s !== 0) return s;
         // Score desc if both have scores; otherwise gap asc
         const sa = a.score?.total_score ?? null;
         const sb = b.score?.total_score ?? null;
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds, profileSort]);
+  }, [filtered, overdueIds, activeBuyIds, profileSort, extraSort]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
