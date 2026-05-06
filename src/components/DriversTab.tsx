@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import { FACTOR_GROUP_COLORS, FACTOR_GROUP_VALUES, DriverChip, StackBadge } from "@/components/holdings/DriverChip";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
