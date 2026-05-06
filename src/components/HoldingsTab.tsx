@@ -31,6 +31,7 @@ import {
 } from "@/lib/url-state-holdings";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
+import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/DriverChip";
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
 
