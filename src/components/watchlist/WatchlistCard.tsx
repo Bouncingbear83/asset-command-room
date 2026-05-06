@@ -471,6 +471,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           {item.name}
         </span>
         <LayerChip layer={item.layer} />
+        <DriverChip value={item.factor_group} />
+        <StackBadge value={item.stack_layer} />
         <StatusBadge status={item.status} />
       </div>
 
