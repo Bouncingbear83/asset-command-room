@@ -955,6 +955,26 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     return c;
   }, [positions]);
 
+  const driverCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const d = normalizeActionFactor(String((h as any).factor_group ?? ""));
+      if (!d) continue;
+      c[d] = (c[d] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
+  const stackCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const s = normalizeActionFactor(String((h as any).stack_layer ?? ""));
+      if (!s) continue;
+      c[s] = (c[s] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
   const layerCounts = useMemo(() => {
     const c: Partial<Record<Layer, number>> = {};
     for (const h of positions) {
