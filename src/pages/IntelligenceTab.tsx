@@ -395,6 +395,15 @@ export default function IntelligenceTab() {
         onResetLayer={resetLayer}
         onToggleProfile={toggleProfile}
         onResetProfile={resetProfile}
+        lbandFilter={state.lbandFilter}
+        stackFilter={state.stackFilter}
+        driverFilter={state.driverFilter}
+        onToggleLband={toggleLband}
+        onResetLband={resetLband}
+        onToggleStack={toggleStack}
+        onResetStack={resetStack}
+        onToggleDriver={toggleDriver}
+        onResetDriver={resetDriver}
         onSearchChange={(v) => update({ search: v })}
         onGroupChange={(g) => update({ groupBy: g })}
         onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}
