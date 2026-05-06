@@ -76,7 +76,7 @@ const KNOWN_COLS = [
   "trigger_price_numeric", "alert_status", "alert_fired_date", "key", "current_value",
   "threshold_amber", "threshold_red", "value", "next_earnings_date", "fiscal_period",
   "confirmed", "sp500_tr", "msci_world_tr", "deploy_target_gbp", "deploy_note",
-  "deploy_amount_gbp", "factor_primary",
+  "deploy_amount_gbp", "factor_primary", "factor_group", "stack_layer",
   "held_status", "reclass_status", "thesis_age_months", "thesis_first_scored",
 ];
 
@@ -141,6 +141,8 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("trigger review date") || labelLower.includes("trigger_review_date")) return "trigger_review_date";
   if (labelLower.includes("trigger review note") || labelLower.includes("trigger_review_note")) return "trigger_review_note";
   if (labelLower.includes("factor primary") || labelLower.includes("factor_primary")) return "factor_primary";
+  if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
+  if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
@@ -344,6 +346,8 @@ function parseHoldings(rows: Record<string, any>[]) {
       trigger_review_date: String(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE") ?? ""),
       trigger_review_note: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
       factor_primary: String(findCol(row, "factor_primary", "FACTOR_PRIMARY", "Factor_Primary") ?? ""),
+      factor_group: String(findCol(row, "factor_group", "FACTOR_GROUP", "Factor_Group") ?? ""),
+      stack_layer: String(findCol(row, "stack_layer", "STACK_LAYER", "Stack_Layer") ?? ""),
     }));
 }
 
@@ -944,7 +948,7 @@ export function usePortfolioData(): PortfolioData {
         transactionsRaw,
         jisaHoldingsRaw,
       ] = await Promise.all([
-        fetchSheet({ gid: GIDS.holdings, range: "A1:AK50" }),
+        fetchSheet({ gid: GIDS.holdings, range: "A1:AM50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N80" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores }).catch(() => []),

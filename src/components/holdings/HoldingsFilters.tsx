@@ -30,11 +30,15 @@ interface Props {
   accountCounts: AccountCounts;
   actionCounts: Record<string, number>;
   factorCounts: Record<string, number>;
+  driverCounts: Record<string, number>;
+  stackCounts: Record<string, number>;
   layerCounts: LayerCounts;
   totalPositions: number;
   accountFilter: HoldingsAccount[];
   actionFilter: string[];
   factorFilter: string[];
+  driverFilter: string[];
+  stackFilter: string[];
   layerFilter: Layer[];
   search: string;
   groupBy: HoldingsGroupBy;
@@ -46,6 +50,10 @@ interface Props {
   onResetAction: () => void;
   onToggleFactor: (f: string) => void;
   onResetFactor: () => void;
+  onToggleDriver: (d: string) => void;
+  onResetDriver: () => void;
+  onToggleStack: (s: string) => void;
+  onResetStack: () => void;
   onToggleLayer: (l: Layer) => void;
   onResetLayer: () => void;
   onSearchChange: (v: string) => void;
@@ -70,6 +78,8 @@ const SORT_OPTIONS: MobileSortOption<HoldingsSortField>[] = [
   { field: "annReturn", dir: "desc", label: "Ann. return (high → low)" },
   { field: "ticker",    dir: "asc",  label: "Ticker (A → Z)" },
   { field: "action",    dir: "asc",  label: "Action" },
+  { field: "driver",    dir: "asc",  label: "Driver" },
+  { field: "stack",     dir: "asc",  label: "Stack" },
 ];
 
 const wrapDesktop: CSSProperties = {
@@ -101,31 +111,41 @@ function displayLabel(v: string): string {
 }
 
 export function HoldingsFilters({
-  accountCounts, actionCounts, factorCounts, layerCounts, totalPositions,
-  accountFilter, actionFilter, factorFilter, layerFilter, search, groupBy,
+  accountCounts, actionCounts, factorCounts, driverCounts, stackCounts, layerCounts, totalPositions,
+  accountFilter, actionFilter, factorFilter, driverFilter, stackFilter, layerFilter, search, groupBy,
   sortField, sortDir,
   onToggleAccount, onResetAccount,
   onToggleAction, onResetAction,
   onToggleFactor, onResetFactor,
+  onToggleDriver, onResetDriver,
+  onToggleStack, onResetStack,
   onToggleLayer, onResetLayer,
   onSearchChange, onGroupChange, onSortChange,
 }: Props) {
   const allAccountsActive = accountFilter.length === 0;
   const allActionsActive = actionFilter.length === 0;
   const allFactorsActive = factorFilter.length === 0;
+  const allDriversActive = driverFilter.length === 0;
+  const allStacksActive = stackFilter.length === 0;
   const allLayersActive = layerFilter.length === 0;
 
   // Sort action / factor chips by count desc for stable, useful ordering.
   const actionEntries = Object.entries(actionCounts).sort((a, b) => b[1] - a[1]);
   const factorEntries = Object.entries(factorCounts).sort((a, b) => b[1] - a[1]);
+  const driverEntries = Object.entries(driverCounts).sort((a, b) => b[1] - a[1]);
+  const stackEntries = Object.entries(stackCounts).sort((a, b) => b[1] - a[1]);
 
   const totalActions = actionEntries.reduce((s, [, n]) => s + n, 0);
   const totalFactors = factorEntries.reduce((s, [, n]) => s + n, 0);
+  const totalDrivers = driverEntries.reduce((s, [, n]) => s + n, 0);
+  const totalStacks  = stackEntries.reduce((s, [, n]) => s + n, 0);
 
   const activeCount =
     (accountFilter.length > 0 ? 1 : 0) +
     (actionFilter.length > 0 ? 1 : 0) +
     (factorFilter.length > 0 ? 1 : 0) +
+    (driverFilter.length > 0 ? 1 : 0) +
+    (stackFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
@@ -229,7 +249,51 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {(actionEntries.length > 0 || factorEntries.length > 0) && <div style={divider} />}
+      {/* Row 4b: driver chips (FACTOR_GROUP) */}
+      {driverEntries.length > 0 && (
+        <ChipGroup ariaLabel="Filter by driver">
+          <Chip
+            label="All Drivers"
+            count={totalDrivers}
+            active={allDriversActive}
+            onClick={onResetDriver}
+            ariaLabel="Reset driver filters"
+          />
+          {driverEntries.map(([value, count]) => (
+            <Chip
+              key={value}
+              label={displayLabel(value)}
+              count={count}
+              active={!allDriversActive && driverFilter.includes(value)}
+              onClick={() => onToggleDriver(value)}
+            />
+          ))}
+        </ChipGroup>
+      )}
+
+      {/* Row 4c: stack chips (STACK_LAYER) */}
+      {stackEntries.length > 0 && (
+        <ChipGroup ariaLabel="Filter by stack layer">
+          <Chip
+            label="All Stack"
+            count={totalStacks}
+            active={allStacksActive}
+            onClick={onResetStack}
+            ariaLabel="Reset stack filters"
+          />
+          {stackEntries.map(([value, count]) => (
+            <Chip
+              key={value}
+              label={displayLabel(value)}
+              count={count}
+              active={!allStacksActive && stackFilter.includes(value)}
+              onClick={() => onToggleStack(value)}
+            />
+          ))}
+        </ChipGroup>
+      )}
+
+      {(actionEntries.length > 0 || factorEntries.length > 0 || driverEntries.length > 0 || stackEntries.length > 0) && <div style={divider} />}
 
       {/* Row 5: layer chips */}
       <ChipGroup ariaLabel="Filter by layer">

@@ -31,6 +31,7 @@ import {
 } from "@/lib/url-state-holdings";
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
+import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/DriverChip";
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
 
@@ -134,7 +135,9 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
       case "cost": av = a.returns?.totalCost ?? 0; bv = b.returns?.totalCost ?? 0; break;
       case "truePL": av = a.returns?.truePL ?? 0; bv = b.returns?.truePL ?? 0; break;
       case "account": av = a.account ?? ""; bv = b.account ?? ""; break;
-      default: av = a[key] ?? ""; bv = b[key] ?? "";
+      case "driver": av = (a as any).factor_group ?? ""; bv = (b as any).factor_group ?? ""; break;
+      case "stack": av = stackLayerOrder((a as any).stack_layer); bv = stackLayerOrder((b as any).stack_layer); break;
+      default: av = a[key as keyof typeof a] ?? ""; bv = b[key as keyof typeof b] ?? "";
     }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
     return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
@@ -170,6 +173,8 @@ const UNIFIED_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobil
   { label: "Ticker", key: "ticker", sortable: true },
   { label: "Name", key: "name", hideMobile: true, sortable: true },
   { label: "Layer", key: "layer", hideMobile: true, sortable: true },
+  { label: "Driver", key: "driver", hideMobile: true, sortable: true },
+  { label: "Stack", key: "stack", hideMobile: true, sortable: true },
   { label: "Account", key: "account", hideMobile: true, sortable: true },
   { label: "MV £", key: "mv", align: "right", sortable: true },
   { label: "G/L %", key: "gl", align: "right", sortable: true },
@@ -452,10 +457,12 @@ function UnifiedView({
                       </div>
 
                       {/* Line 4: layer · account · ann return */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                         <span>{h.layer}</span>
                         <span style={{ color: "var(--rim)" }}>·</span>
                         <span>{h.account}</span>
+                        <DriverChip value={(h as any).factor_group} />
+                        <StackBadge value={(h as any).stack_layer} />
                         {hasReturns && (
                           <>
                             <span style={{ color: "var(--rim)" }}>·</span>
@@ -594,6 +601,8 @@ function UnifiedView({
                         </td>
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 240 }}>{h.name}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
+                        {!isMobile && <td style={{ padding: cellPad }}><DriverChip value={(h as any).factor_group} /></td>}
+                        {!isMobile && <td style={{ padding: cellPad }}><StackBadge value={(h as any).stack_layer} /></td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>}
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
@@ -640,9 +649,9 @@ function UnifiedView({
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={isMobile ? 2 : 4} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
+            <td colSpan={isMobile ? 2 : 6} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-            <td colSpan={Math.max(0, totalCols - (isMobile ? 3 : 5))} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={Math.max(0, totalCols - (isMobile ? 3 : 7))} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
@@ -794,7 +803,7 @@ function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" 
     price: 0, prevClose: 0, currency: "USD", costGbp: 0, shares: 0,
     add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "",
     alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null,
-    deploy_target_gbp: 0, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "",
+    deploy_target_gbp: 0, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "",
   };
 }
 
@@ -946,6 +955,26 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     return c;
   }, [positions]);
 
+  const driverCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const d = normalizeActionFactor(String((h as any).factor_group ?? ""));
+      if (!d) continue;
+      c[d] = (c[d] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
+  const stackCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const s = normalizeActionFactor(String((h as any).stack_layer ?? ""));
+      if (!s) continue;
+      c[s] = (c[s] || 0) + 1;
+    }
+    return c;
+  }, [positions]);
+
   const layerCounts = useMemo(() => {
     const c: Partial<Record<Layer, number>> = {};
     for (const h of positions) {
@@ -984,6 +1013,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         const f = normalizeActionFactor(String(h.factor_primary ?? ""));
         if (!f || !state.factorFilter.includes(f)) return false;
       }
+      if (state.driverFilter.length > 0) {
+        const d = normalizeActionFactor(String((h as any).factor_group ?? ""));
+        if (!d || !state.driverFilter.includes(d)) return false;
+      }
+      if (state.stackFilter.length > 0) {
+        const s = normalizeActionFactor(String((h as any).stack_layer ?? ""));
+        if (!s || !state.stackFilter.includes(s)) return false;
+      }
       if (state.layerFilter.length > 0) {
         const layerStr = (h.layer || "").trim();
         const match = LAYER_VALUES.find((l) => l.toLowerCase() === layerStr.toLowerCase());
@@ -995,7 +1032,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       }
       return true;
     });
-  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.tickers, state.search]);
+  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.driverFilter, state.stackFilter, state.layerFilter, state.tickers, state.search]);
 
   const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
 
@@ -1020,6 +1057,20 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       const has = prev.factorFilter.includes(f);
       const next = has ? prev.factorFilter.filter((x) => x !== f) : [...prev.factorFilter, f];
       return { ...prev, factorFilter: next };
+    });
+  };
+  const toggleDriver = (d: string) => {
+    setState((prev) => {
+      const has = prev.driverFilter.includes(d);
+      const next = has ? prev.driverFilter.filter((x) => x !== d) : [...prev.driverFilter, d];
+      return { ...prev, driverFilter: next };
+    });
+  };
+  const toggleStack = (s: string) => {
+    setState((prev) => {
+      const has = prev.stackFilter.includes(s);
+      const next = has ? prev.stackFilter.filter((x) => x !== s) : [...prev.stackFilter, s];
+      return { ...prev, stackFilter: next };
     });
   };
   const toggleLayer = (l: Layer) => {
@@ -1049,6 +1100,8 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     state.accountFilter.length > 0 ||
     state.actionFilter.length > 0 ||
     state.factorFilter.length > 0 ||
+    state.driverFilter.length > 0 ||
+    state.stackFilter.length > 0 ||
     state.layerFilter.length > 0 ||
     state.tickers.length > 0 ||
     state.search.trim() !== "";
@@ -1124,11 +1177,15 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               accountCounts={accountCounts}
               actionCounts={actionCounts}
               factorCounts={factorCounts}
+              driverCounts={driverCounts}
+              stackCounts={stackCounts}
               layerCounts={layerCounts}
               totalPositions={positions.length}
               accountFilter={state.accountFilter}
               actionFilter={state.actionFilter}
               factorFilter={state.factorFilter}
+              driverFilter={state.driverFilter}
+              stackFilter={state.stackFilter}
               layerFilter={state.layerFilter}
               search={state.search}
               groupBy={state.groupBy}
@@ -1140,6 +1197,10 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               onResetAction={() => update({ actionFilter: [] })}
               onToggleFactor={toggleFactor}
               onResetFactor={() => update({ factorFilter: [] })}
+              onToggleDriver={toggleDriver}
+              onResetDriver={() => update({ driverFilter: [] })}
+              onToggleStack={toggleStack}
+              onResetStack={() => update({ stackFilter: [] })}
               onToggleLayer={toggleLayer}
               onResetLayer={() => update({ layerFilter: [] })}
               onSearchChange={(v) => update({ search: v })}
