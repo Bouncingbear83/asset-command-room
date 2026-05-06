@@ -1100,6 +1100,8 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
     state.accountFilter.length > 0 ||
     state.actionFilter.length > 0 ||
     state.factorFilter.length > 0 ||
+    state.driverFilter.length > 0 ||
+    state.stackFilter.length > 0 ||
     state.layerFilter.length > 0 ||
     state.tickers.length > 0 ||
     state.search.trim() !== "";
