@@ -120,15 +120,37 @@ export function IntelligenceFilters({
     }
   }
 
+  // L-band counts
+  const lbandCounts: Record<SubstrateLevel, number> = { L1: 0, L2: 0, L3: 0, L4: 0 };
+  for (const a of assets) {
+    if (a.substrate_level) lbandCounts[a.substrate_level]++;
+  }
+  // Stack counts
+  const stackCounts = new Map<string, number>();
+  for (const a of assets) {
+    if (a.stack_layer) stackCounts.set(a.stack_layer, (stackCounts.get(a.stack_layer) ?? 0) + 1);
+  }
+  // Driver counts (from joined factor_group on HELD rows)
+  const driverCounts = new Map<string, number>();
+  for (const a of assets) {
+    if (a.factor_group) driverCounts.set(a.factor_group, (driverCounts.get(a.factor_group) ?? 0) + 1);
+  }
+
   const layersInUse = new Set(assets.map((a) => a.layer).filter((l): l is Layer => l !== null));
   const allStatusesActive = statusFilter.length === 0;
   const allLayersActive = layerFilter.length === 0;
   const allProfilesActive = profileFilter.length === 0;
+  const allLbandActive = lbandFilter.length === 0;
+  const allStackActive = stackFilter.length === 0;
+  const allDriverActive = driverFilter.length === 0;
 
   const activeCount =
     (statusFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
     (profileFilter.length > 0 ? 1 : 0) +
+    (lbandFilter.length > 0 ? 1 : 0) +
+    (stackFilter.length > 0 ? 1 : 0) +
+    (driverFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
   const chipsBlock = (
