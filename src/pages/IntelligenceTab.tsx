@@ -13,13 +13,18 @@ import {
   stateFromParams,
   stateToParams,
   PROFILE_FILTER_KEYS,
+  SUBSTRATE_LEVEL_VALUES,
   type GroupBy,
   type SortField,
   type IntelligenceUiState,
   type ProfileFilterKey,
+  type SubstrateLevel,
+  type StackLayerKey,
+  type DriverKey,
 } from "@/lib/url-state";
 import type { AssetIntelligence, HeldStatus, Layer, Tier } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
+import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, stackLayerOrder } from "@/components/holdings/DriverChip";
 
 // ── Sorting / filtering / grouping pipeline ────────────────────────────────
 
