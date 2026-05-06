@@ -170,6 +170,8 @@ const UNIFIED_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobil
   { label: "Ticker", key: "ticker", sortable: true },
   { label: "Name", key: "name", hideMobile: true, sortable: true },
   { label: "Layer", key: "layer", hideMobile: true, sortable: true },
+  { label: "Driver", key: "driver", hideMobile: true, sortable: true },
+  { label: "Stack", key: "stack", hideMobile: true, sortable: true },
   { label: "Account", key: "account", hideMobile: true, sortable: true },
   { label: "MV £", key: "mv", align: "right", sortable: true },
   { label: "G/L %", key: "gl", align: "right", sortable: true },
