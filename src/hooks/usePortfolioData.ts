@@ -144,6 +144,7 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("factor primary") || labelLower.includes("factor_primary")) return "factor_primary";
   if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
   if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
+  if (labelLower.includes("substrate level") || labelLower.includes("substrate_level")) return "substrate_level";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
