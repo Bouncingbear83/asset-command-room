@@ -615,3 +615,213 @@ function DriverHoldingsRow({
 
 const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontWeight: 400 };
 const td: React.CSSProperties = { padding: "6px 8px", color: "var(--text-mid)" };
+
+function DriverLayerHeatmap({
+  groups, layers, matrix, metric,
+}: {
+  groups: string[];
+  layers: string[];
+  matrix: Map<string, Map<string, { aum: number; count: number }>>;
+  metric: "aum" | "count";
+}) {
+  const labelW = 160;
+  const cellMin = 80;
+  const colTotals: Record<string, { aum: number; count: number }> = {};
+  layers.forEach((l) => (colTotals[l] = { aum: 0, count: 0 }));
+  const rowTotals = new Map<string, { aum: number; count: number }>();
+  groups.forEach((g) => rowTotals.set(g, { aum: 0, count: 0 }));
+  for (const g of groups) {
+    const lm = matrix.get(g);
+    if (!lm) continue;
+    for (const l of layers) {
+      const c = lm.get(l);
+      if (!c) continue;
+      colTotals[l].aum += c.aum;
+      colTotals[l].count += c.count;
+      const rt = rowTotals.get(g)!;
+      rt.aum += c.aum;
+      rt.count += c.count;
+    }
+  }
+
+  const fmt = (c: { aum: number; count: number } | undefined) =>
+    !c ? "" : metric === "aum" ? `${c.aum.toFixed(1)}%` : String(c.count);
+  const intensity = (c: { aum: number; count: number } | undefined) => {
+    if (!c) return 0;
+    return metric === "aum" ? Math.min(1, c.aum / 15) : Math.min(1, c.count / 5);
+  };
+
+  const cellStyle: React.CSSProperties = {
+    minWidth: cellMin,
+    padding: "8px 10px",
+    textAlign: "center",
+    fontFamily: "var(--font-mono)",
+    fontSize: 11,
+    border: "1px solid var(--rim)",
+  };
+  const headStyle: React.CSSProperties = {
+    ...cellStyle,
+    fontSize: 9,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    color: "var(--text-dim)",
+    fontWeight: 400,
+  };
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", minWidth: labelW + (layers.length + 1) * cellMin }}>
+        <thead>
+          <tr>
+            <th style={{ ...headStyle, minWidth: labelW, textAlign: "left" }}>Driver \ Layer</th>
+            {layers.map((l) => <th key={l} style={headStyle}>{l}</th>)}
+            <th style={{ ...headStyle, color: "var(--gold)" }}>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => {
+            const color = FACTOR_GROUP_COLORS[g] ?? "#8a8a9a";
+            const lm = matrix.get(g);
+            const rt = rowTotals.get(g)!;
+            return (
+              <tr key={g}>
+                <td style={{ ...cellStyle, textAlign: "left", fontSize: 10 }}>
+                  <span style={{
+                    display: "inline-block",
+                    padding: "2px 6px",
+                    background: `color-mix(in srgb, ${color} 22%, transparent)`,
+                    color,
+                    border: `1px solid color-mix(in srgb, ${color} 50%, transparent)`,
+                    fontSize: 9,
+                    letterSpacing: "0.06em",
+                  }}>{g.replace(/_/g, " ")}</span>
+                </td>
+                {layers.map((l) => {
+                  const c = lm?.get(l);
+                  const op = intensity(c);
+                  return (
+                    <td
+                      key={l}
+                      title={c ? `${g} · ${l} · ${c.count} position${c.count === 1 ? "" : "s"} · ${c.aum.toFixed(2)}% AUM` : `${g} · ${l} · empty`}
+                      style={{
+                        ...cellStyle,
+                        background: c ? `color-mix(in srgb, ${color} ${Math.round(op * 70)}%, transparent)` : "transparent",
+                        color: c ? "var(--gold)" : "var(--text-dim)",
+                      }}
+                    >
+                      {c ? fmt(c) : "·"}
+                    </td>
+                  );
+                })}
+                <td style={{ ...cellStyle, color: "var(--gold)" }}>
+                  {metric === "aum" ? `${rt.aum.toFixed(1)}%` : rt.count}
+                </td>
+              </tr>
+            );
+          })}
+          <tr>
+            <td style={{ ...headStyle, textAlign: "left", color: "var(--gold)" }}>TOTAL</td>
+            {layers.map((l) => {
+              const c = colTotals[l];
+              return (
+                <td key={l} style={{ ...cellStyle, color: "var(--gold)" }}>
+                  {metric === "aum" ? `${c.aum.toFixed(1)}%` : c.count}
+                </td>
+              );
+            })}
+            <td style={{ ...cellStyle, color: "var(--gold)" }}>
+              {metric === "aum"
+                ? `${groups.reduce((s, g) => s + (rowTotals.get(g)?.aum ?? 0), 0).toFixed(1)}%`
+                : groups.reduce((s, g) => s + (rowTotals.get(g)?.count ?? 0), 0)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface TighteningData {
+  dates: string[];
+  groups: string[];
+  ddByGroup: Map<string, number[]>;
+  portfolioDd: number[];
+  allRows: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number; isFlagged: boolean }[];
+  flagged: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number }[];
+}
+
+function CapTighteningPanel({ data }: { data: TighteningData }) {
+  const { dates, groups, ddByGroup, portfolioDd, allRows, flagged } = data;
+  const W = 520, H = 220, padL = 36, padR = 12, padT = 10, padB = 26;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const allDd = [...portfolioDd, ...Array.from(ddByGroup.values()).flat()].filter((v) => isFinite(v));
+  const yMax = Math.max(10, Math.ceil((Math.max(...allDd, 1) + 2) / 5) * 5);
+  const xFor = (i: number) => padL + (dates.length <= 1 ? innerW / 2 : (i / (dates.length - 1)) * innerW);
+  const yFor = (v: number) => padT + innerH - (Math.max(0, Math.min(yMax, v)) / yMax) * innerH;
+  const monoSmLocal: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1.1fr) minmax(280px, 1fr)", gap: 20, alignItems: "start" }}>
+      <div style={{ overflowX: "auto" }}>
+        <svg width={W} height={H} style={{ display: "block", maxWidth: "100%" }}>
+          {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+            const v = yMax * f;
+            return (
+              <g key={f}>
+                <line x1={padL} x2={W - padR} y1={yFor(v)} y2={yFor(v)} stroke="var(--rim)" strokeWidth={0.5} />
+                <text x={padL - 4} y={yFor(v) + 3} textAnchor="end" fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">{v.toFixed(0)}pp</text>
+              </g>
+            );
+          })}
+          {groups.map((g) => {
+            const color = FACTOR_GROUP_COLORS[g] ?? "#8a8a9a";
+            const series = ddByGroup.get(g)!;
+            const path = series.map((v, i) => isFinite(v) ? `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}` : "").join(" ");
+            return <path key={g} d={path} fill="none" stroke={color} strokeWidth={1} opacity={0.55} />;
+          })}
+          <path
+            d={portfolioDd.map((v, i) => `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(" ")}
+            fill="none"
+            stroke="#c9a84c"
+            strokeWidth={2.2}
+          />
+          {dates.length > 0 && [0, Math.floor(dates.length / 2), dates.length - 1].filter((v, i, a) => a.indexOf(v) === i).map((idx) => (
+            <text key={idx} x={xFor(idx)} y={H - 8} textAnchor="middle" fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">{dates[idx].slice(5)}</text>
+          ))}
+        </svg>
+        <div style={{ ...monoSmLocal, marginTop: 6 }}>
+          Gold line = portfolio drawdown (weighted avg across drivers). Coloured lines = per-driver drawdown.
+        </div>
+      </div>
+
+      <div>
+        <div style={{ ...monoSmLocal, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+          {flagged.length} flagged · {allRows.length} drivers
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+          <thead>
+            <tr style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <th style={{ ...th, textAlign: "left" }}>Driver</th>
+              <th style={{ ...th, textAlign: "right" }}>Driver DD</th>
+              <th style={{ ...th, textAlign: "right" }}>Port. DD</th>
+              <th style={{ ...th, textAlign: "right" }}>Δ</th>
+              <th style={{ ...th, textAlign: "right" }}>Latest</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allRows.map((r) => (
+              <tr key={r.group} style={{ borderTop: "1px solid var(--rim)", color: r.isFlagged ? "#ef4444" : "var(--text-dim)" }}>
+                <td style={td}>{r.isFlagged ? "🔴 " : ""}{r.group.replace(/_/g, " ")}</td>
+                <td style={{ ...td, textAlign: "right" }}>{r.driverDd.toFixed(1)}pp</td>
+                <td style={{ ...td, textAlign: "right" }}>{r.portfolioDd.toFixed(1)}pp</td>
+                <td style={{ ...td, textAlign: "right", color: r.isFlagged ? "#ef4444" : undefined }}>{r.delta >= 0 ? "+" : ""}{r.delta.toFixed(1)}pp</td>
+                <td style={{ ...td, textAlign: "right" }}>{r.latest.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
