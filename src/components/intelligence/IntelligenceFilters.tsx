@@ -24,6 +24,9 @@ interface Props {
   statusFilter: HeldStatus[];
   layerFilter: Layer[];
   profileFilter: ProfileFilterKey[];
+  lbandFilter: SubstrateLevel[];
+  stackFilter: StackLayerKey[];
+  driverFilter: DriverKey[];
   search: string;
   groupBy: GroupBy;
   sortField: SortField;
@@ -34,6 +37,12 @@ interface Props {
   onResetLayer: () => void;
   onToggleProfile: (p: ProfileFilterKey) => void;
   onResetProfile: () => void;
+  onToggleLband: (l: SubstrateLevel) => void;
+  onResetLband: () => void;
+  onToggleStack: (s: StackLayerKey) => void;
+  onResetStack: () => void;
+  onToggleDriver: (d: DriverKey) => void;
+  onResetDriver: () => void;
   onSearchChange: (v: string) => void;
   onGroupChange: (g: GroupBy) => void;
   onSortChange: (field: SortField, dir: "asc" | "desc") => void;
@@ -44,6 +53,8 @@ const GROUP_OPTIONS: GroupOption<GroupBy>[] = [
   { value: "layer",  label: "By Layer",   Icon: Layers },
   { value: "status", label: "By Status",  Icon: List },
   { value: "tier",   label: "By Tier",    Icon: Tag },
+  { value: "driver", label: "By Driver",  Icon: Boxes },
+  { value: "lband",  label: "By L-band",  Icon: Activity },
 ];
 
 const SORT_OPTIONS: MobileSortOption<SortField>[] = [
@@ -52,6 +63,9 @@ const SORT_OPTIONS: MobileSortOption<SortField>[] = [
   { field: "ticker",       dir: "asc",  label: "Ticker (A → Z)" },
   { field: "ticker",       dir: "desc", label: "Ticker (Z → A)" },
   { field: "layer",        dir: "asc",  label: "Layer" },
+  { field: "lband",        dir: "desc", label: "L-band (L4 → L1)" },
+  { field: "lband",        dir: "asc",  label: "L-band (L1 → L4)" },
+  { field: "stack",        dir: "asc",  label: "Stack (component → foundry)" },
   { field: "disruption",   dir: "desc", label: "Disruption (high → low)" },
   { field: "buy_distance", dir: "asc",  label: "Buy distance (closest)" },
 ];
