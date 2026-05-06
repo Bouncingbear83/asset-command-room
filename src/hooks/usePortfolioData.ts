@@ -141,6 +141,8 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("trigger review date") || labelLower.includes("trigger_review_date")) return "trigger_review_date";
   if (labelLower.includes("trigger review note") || labelLower.includes("trigger_review_note")) return "trigger_review_note";
   if (labelLower.includes("factor primary") || labelLower.includes("factor_primary")) return "factor_primary";
+  if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
+  if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
