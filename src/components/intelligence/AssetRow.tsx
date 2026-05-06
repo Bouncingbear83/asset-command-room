@@ -572,7 +572,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
         </div>
 
-        {/* Disruption deep-dive badge */}
+        {/* L-band (v2.5) */}
+        <div style={{ width: COL.lband, minWidth: COL.lband, maxWidth: COL.lband, flexShrink: 0, textAlign: "center" }}>
+          <LBandPill level={asset.substrate_level} stackLayer={asset.stack_layer} />
+        </div>
+
+
         <div style={{ width: COL.disruption, minWidth: COL.disruption, maxWidth: COL.disruption, flexShrink: 0 }}>
           <DisruptionBadge asset={asset} />
         </div>
