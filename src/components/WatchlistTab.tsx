@@ -470,13 +470,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           return s === BUY || s === ACTIVE;
         })
         .sort((a, b) => {
-          if (profileSort) {
-            const p = byProfileFirst(a, b);
-            if (p !== 0) return p;
-          }
+          const s = applySorts(a, b);
+          if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, profileSort],
+    [filtered, profileSort, extraSort],
   );
   const activeBuyIds = useMemo(
     () => new Set(activeBuys.map((r) => r.item.ticker)),
