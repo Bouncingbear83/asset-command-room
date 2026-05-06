@@ -12,12 +12,14 @@ import TransactionsTab from "@/components/TransactionsTab";
 import EarningsCalendarTab from "@/components/EarningsCalendarTab";
 import JisasTab from "@/components/JisasTab";
 import IntelligenceTab from "@/pages/IntelligenceTab";
+import DriversTab from "@/components/DriversTab";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Intelligence", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Returns", "Holdings", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
   Command: "command", Monitor: "monitor", Watchlist: "watchlist", Layers: "layers",
+  Drivers: "drivers",
   Intelligence: "intelligence", Returns: "returns", Holdings: "holdings",
   Transactions: "transactions", JISAs: "jisas", "Earnings Calendar": "earnings",
 };
@@ -188,6 +190,7 @@ export default function Index() {
           />
         )}
         {active === "Intelligence" && <IntelligenceTab />}
+        {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa]} />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
