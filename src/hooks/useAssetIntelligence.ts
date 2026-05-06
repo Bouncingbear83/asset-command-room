@@ -405,8 +405,7 @@ function buildOne(
   const substrate_level = (["L1", "L2", "L3", "L4"] as const).find((l) => l === slRaw) ?? null;
   const stRaw = String((s as { stackLayer?: unknown }).stackLayer ?? "").trim().toUpperCase();
   const stack_layer = stRaw && stRaw !== "N/A" ? stRaw : null;
-  // factor_group joined from HOLDINGS for HELD rows
-  const factor_group = position?.factor_primary ? null : null; // placeholder, set below
+  // factor_group joined from HOLDINGS for HELD rows (empty for unheld)
   const fgFromHolding = positionRows[0]?.factor_group
     ? String(positionRows[0].factor_group).trim().toUpperCase()
     : "";
