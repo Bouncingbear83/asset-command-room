@@ -454,6 +454,8 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         <div className="asset-row-mobile-line2">
           <span className="asset-row-mobile-name">{asset.name}</span>
           {asset.layer && <LayerChipInline layer={asset.layer} />}
+          {asset.substrate_level && <LBandPill level={asset.substrate_level} stackLayer={asset.stack_layer} />}
+          {asset.stack_layer && <StackBadge value={asset.stack_layer} />}
           <DisruptionBadgeInline asset={asset} />
         </div>
 
