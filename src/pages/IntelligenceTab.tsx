@@ -13,13 +13,18 @@ import {
   stateFromParams,
   stateToParams,
   PROFILE_FILTER_KEYS,
+  SUBSTRATE_LEVEL_VALUES,
   type GroupBy,
   type SortField,
   type IntelligenceUiState,
   type ProfileFilterKey,
+  type SubstrateLevel,
+  type StackLayerKey,
+  type DriverKey,
 } from "@/lib/url-state";
 import type { AssetIntelligence, HeldStatus, Layer, Tier } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
+import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, stackLayerOrder } from "@/components/holdings/DriverChip";
 
 // ── Sorting / filtering / grouping pipeline ────────────────────────────────
 
@@ -65,6 +70,24 @@ function compareAssets(a: AssetIntelligence, b: AssetIntelligence, field: SortFi
       if (!Number.isFinite(br)) return -1;
       return sign * (ar - br);
     }
+    case "lband": {
+      // L4 highest. Null sorts to bottom.
+      const rank = (s: AssetIntelligence) => {
+        if (!s.substrate_level) return -1;
+        return Number(s.substrate_level.slice(1)); // L1 → 1, L4 → 4
+      };
+      const ar = rank(a);
+      const br = rank(b);
+      if (ar < 0 && br < 0) return 0;
+      if (ar < 0) return 1;
+      if (br < 0) return -1;
+      return sign * (ar - br);
+    }
+    case "stack": {
+      const ar = a.stack_layer ? stackLayerOrder(a.stack_layer) : 999;
+      const br = b.stack_layer ? stackLayerOrder(b.stack_layer) : 999;
+      return sign * (ar - br);
+    }
   }
 }
 
@@ -81,6 +104,8 @@ function groupAssets(sorted: AssetIntelligence[], groupBy: GroupBy): GroupBucket
     if (groupBy === "layer") return a.layer ?? "Unclassified";
     if (groupBy === "status") return a.held_status;
     if (groupBy === "tier") return a.tier ?? "Untiered";
+    if (groupBy === "driver") return a.factor_group ?? "Undriven";
+    if (groupBy === "lband") return a.substrate_level ?? "Unrated";
     return "";
   };
 
@@ -95,7 +120,10 @@ function groupAssets(sorted: AssetIntelligence[], groupBy: GroupBy): GroupBucket
   let order: string[];
   if (groupBy === "layer") order = LAYER_ORDER as string[];
   else if (groupBy === "status") order = STATUS_ORDER as string[];
-  else order = TIER_ORDER as string[];
+  else if (groupBy === "tier") order = TIER_ORDER as string[];
+  else if (groupBy === "driver") order = [...FACTOR_GROUP_VALUES, "Undriven"];
+  else if (groupBy === "lband") order = ["L4", "L3", "L2", "L1", "Unrated"];
+  else order = [];
 
   const buckets: GroupBucket[] = [];
   for (const k of order) {
@@ -177,6 +205,35 @@ export default function IntelligenceTab() {
   };
   const resetProfile = () => update({ profileFilter: [] });
 
+  const toggleLband = (l: SubstrateLevel) => {
+    setState((prev) => {
+      const has = prev.lbandFilter.includes(l);
+      const next = has ? prev.lbandFilter.filter((x) => x !== l) : [...prev.lbandFilter, l];
+      const allOn = SUBSTRATE_LEVEL_VALUES.every((v) => next.includes(v));
+      return { ...prev, lbandFilter: allOn ? [] : next };
+    });
+  };
+  const resetLband = () => update({ lbandFilter: [] });
+
+  const toggleStack = (s: StackLayerKey) => {
+    setState((prev) => {
+      const has = prev.stackFilter.includes(s);
+      const next = has ? prev.stackFilter.filter((x) => x !== s) : [...prev.stackFilter, s];
+      return { ...prev, stackFilter: next };
+    });
+  };
+  const resetStack = () => update({ stackFilter: [] });
+
+  const toggleDriver = (d: DriverKey) => {
+    setState((prev) => {
+      const has = prev.driverFilter.includes(d);
+      const next = has ? prev.driverFilter.filter((x) => x !== d) : [...prev.driverFilter, d];
+      const allOn = FACTOR_GROUP_VALUES.every((v) => next.includes(v));
+      return { ...prev, driverFilter: allOn ? [] : next };
+    });
+  };
+  const resetDriver = () => update({ driverFilter: [] });
+
   const handleSort = (field: SortField) => {
     setState((prev) => {
       if (prev.sortField === field) {
@@ -211,13 +268,22 @@ export default function IntelligenceTab() {
         }
         if (!key || !profileSet.has(key)) return false;
       }
+      if (state.lbandFilter.length > 0) {
+        if (!a.substrate_level || !state.lbandFilter.includes(a.substrate_level)) return false;
+      }
+      if (state.stackFilter.length > 0) {
+        if (!a.stack_layer || !(state.stackFilter as string[]).includes(a.stack_layer)) return false;
+      }
+      if (state.driverFilter.length > 0) {
+        if (!a.factor_group || !(state.driverFilter as string[]).includes(a.factor_group)) return false;
+      }
       if (q) {
         const hay = `${a.ticker} ${a.name}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.search]);
+  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.lbandFilter, state.stackFilter, state.driverFilter, state.search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => compareAssets(a, b, state.sortField, state.sortDir));
@@ -329,6 +395,15 @@ export default function IntelligenceTab() {
         onResetLayer={resetLayer}
         onToggleProfile={toggleProfile}
         onResetProfile={resetProfile}
+        lbandFilter={state.lbandFilter}
+        stackFilter={state.stackFilter}
+        driverFilter={state.driverFilter}
+        onToggleLband={toggleLband}
+        onResetLband={resetLband}
+        onToggleStack={toggleStack}
+        onResetStack={resetStack}
+        onToggleDriver={toggleDriver}
+        onResetDriver={resetDriver}
         onSearchChange={(v) => update({ search: v })}
         onGroupChange={(g) => update({ groupBy: g })}
         onSortChange={(field, dir) => update({ sortField: field, sortDir: dir })}

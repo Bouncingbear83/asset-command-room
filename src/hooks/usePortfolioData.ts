@@ -77,6 +77,7 @@ const KNOWN_COLS = [
   "threshold_amber", "threshold_red", "value", "next_earnings_date", "fiscal_period",
   "confirmed", "sp500_tr", "msci_world_tr", "deploy_target_gbp", "deploy_note",
   "deploy_amount_gbp", "factor_primary", "factor_group", "stack_layer",
+  "substrate_level",
   "held_status", "reclass_status", "thesis_age_months", "thesis_first_scored",
 ];
 
@@ -143,6 +144,7 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("factor primary") || labelLower.includes("factor_primary")) return "factor_primary";
   if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
   if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
+  if (labelLower.includes("substrate level") || labelLower.includes("substrate_level")) return "substrate_level";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
@@ -433,6 +435,8 @@ function parseScores(rows: Record<string, any>[]) {
       thesisAgeMonths: parseNum(findCol(row, "THESIS_AGE_MONTHS", "thesis_age_months", "Thesis_Age_Months")),
       returnProfile: String(findCol(row, "RETURN_PROFILE", "return_profile", "Return_Profile") ?? ""),
       compounderSubtype: String(findCol(row, "COMPOUNDER_SUBTYPE", "compounder_subtype", "Compounder_Subtype") ?? ""),
+      substrateLevel: String(findCol(row, "SUBSTRATE_LEVEL", "substrate_level", "Substrate_Level") ?? ""),
+      stackLayer: String(findCol(row, "STACK_LAYER", "stack_layer", "Stack_Layer") ?? ""),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 }
@@ -951,7 +955,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM50" }),
         fetchSheet({ gid: GIDS.watchlist, range: "A1:N80" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
-        fetchSheet({ gid: GIDS.scores }).catch(() => []),
+        fetchSheet({ gid: GIDS.scores, range: "A1:AA" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
         fetchSheet({ gid: GIDS.monitor }).catch(() => []),
         fetchSheet({ gid: GIDS.disruption }).catch(() => []),

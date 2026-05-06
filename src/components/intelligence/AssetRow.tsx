@@ -4,6 +4,8 @@ import type { AssetIntelligence, BuyDistance, HeldStatus, Layer, ScoreTrend } fr
 import { AssetExpansion } from "./AssetExpansion";
 import { COL } from "./columns";
 import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
+import { LBandPill } from "./LBandPill";
+import { StackBadge } from "@/components/holdings/DriverChip";
 import "./AssetRow.css";
 
 interface Props {
@@ -452,6 +454,8 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         <div className="asset-row-mobile-line2">
           <span className="asset-row-mobile-name">{asset.name}</span>
           {asset.layer && <LayerChipInline layer={asset.layer} />}
+          {asset.substrate_level && <LBandPill level={asset.substrate_level} stackLayer={asset.stack_layer} />}
+          {asset.stack_layer && <StackBadge value={asset.stack_layer} />}
           <DisruptionBadgeInline asset={asset} />
         </div>
 
@@ -544,6 +548,11 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <LayerChip layer={asset.layer} />
         </div>
 
+        {/* Stack layer (v2.5) */}
+        <div style={{ width: COL.stack, minWidth: COL.stack, maxWidth: COL.stack, flexShrink: 0, textAlign: "center" }}>
+          {asset.stack_layer ? <StackBadge value={asset.stack_layer} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}
+        </div>
+
         {/* Score + trend Δ */}
         <div style={{ width: COL.score, minWidth: COL.score, maxWidth: COL.score, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600, color: scoreColor(asset.score), lineHeight: 1 }}>
@@ -565,7 +574,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
         </div>
 
-        {/* Disruption deep-dive badge */}
+        {/* L-band (v2.5) */}
+        <div style={{ width: COL.lband, minWidth: COL.lband, maxWidth: COL.lband, flexShrink: 0, textAlign: "center" }}>
+          <LBandPill level={asset.substrate_level} stackLayer={asset.stack_layer} />
+        </div>
+
+
         <div style={{ width: COL.disruption, minWidth: COL.disruption, maxWidth: COL.disruption, flexShrink: 0 }}>
           <DisruptionBadge asset={asset} />
         </div>
