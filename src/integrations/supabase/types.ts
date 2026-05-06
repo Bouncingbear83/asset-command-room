@@ -228,6 +228,7 @@ export type Database = {
           factor_group: string
           id: number
           mv_gbp: number | null
+          priority: string | null
           snapshot_date: string
           source: string | null
         }
@@ -237,6 +238,7 @@ export type Database = {
           factor_group: string
           id?: number
           mv_gbp?: number | null
+          priority?: string | null
           snapshot_date: string
           source?: string | null
         }
@@ -246,6 +248,7 @@ export type Database = {
           factor_group?: string
           id?: number
           mv_gbp?: number | null
+          priority?: string | null
           snapshot_date?: string
           source?: string | null
         }
@@ -655,7 +658,9 @@ export type Database = {
           score: number
           snapshot_date: string
           source: string
+          stack_layer: string | null
           substrate: number
+          substrate_level: string | null
           ticker: string
           tier: string | null
           valuation: number
@@ -676,7 +681,9 @@ export type Database = {
           score: number
           snapshot_date: string
           source?: string
+          stack_layer?: string | null
           substrate: number
+          substrate_level?: string | null
           ticker: string
           tier?: string | null
           valuation: number
@@ -697,7 +704,9 @@ export type Database = {
           score?: number
           snapshot_date?: string
           source?: string
+          stack_layer?: string | null
           substrate?: number
+          substrate_level?: string | null
           ticker?: string
           tier?: string | null
           valuation?: number

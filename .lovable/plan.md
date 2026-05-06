@@ -1,37 +1,37 @@
-## Narrative Signals card on Command tab
+## Status check vs Part 11 spec
 
-### 1. Database (migration)
-Add anon-accessible policies on `narrative_signals` (existing service-role policy stays):
-- `SELECT` policy for `anon` + `authenticated`: `USING (true)`
-- `UPDATE` policy for `anon` + `authenticated`: `USING (true) WITH CHECK (true)` — column-level write access is enforced in app code (we only set `review_status`, `review_note`, `reviewed_at`, `reviewed_by`).
-- Add table to `supabase_realtime` publication and set `REPLICA IDENTITY FULL` so realtime delivers full row payloads.
+**Already done** (previous migrations + edge function update):
+- `holdings_snapshot`: 4 new columns added (`factor_primary`, `factor_group`, `stack_layer`, `substrate_level`)
+- `factor_group_weights` table created with `UNIQUE (factor_group, snapshot_date)`, RLS enabled, authenticated SELECT policy, indexes on `snapshot_date` and `factor_group`
+- `ingest-daily-snapshot` edge function: `factorGroupWeights` block added mirroring `layerWeights` (uses generic `upsert(rows)` — accepts new columns automatically, no explicit column list to maintain)
 
-### 2. New hook — `src/hooks/useNarrativeSignals.ts`
-- Initial fetch: `select id, ticker, name, layer, source_table, signal_class, strength, headline, url, snippet, matched_keywords, created_at, review_status` from `narrative_signals` where `review_status='NEW'` and `strength in ('HIGH','MEDIUM')`, ordered by `strength` (HIGH first via custom sort) then `created_at desc`, limit 50.
-- Subscribe to `postgres_changes` on `public.narrative_signals` (`event: '*'`). On INSERT matching filter → prepend; on UPDATE → if no longer `NEW`, drop from list; on DELETE → remove.
-- Expose `signals`, `loading`, `error`, and `markReviewed(id)` which calls `supabase.from('narrative_signals').update({ review_status: 'REVIEWED', reviewed_at: new Date().toISOString(), reviewed_by: 'command_ui' }).eq('id', id)`.
+**Still missing from the Part 11 spec**:
 
-### 3. New component — `src/components/NarrativeSignalsCard.tsx`
-Uses the same `card`/`cardHeader`/`cardTitle` style as other Command cards. Header: "Narrative Signals" + count chip + "LIVE" pulse dot.
+1. **`holdings_snapshot` indexes** — `idx_hs_factor_group`, `idx_hs_stack_layer`
+2. **`scores_snapshot` columns** — `substrate_level text`, `stack_layer text` (for time-series L-band tracking)
+3. **`factor_group_weights.priority` column** — `text`, plus partial index `idx_fgw_priority ON (priority) WHERE priority != 'OK'`
 
-Per-row layout (vertical stack inside a `var(--surface)` panel):
-- Top row: ticker (gold `#C8A96E`, mono, larger), strength badge (HIGH = red, MEDIUM = amber, LOW = grey), `signal_class` pill, time-ago.
-- Sub-row: `name` · layer tag · `source_table` tag (small uppercase mono).
-- Headline (one-line, ellipsis), snippet collapsed behind a "Show snippet" toggle.
-- Matched keywords as small mono caption (`KEYWORDS · …`).
-- Footer: "Source ↗" link (uses `(window.top || window).open(url, '_blank')` per iframe-link rule) + two action buttons:
-  - **Mark Reviewed** → `markReviewed(id)`, optimistic remove, toast on success/error.
-  - **Open in Research Commit** → opens `https://bertbroad83.app.n8n.cloud/workflow/Qh4BzSYdf7jkZId5` in new tab (ticker noted in toast: "Opening Research Commit for {TICKER}"); n8n won't accept a param.
+**Edge function**: no further changes needed. Both `holdingsSnapshot` and `scoresSnapshot` already use generic `upsert(rows, { onConflict })` with no explicit column list, so the new fields flow through automatically once the schema migration runs. `factorGroupWeights` block is already in place and will pick up `priority` the same way.
 
-Empty state: "No new HIGH/MEDIUM signals" centred dim text.
+### Proposed migration
 
-### 4. Wire into `CommandTab.tsx`
-Insert `<NarrativeSignalsCard />` in the existing grid (line ~620), placed directly under `<ReviewQueue />` and above the Latest Research block.
+```sql
+-- holdings_snapshot indexes
+CREATE INDEX IF NOT EXISTS idx_hs_factor_group ON public.holdings_snapshot(factor_group);
+CREATE INDEX IF NOT EXISTS idx_hs_stack_layer  ON public.holdings_snapshot(stack_layer);
 
-### 5. Memory updates
-Add a memory file `mem://features/narrative-signals-card` describing the card, realtime subscription, and review action; add an index entry.
+-- scores_snapshot L-band tracking columns
+ALTER TABLE public.scores_snapshot
+  ADD COLUMN IF NOT EXISTS substrate_level text,
+  ADD COLUMN IF NOT EXISTS stack_layer     text;
 
-### Notes
-- All styling reuses existing tokens (`--gold`, `--red`, `--amber`, `--text-dim`, `--surface`, `--rim`, `--font-mono`).
-- No new dependencies.
-- Anon UPDATE is acceptable here because the table is internal narrative-signal triage and the app is gated by `PasswordGate`; matches the access posture of other Supabase tables in the project.
+-- factor_group_weights priority + partial index
+ALTER TABLE public.factor_group_weights
+  ADD COLUMN IF NOT EXISTS priority text;
+
+CREATE INDEX IF NOT EXISTS idx_fgw_priority
+  ON public.factor_group_weights(priority)
+  WHERE priority <> 'OK';
+```
+
+No frontend code changes; new fields will appear in the regenerated `src/integrations/supabase/types.ts` after the migration runs and are ready for follow-up UI work.
