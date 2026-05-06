@@ -268,13 +268,22 @@ export default function IntelligenceTab() {
         }
         if (!key || !profileSet.has(key)) return false;
       }
+      if (state.lbandFilter.length > 0) {
+        if (!a.substrate_level || !state.lbandFilter.includes(a.substrate_level)) return false;
+      }
+      if (state.stackFilter.length > 0) {
+        if (!a.stack_layer || !(state.stackFilter as string[]).includes(a.stack_layer)) return false;
+      }
+      if (state.driverFilter.length > 0) {
+        if (!a.factor_group || !(state.driverFilter as string[]).includes(a.factor_group)) return false;
+      }
       if (q) {
         const hay = `${a.ticker} ${a.name}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.search]);
+  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.lbandFilter, state.stackFilter, state.driverFilter, state.search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => compareAssets(a, b, state.sortField, state.sortDir));
