@@ -18,6 +18,9 @@ export interface FactorGroupWeightsState {
   error: string | null;
 }
 
+// `distinctDays` counts unique snapshot_date values found in the trailing 30-day
+// window of `factor_group_weights`. UI gates (Section 3 trend chart, cap-tightening
+// monitor) activate automatically once distinctDays >= 14.
 export function useFactorGroupWeights(): FactorGroupWeightsState {
   const [state, setState] = useState<FactorGroupWeightsState>({
     latest: [], latestDate: null, history: [], distinctDays: 0, loading: true, error: null,
