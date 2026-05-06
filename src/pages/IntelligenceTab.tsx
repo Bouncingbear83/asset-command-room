@@ -205,6 +205,35 @@ export default function IntelligenceTab() {
   };
   const resetProfile = () => update({ profileFilter: [] });
 
+  const toggleLband = (l: SubstrateLevel) => {
+    setState((prev) => {
+      const has = prev.lbandFilter.includes(l);
+      const next = has ? prev.lbandFilter.filter((x) => x !== l) : [...prev.lbandFilter, l];
+      const allOn = SUBSTRATE_LEVEL_VALUES.every((v) => next.includes(v));
+      return { ...prev, lbandFilter: allOn ? [] : next };
+    });
+  };
+  const resetLband = () => update({ lbandFilter: [] });
+
+  const toggleStack = (s: StackLayerKey) => {
+    setState((prev) => {
+      const has = prev.stackFilter.includes(s);
+      const next = has ? prev.stackFilter.filter((x) => x !== s) : [...prev.stackFilter, s];
+      return { ...prev, stackFilter: next };
+    });
+  };
+  const resetStack = () => update({ stackFilter: [] });
+
+  const toggleDriver = (d: DriverKey) => {
+    setState((prev) => {
+      const has = prev.driverFilter.includes(d);
+      const next = has ? prev.driverFilter.filter((x) => x !== d) : [...prev.driverFilter, d];
+      const allOn = FACTOR_GROUP_VALUES.every((v) => next.includes(v));
+      return { ...prev, driverFilter: allOn ? [] : next };
+    });
+  };
+  const resetDriver = () => update({ driverFilter: [] });
+
   const handleSort = (field: SortField) => {
     setState((prev) => {
       if (prev.sortField === field) {
