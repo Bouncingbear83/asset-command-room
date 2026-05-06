@@ -17,6 +17,7 @@ import {
   profileChipStyle,
   subtypeChipStyle,
 } from "@/components/intelligence/profileChips";
+import { DriverChip, StackBadge } from "@/components/holdings/DriverChip";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
@@ -339,6 +340,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             {item.name}
           </span>
           <LayerChip layer={item.layer} />
+          <DriverChip value={item.factor_group} />
+          <StackBadge value={item.stack_layer} />
           <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
             Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
@@ -468,6 +471,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           {item.name}
         </span>
         <LayerChip layer={item.layer} />
+        <DriverChip value={item.factor_group} />
+        <StackBadge value={item.stack_layer} />
         <StatusBadge status={item.status} />
       </div>
 

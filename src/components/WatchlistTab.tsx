@@ -13,6 +13,11 @@ import {
   type CompounderSubtype,
 } from "@/types/intelligence";
 import { PROFILE_LABEL } from "@/components/intelligence/profileChips";
+import {
+  FACTOR_GROUP_VALUES,
+  STACK_LAYER_VALUES,
+  stackLayerOrder,
+} from "@/components/holdings/DriverChip";
 
 interface Props {
   liveData: LiveWatchItem[];
@@ -257,6 +262,90 @@ function EmptyLine({ label, dotColor }: { label: string; dotColor: string }) {
   );
 }
 
+// ── Generic chip filter row (Driver / Stack) ──
+function ChipFilterRow({
+  label,
+  values,
+  selected,
+  onToggle,
+  onReset,
+  isMobile,
+}: {
+  label: string;
+  values: readonly string[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  onReset: () => void;
+  isMobile: boolean;
+}) {
+  const all = selected.size === 0;
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+        flexWrap: "wrap",
+        padding: isMobile ? "0 14px 10px" : "0 18px 10px",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          letterSpacing: "0.15em",
+          color: "var(--text-dim)",
+          textTransform: "uppercase",
+          marginRight: 4,
+        }}
+      >
+        {label}
+      </span>
+      <button
+        onClick={onReset}
+        style={{
+          background: all ? "rgba(201,168,76,0.12)" : "transparent",
+          border: `1px solid ${all ? "var(--gold)" : "var(--rim)"}`,
+          color: all ? "var(--gold)" : "var(--text-dim)",
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          letterSpacing: "0.1em",
+          padding: "3px 8px",
+          borderRadius: 2,
+          cursor: "pointer",
+          textTransform: "uppercase",
+        }}
+      >
+        All
+      </button>
+      {values.map((v) => {
+        const active = selected.has(v);
+        return (
+          <button
+            key={v}
+            onClick={() => onToggle(v)}
+            aria-pressed={active}
+            style={{
+              background: active ? "rgba(201,168,76,0.12)" : "transparent",
+              border: `1px solid ${active ? "var(--gold)" : "var(--rim)"}`,
+              color: active ? "var(--gold)" : "var(--text-dim)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.1em",
+              padding: "3px 8px",
+              borderRadius: 2,
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            {v.replace(/_/g, " ")}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Skeleton ──
 
 function SkeletonRow() {
@@ -289,6 +378,9 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     () => new Set(PROFILE_FILTER_KEYS),
   );
   const [profileSort, setProfileSort] = useState(false);
+  const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
+  const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
+  const [extraSort, setExtraSort] = useState<"none" | "driver" | "stack">("none");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
@@ -397,6 +489,14 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
       if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
       if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      if (driverFilter.size > 0) {
+        const fg = String(r.item.factor_group ?? "").trim().toUpperCase();
+        if (!driverFilter.has(fg)) return false;
+      }
+      if (stackFilter.size > 0) {
+        const sl = String(r.item.stack_layer ?? "").trim().toUpperCase();
+        if (!stackFilter.has(sl)) return false;
+      }
       // Profile filter — only restrict rows that HAVE a profile. Rows without profile
       // (REJECTED/EXITED, or any unscored row) always pass so the filter only narrows
       // the universe of profile-tagged signals it's intended to control.
@@ -406,7 +506,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       }
       return true;
     });
-  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected]);
+  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected, driverFilter, stackFilter]);
 
   const toggleProfile = (k: ProfileFilterKey) => {
     setProfileFilter((prev) => {
@@ -428,6 +528,24 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     profileSortRank(a.return_profile, a.compounder_subtype) -
     profileSortRank(b.return_profile, b.compounder_subtype);
 
+  const byExtraSort = (a: DerivedRow, b: DerivedRow): number => {
+    if (extraSort === "driver") {
+      return String(a.item.factor_group ?? "").localeCompare(String(b.item.factor_group ?? ""));
+    }
+    if (extraSort === "stack") {
+      return stackLayerOrder(a.item.stack_layer) - stackLayerOrder(b.item.stack_layer);
+    }
+    return 0;
+  };
+
+  const applySorts = (a: DerivedRow, b: DerivedRow): number => {
+    if (profileSort) {
+      const p = byProfileFirst(a, b);
+      if (p !== 0) return p;
+    }
+    return byExtraSort(a, b);
+  };
+
   const activeBuys = useMemo(
     () =>
       filtered
@@ -436,13 +554,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           return s === BUY || s === ACTIVE;
         })
         .sort((a, b) => {
-          if (profileSort) {
-            const p = byProfileFirst(a, b);
-            if (p !== 0) return p;
-          }
+          const s = applySorts(a, b);
+          if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, profileSort],
+    [filtered, profileSort, extraSort],
   );
   const activeBuyIds = useMemo(
     () => new Set(activeBuys.map((r) => r.item.ticker)),
@@ -453,21 +569,20 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     const rows = filtered.filter(
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
-    return profileSort ? [...rows].sort(byProfileFirst) : rows;
-  }, [filtered, activeBuyIds, profileSort]);
+    if (profileSort || extraSort !== "none") return [...rows].sort(applySorts);
+    return rows;
+  }, [filtered, activeBuyIds, profileSort, extraSort]);
 
   const approaching = useMemo(
     () =>
       filtered
         .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker))
         .sort((a, b) => {
-          if (profileSort) {
-            const p = byProfileFirst(a, b);
-            if (p !== 0) return p;
-          }
+          const s = applySorts(a, b);
+          if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, activeBuyIds, profileSort],
+    [filtered, activeBuyIds, profileSort, extraSort],
   );
 
   // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
@@ -476,13 +591,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return filtered
       .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
       .sort((a, b) => {
-        if (profileSort) {
-          const p = byProfileFirst(a, b);
-          if (p !== 0) return p;
-        }
+        const s = applySorts(a, b);
+        if (s !== 0) return s;
         return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
       });
-  }, [filtered, profileSort]);
+  }, [filtered, profileSort, extraSort]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
@@ -498,17 +611,15 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           !skipStatus.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
-        if (profileSort) {
-          const p = byProfileFirst(a, b);
-          if (p !== 0) return p;
-        }
+        const s = applySorts(a, b);
+        if (s !== 0) return s;
         // Score desc if both have scores; otherwise gap asc
         const sa = a.score?.total_score ?? null;
         const sb = b.score?.total_score ?? null;
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds, profileSort]);
+  }, [filtered, overdueIds, activeBuyIds, profileSort, extraSort]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
@@ -731,6 +842,32 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           >
             {profileSort ? "Sort: Profile ✓" : "Sort: Profile"}
           </button>
+          <button
+            onClick={() => setExtraSort((v) => (v === "driver" ? "none" : "driver"))}
+            aria-pressed={extraSort === "driver"}
+            style={{
+              ...selectStyle,
+              cursor: "pointer",
+              color: extraSort === "driver" ? "var(--gold)" : "var(--text-mid)",
+              borderColor: extraSort === "driver" ? "var(--gold)" : "var(--rim)",
+            }}
+            title="Sort each section by FACTOR_GROUP (Driver)"
+          >
+            {extraSort === "driver" ? "Sort: Driver ✓" : "Sort: Driver"}
+          </button>
+          <button
+            onClick={() => setExtraSort((v) => (v === "stack" ? "none" : "stack"))}
+            aria-pressed={extraSort === "stack"}
+            style={{
+              ...selectStyle,
+              cursor: "pointer",
+              color: extraSort === "stack" ? "var(--gold)" : "var(--text-mid)",
+              borderColor: extraSort === "stack" ? "var(--gold)" : "var(--rim)",
+            }}
+            title="Sort each section by STACK_LAYER (Component → Foundry)"
+          >
+            {extraSort === "stack" ? "Sort: Stack ✓" : "Sort: Stack"}
+          </button>
         </div>
       </div>
 
@@ -799,6 +936,40 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           );
         })}
       </div>
+
+      {/* ── Driver (FACTOR_GROUP) filter chips ── */}
+      <ChipFilterRow
+        label="Driver"
+        values={FACTOR_GROUP_VALUES as readonly string[]}
+        selected={driverFilter}
+        onToggle={(v) =>
+          setDriverFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(v)) next.delete(v);
+            else next.add(v);
+            return next;
+          })
+        }
+        onReset={() => setDriverFilter(new Set())}
+        isMobile={isMobile}
+      />
+
+      {/* ── Stack (STACK_LAYER) filter chips ── */}
+      <ChipFilterRow
+        label="Stack"
+        values={STACK_LAYER_VALUES as readonly string[]}
+        selected={stackFilter}
+        onToggle={(v) =>
+          setStackFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(v)) next.delete(v);
+            else next.add(v);
+            return next;
+          })
+        }
+        onReset={() => setStackFilter(new Set())}
+        isMobile={isMobile}
+      />
 
       {pauseActive && (
         <div

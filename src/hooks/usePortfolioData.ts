@@ -374,6 +374,8 @@ function parseWatchlist(rows: Record<string, any>[]) {
         triggerReviewNote: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
         deploy_amount_gbp: parseNum(findCol(row, "deploy_amount_gbp", "DEPLOY_AMOUNT_GBP", "Deploy_Amount_GBP")),
         currency: String(findCol(row, "currency", "CURRENCY", "Currency") ?? "USD").trim(),
+        factor_group: String(findCol(row, "factor_group", "FACTOR_GROUP", "Factor_Group") ?? ""),
+        stack_layer: String(findCol(row, "stack_layer", "STACK_LAYER", "Stack_Layer") ?? ""),
       };
     })
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
@@ -953,7 +955,7 @@ export function usePortfolioData(): PortfolioData {
         jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM50" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:N80" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:S80" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores, range: "A1:AA" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
