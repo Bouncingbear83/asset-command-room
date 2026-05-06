@@ -262,6 +262,90 @@ function EmptyLine({ label, dotColor }: { label: string; dotColor: string }) {
   );
 }
 
+// ── Generic chip filter row (Driver / Stack) ──
+function ChipFilterRow({
+  label,
+  values,
+  selected,
+  onToggle,
+  onReset,
+  isMobile,
+}: {
+  label: string;
+  values: readonly string[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  onReset: () => void;
+  isMobile: boolean;
+}) {
+  const all = selected.size === 0;
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+        flexWrap: "wrap",
+        padding: isMobile ? "0 14px 10px" : "0 18px 10px",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          letterSpacing: "0.15em",
+          color: "var(--text-dim)",
+          textTransform: "uppercase",
+          marginRight: 4,
+        }}
+      >
+        {label}
+      </span>
+      <button
+        onClick={onReset}
+        style={{
+          background: all ? "rgba(201,168,76,0.12)" : "transparent",
+          border: `1px solid ${all ? "var(--gold)" : "var(--rim)"}`,
+          color: all ? "var(--gold)" : "var(--text-dim)",
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          letterSpacing: "0.1em",
+          padding: "3px 8px",
+          borderRadius: 2,
+          cursor: "pointer",
+          textTransform: "uppercase",
+        }}
+      >
+        All
+      </button>
+      {values.map((v) => {
+        const active = selected.has(v);
+        return (
+          <button
+            key={v}
+            onClick={() => onToggle(v)}
+            aria-pressed={active}
+            style={{
+              background: active ? "rgba(201,168,76,0.12)" : "transparent",
+              border: `1px solid ${active ? "var(--gold)" : "var(--rim)"}`,
+              color: active ? "var(--gold)" : "var(--text-dim)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.1em",
+              padding: "3px 8px",
+              borderRadius: 2,
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            {v.replace(/_/g, " ")}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Skeleton ──
 
 function SkeletonRow() {
