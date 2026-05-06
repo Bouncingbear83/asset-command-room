@@ -59,7 +59,7 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
 
 const SORT_FIELDS: HoldingsSortField[] = [
   "ticker", "name", "layer", "account", "mv", "gl", "day", "price",
-  "cost", "truePL", "annReturn", "action",
+  "cost", "truePL", "annReturn", "action", "driver", "stack",
 ];
 const GROUP_BYS: HoldingsGroupBy[] = ["none", "layer", "account", "tier"];
 
@@ -71,6 +71,8 @@ const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
   ann_ret: "annReturn",
   true_pl: "truePL",
   price_local: "price",
+  factor_group: "driver",
+  stack_layer: "stack",
 };
 
 export function normalizeAccount(raw: string): HoldingsAccount | null {
@@ -113,6 +115,16 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
     ? factorRaw.split(",").map(normalizeActionFactor).filter(Boolean)
     : [];
 
+  const driverRaw = params.get("driver");
+  const driverFilter: string[] = driverRaw
+    ? driverRaw.split(",").map(normalizeActionFactor).filter(Boolean)
+    : [];
+
+  const stackRaw = params.get("stack");
+  const stackFilter: string[] = stackRaw
+    ? stackRaw.split(",").map(normalizeActionFactor).filter(Boolean)
+    : [];
+
   const layerRaw = params.get("layer");
   const layerFilter: Layer[] = layerRaw
     ? layerRaw
@@ -137,6 +149,8 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
     accountFilter,
     actionFilter,
     factorFilter,
+    driverFilter,
+    stackFilter,
     layerFilter,
     tickers,
     search: params.get("q") ?? "",
@@ -151,6 +165,8 @@ export function holdingsStateToParams(state: HoldingsUiState): URLSearchParams {
   if (state.accountFilter.length > 0) out.set("account", state.accountFilter.join(","));
   if (state.actionFilter.length > 0) out.set("action", state.actionFilter.join(","));
   if (state.factorFilter.length > 0) out.set("factor", state.factorFilter.join(","));
+  if (state.driverFilter.length > 0) out.set("driver", state.driverFilter.join(","));
+  if (state.stackFilter.length > 0) out.set("stack", state.stackFilter.join(","));
   if (state.layerFilter.length > 0) out.set("layer", state.layerFilter.join(","));
   if (state.tickers.length > 0) out.set("tickers", state.tickers.join(","));
   if (state.search.trim() !== "") out.set("q", state.search.trim());
