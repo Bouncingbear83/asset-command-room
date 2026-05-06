@@ -1013,6 +1013,14 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
         const f = normalizeActionFactor(String(h.factor_primary ?? ""));
         if (!f || !state.factorFilter.includes(f)) return false;
       }
+      if (state.driverFilter.length > 0) {
+        const d = normalizeActionFactor(String((h as any).factor_group ?? ""));
+        if (!d || !state.driverFilter.includes(d)) return false;
+      }
+      if (state.stackFilter.length > 0) {
+        const s = normalizeActionFactor(String((h as any).stack_layer ?? ""));
+        if (!s || !state.stackFilter.includes(s)) return false;
+      }
       if (state.layerFilter.length > 0) {
         const layerStr = (h.layer || "").trim();
         const match = LAYER_VALUES.find((l) => l.toLowerCase() === layerStr.toLowerCase());
@@ -1024,7 +1032,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
       }
       return true;
     });
-  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.layerFilter, state.tickers, state.search]);
+  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.driverFilter, state.stackFilter, state.layerFilter, state.tickers, state.search]);
 
   const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
 
