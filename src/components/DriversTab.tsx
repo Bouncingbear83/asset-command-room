@@ -348,10 +348,29 @@ export default function DriversTab({ holdings }: Props) {
         <div style={cardBody}>
           {distinctDays < 14 ? (
             <div style={monoSm}>
-              Driver trend monitor activates once 14 days of data is available. Currently {distinctDays} day{distinctDays === 1 ? "" : "s"} collected.
+              Driver trend monitor activates once 14 days of data is available. Currently {distinctDays} day{distinctDays === 1 ? "" : "s"} collected. {activationHint(distinctDays)}
             </div>
           ) : (
             <DriverTrendChart dates={trendDates} byGroup={trendByGroup} />
+          )}
+        </div>
+      </section>
+
+      {/* SECTION 3b: Cap-Tightening Monitor */}
+      <section style={card}>
+        <div style={cardHeader}>
+          <div style={cardTitle}>Cap-Tightening Monitor (40 → 35)</div>
+          <div style={{ ...monoSm, marginTop: 4 }}>
+            Flag = driver drawdown exceeds portfolio drawdown by ≥{TIGHTEN_DELTA_PP}pp while sitting ≥{TIGHTEN_MIN_LATEST_PCT}% AUM.
+          </div>
+        </div>
+        <div style={cardBody}>
+          {!tightening ? (
+            <div style={monoSm}>
+              Cap-tightening monitor activates once 14 days of data is available. Currently {distinctDays} day{distinctDays === 1 ? "" : "s"} collected. {activationHint(distinctDays)}
+            </div>
+          ) : (
+            <CapTighteningPanel data={tightening} />
           )}
         </div>
       </section>
