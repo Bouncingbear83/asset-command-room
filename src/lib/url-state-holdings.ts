@@ -18,7 +18,9 @@ export type HoldingsSortField =
   | "cost"
   | "truePL"
   | "annReturn"
-  | "action";
+  | "action"
+  | "driver"
+  | "stack";
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
@@ -32,6 +34,8 @@ export interface HoldingsUiState {
   accountFilter: HoldingsAccount[];   // empty = all
   actionFilter: string[];             // uppercase+underscore, empty = all
   factorFilter: string[];             // uppercase+underscore, empty = all
+  driverFilter: string[];             // FACTOR_GROUP enum, empty = all
+  stackFilter: string[];              // STACK_LAYER enum, empty = all
   layerFilter: Layer[];               // empty = all
   /** Restrict to an explicit ticker set (case-insensitive). Empty = no restriction.
    *  Used by deep-links (e.g. Layers tab matrix cell → "show me these holdings"). */
@@ -46,6 +50,8 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
   accountFilter: [],
   actionFilter: [],
   factorFilter: [],
+  driverFilter: [],
+  stackFilter: [],
   layerFilter: [],
   tickers: [],
   search: "",
