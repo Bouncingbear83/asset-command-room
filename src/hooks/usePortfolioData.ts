@@ -435,6 +435,8 @@ function parseScores(rows: Record<string, any>[]) {
       thesisAgeMonths: parseNum(findCol(row, "THESIS_AGE_MONTHS", "thesis_age_months", "Thesis_Age_Months")),
       returnProfile: String(findCol(row, "RETURN_PROFILE", "return_profile", "Return_Profile") ?? ""),
       compounderSubtype: String(findCol(row, "COMPOUNDER_SUBTYPE", "compounder_subtype", "Compounder_Subtype") ?? ""),
+      substrateLevel: String(findCol(row, "SUBSTRATE_LEVEL", "substrate_level", "Substrate_Level") ?? ""),
+      stackLayer: String(findCol(row, "STACK_LAYER", "stack_layer", "Stack_Layer") ?? ""),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 }
