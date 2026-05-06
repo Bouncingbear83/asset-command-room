@@ -649,9 +649,9 @@ function UnifiedView({
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={isMobile ? 2 : 4} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
+            <td colSpan={isMobile ? 2 : 6} style={{ padding: "12px", color: "var(--text-mid)", fontWeight: 700, borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>TOTAL</td>
             <td style={{ padding: "12px", color: "var(--gold)", fontWeight: 700, textAlign: "right", borderTop: "1px solid var(--rim)", fontFamily: "var(--font-mono)", fontSize: 11 }}>£{totalAum.toLocaleString("en-GB", { maximumFractionDigits: 0 })}</td>
-            <td colSpan={Math.max(0, totalCols - (isMobile ? 3 : 5))} style={{ borderTop: "1px solid var(--rim)" }} />
+            <td colSpan={Math.max(0, totalCols - (isMobile ? 3 : 7))} style={{ borderTop: "1px solid var(--rim)" }} />
           </tr>
         </tfoot>
       </table>
