@@ -346,6 +346,8 @@ function parseHoldings(rows: Record<string, any>[]) {
       trigger_review_date: String(findCol(row, "trigger_review_date", "TRIGGER_REVIEW_DATE") ?? ""),
       trigger_review_note: String(findCol(row, "trigger_review_note", "TRIGGER_REVIEW_NOTE") ?? ""),
       factor_primary: String(findCol(row, "factor_primary", "FACTOR_PRIMARY", "Factor_Primary") ?? ""),
+      factor_group: String(findCol(row, "factor_group", "FACTOR_GROUP", "Factor_Group") ?? ""),
+      stack_layer: String(findCol(row, "stack_layer", "STACK_LAYER", "Stack_Layer") ?? ""),
     }));
 }
 
