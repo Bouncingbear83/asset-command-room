@@ -11,6 +11,7 @@ const TABLE_CONFIG = [
   { key: "holdingsSnapshot", table: "holdings_snapshot", conflict: "ticker,account,snapshot_date" },
   { key: "jisaSnapshot", table: "jisa_snapshot", conflict: "child,ticker,snapshot_date" },
   { key: "layerWeights", table: "layer_weights_snapshot", conflict: "layer,snapshot_date" },
+  { key: "factorGroupWeights", table: "factor_group_weights", conflict: "factor_group,snapshot_date" },
   { key: "scoresSnapshot", table: "scores_snapshot", conflict: "ticker,snapshot_date" },
   { key: "disruptionSnapshot", table: "disruption_snapshot", conflict: "ticker,snapshot_date" },
   { key: "macroSnapshot", table: "macro_snapshot", conflict: "snapshot_date" },
