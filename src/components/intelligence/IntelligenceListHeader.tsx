@@ -71,6 +71,7 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
     >
       <div style={{ width: COL.ticker, flexShrink: 0 }}>{sortBtn("Ticker", "ticker")}</div>
       <div style={{ width: COL.layer, flexShrink: 0, textAlign: "center" }}>{sortBtn("Layer", "layer", "left")}</div>
+      <div style={{ width: COL.stack, flexShrink: 0, textAlign: "center" }}>{sortBtn("Stack", "stack", "left")}</div>
       <div style={{ width: COL.score, flexShrink: 0 }}>{sortBtn("Score", "score")}</div>
 
       {/* 6D bar labels — non-sortable, mirrors AssetRow grid */}
@@ -80,6 +81,9 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
         ))}
       </div>
 
+      <div style={{ width: COL.lband, flexShrink: 0, textAlign: "center" }}>
+        {sortBtn("L-band", "lband", "left")}
+      </div>
       <div style={{ width: COL.disruption, flexShrink: 0, textAlign: "center" }}>
         {sortBtn("Disruption", "disruption", "left")}
       </div>
