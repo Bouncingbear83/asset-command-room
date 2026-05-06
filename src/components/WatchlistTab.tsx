@@ -294,6 +294,9 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     () => new Set(PROFILE_FILTER_KEYS),
   );
   const [profileSort, setProfileSort] = useState(false);
+  const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
+  const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
+  const [extraSort, setExtraSort] = useState<"none" | "driver" | "stack">("none");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
