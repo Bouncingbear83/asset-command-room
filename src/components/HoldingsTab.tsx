@@ -135,7 +135,9 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
       case "cost": av = a.returns?.totalCost ?? 0; bv = b.returns?.totalCost ?? 0; break;
       case "truePL": av = a.returns?.truePL ?? 0; bv = b.returns?.truePL ?? 0; break;
       case "account": av = a.account ?? ""; bv = b.account ?? ""; break;
-      default: av = a[key] ?? ""; bv = b[key] ?? "";
+      case "driver": av = (a as any).factor_group ?? ""; bv = (b as any).factor_group ?? ""; break;
+      case "stack": av = stackLayerOrder((a as any).stack_layer); bv = stackLayerOrder((b as any).stack_layer); break;
+      default: av = a[key as keyof typeof a] ?? ""; bv = b[key as keyof typeof b] ?? "";
     }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
     return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
