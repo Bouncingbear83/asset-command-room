@@ -85,10 +85,19 @@ export function IntelligenceFilters({
   onResetLayer,
   onToggleProfile,
   onResetProfile,
+  onToggleLband,
+  onResetLband,
+  onToggleStack,
+  onResetStack,
+  onToggleDriver,
+  onResetDriver,
   onSearchChange,
   onGroupChange,
   onSortChange,
   profileFilter,
+  lbandFilter,
+  stackFilter,
+  driverFilter,
 }: Props) {
   // Counts always on full set so users can see distribution regardless of active filters.
   const statusCounts: Record<HeldStatus, number> = {
