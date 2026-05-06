@@ -30,11 +30,15 @@ interface Props {
   accountCounts: AccountCounts;
   actionCounts: Record<string, number>;
   factorCounts: Record<string, number>;
+  driverCounts: Record<string, number>;
+  stackCounts: Record<string, number>;
   layerCounts: LayerCounts;
   totalPositions: number;
   accountFilter: HoldingsAccount[];
   actionFilter: string[];
   factorFilter: string[];
+  driverFilter: string[];
+  stackFilter: string[];
   layerFilter: Layer[];
   search: string;
   groupBy: HoldingsGroupBy;
@@ -46,6 +50,10 @@ interface Props {
   onResetAction: () => void;
   onToggleFactor: (f: string) => void;
   onResetFactor: () => void;
+  onToggleDriver: (d: string) => void;
+  onResetDriver: () => void;
+  onToggleStack: (s: string) => void;
+  onResetStack: () => void;
   onToggleLayer: (l: Layer) => void;
   onResetLayer: () => void;
   onSearchChange: (v: string) => void;
