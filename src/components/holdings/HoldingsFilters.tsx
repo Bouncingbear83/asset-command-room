@@ -249,7 +249,51 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {(actionEntries.length > 0 || factorEntries.length > 0) && <div style={divider} />}
+      {/* Row 4b: driver chips (FACTOR_GROUP) */}
+      {driverEntries.length > 0 && (
+        <ChipGroup ariaLabel="Filter by driver">
+          <Chip
+            label="All Drivers"
+            count={totalDrivers}
+            active={allDriversActive}
+            onClick={onResetDriver}
+            ariaLabel="Reset driver filters"
+          />
+          {driverEntries.map(([value, count]) => (
+            <Chip
+              key={value}
+              label={displayLabel(value)}
+              count={count}
+              active={!allDriversActive && driverFilter.includes(value)}
+              onClick={() => onToggleDriver(value)}
+            />
+          ))}
+        </ChipGroup>
+      )}
+
+      {/* Row 4c: stack chips (STACK_LAYER) */}
+      {stackEntries.length > 0 && (
+        <ChipGroup ariaLabel="Filter by stack layer">
+          <Chip
+            label="All Stack"
+            count={totalStacks}
+            active={allStacksActive}
+            onClick={onResetStack}
+            ariaLabel="Reset stack filters"
+          />
+          {stackEntries.map(([value, count]) => (
+            <Chip
+              key={value}
+              label={displayLabel(value)}
+              count={count}
+              active={!allStacksActive && stackFilter.includes(value)}
+              onClick={() => onToggleStack(value)}
+            />
+          ))}
+        </ChipGroup>
+      )}
+
+      {(actionEntries.length > 0 || factorEntries.length > 0 || driverEntries.length > 0 || stackEntries.length > 0) && <div style={divider} />}
 
       {/* Row 5: layer chips */}
       <ChipGroup ariaLabel="Filter by layer">
