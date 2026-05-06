@@ -758,6 +758,32 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           >
             {profileSort ? "Sort: Profile ✓" : "Sort: Profile"}
           </button>
+          <button
+            onClick={() => setExtraSort((v) => (v === "driver" ? "none" : "driver"))}
+            aria-pressed={extraSort === "driver"}
+            style={{
+              ...selectStyle,
+              cursor: "pointer",
+              color: extraSort === "driver" ? "var(--gold)" : "var(--text-mid)",
+              borderColor: extraSort === "driver" ? "var(--gold)" : "var(--rim)",
+            }}
+            title="Sort each section by FACTOR_GROUP (Driver)"
+          >
+            {extraSort === "driver" ? "Sort: Driver ✓" : "Sort: Driver"}
+          </button>
+          <button
+            onClick={() => setExtraSort((v) => (v === "stack" ? "none" : "stack"))}
+            aria-pressed={extraSort === "stack"}
+            style={{
+              ...selectStyle,
+              cursor: "pointer",
+              color: extraSort === "stack" ? "var(--gold)" : "var(--text-mid)",
+              borderColor: extraSort === "stack" ? "var(--gold)" : "var(--rim)",
+            }}
+            title="Sort each section by STACK_LAYER (Component → Foundry)"
+          >
+            {extraSort === "stack" ? "Sort: Stack ✓" : "Sort: Stack"}
+          </button>
         </div>
       </div>
 
