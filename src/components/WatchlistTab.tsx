@@ -507,13 +507,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return filtered
       .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
       .sort((a, b) => {
-        if (profileSort) {
-          const p = byProfileFirst(a, b);
-          if (p !== 0) return p;
-        }
+        const s = applySorts(a, b);
+        if (s !== 0) return s;
         return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
       });
-  }, [filtered, profileSort]);
+  }, [filtered, profileSort, extraSort]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
