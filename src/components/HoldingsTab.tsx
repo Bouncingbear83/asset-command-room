@@ -1177,11 +1177,15 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               accountCounts={accountCounts}
               actionCounts={actionCounts}
               factorCounts={factorCounts}
+              driverCounts={driverCounts}
+              stackCounts={stackCounts}
               layerCounts={layerCounts}
               totalPositions={positions.length}
               accountFilter={state.accountFilter}
               actionFilter={state.actionFilter}
               factorFilter={state.factorFilter}
+              driverFilter={state.driverFilter}
+              stackFilter={state.stackFilter}
               layerFilter={state.layerFilter}
               search={state.search}
               groupBy={state.groupBy}
@@ -1193,6 +1197,10 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
               onResetAction={() => update({ actionFilter: [] })}
               onToggleFactor={toggleFactor}
               onResetFactor={() => update({ factorFilter: [] })}
+              onToggleDriver={toggleDriver}
+              onResetDriver={() => update({ driverFilter: [] })}
+              onToggleStack={toggleStack}
+              onResetStack={() => update({ stackFilter: [] })}
               onToggleLayer={toggleLayer}
               onResetLayer={() => update({ layerFilter: [] })}
               onSearchChange={(v) => update({ search: v })}
