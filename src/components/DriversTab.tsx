@@ -9,6 +9,17 @@ interface Props {
 
 const WARN_PCT = 35;
 const BREACH_PCT = 40;
+const TIGHTEN_DELTA_PP = 5; // pp by which a driver drawdown must exceed portfolio drawdown to flag
+const TIGHTEN_MIN_LATEST_PCT = 30; // only flag drivers sitting near the cap
+
+function activationHint(distinctDays: number): string {
+  const remaining = Math.max(0, 14 - distinctDays);
+  if (remaining === 0) return "";
+  const d = new Date();
+  d.setDate(d.getDate() + remaining);
+  const iso = d.toISOString().slice(0, 10);
+  return `Activates around ${iso} (${remaining} more day${remaining === 1 ? "" : "s"} of data needed).`;
+}
 
 const card: React.CSSProperties = {
   background: "var(--panel)",
@@ -119,6 +130,87 @@ export default function DriversTab({ holdings }: Props) {
 
   const maxBarPct = Math.max(BREACH_PCT + 5, ...sortedGroups.map((g) => rowsByGroup.get(g)?.current_pct ?? 0));
 
+  // Heatmap: derive layer order dynamically from holdings, with a preferred order overlay.
+  const PREFERRED_LAYER_ORDER = ["Anchor", "Core", "Satellite", "Spec", "Hedge", "Cash"];
+  const layerOrder = useMemo(() => {
+    const present = new Set<string>();
+    for (const h of holdings) {
+      const l = String((h as any).layer ?? "").trim();
+      if (l) present.add(l);
+    }
+    const preferred = PREFERRED_LAYER_ORDER.filter((l) => present.has(l));
+    const extras = Array.from(present).filter((l) => !PREFERRED_LAYER_ORDER.includes(l)).sort();
+    return [...preferred, ...extras];
+  }, [holdings]);
+
+  // Matrix: { [driver]: { [layer]: { aum: number, count: number } } }
+  const matrix = useMemo(() => {
+    const m = new Map<string, Map<string, { aum: number; count: number }>>();
+    for (const h of holdings) {
+      const g = String((h as any).factor_group ?? "").trim().toUpperCase();
+      const l = String((h as any).layer ?? "").trim();
+      if (!g || !l) continue;
+      if (!m.has(g)) m.set(g, new Map());
+      const lm = m.get(g)!;
+      const cell = lm.get(l) ?? { aum: 0, count: 0 };
+      cell.aum += Number((h as any).aum_pct ?? 0);
+      cell.count += 1;
+      lm.set(l, cell);
+    }
+    return m;
+  }, [holdings]);
+
+  // Cap-tightening: per-driver drawdown series + portfolio drawdown proxy
+  const tightening = useMemo(() => {
+    if (distinctDays < 14) return null;
+    const dates = trendDates;
+    const groups = Array.from(trendByGroup.keys());
+    const ddByGroup = new Map<string, number[]>();
+    for (const g of groups) {
+      const series = trendByGroup.get(g)!.slice().sort((a, b) => a.date.localeCompare(b.date));
+      const byDate = new Map(series.map((p) => [p.date, p.pct]));
+      let peak = -Infinity;
+      const dd: number[] = [];
+      for (const d of dates) {
+        const v = byDate.get(d);
+        if (v == null) { dd.push(NaN); continue; }
+        peak = Math.max(peak, v);
+        dd.push(peak > 0 ? ((peak - v) / peak) * 100 : 0); // pp
+      }
+      ddByGroup.set(g, dd);
+    }
+    // Portfolio drawdown proxy: weight per-driver dd by latest current_pct
+    const totalLatest = Array.from(rowsByGroup.values()).reduce((s, r) => s + (r.current_pct || 0), 0) || 1;
+    const portfolioDd: number[] = dates.map((_, i) => {
+      let acc = 0, wsum = 0;
+      for (const g of groups) {
+        const v = ddByGroup.get(g)![i];
+        if (!isFinite(v)) continue;
+        const w = (rowsByGroup.get(g)?.current_pct ?? 0) / totalLatest;
+        acc += v * w;
+        wsum += w;
+      }
+      return wsum > 0 ? acc / wsum : 0;
+    });
+    const flagged: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number }[] = [];
+    const allRows: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number; isFlagged: boolean }[] = [];
+    const lastIdx = dates.length - 1;
+    for (const g of groups) {
+      const driverDd = ddByGroup.get(g)![lastIdx] ?? 0;
+      const pDd = portfolioDd[lastIdx] ?? 0;
+      const latest = rowsByGroup.get(g)?.current_pct ?? 0;
+      const delta = driverDd - pDd;
+      const isFlagged = delta >= TIGHTEN_DELTA_PP && latest >= TIGHTEN_MIN_LATEST_PCT;
+      const row = { group: g, driverDd, portfolioDd: pDd, delta, latest, isFlagged };
+      allRows.push(row);
+      if (isFlagged) flagged.push(row);
+    }
+    allRows.sort((a, b) => b.delta - a.delta);
+    return { dates, groups, ddByGroup, portfolioDd, allRows, flagged };
+  }, [distinctDays, trendDates, trendByGroup, rowsByGroup]);
+
+  const [heatMetric, setHeatMetric] = useState<"aum" | "count">("aum");
+
   if (loading) {
     return (
       <div style={{ padding: "24px var(--app-px, 40px)", ...monoSm }}>Loading driver concentration…</div>
@@ -154,7 +246,52 @@ export default function DriversTab({ holdings }: Props) {
         </div>
       </section>
 
-      {/* SECTION 2: Headroom cards */}
+      {/* SECTION 1b: Driver × Layer heatmap */}
+      <section style={card}>
+        <div style={cardHeader}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div>
+              <div style={cardTitle}>Driver × Layer Matrix</div>
+              <div style={{ ...monoSm, marginTop: 4 }}>
+                Cells = {heatMetric === "aum" ? "AUM% per (driver, layer) pair" : "position count per (driver, layer) pair"}
+              </div>
+            </div>
+            <div style={{ display: "inline-flex", border: "1px solid var(--rim)", borderRadius: 2, overflow: "hidden" }}>
+              {(["aum", "count"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setHeatMetric(m)}
+                  style={{
+                    padding: "5px 10px",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    background: heatMetric === m ? "var(--gold)" : "transparent",
+                    color: heatMetric === m ? "#0a0a1a" : "var(--text-mid)",
+                    border: "none",
+                  }}
+                >
+                  {m === "aum" ? "AUM %" : "Count"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={cardBody}>
+          {layerOrder.length === 0 || sortedGroups.length === 0 ? (
+            <div style={monoSm}>No holdings data to render matrix.</div>
+          ) : (
+            <DriverLayerHeatmap
+              groups={sortedGroups}
+              layers={layerOrder}
+              matrix={matrix}
+              metric={heatMetric}
+            />
+          )}
+        </div>
+      </section>
       <section style={card}>
         <div style={cardHeader}>
           <div style={cardTitle}>Driver Headroom</div>
@@ -211,10 +348,29 @@ export default function DriversTab({ holdings }: Props) {
         <div style={cardBody}>
           {distinctDays < 14 ? (
             <div style={monoSm}>
-              Driver trend monitor activates once 14 days of data is available. Currently {distinctDays} day{distinctDays === 1 ? "" : "s"} collected.
+              Driver trend monitor activates once 14 days of data is available. Currently {distinctDays} day{distinctDays === 1 ? "" : "s"} collected. {activationHint(distinctDays)}
             </div>
           ) : (
             <DriverTrendChart dates={trendDates} byGroup={trendByGroup} />
+          )}
+        </div>
+      </section>
+
+      {/* SECTION 3b: Cap-Tightening Monitor */}
+      <section style={card}>
+        <div style={cardHeader}>
+          <div style={cardTitle}>Cap-Tightening Monitor (40 → 35)</div>
+          <div style={{ ...monoSm, marginTop: 4 }}>
+            Flag = driver drawdown exceeds portfolio drawdown by ≥{TIGHTEN_DELTA_PP}pp while sitting ≥{TIGHTEN_MIN_LATEST_PCT}% AUM.
+          </div>
+        </div>
+        <div style={cardBody}>
+          {!tightening ? (
+            <div style={monoSm}>
+              Cap-tightening monitor activates once 14 days of data is available. Currently {distinctDays} day{distinctDays === 1 ? "" : "s"} collected. {activationHint(distinctDays)}
+            </div>
+          ) : (
+            <CapTighteningPanel data={tightening} />
           )}
         </div>
       </section>
@@ -459,3 +615,213 @@ function DriverHoldingsRow({
 
 const th: React.CSSProperties = { textAlign: "left", padding: "6px 8px", fontWeight: 400 };
 const td: React.CSSProperties = { padding: "6px 8px", color: "var(--text-mid)" };
+
+function DriverLayerHeatmap({
+  groups, layers, matrix, metric,
+}: {
+  groups: string[];
+  layers: string[];
+  matrix: Map<string, Map<string, { aum: number; count: number }>>;
+  metric: "aum" | "count";
+}) {
+  const labelW = 160;
+  const cellMin = 80;
+  const colTotals: Record<string, { aum: number; count: number }> = {};
+  layers.forEach((l) => (colTotals[l] = { aum: 0, count: 0 }));
+  const rowTotals = new Map<string, { aum: number; count: number }>();
+  groups.forEach((g) => rowTotals.set(g, { aum: 0, count: 0 }));
+  for (const g of groups) {
+    const lm = matrix.get(g);
+    if (!lm) continue;
+    for (const l of layers) {
+      const c = lm.get(l);
+      if (!c) continue;
+      colTotals[l].aum += c.aum;
+      colTotals[l].count += c.count;
+      const rt = rowTotals.get(g)!;
+      rt.aum += c.aum;
+      rt.count += c.count;
+    }
+  }
+
+  const fmt = (c: { aum: number; count: number } | undefined) =>
+    !c ? "" : metric === "aum" ? `${c.aum.toFixed(1)}%` : String(c.count);
+  const intensity = (c: { aum: number; count: number } | undefined) => {
+    if (!c) return 0;
+    return metric === "aum" ? Math.min(1, c.aum / 15) : Math.min(1, c.count / 5);
+  };
+
+  const cellStyle: React.CSSProperties = {
+    minWidth: cellMin,
+    padding: "8px 10px",
+    textAlign: "center",
+    fontFamily: "var(--font-mono)",
+    fontSize: 11,
+    border: "1px solid var(--rim)",
+  };
+  const headStyle: React.CSSProperties = {
+    ...cellStyle,
+    fontSize: 9,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    color: "var(--text-dim)",
+    fontWeight: 400,
+  };
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", minWidth: labelW + (layers.length + 1) * cellMin }}>
+        <thead>
+          <tr>
+            <th style={{ ...headStyle, minWidth: labelW, textAlign: "left" }}>Driver \ Layer</th>
+            {layers.map((l) => <th key={l} style={headStyle}>{l}</th>)}
+            <th style={{ ...headStyle, color: "var(--gold)" }}>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => {
+            const color = FACTOR_GROUP_COLORS[g] ?? "#8a8a9a";
+            const lm = matrix.get(g);
+            const rt = rowTotals.get(g)!;
+            return (
+              <tr key={g}>
+                <td style={{ ...cellStyle, textAlign: "left", fontSize: 10 }}>
+                  <span style={{
+                    display: "inline-block",
+                    padding: "2px 6px",
+                    background: `color-mix(in srgb, ${color} 22%, transparent)`,
+                    color,
+                    border: `1px solid color-mix(in srgb, ${color} 50%, transparent)`,
+                    fontSize: 9,
+                    letterSpacing: "0.06em",
+                  }}>{g.replace(/_/g, " ")}</span>
+                </td>
+                {layers.map((l) => {
+                  const c = lm?.get(l);
+                  const op = intensity(c);
+                  return (
+                    <td
+                      key={l}
+                      title={c ? `${g} · ${l} · ${c.count} position${c.count === 1 ? "" : "s"} · ${c.aum.toFixed(2)}% AUM` : `${g} · ${l} · empty`}
+                      style={{
+                        ...cellStyle,
+                        background: c ? `color-mix(in srgb, ${color} ${Math.round(op * 70)}%, transparent)` : "transparent",
+                        color: c ? "var(--gold)" : "var(--text-dim)",
+                      }}
+                    >
+                      {c ? fmt(c) : "·"}
+                    </td>
+                  );
+                })}
+                <td style={{ ...cellStyle, color: "var(--gold)" }}>
+                  {metric === "aum" ? `${rt.aum.toFixed(1)}%` : rt.count}
+                </td>
+              </tr>
+            );
+          })}
+          <tr>
+            <td style={{ ...headStyle, textAlign: "left", color: "var(--gold)" }}>TOTAL</td>
+            {layers.map((l) => {
+              const c = colTotals[l];
+              return (
+                <td key={l} style={{ ...cellStyle, color: "var(--gold)" }}>
+                  {metric === "aum" ? `${c.aum.toFixed(1)}%` : c.count}
+                </td>
+              );
+            })}
+            <td style={{ ...cellStyle, color: "var(--gold)" }}>
+              {metric === "aum"
+                ? `${groups.reduce((s, g) => s + (rowTotals.get(g)?.aum ?? 0), 0).toFixed(1)}%`
+                : groups.reduce((s, g) => s + (rowTotals.get(g)?.count ?? 0), 0)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface TighteningData {
+  dates: string[];
+  groups: string[];
+  ddByGroup: Map<string, number[]>;
+  portfolioDd: number[];
+  allRows: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number; isFlagged: boolean }[];
+  flagged: { group: string; driverDd: number; portfolioDd: number; delta: number; latest: number }[];
+}
+
+function CapTighteningPanel({ data }: { data: TighteningData }) {
+  const { dates, groups, ddByGroup, portfolioDd, allRows, flagged } = data;
+  const W = 520, H = 220, padL = 36, padR = 12, padT = 10, padB = 26;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const allDd = [...portfolioDd, ...Array.from(ddByGroup.values()).flat()].filter((v) => isFinite(v));
+  const yMax = Math.max(10, Math.ceil((Math.max(...allDd, 1) + 2) / 5) * 5);
+  const xFor = (i: number) => padL + (dates.length <= 1 ? innerW / 2 : (i / (dates.length - 1)) * innerW);
+  const yFor = (v: number) => padT + innerH - (Math.max(0, Math.min(yMax, v)) / yMax) * innerH;
+  const monoSmLocal: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1.1fr) minmax(280px, 1fr)", gap: 20, alignItems: "start" }}>
+      <div style={{ overflowX: "auto" }}>
+        <svg width={W} height={H} style={{ display: "block", maxWidth: "100%" }}>
+          {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+            const v = yMax * f;
+            return (
+              <g key={f}>
+                <line x1={padL} x2={W - padR} y1={yFor(v)} y2={yFor(v)} stroke="var(--rim)" strokeWidth={0.5} />
+                <text x={padL - 4} y={yFor(v) + 3} textAnchor="end" fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">{v.toFixed(0)}pp</text>
+              </g>
+            );
+          })}
+          {groups.map((g) => {
+            const color = FACTOR_GROUP_COLORS[g] ?? "#8a8a9a";
+            const series = ddByGroup.get(g)!;
+            const path = series.map((v, i) => isFinite(v) ? `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}` : "").join(" ");
+            return <path key={g} d={path} fill="none" stroke={color} strokeWidth={1} opacity={0.55} />;
+          })}
+          <path
+            d={portfolioDd.map((v, i) => `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(" ")}
+            fill="none"
+            stroke="#c9a84c"
+            strokeWidth={2.2}
+          />
+          {dates.length > 0 && [0, Math.floor(dates.length / 2), dates.length - 1].filter((v, i, a) => a.indexOf(v) === i).map((idx) => (
+            <text key={idx} x={xFor(idx)} y={H - 8} textAnchor="middle" fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">{dates[idx].slice(5)}</text>
+          ))}
+        </svg>
+        <div style={{ ...monoSmLocal, marginTop: 6 }}>
+          Gold line = portfolio drawdown (weighted avg across drivers). Coloured lines = per-driver drawdown.
+        </div>
+      </div>
+
+      <div>
+        <div style={{ ...monoSmLocal, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+          {flagged.length} flagged · {allRows.length} drivers
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+          <thead>
+            <tr style={{ color: "var(--text-dim)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <th style={{ ...th, textAlign: "left" }}>Driver</th>
+              <th style={{ ...th, textAlign: "right" }}>Driver DD</th>
+              <th style={{ ...th, textAlign: "right" }}>Port. DD</th>
+              <th style={{ ...th, textAlign: "right" }}>Δ</th>
+              <th style={{ ...th, textAlign: "right" }}>Latest</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allRows.map((r) => (
+              <tr key={r.group} style={{ borderTop: "1px solid var(--rim)", color: r.isFlagged ? "#ef4444" : "var(--text-dim)" }}>
+                <td style={td}>{r.isFlagged ? "🔴 " : ""}{r.group.replace(/_/g, " ")}</td>
+                <td style={{ ...td, textAlign: "right" }}>{r.driverDd.toFixed(1)}pp</td>
+                <td style={{ ...td, textAlign: "right" }}>{r.portfolioDd.toFixed(1)}pp</td>
+                <td style={{ ...td, textAlign: "right", color: r.isFlagged ? "#ef4444" : undefined }}>{r.delta >= 0 ? "+" : ""}{r.delta.toFixed(1)}pp</td>
+                <td style={{ ...td, textAlign: "right" }}>{r.latest.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
