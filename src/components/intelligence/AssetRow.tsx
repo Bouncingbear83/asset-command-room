@@ -4,6 +4,8 @@ import type { AssetIntelligence, BuyDistance, HeldStatus, Layer, ScoreTrend } fr
 import { AssetExpansion } from "./AssetExpansion";
 import { COL } from "./columns";
 import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
+import { LBandPill } from "./LBandPill";
+import { StackBadge } from "@/components/holdings/DriverChip";
 import "./AssetRow.css";
 
 interface Props {
