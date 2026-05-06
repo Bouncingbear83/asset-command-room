@@ -485,8 +485,9 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     const rows = filtered.filter(
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
-    return profileSort ? [...rows].sort(byProfileFirst) : rows;
-  }, [filtered, activeBuyIds, profileSort]);
+    if (profileSort || extraSort !== "none") return [...rows].sort(applySorts);
+    return rows;
+  }, [filtered, activeBuyIds, profileSort, extraSort]);
 
   const approaching = useMemo(
     () =>
