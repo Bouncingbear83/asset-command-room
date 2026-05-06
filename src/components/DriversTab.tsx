@@ -9,6 +9,17 @@ interface Props {
 
 const WARN_PCT = 35;
 const BREACH_PCT = 40;
+const TIGHTEN_DELTA_PP = 5; // pp by which a driver drawdown must exceed portfolio drawdown to flag
+const TIGHTEN_MIN_LATEST_PCT = 30; // only flag drivers sitting near the cap
+
+function activationHint(distinctDays: number): string {
+  const remaining = Math.max(0, 14 - distinctDays);
+  if (remaining === 0) return "";
+  const d = new Date();
+  d.setDate(d.getDate() + remaining);
+  const iso = d.toISOString().slice(0, 10);
+  return `Activates around ${iso} (${remaining} more day${remaining === 1 ? "" : "s"} of data needed).`;
+}
 
 const card: React.CSSProperties = {
   background: "var(--panel)",
