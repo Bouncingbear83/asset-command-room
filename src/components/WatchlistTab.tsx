@@ -377,10 +377,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const [profileFilter, setProfileFilter] = useState<Set<ProfileFilterKey>>(
     () => new Set(PROFILE_FILTER_KEYS),
   );
-  const [profileSort, setProfileSort] = useState(false);
   const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
   const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
-  const [extraSort, setExtraSort] = useState<"none" | "driver" | "stack">("none");
+  type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile";
+  const [sortBy, setSortBy] = useState<SortKey>("default");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
