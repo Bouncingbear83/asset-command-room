@@ -1086,17 +1086,25 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <div key={`wait-${layer}`}>
                 <div
                   style={{
-                    padding: "8px 18px",
-                    background: "rgba(0,0,0,0.2)",
+                    padding: "10px 18px",
+                    background: "rgba(201,168,76,0.06)",
+                    borderTop: "1px solid var(--rim)",
                     borderBottom: "1px solid var(--rim)",
+                    borderLeft: "2px solid var(--gold)",
                     fontFamily: "var(--font-mono)",
-                    fontSize: 9,
+                    fontSize: 11,
+                    fontWeight: 700,
                     letterSpacing: "0.18em",
-                    color: "var(--text-dim)",
+                    color: "var(--gold)",
                     textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                   }}
                 >
-                  {layer} · {rows.length}
+                  <span style={{ color: "var(--gold)", opacity: 0.7 }}>▸</span>
+                  <span>{layer}</span>
+                  <span style={{ color: "var(--text-mid)", fontWeight: 400 }}>· {rows.length}</span>
                 </div>
                 {rows.map((r) => (
                   <WatchlistCard key={`wait-${r.item.ticker}`} row={r} variant="compact" />
