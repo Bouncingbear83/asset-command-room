@@ -579,7 +579,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     const rows = filtered.filter(
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
-    if (profileSort || extraSort !== "none") return [...rows].sort(applySorts);
+    if (sortBy !== "default") return [...rows].sort(applySorts);
     return rows;
   }, [filtered, activeBuyIds, sortBy]);
 
