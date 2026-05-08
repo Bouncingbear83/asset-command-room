@@ -568,7 +568,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, profileSort, extraSort],
+    [filtered, sortBy],
   );
   const activeBuyIds = useMemo(
     () => new Set(activeBuys.map((r) => r.item.ticker)),
@@ -581,7 +581,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     );
     if (profileSort || extraSort !== "none") return [...rows].sort(applySorts);
     return rows;
-  }, [filtered, activeBuyIds, profileSort, extraSort]);
+  }, [filtered, activeBuyIds, sortBy]);
 
   const approaching = useMemo(
     () =>
@@ -592,7 +592,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, activeBuyIds, profileSort, extraSort],
+    [filtered, activeBuyIds, sortBy],
   );
 
   // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
@@ -605,7 +605,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         if (s !== 0) return s;
         return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
       });
-  }, [filtered, profileSort, extraSort]);
+  }, [filtered, sortBy]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
@@ -629,7 +629,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds, profileSort, extraSort]);
+  }, [filtered, overdueIds, activeBuyIds, sortBy]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
