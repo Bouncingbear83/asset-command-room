@@ -1,77 +1,55 @@
-# Drivers Tab v2 — Heatmap, Cap-Tightening Monitor, Section 3 Verification
+## Watchlist UX upgrade
 
-Three additions to `src/components/DriversTab.tsx`. Pure presentation; no schema changes, no writes. All data comes from the existing `holdings` prop and `useFactorGroupWeights` hook.
+Two issues to address on the Watchlist tab:
 
-## 1. Section 3 — confirm auto-activation (~20 May)
+1. The per-layer sub-headers inside the Waiting section (`COMPUTE · 10`, `ENERGY · 2`, etc.) are nearly invisible — muted grey on near-black with no accent.
+2. Sorting is currently three separate toggle buttons (Profile / Driver / Stack) and there's no way to sort by Score, Gap, 7d, or 30d trend.
 
-The gate already exists:
+### 1 — Brighter layer bands (`WatchlistTab.tsx`, lines 1047-1066)
+
+Replace the dim sub-header with a higher-contrast band that reads as a real divider:
+
+- Background: subtle gold tint (`rgba(201,168,76,0.06)`) instead of `rgba(0,0,0,0.2)`
+- Left accent: 2px solid `var(--gold)` border
+- Layer name: `var(--gold)` at 11px, weight 700, full opacity
+- Count: `var(--text-mid)` (was `--text-dim`)
+- Add a tiny ▸ chevron glyph and slightly more vertical padding (10px) so it visually separates rows above/below
+- Same treatment applied wherever else the same pattern shows up (only the Waiting section currently uses it)
+
+This keeps the "thin band" doctrine (no chunky cards) but makes the layer break unmistakable on a 27" screen.
+
+### 2 — Unified Sort menu
+
+Replace the three toggle buttons (`Sort: Profile`, `Sort: Driver`, `Sort: Stack`) with a single `<select>` styled like the Layer/Status dropdowns:
 
 ```
-{distinctDays < 14 ? <placeholder> : <DriverTrendChart .../>}
+Sort by: Default · Score (high→low) · Gap (closest→furthest) · 7d trend · 30d trend · Driver · Stack · Profile
 ```
 
-`distinctDays` is computed from distinct `snapshot_date` values in `factor_group_weights` over the last 30 days. The chart will switch on automatically the first render where ≥14 distinct dates exist. No code change required.
+State change in `WatchlistTab.tsx`:
+- Drop `profileSort`, `extraSort` state → single `sortBy: SortKey` state
+- `SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile"`
+- Rewrite `applySorts` to a single switch on `sortBy`. When `default`, keep each bucket's existing tie-breaker (distance / score / days-overdue) so today's behaviour is preserved.
+- Sort comparators:
+  - `score`: `(b.score?.total_score ?? -1) - (a.score?.total_score ?? -1)`
+  - `gap`: `(a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999)` (closest to entry first; in-zone treated as 0)
+  - `trend7d` / `trend30d`: most-negative first (price falling toward entry = best for a buyer)
+  - `driver` / `stack` / `profile`: existing logic
+- Sort applies across **all sections** uniformly; bucketing (Active Buys → In Zone → Approaching → Overdue → Waiting → Monitoring → Research → Pre-IPO) is unchanged.
 
-Small polish:
-- Update placeholder copy to show projected activation date: `Activates around <today + (14 - distinctDays) days>`.
-- Add a one-line comment in `useFactorGroupWeights.ts` documenting the gate semantics.
+### 3 — Sort hint chip
 
-## 2. New Section — Driver × Layer Heatmap
+When `sortBy !== "default"`, show a small dismissable chip under the sticky header: `Sorted by Score ✕`. Click ✕ resets to default. Cheap, gives users an obvious "get back to normal" affordance.
 
-Insert as a new card between Section 1 (Driver Concentration bars) and Section 2 (Driver Headroom). Title: `Driver × Layer Matrix`.
+### Files touched
 
-Structure:
-- Rows = `FACTOR_GROUP` values (same order as Section 1: by AUM% desc).
-- Columns = portfolio `LAYER` values, fixed order from existing layer taxonomy used in Holdings/Layers tab (e.g. `Anchor`, `Core`, `Satellite`, `Spec`, `Hedge`, `Cash` — taken from whatever `LiveHolding.layer` actually contains; derive dynamically from `holdings`).
-- Cells:
-  - Metric A: sum of `aum_pct` for HELD rows in that (driver, layer) pair.
-  - Metric B: count of distinct tickers in that (driver, layer) pair.
-- Toggle above the matrix: `[AUM %] [Count]` segmented control, default `AUM %`.
-- Empty cells render as faint dots; populated cells shaded by intensity:
-  - AUM% mode: opacity `min(1, value / 15)` over the driver's brand color from `FACTOR_GROUP_COLORS`.
-  - Count mode: opacity `min(1, count / 5)`.
-- Cell text: `value.toFixed(1)%` or integer count, mono, gold on populated cells.
-- Row total column on the right (matches Section 1 % per driver — sanity check).
-- Column total row at the bottom (matches Layers tab allocations — sanity check).
-- Tooltip on each cell: `DRIVER · LAYER · N positions · X.XX% AUM`.
+- `src/components/WatchlistTab.tsx` — sub-header restyle (lines ~1047-1066), sort state refactor (lines ~380-547, 832-870), sort hint chip (new, ~875)
 
-No new dependencies; pure CSS grid + spans.
+No changes to `WatchlistCard.tsx`, no data-layer changes, no schema changes.
 
-## 3. New Section — Cap-Tightening Monitor
+### Verification
 
-Insert as a new card after Section 3 (30-Day Trend). Title: `Cap-Tightening Monitor (40 → 35)`.
-
-Trigger condition (per user choice): a driver's drawdown exceeds the portfolio's drawdown by ≥ N pp (default `5`, declared as a `const TIGHTEN_DELTA_PP = 5` near top of file for easy tuning).
-
-Definitions:
-- Per-day portfolio weight = sum of `current_pct` across all groups for that snapshot_date (should be ~100, used as a sanity baseline).
-- Per-driver "drawdown" = `(peak_pct_to_date − current_pct) / peak_pct_to_date` across the available history window, peak computed cumulatively day-by-day.
-- Portfolio "drawdown" proxy: average of all per-driver drawdowns weighted by latest `current_pct` (we do not have a portfolio NAV series in this hook; this is a doctrine-faithful proxy using the same data source). Document this clearly inline.
-- A driver is **flagged** when `(driver_dd_pp − portfolio_dd_pp) ≥ TIGHTEN_DELTA_PP` AND its latest `current_pct ≥ 30` (only matters near the cap).
-
-UI:
-- Same 14-day gate as Section 3 — show placeholder until `distinctDays ≥ 14`. Reuse the same activation-date hint copy.
-- Two-column layout once active:
-  - Left: small SVG chart (reuse the trend SVG shell) plotting each driver's drawdown line and a thicker portfolio drawdown line.
-  - Right: list of currently-flagged drivers with `driver_dd | portfolio_dd | delta_pp | latest_pct`, color = red when flagged, dim grey when not.
-- Footer note explaining the rule: `Flag = driver drawdown exceeds portfolio drawdown by ≥5pp while sitting ≥30% AUM. Doctrine-driven trigger for tightening cap from 40% to 35%.`
-
-## Files touched
-
-- `src/components/DriversTab.tsx` — add toggle state, heatmap section, cap-tightening section, helper functions; keep existing four sections intact and ordering: Concentration → Heatmap → Headroom → Trend → Cap-Tightening → Holdings by Driver.
-- `src/hooks/useFactorGroupWeights.ts` — add doc comment only.
-
-## Out of scope
-
-- No DB migrations.
-- No changes to ingestion / Google Sheets parsing.
-- No changes to other tabs.
-- No new external libs (charts stay hand-rolled SVG to match existing style).
-
-## Verification
-
-- Heatmap row totals match Section 1 bar values within 0.05pp.
-- Heatmap column totals match Layers tab allocations within 0.05pp.
-- Toggling AUM%/Count re-shades cells without layout shift.
-- Cap-tightening section shows placeholder today (distinctDays < 14) and switches on automatically once 14 days are in `factor_group_weights`.
-- With current data (~6–7 active drivers, no driver currently in deep relative drawdown), flagged list is empty and all rows render in dim grey.
+- Layer bands visibly stand out when Waiting section is expanded
+- Sort dropdown re-orders rows within each section without breaking bucketing
+- "Default" restores today's behaviour exactly (gap-asc in Approaching/Active Buys, score-desc/gap-asc in Waiting, days-overdue-desc in Overdue)
+- Mobile: dropdown wraps cleanly under the search box; layer band remains readable at 14px padding

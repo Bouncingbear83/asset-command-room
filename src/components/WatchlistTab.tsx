@@ -377,10 +377,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const [profileFilter, setProfileFilter] = useState<Set<ProfileFilterKey>>(
     () => new Set(PROFILE_FILTER_KEYS),
   );
-  const [profileSort, setProfileSort] = useState(false);
   const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
   const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
-  const [extraSort, setExtraSort] = useState<"none" | "driver" | "stack">("none");
+  type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile";
+  const [sortBy, setSortBy] = useState<SortKey>("default");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
 
@@ -521,29 +521,39 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const resetProfileFilter = () => setProfileFilter(new Set(PROFILE_FILTER_KEYS));
 
   // ── Bucket rows ──
-  // Active Buys: explicit BUY / ACTIVE statuses surface above zone-derived buckets.
-  // When Profile sort is active, this comparator runs before the bucket's
-  // existing tie-breaker so within each bucket profile order wins.
-  const byProfileFirst = (a: DerivedRow, b: DerivedRow): number =>
-    profileSortRank(a.return_profile, a.compounder_subtype) -
-    profileSortRank(b.return_profile, b.compounder_subtype);
-
-  const byExtraSort = (a: DerivedRow, b: DerivedRow): number => {
-    if (extraSort === "driver") {
-      return String(a.item.factor_group ?? "").localeCompare(String(b.item.factor_group ?? ""));
-    }
-    if (extraSort === "stack") {
-      return stackLayerOrder(a.item.stack_layer) - stackLayerOrder(b.item.stack_layer);
-    }
-    return 0;
-  };
+  const trendNorm = (v: number | null | undefined): number =>
+    v == null || !Number.isFinite(v) ? 9999 : v;
 
   const applySorts = (a: DerivedRow, b: DerivedRow): number => {
-    if (profileSort) {
-      const p = byProfileFirst(a, b);
-      if (p !== 0) return p;
+    switch (sortBy) {
+      case "score": {
+        const sa = a.score?.total_score ?? -1;
+        const sb = b.score?.total_score ?? -1;
+        return sb - sa;
+      }
+      case "gap": {
+        const ga = a.zoneStatus === "IN_ZONE" ? 0 : Math.abs(a.distanceToEntryPct ?? 9999);
+        const gb = b.zoneStatus === "IN_ZONE" ? 0 : Math.abs(b.distanceToEntryPct ?? 9999);
+        return ga - gb;
+      }
+      case "trend7d":
+        return trendNorm(a.change7dPct) - trendNorm(b.change7dPct);
+      case "trend30d":
+        return trendNorm(a.change30dPct) - trendNorm(b.change30dPct);
+      case "driver":
+        return String(a.item.factor_group ?? "").localeCompare(
+          String(b.item.factor_group ?? ""),
+        );
+      case "stack":
+        return stackLayerOrder(a.item.stack_layer) - stackLayerOrder(b.item.stack_layer);
+      case "profile":
+        return (
+          profileSortRank(a.return_profile, a.compounder_subtype) -
+          profileSortRank(b.return_profile, b.compounder_subtype)
+        );
+      default:
+        return 0;
     }
-    return byExtraSort(a, b);
   };
 
   const activeBuys = useMemo(
@@ -558,7 +568,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, profileSort, extraSort],
+    [filtered, sortBy],
   );
   const activeBuyIds = useMemo(
     () => new Set(activeBuys.map((r) => r.item.ticker)),
@@ -569,9 +579,9 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     const rows = filtered.filter(
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
-    if (profileSort || extraSort !== "none") return [...rows].sort(applySorts);
+    if (sortBy !== "default") return [...rows].sort(applySorts);
     return rows;
-  }, [filtered, activeBuyIds, profileSort, extraSort]);
+  }, [filtered, activeBuyIds, sortBy]);
 
   const approaching = useMemo(
     () =>
@@ -582,7 +592,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, activeBuyIds, profileSort, extraSort],
+    [filtered, activeBuyIds, sortBy],
   );
 
   // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
@@ -595,7 +605,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         if (s !== 0) return s;
         return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
       });
-  }, [filtered, profileSort, extraSort]);
+  }, [filtered, sortBy]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
@@ -619,7 +629,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds, profileSort, extraSort]);
+  }, [filtered, overdueIds, activeBuyIds, sortBy]);
 
   // Group waiting by layer
   const waitingByLayer = useMemo(() => {
@@ -829,47 +839,75 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <button
-            onClick={() => setProfileSort((v) => !v)}
-            aria-pressed={profileSort}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
             style={{
               ...selectStyle,
-              cursor: "pointer",
-              color: profileSort ? "var(--gold)" : "var(--text-mid)",
-              borderColor: profileSort ? "var(--gold)" : "var(--rim)",
+              color: sortBy !== "default" ? "var(--gold)" : "var(--text-mid)",
+              borderColor: sortBy !== "default" ? "var(--gold)" : "var(--rim)",
             }}
-            title="Sort each section by RETURN_PROFILE (Stellar → Generic → Reclass → Cycle → Hedge → Vehicle → Pre-Prod → empty)"
+            aria-label="Sort rows"
+            title="Sort rows within each section"
           >
-            {profileSort ? "Sort: Profile ✓" : "Sort: Profile"}
-          </button>
-          <button
-            onClick={() => setExtraSort((v) => (v === "driver" ? "none" : "driver"))}
-            aria-pressed={extraSort === "driver"}
-            style={{
-              ...selectStyle,
-              cursor: "pointer",
-              color: extraSort === "driver" ? "var(--gold)" : "var(--text-mid)",
-              borderColor: extraSort === "driver" ? "var(--gold)" : "var(--rim)",
-            }}
-            title="Sort each section by FACTOR_GROUP (Driver)"
-          >
-            {extraSort === "driver" ? "Sort: Driver ✓" : "Sort: Driver"}
-          </button>
-          <button
-            onClick={() => setExtraSort((v) => (v === "stack" ? "none" : "stack"))}
-            aria-pressed={extraSort === "stack"}
-            style={{
-              ...selectStyle,
-              cursor: "pointer",
-              color: extraSort === "stack" ? "var(--gold)" : "var(--text-mid)",
-              borderColor: extraSort === "stack" ? "var(--gold)" : "var(--rim)",
-            }}
-            title="Sort each section by STACK_LAYER (Component → Foundry)"
-          >
-            {extraSort === "stack" ? "Sort: Stack ✓" : "Sort: Stack"}
-          </button>
+            <option value="default">Sort · Default</option>
+            <option value="score">Sort · Score (high→low)</option>
+            <option value="gap">Sort · Gap (closest→furthest)</option>
+            <option value="trend7d">Sort · 7d trend (falling first)</option>
+            <option value="trend30d">Sort · 30d trend (falling first)</option>
+            <option value="driver">Sort · Driver</option>
+            <option value="stack">Sort · Stack</option>
+            <option value="profile">Sort · Profile</option>
+          </select>
         </div>
       </div>
+
+      {/* ── Active sort hint ── */}
+      {sortBy !== "default" && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: isMobile ? "0 14px 8px" : "0 18px 8px",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "rgba(201,168,76,0.12)",
+              border: "1px solid var(--gold)",
+              color: "var(--gold)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.12em",
+              padding: "3px 8px",
+              borderRadius: 2,
+              textTransform: "uppercase",
+            }}
+          >
+            Sorted by {sortBy === "trend7d" ? "7d trend" : sortBy === "trend30d" ? "30d trend" : sortBy}
+            <button
+              onClick={() => setSortBy("default")}
+              aria-label="Reset sort"
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--gold)",
+                cursor: "pointer",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ✕
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* ── Profile filter chips ── */}
       <div
@@ -1048,17 +1086,25 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <div key={`wait-${layer}`}>
                 <div
                   style={{
-                    padding: "8px 18px",
-                    background: "rgba(0,0,0,0.2)",
+                    padding: "10px 18px",
+                    background: "rgba(201,168,76,0.06)",
+                    borderTop: "1px solid var(--rim)",
                     borderBottom: "1px solid var(--rim)",
+                    borderLeft: "2px solid var(--gold)",
                     fontFamily: "var(--font-mono)",
-                    fontSize: 9,
+                    fontSize: 11,
+                    fontWeight: 700,
                     letterSpacing: "0.18em",
-                    color: "var(--text-dim)",
+                    color: "var(--gold)",
                     textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                   }}
                 >
-                  {layer} · {rows.length}
+                  <span style={{ color: "var(--gold)", opacity: 0.7 }}>▸</span>
+                  <span>{layer}</span>
+                  <span style={{ color: "var(--text-mid)", fontWeight: 400 }}>· {rows.length}</span>
                 </div>
                 {rows.map((r) => (
                   <WatchlistCard key={`wait-${r.item.ticker}`} row={r} variant="compact" />
