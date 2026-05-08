@@ -839,47 +839,75 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <button
-            onClick={() => setProfileSort((v) => !v)}
-            aria-pressed={profileSort}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
             style={{
               ...selectStyle,
-              cursor: "pointer",
-              color: profileSort ? "var(--gold)" : "var(--text-mid)",
-              borderColor: profileSort ? "var(--gold)" : "var(--rim)",
+              color: sortBy !== "default" ? "var(--gold)" : "var(--text-mid)",
+              borderColor: sortBy !== "default" ? "var(--gold)" : "var(--rim)",
             }}
-            title="Sort each section by RETURN_PROFILE (Stellar → Generic → Reclass → Cycle → Hedge → Vehicle → Pre-Prod → empty)"
+            aria-label="Sort rows"
+            title="Sort rows within each section"
           >
-            {profileSort ? "Sort: Profile ✓" : "Sort: Profile"}
-          </button>
-          <button
-            onClick={() => setExtraSort((v) => (v === "driver" ? "none" : "driver"))}
-            aria-pressed={extraSort === "driver"}
-            style={{
-              ...selectStyle,
-              cursor: "pointer",
-              color: extraSort === "driver" ? "var(--gold)" : "var(--text-mid)",
-              borderColor: extraSort === "driver" ? "var(--gold)" : "var(--rim)",
-            }}
-            title="Sort each section by FACTOR_GROUP (Driver)"
-          >
-            {extraSort === "driver" ? "Sort: Driver ✓" : "Sort: Driver"}
-          </button>
-          <button
-            onClick={() => setExtraSort((v) => (v === "stack" ? "none" : "stack"))}
-            aria-pressed={extraSort === "stack"}
-            style={{
-              ...selectStyle,
-              cursor: "pointer",
-              color: extraSort === "stack" ? "var(--gold)" : "var(--text-mid)",
-              borderColor: extraSort === "stack" ? "var(--gold)" : "var(--rim)",
-            }}
-            title="Sort each section by STACK_LAYER (Component → Foundry)"
-          >
-            {extraSort === "stack" ? "Sort: Stack ✓" : "Sort: Stack"}
-          </button>
+            <option value="default">Sort · Default</option>
+            <option value="score">Sort · Score (high→low)</option>
+            <option value="gap">Sort · Gap (closest→furthest)</option>
+            <option value="trend7d">Sort · 7d trend (falling first)</option>
+            <option value="trend30d">Sort · 30d trend (falling first)</option>
+            <option value="driver">Sort · Driver</option>
+            <option value="stack">Sort · Stack</option>
+            <option value="profile">Sort · Profile</option>
+          </select>
         </div>
       </div>
+
+      {/* ── Active sort hint ── */}
+      {sortBy !== "default" && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: isMobile ? "0 14px 8px" : "0 18px 8px",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "rgba(201,168,76,0.12)",
+              border: "1px solid var(--gold)",
+              color: "var(--gold)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.12em",
+              padding: "3px 8px",
+              borderRadius: 2,
+              textTransform: "uppercase",
+            }}
+          >
+            Sorted by {sortBy === "trend7d" ? "7d trend" : sortBy === "trend30d" ? "30d trend" : sortBy}
+            <button
+              onClick={() => setSortBy("default")}
+              aria-label="Reset sort"
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--gold)",
+                cursor: "pointer",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ✕
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* ── Profile filter chips ── */}
       <div
