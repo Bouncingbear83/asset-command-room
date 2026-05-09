@@ -580,6 +580,8 @@ export type Database = {
           price_at_scoring: number | null
           scored_at: string
           scored_by: string
+          stack_layer: string | null
+          substrate_level: string | null
           substrate_rationale: string
           substrate_score: number
           thesis_summary: string | null
@@ -608,6 +610,8 @@ export type Database = {
           price_at_scoring?: number | null
           scored_at: string
           scored_by: string
+          stack_layer?: string | null
+          substrate_level?: string | null
           substrate_rationale: string
           substrate_score: number
           thesis_summary?: string | null
@@ -636,6 +640,8 @@ export type Database = {
           price_at_scoring?: number | null
           scored_at?: string
           scored_by?: string
+          stack_layer?: string | null
+          substrate_level?: string | null
           substrate_rationale?: string
           substrate_score?: number
           thesis_summary?: string | null
