@@ -569,6 +569,8 @@ export type Database = {
           demand_score: number
           disruption_rationale: string
           disruption_score: number
+          factor_group: string | null
+          factor_primary: string | null
           id: number
           mgmt_rationale: string
           mgmt_score: number
@@ -595,6 +597,8 @@ export type Database = {
           demand_score: number
           disruption_rationale: string
           disruption_score: number
+          factor_group?: string | null
+          factor_primary?: string | null
           id?: never
           mgmt_rationale: string
           mgmt_score: number
@@ -621,6 +625,8 @@ export type Database = {
           demand_score?: number
           disruption_rationale?: string
           disruption_score?: number
+          factor_group?: string | null
+          factor_primary?: string | null
           id?: never
           mgmt_rationale?: string
           mgmt_score?: number
