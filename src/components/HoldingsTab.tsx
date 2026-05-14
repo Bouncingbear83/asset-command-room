@@ -38,6 +38,7 @@ import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/D
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  bordier?: LiveHolding[];
   disruption?: LiveDisruption[];
   transactions?: LiveTransaction[];
   scores?: LiveScore[];
