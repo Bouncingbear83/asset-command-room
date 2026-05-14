@@ -189,8 +189,8 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                 const sleevePct = sleeveAum > 0 ? ((h.mv || 0) / sleeveAum) * 100 : 0;
                 const jpyCost = h.costLocal != null ? h.costLocal : (h.costGbp && h.shares && h.fx ? (h.costGbp / h.fx) / h.shares : null);
                 return (
-                  <>
-                    <tr key={h.ticker} style={{ cursor: "pointer" }} onClick={() => setExpanded(isOpen ? null : h.ticker)}>
+                  <Fragment key={h.ticker}>
+                    <tr style={{ cursor: "pointer" }} onClick={() => setExpanded(isOpen ? null : h.ticker)}>
                       <td style={{ ...s.td, ...s.mono, color: "var(--gold)", fontWeight: 600 }}>{h.ticker}</td>
                       <td style={s.td}>{h.name}</td>
                       <td style={{ ...s.td, ...s.mono, fontSize: 11, color: "var(--text-dim)" }}>{h.layer}</td>
@@ -214,7 +214,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                       </td>
                     </tr>
                     {isOpen && (
-                      <tr key={h.ticker + "-x"}>
+                      <tr>
                         <td colSpan={13} style={{ ...s.td, background: "rgba(201,168,76,0.03)", borderLeft: "2px solid var(--gold)" }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "8px 12px" }}>
                             <div>
