@@ -862,7 +862,7 @@ function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: 
 
 // ── Main Component ──
 
-export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [], priceData }: Props) {
+export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], transactions = [], scores = [], priceData }: Props) {
   const [showPriceMap, setShowPriceMap] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [state, setState] = useState<HoldingsUiState>(() => holdingsStateFromParams(searchParams));
