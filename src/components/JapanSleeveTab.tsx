@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { LiveHolding, LiveScore, LiveWatchItem } from "@/hooks/usePortfolioData";
 
 interface JapanSleeveTabProps {
@@ -234,7 +234,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
