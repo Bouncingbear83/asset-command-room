@@ -192,7 +192,7 @@ export default function Index() {
           />
         )}
         {active === "Intelligence" && <IntelligenceTab />}
-        {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa]} />}
+        {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
