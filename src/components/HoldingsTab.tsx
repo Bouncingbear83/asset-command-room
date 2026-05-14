@@ -608,7 +608,15 @@ function UnifiedView({
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                         {!isMobile && <td style={{ padding: cellPad }}><DriverChip value={(h as any).factor_group} /></td>}
                         {!isMobile && <td style={{ padding: cellPad }}><StackBadge value={(h as any).stack_layer} /></td>}
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>}
+                        {!isMobile && (
+                          normalizeAccount(h.account) === "BORDIER" ? (
+                            <td style={{ padding: cellPad, fontSize: 10 }}>
+                              <span style={{ color: "var(--gold)", fontWeight: 700, letterSpacing: "0.08em", border: "1px solid rgba(201,168,76,0.4)", padding: "1px 6px", borderRadius: 2, whiteSpace: "nowrap" }}>BORDIER · JPY</span>
+                            </td>
+                          ) : (
+                            <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>
+                          )
+                        )}
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
