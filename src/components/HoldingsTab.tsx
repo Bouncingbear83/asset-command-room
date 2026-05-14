@@ -1168,7 +1168,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
             )}
             <HoldingsHeader
               positionCount={positions.length}
-              accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"] }}
+              accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"], bordier: accountCounts.BORDIER }}
               filteredCount={filteredPositionCount}
               sortLabel={sortLabel}
               groupLabel={groupLabel}
