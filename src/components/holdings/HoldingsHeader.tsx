@@ -6,6 +6,7 @@ interface AccountCounts {
   sipp: number;
   isa: number;
   sippIsa: number;
+  bordier: number;
 }
 
 interface Props {
