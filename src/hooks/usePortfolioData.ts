@@ -332,6 +332,7 @@ function parseHoldings(rows: Record<string, any>[]) {
       prevClose: parseNum(findCol(row, "PREV_CLOSE_LOCAL", "prev_close_local")),
       currency: String(findCol(row, "CURRENCY", "currency") ?? "USD"),
       costGbp: parseNum(findCol(row, "COST_GBP", "cost_gbp", "Cost_GBP")),
+      costLocal: parseNum(findCol(row, "COST_LOCAL", "cost_local", "Cost_Local")),
       shares: parseNum(findCol(row, "SHARES", "shares", "Shares")),
       add_trigger: String(findCol(row, "add_trigger", "ADD_TRIGGER") ?? ""),
       exit_trigger: String(findCol(row, "exit_trigger", "EXIT_TRIGGER") ?? ""),
