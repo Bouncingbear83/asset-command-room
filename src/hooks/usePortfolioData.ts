@@ -332,6 +332,7 @@ function parseHoldings(rows: Record<string, any>[]) {
       prevClose: parseNum(findCol(row, "PREV_CLOSE_LOCAL", "prev_close_local")),
       currency: String(findCol(row, "CURRENCY", "currency") ?? "USD"),
       costGbp: parseNum(findCol(row, "COST_GBP", "cost_gbp", "Cost_GBP")),
+      costLocal: parseNum(findCol(row, "COST_LOCAL", "cost_local", "Cost_Local")),
       shares: parseNum(findCol(row, "SHARES", "shares", "Shares")),
       add_trigger: String(findCol(row, "add_trigger", "ADD_TRIGGER") ?? ""),
       exit_trigger: String(findCol(row, "exit_trigger", "EXIT_TRIGGER") ?? ""),
@@ -879,6 +880,7 @@ export interface PortfolioData {
   holdings: LiveHolding[];
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  bordier: LiveHolding[];
   watchlist: LiveWatchItem[];
   layers: LiveLayer[];
   scores: LiveScore[];
@@ -910,6 +912,7 @@ export function usePortfolioData(): PortfolioData {
     holdings: [],
     sipp: [],
     isa: [],
+    bordier: [],
     watchlist: [],
     layers: [],
     scores: [],
@@ -975,6 +978,7 @@ export function usePortfolioData(): PortfolioData {
       
       const sipp = allHoldings.filter((holding) => holding.account.toUpperCase() === "SIPP");
       const isa = allHoldings.filter((holding) => holding.account.toUpperCase() === "ISA");
+      const bordier = allHoldings.filter((holding) => holding.account.toUpperCase().replace(/[^A-Z]/g, "") === "BORDIERGIA");
       const narrativeData = parseNarrativeData(narrativeGrid);
       const macroState = parseMacroState(macroStateGrid);
       const macroStateRows = parseMacroStateRows(macroState);
@@ -1009,6 +1013,7 @@ export function usePortfolioData(): PortfolioData {
         holdings: allHoldings,
         sipp,
         isa,
+        bordier,
         watchlist: parseWatchlist(watchlistRaw),
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
