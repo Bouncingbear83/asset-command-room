@@ -772,13 +772,19 @@ export default function CommandTab() {
 
         {/* Today's Movers card */}
         {(() => {
-          const deduped = new Map<string, { ticker: string; day: number; mv: number; price: number; currency: string }>();
+          const deduped = new Map<string, { ticker: string; day: number; mv: number; price: number; currency: string; isBordier: boolean }>();
           holdings.forEach((h) => {
             if (h.day == null) return;
+            // Stale-price guard: drop rows where today's price equals yesterday's close.
+            // Catches Bordier_GIA names whose JPY prices are manually maintained and
+            // haven't been refreshed (would otherwise appear as 0% movers or, worse,
+            // create a fake spike when several days of drift land in one update).
+            if (h.prevClose != null && h.price != null && h.price === h.prevClose) return;
+            const isBordier = String(h.account || "").toUpperCase().replace(/[^A-Z]/g, "").startsWith("BORDIER");
             const key = h.ticker.toUpperCase();
             const existing = deduped.get(key);
             if (!existing || Math.abs(h.day) > Math.abs(existing.day)) {
-              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0, price: h.price, currency: h.currency });
+              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0, price: h.price, currency: h.currency, isBordier });
             }
           });
           const all = Array.from(deduped.values());
