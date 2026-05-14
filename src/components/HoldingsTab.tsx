@@ -928,7 +928,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
   const positions = allHoldings.filter((h) => !isCash(h));
 
   const accountCounts = useMemo(() => {
-    const c: Record<HoldingsAccount, number> = { SIPP: 0, ISA: 0, "SIPP+ISA": 0 };
+    const c: Record<HoldingsAccount, number> = { SIPP: 0, ISA: 0, "SIPP+ISA": 0, BORDIER: 0 };
     for (const h of positions) {
       const a = normalizeAccount(h.account);
       if (a) c[a]++;
