@@ -885,7 +885,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
   const sippData: LiveHolding[] = sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => withFallbackHolding(h, "SIPP"));
   const isaData: LiveHolding[] = isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => withFallbackHolding(h, "ISA"));
 
-  const allHoldings = [...sippData, ...isaData];
+  const allHoldings = [...sippData, ...isaData, ...bordier];
 
   useEffect(() => {
     if (!priceData) return;
