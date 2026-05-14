@@ -880,6 +880,7 @@ export interface PortfolioData {
   holdings: LiveHolding[];
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  bordier: LiveHolding[];
   watchlist: LiveWatchItem[];
   layers: LiveLayer[];
   scores: LiveScore[];
@@ -911,6 +912,7 @@ export function usePortfolioData(): PortfolioData {
     holdings: [],
     sipp: [],
     isa: [],
+    bordier: [],
     watchlist: [],
     layers: [],
     scores: [],
@@ -976,6 +978,7 @@ export function usePortfolioData(): PortfolioData {
       
       const sipp = allHoldings.filter((holding) => holding.account.toUpperCase() === "SIPP");
       const isa = allHoldings.filter((holding) => holding.account.toUpperCase() === "ISA");
+      const bordier = allHoldings.filter((holding) => holding.account.toUpperCase().replace(/[^A-Z]/g, "") === "BORDIERGIA");
       const narrativeData = parseNarrativeData(narrativeGrid);
       const macroState = parseMacroState(macroStateGrid);
       const macroStateRows = parseMacroStateRows(macroState);
@@ -1010,6 +1013,7 @@ export function usePortfolioData(): PortfolioData {
         holdings: allHoldings,
         sipp,
         isa,
+        bordier,
         watchlist: parseWatchlist(watchlistRaw),
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
