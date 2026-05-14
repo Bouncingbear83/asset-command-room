@@ -38,6 +38,7 @@ import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/D
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  bordier?: LiveHolding[];
   disruption?: LiveDisruption[];
   transactions?: LiveTransaction[];
   scores?: LiveScore[];
@@ -460,7 +461,11 @@ function UnifiedView({
                       <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                         <span>{h.layer}</span>
                         <span style={{ color: "var(--rim)" }}>·</span>
-                        <span>{h.account}</span>
+                        {normalizeAccount(h.account) === "BORDIER" ? (
+                          <span style={{ color: "var(--gold)", fontWeight: 700, letterSpacing: "0.1em" }}>BORDIER · JPY</span>
+                        ) : (
+                          <span>{h.account}</span>
+                        )}
                         <DriverChip value={(h as any).factor_group} />
                         <StackBadge value={(h as any).stack_layer} />
                         {hasReturns && (
@@ -603,7 +608,15 @@ function UnifiedView({
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                         {!isMobile && <td style={{ padding: cellPad }}><DriverChip value={(h as any).factor_group} /></td>}
                         {!isMobile && <td style={{ padding: cellPad }}><StackBadge value={(h as any).stack_layer} /></td>}
-                        {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>}
+                        {!isMobile && (
+                          normalizeAccount(h.account) === "BORDIER" ? (
+                            <td style={{ padding: cellPad, fontSize: 10 }}>
+                              <span style={{ color: "var(--gold)", fontWeight: 700, letterSpacing: "0.08em", border: "1px solid rgba(201,168,76,0.4)", padding: "1px 6px", borderRadius: 2, whiteSpace: "nowrap" }}>BORDIER · JPY</span>
+                            </td>
+                          ) : (
+                            <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.account}</td>
+                          )
+                        )}
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
@@ -861,7 +874,7 @@ function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: 
 
 // ── Main Component ──
 
-export default function HoldingsTab({ sipp, isa, disruption = [], transactions = [], scores = [], priceData }: Props) {
+export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], transactions = [], scores = [], priceData }: Props) {
   const [showPriceMap, setShowPriceMap] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [state, setState] = useState<HoldingsUiState>(() => holdingsStateFromParams(searchParams));
@@ -884,7 +897,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   const sippData: LiveHolding[] = sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => withFallbackHolding(h, "SIPP"));
   const isaData: LiveHolding[] = isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => withFallbackHolding(h, "ISA"));
 
-  const allHoldings = [...sippData, ...isaData];
+  const allHoldings = [...sippData, ...isaData, ...bordier];
 
   useEffect(() => {
     if (!priceData) return;
@@ -927,7 +940,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
   const positions = allHoldings.filter((h) => !isCash(h));
 
   const accountCounts = useMemo(() => {
-    const c: Record<HoldingsAccount, number> = { SIPP: 0, ISA: 0, "SIPP+ISA": 0 };
+    const c: Record<HoldingsAccount, number> = { SIPP: 0, ISA: 0, "SIPP+ISA": 0, BORDIER: 0 };
     for (const h of positions) {
       const a = normalizeAccount(h.account);
       if (a) c[a]++;
@@ -1167,7 +1180,7 @@ export default function HoldingsTab({ sipp, isa, disruption = [], transactions =
             )}
             <HoldingsHeader
               positionCount={positions.length}
-              accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"] }}
+              accountCounts={{ total: positions.length, sipp: accountCounts.SIPP, isa: accountCounts.ISA, sippIsa: accountCounts["SIPP+ISA"], bordier: accountCounts.BORDIER }}
               filteredCount={filteredPositionCount}
               sortLabel={sortLabel}
               groupLabel={groupLabel}

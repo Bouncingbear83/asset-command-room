@@ -772,13 +772,19 @@ export default function CommandTab() {
 
         {/* Today's Movers card */}
         {(() => {
-          const deduped = new Map<string, { ticker: string; day: number; mv: number; price: number; currency: string }>();
+          const deduped = new Map<string, { ticker: string; day: number; mv: number; price: number; currency: string; isBordier: boolean }>();
           holdings.forEach((h) => {
             if (h.day == null) return;
+            // Stale-price guard: drop rows where today's price equals yesterday's close.
+            // Catches Bordier_GIA names whose JPY prices are manually maintained and
+            // haven't been refreshed (would otherwise appear as 0% movers or, worse,
+            // create a fake spike when several days of drift land in one update).
+            if (h.prevClose != null && h.price != null && h.price === h.prevClose) return;
+            const isBordier = String(h.account || "").toUpperCase().replace(/[^A-Z]/g, "").startsWith("BORDIER");
             const key = h.ticker.toUpperCase();
             const existing = deduped.get(key);
             if (!existing || Math.abs(h.day) > Math.abs(existing.day)) {
-              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0, price: h.price, currency: h.currency });
+              deduped.set(key, { ticker: h.ticker, day: h.day, mv: h.mv || 0, price: h.price, currency: h.currency, isBordier });
             }
           });
           const all = Array.from(deduped.values());
@@ -837,6 +843,7 @@ export default function CommandTab() {
                       <div key={m.ticker} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                          {m.isBordier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)", letterSpacing: "0.1em" }}>JPY</span>}
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
                           {dayPctEl}
                         </div>
@@ -855,6 +862,7 @@ export default function CommandTab() {
                   return (
                     <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                      {m.isBordier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)", letterSpacing: "0.1em" }}>JPY</span>}
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
                       {dayPctEl}
                       {hasSpark ? (

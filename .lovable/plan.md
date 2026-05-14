@@ -1,88 +1,50 @@
+# Integrate Japan Sleeve (Bordier) into Holdings + Today's Movers
 
-## Japan Sleeve tab
+Bordier_GIA holdings currently live only inside the Japan Sleeve tab. The main Holdings view and most Command-tab calculations explicitly merge `portfolio.sipp + portfolio.isa`, excluding Bordier. CommandTab does already consume `portfolio.holdings` (which includes Bordier), so Movers / Layers / Tiers will pick them up automatically once we stop suppressing them — but we need a stale-price guard so manual JPY pricing doesn't pollute Movers.
 
-A new tab dedicated to the Bordier Geneva GIA sub-portfolio: JPY-denominated, manually priced, CGT-applicable, substrate-dense. Positioned between Holdings and Earnings.
+The Japan Sleeve tab stays untouched as the canonical JPY / compliance / CGT view.
 
-### 1. Data plumbing
+## 1. Holdings tab — full merge with Account badge + filter chip
 
-Extend `src/hooks/usePortfolioData.ts`:
-- Today the holdings parser only splits rows into SIPP / ISA buckets. Add a third bucket `bordier` for any HOLDINGS row where `Account` equals `Bordier_GIA` (case-insensitive).
-- Carry through the extra fields needed for JPY display: `price_local`, `prev_close_local`, `cost_local` (already in KNOWN_COLS but not currently retained in the holding shape — surface alongside the existing `costGbp`, `shares`, `currency`).
-- Expose `bordierHoldings` from the hook return (and the sleeve total in `totals`, used for % of total AUM).
-- Pull JPY/GBP FX from `PRICES` tab. First pass: derive an implied rate per row from `price_local / (mv / shares)` when both are present, then fall back to a manual rate. (Confirmed in design notes section below.)
+**`src/pages/Index.tsx`**
+- Pass `holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]}` to `HoldingsTab` (line 198) and `DriversTab` (line 195). Refactor to use a single `allHoldings` const above the JSX to avoid drift.
+- Same merge in `Transactions` holdings prop (line 200).
+- Returns tab stays SIPP/ISA-only — sleeve P&L is account-segregated for tax purposes; Bordier P&L lives on its own tab.
 
-No changes to Supabase, no new edge functions.
+**`src/lib/url-state-holdings.ts`**
+- Extend `HOLDINGS_ACCOUNT_VALUES` to include `"BORDIER"` (alongside `SIPP`, `ISA`, `SIPP+ISA`). Account filter chip in `HoldingsFilters` will auto-render the new option.
+- Update `normalizeAccount` to map raw `"Bordier_GIA"` (case/punctuation-insensitive) → `"BORDIER"`.
 
-### 2. New components
+**`src/components/HoldingsTab.tsx`**
+- Account filter logic already keys off `normalizeAccount(holding.account)` — extending the enum is enough; no inner logic change.
+- Account badge: the existing Account column already renders `holding.account`. Add a small visual treatment so `Bordier_GIA` rows render with a distinct pill (gold border, label "BORDIER · JPY") instead of plain text. Single styling helper in the row renderer; no new column.
+- Group-by `account` already works — Bordier becomes a third group automatically.
+- MV stays GBP-only in the unified table; JPY price/cost remain exclusive to the Japan Sleeve tab.
 
-```text
-src/components/japan/
-  JapanSleeveTab.tsx        # top-level layout + Refresh button
-  JapanKpiBand.tsx          # 5 tiles
-  JapanPositionsTable.tsx   # main table + expandable rows
-  JapanComplianceCard.tsx   # doctrine flags, CGT, FX panel
-  JapanStaleBanner.tsx      # yellow banner for stale prices
-  JapanWatchlistBlock.tsx   # collapsible TSE watchlist
-```
+## 2. Today's Movers — include Bordier with stale-price guard
 
-Wire `JapanSleeveTab` into `src/pages/Index.tsx`:
-- Insert `"Japan Sleeve"` into `TABS` between `"Holdings"` and `"Earnings Calendar"`.
-- Add slug `japan` to `TAB_SLUGS`.
-- Render block: `{active === "Japan Sleeve" && <JapanSleeveTab portfolio={portfolio} priceData={priceData} />}`.
+**`src/components/CommandTab.tsx`** (Movers block, lines 774–792)
+- `holdings` already contains Bordier rows (no change to the source).
+- Add a stale-price filter inside the `deduped.set` loop: `if (h.prevClose != null && h.price === h.prevClose) return;` — this drops any row where today's price equals yesterday's close (the Japan Sleeve's existing stale-detection rule). Applies uniformly: a genuinely flat day on a liquid name is rare and harmless to omit; a stale Bordier price is correctly suppressed.
+- When a Bordier row is included (i.e. price moved), append a small `JPY` marker after the ticker so the user knows the move came from manual repricing. Tiny mono caption, `var(--text-dim)`, no layout change.
 
-### 3. Layout details
+## 3. Layers Allocation + Tier classification
 
-**KPI band (full width, 5 tiles)**
-- Sleeve AUM (£) — sum of `mv` across Bordier holdings, with daily delta (vs sum of `prev_close_local * shares / fx`).
-- % of Total Portfolio AUM — `sleeveAUM / (sippTotal + isaTotal + sleeveAUM)`.
-- Number of positions.
-- Average substrate sub-score — joined from `portfolio.scores` on ticker (case-insensitive, matching existing convention from project memory).
-- JPY/GBP FX rate.
+These already read from `portfolio.holdings` which includes Bordier — verification only, no code change expected. If a downstream consumer (e.g. Layers card) re-merges sipp+isa explicitly, switch it to `holdings`.
 
-**Positions table** columns:
-`Ticker | Name | Layer | Score | Substrate | RECLASS | JPY Price | JPY Cost | FX | MV (£) | AUM % | G/L % | Notes`
-- Monospace for ticker / numeric columns; sans-serif elsewhere.
-- Substrate cell uses existing colour rules: ≥22 green, L3 amber, L2 or below red.
-- RECLASS pill colours: PRE = dim, IN_PROGRESS = amber, COMPLETE = green.
-- Notes truncated to ~80 chars with native `title` tooltip.
-- Row click toggles an expansion row showing: full thesis (`scores.full_thesis`), add/exit triggers, last trigger review date and note, FACTOR_PRIMARY / STACK_LAYER badges.
+Quick grep + spot check of:
+- `src/components/LayersAllocation*` and any Tiers card on Command/Holdings
+- DriversTab consumption (now receiving merged holdings via Index.tsx change above)
 
-**Right column compliance panel (~30%)**
-- Sleeve capital criterion: list any positions failing `substrate ≥ 22 OR score ≥ 80`.
-- Liquidity-capped warning pill for Kanto Denka (4047.T).
-- Federation Rule #9 info pill for HOYA (7741.T).
-- Tax friction:
-  - Unrealised gain in £ (`mv − costGbp`).
-  - Estimated CGT at 20% on positive unrealised gains, labelled "indicative, GIA only".
-- FX exposure summary: total JPY exposure in GBP, last FX update date.
+## Out of scope
+- Returns tab (stays segregated for tax/account separation)
+- JISA holdings unchanged
+- No Supabase / edge function / schema changes
+- No JPY in unified table — strict GBP
 
-**Stale price banner**
-- For each Bordier row, if `price_local === prev_close_local` (and both > 0), increment a counter. We do not yet store a "days unchanged" series, so the V1 rule is: flag when `price_local === prev_close_local`. Show a yellow banner: "Manual price refresh required for [tickers]". Note: the doctrine "more than 3 days" check needs daily snapshot history; flagged in section 5 below.
-
-**Watchlist block (collapsible, default closed)**
-- Filter `portfolio.watchlist` where `ticker` ends with `.T` and `status` is `WATCH` or `PRE-IPO`.
-- Columns: Ticker, Name, Score (joined), ENTRY_TARGET, current spot, distance to entry %.
-
-**Refresh button**
-- Top right of the tab; calls `portfolio.refresh()` (already re-reads HOLDINGS / SCORES / PRICES / etc. in the existing hook).
-
-### 4. Visual + copy
-
-- Reuse existing Stellar tokens: `--gold`, `--green`, `--amber`, `--red`, `--text-dim`, `--rim`, `--panel`, `--font-mono`, `--font-ui`. No new colours.
-- British spelling, no em-dashes (use commas or full stops).
-- Loading state: skeleton rows (4) for positions table; KPI tiles render with `—` until data arrives.
-- Error state: if `portfolio.error` is set, render a thin amber strip above the table; rest of the tab still tries to render available data.
-
-### 5. Known follow-ups (NOT in V1, flagged for the user)
-
-- True "stale > 3 days" detection requires capturing PRICE_LOCAL into the daily snapshot pipeline; current edge function `ingest-daily-snapshot` does not yet persist per-ticker JPY closes for Bordier names. V1 falls back to "price equals prev_close".
-- A canonical JPY/GBP cell in the PRICES tab would be cleaner than the implied-rate derivation. Worth adding a single named cell once the sheet owner has time.
-- Manual override input for FX rate is out of scope for V1 (read-only tab).
-
-### Acceptance
-
-- New tab visible between Holdings and Earnings, slug `?tab=japan` works on reload.
-- Four current Bordier holdings render with correct JPY prices, GBP MV, score and substrate joins.
-- CGT tile is non-zero for any position with positive unrealised gain.
-- Stale banner appears for any position whose `price_local` matches `prev_close_local`.
-- Watchlist block lists Murata (6981.T) and any other `.T` watchlist names.
+## Acceptance
+- Holdings tab Account filter shows `SIPP / ISA / SIPP+ISA / BORDIER`; selecting BORDIER isolates the four Bordier names.
+- Bordier rows render with a "BORDIER · JPY" pill in the Account cell.
+- Today's Movers includes Bordier names only when `price !== prevClose`, marked with a `JPY` caption.
+- Layers Allocation bars and Tier counts on Command/Holdings reflect total AUM including the sleeve.
+- Japan Sleeve tab is untouched and still renders correctly.

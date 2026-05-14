@@ -6,6 +6,7 @@ interface AccountCounts {
   sipp: number;
   isa: number;
   sippIsa: number;
+  bordier: number;
 }
 
 interface Props {
@@ -72,6 +73,11 @@ export function HoldingsHeader({
         <span style={badge}>{accountCounts.sipp} SIPP</span>
         <span style={badge}>{accountCounts.isa} ISA</span>
         <span style={badge}>{accountCounts.sippIsa} SIPP+ISA</span>
+        {accountCounts.bordier > 0 && (
+          <span style={{ ...badge, color: "var(--gold)", borderColor: "rgba(201,168,76,0.4)" }}>
+            {accountCounts.bordier} BORDIER · JPY
+          </span>
+        )}
       </div>
 
       <div

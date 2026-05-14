@@ -24,8 +24,8 @@ export type HoldingsSortField =
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
-export type HoldingsAccount = "SIPP" | "ISA" | "SIPP+ISA";
-export const HOLDINGS_ACCOUNT_VALUES: HoldingsAccount[] = ["SIPP", "ISA", "SIPP+ISA"];
+export type HoldingsAccount = "SIPP" | "ISA" | "SIPP+ISA" | "BORDIER";
+export const HOLDINGS_ACCOUNT_VALUES: HoldingsAccount[] = ["SIPP", "ISA", "SIPP+ISA", "BORDIER"];
 
 export interface HoldingsUiState {
   sortField: HoldingsSortField;
@@ -78,6 +78,8 @@ const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
 export function normalizeAccount(raw: string): HoldingsAccount | null {
   const u = raw.trim().toUpperCase();
   if (u === "SIPP" || u === "ISA" || u === "SIPP+ISA") return u as HoldingsAccount;
+  // Bordier_GIA, BORDIER GIA, bordier-gia, etc. → BORDIER
+  if (u.replace(/[^A-Z]/g, "").startsWith("BORDIER")) return "BORDIER";
   return null;
 }
 
