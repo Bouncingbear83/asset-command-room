@@ -24,8 +24,8 @@ export type HoldingsSortField =
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
-export type HoldingsAccount = "SIPP" | "ISA" | "SIPP+ISA";
-export const HOLDINGS_ACCOUNT_VALUES: HoldingsAccount[] = ["SIPP", "ISA", "SIPP+ISA"];
+export type HoldingsAccount = "SIPP" | "ISA" | "SIPP+ISA" | "BORDIER";
+export const HOLDINGS_ACCOUNT_VALUES: HoldingsAccount[] = ["SIPP", "ISA", "SIPP+ISA", "BORDIER"];
 
 export interface HoldingsUiState {
   sortField: HoldingsSortField;
