@@ -862,6 +862,7 @@ export default function CommandTab() {
                   return (
                     <div key={m.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                      {m.isBordier && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)", letterSpacing: "0.1em" }}>JPY</span>}
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
                       {dayPctEl}
                       {hasSpark ? (
