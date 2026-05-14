@@ -179,7 +179,7 @@ export default function Index() {
             liveData={portfolio.layers}
             watchlist={portfolio.watchlist}
             narrative={portfolio.narrativeData}
-            holdings={[...portfolio.sipp, ...portfolio.isa]}
+            holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]}
             scores={portfolio.scores}
             onNavigateToHoldings={(tickers) => {
               const params = new URLSearchParams(window.location.search);
