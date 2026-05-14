@@ -461,7 +461,11 @@ function UnifiedView({
                       <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                         <span>{h.layer}</span>
                         <span style={{ color: "var(--rim)" }}>·</span>
-                        <span>{h.account}</span>
+                        {normalizeAccount(h.account) === "BORDIER" ? (
+                          <span style={{ color: "var(--gold)", fontWeight: 700, letterSpacing: "0.1em" }}>BORDIER · JPY</span>
+                        ) : (
+                          <span>{h.account}</span>
+                        )}
                         <DriverChip value={(h as any).factor_group} />
                         <StackBadge value={(h as any).stack_layer} />
                         {hasReturns && (
