@@ -109,8 +109,23 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
   };
 
   return (
-    <div style={s.page}>
-      <div style={s.header}>
+    <div style={s.page} className="japan-sleeve">
+      <style>{`
+        @media (max-width: 767px) {
+          .japan-sleeve { padding: 14px 12px !important; }
+          .js-header { flex-direction: column !important; gap: 10px; align-items: stretch !important; }
+          .js-h1 { font-size: 22px !important; }
+          .js-refresh { width: 100%; padding: 10px !important; }
+          .js-kpi-band { grid-template-columns: repeat(2, 1fr) !important; }
+          .js-kpi-val { font-size: 16px !important; }
+          .js-main { grid-template-columns: 1fr !important; }
+          .js-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .js-table { min-width: 880px; }
+          .js-expand-grid { grid-template-columns: 1fr !important; }
+          .js-notes { max-width: 140px !important; }
+        }
+      `}</style>
+      <div style={s.header} className="js-header">
         <div>
           <h1 style={s.h1}>Japan Sleeve</h1>
           <div style={s.sub}>Bordier GIA · TSE substrate · manual pricing · CGT-applicable</div>
