@@ -228,8 +228,8 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                       <td style={{ ...s.td, ...s.mono, textAlign: "right" as const, color: (h.gl || 0) >= 0 ? "var(--green)" : "var(--red)" }}>
                         {(h.gl || 0) >= 0 ? "+" : ""}{fmtPct(h.gl || 0, 1)}
                       </td>
-                      <td style={{ ...s.td, color: "var(--text-dim)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }} title={h.notes} className="js-notes">
-                        {h.notes ? (h.notes.length > 80 ? h.notes.slice(0, 80) + "…" : h.notes) : "—"}
+                      <td style={{ ...s.td, color: "var(--text-dim)", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }} title={h.notes} className="js-notes">
+                        {h.notes ? (h.notes.length > 60 ? h.notes.slice(0, 60) + "…" : h.notes) : "—"}
                       </td>
                     </tr>
                     {isOpen && (
