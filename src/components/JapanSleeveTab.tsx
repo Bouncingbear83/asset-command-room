@@ -111,6 +111,10 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
   return (
     <div style={s.page} className="japan-sleeve">
       <style>{`
+        .js-main > div { min-width: 0; }
+        .js-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+        .js-expand-grid { overflow-wrap: anywhere; word-break: break-word; }
+        .js-expand-grid * { min-width: 0; }
         @media (max-width: 767px) {
           .japan-sleeve { padding: 14px 12px !important; }
           .js-header { flex-direction: column !important; gap: 10px; align-items: stretch !important; }
@@ -119,7 +123,6 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
           .js-kpi-band { grid-template-columns: repeat(2, 1fr) !important; }
           .js-kpi-val { font-size: 16px !important; }
           .js-main { grid-template-columns: 1fr !important; }
-          .js-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .js-table { min-width: 880px; }
           .js-expand-grid { grid-template-columns: 1fr !important; }
           .js-notes { max-width: 140px !important; }

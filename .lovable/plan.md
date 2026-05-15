@@ -1,50 +1,26 @@
-# Integrate Japan Sleeve (Bordier) into Holdings + Today's Movers
+# Fix Japan Sleeve desktop layout
 
-Bordier_GIA holdings currently live only inside the Japan Sleeve tab. The main Holdings view and most Command-tab calculations explicitly merge `portfolio.sipp + portfolio.isa`, excluding Bordier. CommandTab does already consume `portfolio.holdings` (which includes Bordier), so Movers / Layers / Tiers will pick them up automatically once we stop suppressing them — but we need a stale-price guard so manual JPY pricing doesn't pollute Movers.
+## Diagnosis
 
-The Japan Sleeve tab stays untouched as the canonical JPY / compliance / CGT view.
+The mobile-friendly pass introduced `.js-table-wrap` and `.js-table { min-width: 880px }` inside a `@media (max-width: 767px)` block, but it also exposed a pre-existing desktop bug: the positions table is naturally wider than its grid column (13 columns including a long Notes cell), and nothing constrains it.
 
-## 1. Holdings tab — full merge with Account badge + filter chip
+In `js-main` (`gridTemplateColumns: "minmax(0, 1fr) 360px"`), the left grid cell has no `min-width: 0` enforcement on its child wrappers, and `.js-table-wrap` has no `overflow-x` outside mobile. Result on the user's 2407px viewport: the table overflows its panel rightwards, the expanded-row content (Add Trigger / Exit Trigger / Last Review text) bleeds across the gutter and visually sits on top of the right-hand Doctrine Compliance / Tax Friction panels. The Notes column is also clipped beyond the panel rim.
 
-**`src/pages/Index.tsx`**
-- Pass `holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]}` to `HoldingsTab` (line 198) and `DriversTab` (line 195). Refactor to use a single `allHoldings` const above the JSX to avoid drift.
-- Same merge in `Transactions` holdings prop (line 200).
-- Returns tab stays SIPP/ISA-only — sleeve P&L is account-segregated for tax purposes; Bordier P&L lives on its own tab.
+## Fix (CSS-only, in the existing `<style>` block of `JapanSleeveTab.tsx`)
 
-**`src/lib/url-state-holdings.ts`**
-- Extend `HOLDINGS_ACCOUNT_VALUES` to include `"BORDIER"` (alongside `SIPP`, `ISA`, `SIPP+ISA`). Account filter chip in `HoldingsFilters` will auto-render the new option.
-- Update `normalizeAccount` to map raw `"Bordier_GIA"` (case/punctuation-insensitive) → `"BORDIER"`.
-
-**`src/components/HoldingsTab.tsx`**
-- Account filter logic already keys off `normalizeAccount(holding.account)` — extending the enum is enough; no inner logic change.
-- Account badge: the existing Account column already renders `holding.account`. Add a small visual treatment so `Bordier_GIA` rows render with a distinct pill (gold border, label "BORDIER · JPY") instead of plain text. Single styling helper in the row renderer; no new column.
-- Group-by `account` already works — Bordier becomes a third group automatically.
-- MV stays GBP-only in the unified table; JPY price/cost remain exclusive to the Japan Sleeve tab.
-
-## 2. Today's Movers — include Bordier with stale-price guard
-
-**`src/components/CommandTab.tsx`** (Movers block, lines 774–792)
-- `holdings` already contains Bordier rows (no change to the source).
-- Add a stale-price filter inside the `deduped.set` loop: `if (h.prevClose != null && h.price === h.prevClose) return;` — this drops any row where today's price equals yesterday's close (the Japan Sleeve's existing stale-detection rule). Applies uniformly: a genuinely flat day on a liquid name is rare and harmless to omit; a stale Bordier price is correctly suppressed.
-- When a Bordier row is included (i.e. price moved), append a small `JPY` marker after the ticker so the user knows the move came from manual repricing. Tiny mono caption, `var(--text-dim)`, no layout change.
-
-## 3. Layers Allocation + Tier classification
-
-These already read from `portfolio.holdings` which includes Bordier — verification only, no code change expected. If a downstream consumer (e.g. Layers card) re-merges sipp+isa explicitly, switch it to `holdings`.
-
-Quick grep + spot check of:
-- `src/components/LayersAllocation*` and any Tiers card on Command/Holdings
-- DriversTab consumption (now receiving merged holdings via Index.tsx change above)
+1. **Always-on overflow guard on the table wrapper** — move `overflow-x: auto; -webkit-overflow-scrolling: touch;` for `.js-table-wrap` out of the mobile media query so it applies at every viewport. Keep `min-width: 880px` on `.js-table` mobile-only.
+2. **Constrain the left grid cell** — add a default `.js-main > div:first-child { min-width: 0; }` rule (or give the left panel a `js-main-left` class with `min-width: 0; overflow: hidden`) so `minmax(0, 1fr)` actually shrinks.
+3. **Tighten the Notes column on desktop** — reduce its inline `maxWidth` from 180 to ~140 and let it `text-overflow: ellipsis` as today; keeps row height stable without pushing the table wider.
+4. **Allow the expanded-row text to wrap within its cell** — add `overflow-wrap: anywhere; word-break: break-word;` to the expand grid container so long mono strings (e.g. `¥6,200`, `>¥7,500`) cannot extend past the cell.
 
 ## Out of scope
-- Returns tab (stays segregated for tax/account separation)
-- JISA holdings unchanged
-- No Supabase / edge function / schema changes
-- No JPY in unified table — strict GBP
+
+- No data-flow, prop, or business-logic change.
+- Mobile styles already shipped remain intact.
+- Right-hand compliance/tax/FX panels untouched.
 
 ## Acceptance
-- Holdings tab Account filter shows `SIPP / ISA / SIPP+ISA / BORDIER`; selecting BORDIER isolates the four Bordier names.
-- Bordier rows render with a "BORDIER · JPY" pill in the Account cell.
-- Today's Movers includes Bordier names only when `price !== prevClose`, marked with a `JPY` caption.
-- Layers Allocation bars and Tier counts on Command/Holdings reflect total AUM including the sleeve.
-- Japan Sleeve tab is untouched and still renders correctly.
+
+- At 1280–2560px, the positions table fits inside its panel; if it cannot, it scrolls horizontally inside `.js-table-wrap` instead of bleeding into the right column.
+- Expanded thesis/trigger rows wrap cleanly inside the left panel; no text overlaps the Doctrine Compliance panel.
+- Mobile (≤767px) layout unchanged from the previous pass.
