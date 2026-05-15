@@ -225,14 +225,14 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                       <td style={{ ...s.td, ...s.mono, textAlign: "right" as const, color: (h.gl || 0) >= 0 ? "var(--green)" : "var(--red)" }}>
                         {(h.gl || 0) >= 0 ? "+" : ""}{fmtPct(h.gl || 0, 1)}
                       </td>
-                      <td style={{ ...s.td, color: "var(--text-dim)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }} title={h.notes}>
+                      <td style={{ ...s.td, color: "var(--text-dim)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }} title={h.notes} className="js-notes">
                         {h.notes ? (h.notes.length > 80 ? h.notes.slice(0, 80) + "…" : h.notes) : "—"}
                       </td>
                     </tr>
                     {isOpen && (
                       <tr>
                         <td colSpan={13} style={{ ...s.td, background: "rgba(201,168,76,0.03)", borderLeft: "2px solid var(--gold)" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "8px 12px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "8px 12px" }} className="js-expand-grid">
                             <div>
                               <div style={s.kpiLabel}>Full thesis</div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "var(--text)", lineHeight: 1.6 }}>{h.fullThesis || "No thesis recorded."}</div>
