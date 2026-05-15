@@ -127,10 +127,10 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
       `}</style>
       <div style={s.header} className="js-header">
         <div>
-          <h1 style={s.h1}>Japan Sleeve</h1>
+          <h1 style={s.h1} className="js-h1">Japan Sleeve</h1>
           <div style={s.sub}>Bordier GIA · TSE substrate · manual pricing · CGT-applicable</div>
         </div>
-        <button style={s.refreshBtn} onClick={onRefresh} disabled={loading}>
+        <button style={s.refreshBtn} className="js-refresh" onClick={onRefresh} disabled={loading}>
           {loading ? "Refreshing…" : "Refresh from Sheet"}
         </button>
       </div>
