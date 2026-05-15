@@ -179,7 +179,8 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
         {/* Position table */}
         <div style={s.panel}>
           <div style={s.sectionTitle}>Positions</div>
-          <table style={s.table}>
+          <div className="js-table-wrap">
+          <table style={s.table} className="js-table">
             <thead>
               <tr>
                 {["Ticker", "Name", "Layer", "Score", "Substrate", "Reclass", "JPY Price", "JPY Cost", "FX", "MV (£)", "AUM %", "G/L %", "Notes"].map((c) => (
