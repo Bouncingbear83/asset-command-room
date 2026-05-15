@@ -255,6 +255,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Compliance / tax panel */}
