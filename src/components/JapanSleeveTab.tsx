@@ -143,39 +143,39 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
         </div>
       )}
 
-      <div style={s.kpiBand}>
+      <div style={s.kpiBand} className="js-kpi-band">
         <div style={s.kpi}>
           <div style={s.kpiLabel}>Sleeve AUM</div>
-          <div style={s.kpiVal}>{loading && sleeveAum === 0 ? "—" : fmtGbpK(sleeveAum)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{loading && sleeveAum === 0 ? "—" : fmtGbpK(sleeveAum)}</div>
           <div style={{ ...s.kpiSub, color: dailyDelta >= 0 ? "var(--green)" : "var(--red)" }}>
             {dailyDelta >= 0 ? "▲" : "▼"} {Math.abs(dailyDelta).toFixed(2)}% today
           </div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>% of Total AUM</div>
-          <div style={s.kpiVal}>{loading && pctOfTotal === 0 ? "—" : fmtPct(pctOfTotal, 2)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{loading && pctOfTotal === 0 ? "—" : fmtPct(pctOfTotal, 2)}</div>
           <div style={s.kpiSub}>vs {fmtGbpK(totalAumWithSleeve)} total</div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>Positions</div>
-          <div style={s.kpiVal}>{enriched.length || (loading ? "—" : 0)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{enriched.length || (loading ? "—" : 0)}</div>
           <div style={s.kpiSub}>TSE-listed</div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>Avg Substrate</div>
-          <div style={{ ...s.kpiVal, color: avgSubstrate >= 22 ? "var(--green)" : "var(--gold)" }}>
+          <div className="js-kpi-val" style={{ ...s.kpiVal, color: avgSubstrate >= 22 ? "var(--green)" : "var(--gold)" }}>
             {avgSubstrate > 0 ? avgSubstrate.toFixed(1) : "—"}
           </div>
           <div style={s.kpiSub}>sub-score across sleeve</div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>JPY/GBP</div>
-          <div style={s.kpiVal}>{fmtFx(fxRate)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{fmtFx(fxRate)}</div>
           <div style={s.kpiSub}>implied from MV/shares</div>
         </div>
       </div>
 
-      <div style={s.main}>
+      <div style={s.main} className="js-main">
         {/* Position table */}
         <div style={s.panel}>
           <div style={s.sectionTitle}>Positions</div>
