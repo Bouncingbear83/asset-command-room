@@ -109,13 +109,28 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
   };
 
   return (
-    <div style={s.page}>
-      <div style={s.header}>
+    <div style={s.page} className="japan-sleeve">
+      <style>{`
+        @media (max-width: 767px) {
+          .japan-sleeve { padding: 14px 12px !important; }
+          .js-header { flex-direction: column !important; gap: 10px; align-items: stretch !important; }
+          .js-h1 { font-size: 22px !important; }
+          .js-refresh { width: 100%; padding: 10px !important; }
+          .js-kpi-band { grid-template-columns: repeat(2, 1fr) !important; }
+          .js-kpi-val { font-size: 16px !important; }
+          .js-main { grid-template-columns: 1fr !important; }
+          .js-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .js-table { min-width: 880px; }
+          .js-expand-grid { grid-template-columns: 1fr !important; }
+          .js-notes { max-width: 140px !important; }
+        }
+      `}</style>
+      <div style={s.header} className="js-header">
         <div>
-          <h1 style={s.h1}>Japan Sleeve</h1>
+          <h1 style={s.h1} className="js-h1">Japan Sleeve</h1>
           <div style={s.sub}>Bordier GIA · TSE substrate · manual pricing · CGT-applicable</div>
         </div>
-        <button style={s.refreshBtn} onClick={onRefresh} disabled={loading}>
+        <button style={s.refreshBtn} className="js-refresh" onClick={onRefresh} disabled={loading}>
           {loading ? "Refreshing…" : "Refresh from Sheet"}
         </button>
       </div>
@@ -128,43 +143,44 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
         </div>
       )}
 
-      <div style={s.kpiBand}>
+      <div style={s.kpiBand} className="js-kpi-band">
         <div style={s.kpi}>
           <div style={s.kpiLabel}>Sleeve AUM</div>
-          <div style={s.kpiVal}>{loading && sleeveAum === 0 ? "—" : fmtGbpK(sleeveAum)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{loading && sleeveAum === 0 ? "—" : fmtGbpK(sleeveAum)}</div>
           <div style={{ ...s.kpiSub, color: dailyDelta >= 0 ? "var(--green)" : "var(--red)" }}>
             {dailyDelta >= 0 ? "▲" : "▼"} {Math.abs(dailyDelta).toFixed(2)}% today
           </div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>% of Total AUM</div>
-          <div style={s.kpiVal}>{loading && pctOfTotal === 0 ? "—" : fmtPct(pctOfTotal, 2)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{loading && pctOfTotal === 0 ? "—" : fmtPct(pctOfTotal, 2)}</div>
           <div style={s.kpiSub}>vs {fmtGbpK(totalAumWithSleeve)} total</div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>Positions</div>
-          <div style={s.kpiVal}>{enriched.length || (loading ? "—" : 0)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{enriched.length || (loading ? "—" : 0)}</div>
           <div style={s.kpiSub}>TSE-listed</div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>Avg Substrate</div>
-          <div style={{ ...s.kpiVal, color: avgSubstrate >= 22 ? "var(--green)" : "var(--gold)" }}>
+          <div className="js-kpi-val" style={{ ...s.kpiVal, color: avgSubstrate >= 22 ? "var(--green)" : "var(--gold)" }}>
             {avgSubstrate > 0 ? avgSubstrate.toFixed(1) : "—"}
           </div>
           <div style={s.kpiSub}>sub-score across sleeve</div>
         </div>
         <div style={s.kpi}>
           <div style={s.kpiLabel}>JPY/GBP</div>
-          <div style={s.kpiVal}>{fmtFx(fxRate)}</div>
+          <div style={s.kpiVal} className="js-kpi-val">{fmtFx(fxRate)}</div>
           <div style={s.kpiSub}>implied from MV/shares</div>
         </div>
       </div>
 
-      <div style={s.main}>
+      <div style={s.main} className="js-main">
         {/* Position table */}
         <div style={s.panel}>
           <div style={s.sectionTitle}>Positions</div>
-          <table style={s.table}>
+          <div className="js-table-wrap">
+          <table style={s.table} className="js-table">
             <thead>
               <tr>
                 {["Ticker", "Name", "Layer", "Score", "Substrate", "Reclass", "JPY Price", "JPY Cost", "FX", "MV (£)", "AUM %", "G/L %", "Notes"].map((c) => (
@@ -209,14 +225,14 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                       <td style={{ ...s.td, ...s.mono, textAlign: "right" as const, color: (h.gl || 0) >= 0 ? "var(--green)" : "var(--red)" }}>
                         {(h.gl || 0) >= 0 ? "+" : ""}{fmtPct(h.gl || 0, 1)}
                       </td>
-                      <td style={{ ...s.td, color: "var(--text-dim)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }} title={h.notes}>
+                      <td style={{ ...s.td, color: "var(--text-dim)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }} title={h.notes} className="js-notes">
                         {h.notes ? (h.notes.length > 80 ? h.notes.slice(0, 80) + "…" : h.notes) : "—"}
                       </td>
                     </tr>
                     {isOpen && (
                       <tr>
                         <td colSpan={13} style={{ ...s.td, background: "rgba(201,168,76,0.03)", borderLeft: "2px solid var(--gold)" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "8px 12px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "8px 12px" }} className="js-expand-grid">
                             <div>
                               <div style={s.kpiLabel}>Full thesis</div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "var(--text)", lineHeight: 1.6 }}>{h.fullThesis || "No thesis recorded."}</div>
@@ -239,6 +255,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Compliance / tax panel */}
