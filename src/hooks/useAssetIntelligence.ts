@@ -30,7 +30,18 @@ import {
   ReturnProfile,
   RETURN_PROFILE_VALUES,
   CompounderSubtype,
+  AssetThesisFraming,
+  AssetPriceAnchors,
+  ChinaExposureFlag,
 } from "@/types/intelligence";
+import { parseAsymmetryRatio } from "@/lib/asymmetry";
+
+function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
+  const s = String(raw ?? "").trim().toUpperCase();
+  if (!s) return null;
+  if (s === "LOW" || s === "MEDIUM" || s === "HIGH" || s === "N/A") return s;
+  return null;
+}
 
 // ── Rationale row shapes (subset of Supabase tables) ────────────────────────
 
@@ -43,6 +54,18 @@ interface ScoreRationaleRow {
   valuation_rationale: string | null;
   mgmt_rationale: string | null;
   disruption_rationale: string | null;
+  // v2.13 additions
+  bull_case: string | null;
+  bear_case: string | null;
+  asymmetry_ratio: string | null;
+  stage2_subclass: string | null;
+  china_exposure_flag: string | null;
+  price_at_first_add: number | null;
+  first_add_date: string | null;
+  price_at_last_score: number | null;
+  factor_group: string | null;
+  factor_primary: string | null;
+  stack_layer: string | null;
 }
 
 interface DisruptionRationaleRow {
@@ -405,11 +428,30 @@ function buildOne(
   const substrate_level = (["L1", "L2", "L3", "L4"] as const).find((l) => l === slRaw) ?? null;
   const stRaw = String((s as { stackLayer?: unknown }).stackLayer ?? "").trim().toUpperCase();
   const stack_layer = stRaw && stRaw !== "N/A" ? stRaw : null;
-  // factor_group joined from HOLDINGS for HELD rows (empty for unheld)
+  // factor_group resolver — prefer Supabase score_rationales (canonical post-v2.13
+  // resolver bugfix), fall back to HOLDINGS row for HELD-only tickers.
+  const scoreRationaleRow = scoreRationaleByTicker.get(ticker);
+  const fgFromRationale = scoreRationaleRow?.factor_group
+    ? String(scoreRationaleRow.factor_group).trim().toUpperCase()
+    : "";
   const fgFromHolding = positionRows[0]?.factor_group
     ? String(positionRows[0].factor_group).trim().toUpperCase()
     : "";
-  const factor_group_final = fgFromHolding || null;
+  const factor_group_final = fgFromRationale || fgFromHolding || null;
+
+  // v2.13 framing + price anchors (sourced from Supabase score_rationales)
+  const framing: AssetThesisFraming = {
+    bull_case: scoreRationaleRow?.bull_case ?? "",
+    bear_case: scoreRationaleRow?.bear_case ?? "",
+    asymmetry: parseAsymmetryRatio(scoreRationaleRow?.asymmetry_ratio ?? ""),
+    stage2_subclass: scoreRationaleRow?.stage2_subclass?.trim() || null,
+    china_exposure_flag: normalizeChinaFlag(scoreRationaleRow?.china_exposure_flag),
+  };
+  const price_anchors: AssetPriceAnchors = {
+    price_at_first_add: toNum(scoreRationaleRow?.price_at_first_add),
+    first_add_date: scoreRationaleRow?.first_add_date ?? null,
+    price_at_last_score: toNum(scoreRationaleRow?.price_at_last_score),
+  };
 
   return {
     ticker,
@@ -448,6 +490,8 @@ function buildOne(
     trend,
     current_price,
     buy_distance,
+    framing,
+    price_anchors,
   };
 }
 

@@ -190,6 +190,34 @@ export interface BuyDistance {
   pct_from_zone: number | null;
 }
 
+// ── v2.13 Research Commit additions ────────────────────────────────────────
+
+import type { ParsedAsymmetry } from "@/lib/asymmetry";
+
+export type ChinaExposureFlag = "LOW" | "MEDIUM" | "HIGH" | "N/A";
+
+export interface AssetThesisFraming {
+  /** Long-form bull thesis ("$X at +Y%…"). Empty string when not yet authored. */
+  bull_case: string;
+  /** Long-form bear thesis + kill criteria. Empty string when not yet authored. */
+  bear_case: string;
+  /** Parsed asymmetry — pairs + max/spot. Always present (empty pairs when missing). */
+  asymmetry: ParsedAsymmetry;
+  /** Stellar Doctrine Stage 2 sub-classification ("N/A" valid). Null when blank. */
+  stage2_subclass: string | null;
+  /** Normalized China exposure flag. Null when blank. */
+  china_exposure_flag: ChinaExposureFlag | null;
+}
+
+export interface AssetPriceAnchors {
+  /** Local-currency price at the time of the first BUY. Null when not yet held. */
+  price_at_first_add: number | null;
+  /** ISO date (YYYY-MM-DD) of the first BUY. Null when not yet held. */
+  first_add_date: string | null;
+  /** Local-currency price recorded at the latest score commit. Null when missing. */
+  price_at_last_score: number | null;
+}
+
 export interface AssetIntelligence {
   // Identity
   ticker: string;
@@ -235,4 +263,9 @@ export interface AssetIntelligence {
   current_price: number | null;
   // Distance from buy_low/high; always present (status NO_PRICE / NO_RANGE if not computable)
   buy_distance: BuyDistance;
+
+  // v2.13 — bull/bear/asymmetry + Stage 2 framing (always present; empty when absent)
+  framing: AssetThesisFraming;
+  // v2.13 — local-ccy price anchors from score_rationales
+  price_anchors: AssetPriceAnchors;
 }
