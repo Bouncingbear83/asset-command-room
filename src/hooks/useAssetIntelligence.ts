@@ -388,6 +388,7 @@ function buildOne(
   disruptionRationaleByTicker: Map<string, DisruptionRationaleRow>,
   trendByTicker: Map<string, TrendBuildContext>,
   watchlistPriceByTicker: Map<string, number | null>,
+  watchlistByTicker: Map<string, LiveWatchItem>,
 ): AssetIntelligence {
   const ticker = canonTicker(s.ticker);
   const held_status = normalizeHeldStatus(s.heldStatus, ticker);
