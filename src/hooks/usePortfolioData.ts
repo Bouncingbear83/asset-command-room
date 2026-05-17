@@ -1054,6 +1054,7 @@ export function usePortfolioData(): PortfolioData {
         loading: false,
         error: null,
       });
+      window.dispatchEvent(new CustomEvent("lovable:portfolio-refreshed", { detail: { at: Date.now() } }));
     } catch (error: any) {
       setState((previous) => ({
         ...previous,
