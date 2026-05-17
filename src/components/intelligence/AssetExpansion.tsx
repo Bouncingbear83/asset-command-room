@@ -407,6 +407,8 @@ function AnchorCell({
   );
 }
 
+const LAST_REFRESH_KEY = "lovable:portfolio-last-refreshed";
+
 function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
   const pa = asset.price_anchors;
   const hasFirst = pa.first_add.price !== null;
