@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
 import { AssetRow } from "@/components/intelligence/AssetRow";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
-import type {
-  AssetIntelligence,
-  AssetThesisFraming,
-  AssetPriceAnchors,
+import {
+  EMPTY_PRICE_ANCHORS,
+  type AssetIntelligence,
+  type AssetThesisFraming,
+  type AssetPriceAnchors,
 } from "@/types/intelligence";
+
+export { EMPTY_PRICE_ANCHORS } from "@/types/intelligence";
 
 // ── Defensive defaults so missing v2.13 fields never crash the UI ───────────
 
@@ -15,12 +18,6 @@ export const EMPTY_FRAMING: AssetThesisFraming = {
   asymmetry: { raw: "", pairs: [], max: null, spot: null },
   stage2_subclass: null,
   china_exposure_flag: null,
-};
-
-export const EMPTY_PRICE_ANCHORS: AssetPriceAnchors = {
-  price_at_first_add: null,
-  first_add_date: null,
-  price_at_last_score: null,
 };
 
 /**
@@ -118,7 +115,7 @@ const FIXTURES: AssetIntelligence[] = [
     current_price: 142.3,
     buy_distance: { status: "ABOVE", pct_from_zone: ((142.3 - 130) / 130) * 100 },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
-    price_anchors: { price_at_first_add: null, first_add_date: null, price_at_last_score: null },
+    price_anchors: EMPTY_PRICE_ANCHORS,
   },
   {
     ticker: "KLAC",
@@ -172,7 +169,7 @@ const FIXTURES: AssetIntelligence[] = [
     current_price: 612,
     buy_distance: { status: "IN_ZONE", pct_from_zone: 0 },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
-    price_anchors: { price_at_first_add: null, first_add_date: null, price_at_last_score: null },
+    price_anchors: EMPTY_PRICE_ANCHORS,
   },
   {
     ticker: "APD",
@@ -227,7 +224,7 @@ const FIXTURES: AssetIntelligence[] = [
     current_price: null,
     buy_distance: { status: "NO_RANGE", pct_from_zone: null },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
-    price_anchors: { price_at_first_add: null, first_add_date: null, price_at_last_score: null },
+    price_anchors: EMPTY_PRICE_ANCHORS,
   },
   {
     ticker: "ASTS",
@@ -270,7 +267,7 @@ const FIXTURES: AssetIntelligence[] = [
     current_price: 31.5,
     buy_distance: { status: "ABOVE", pct_from_zone: ((31.5 - 28) / 28) * 100 },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
-    price_anchors: { price_at_first_add: null, first_add_date: null, price_at_last_score: null },
+    price_anchors: EMPTY_PRICE_ANCHORS,
   },
 ];
 
@@ -298,9 +295,9 @@ function isEmptyFraming(f: AssetThesisFraming): boolean {
 
 function isEmptyPriceAnchors(p: AssetPriceAnchors): boolean {
   return (
-    p.price_at_first_add === null &&
-    p.first_add_date === null &&
-    p.price_at_last_score === null
+    p.first_add.price === null &&
+    p.last_score.price === null &&
+    Object.keys(p.raw).length === 0
   );
 }
 

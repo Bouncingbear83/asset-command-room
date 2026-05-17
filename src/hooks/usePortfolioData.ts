@@ -79,6 +79,8 @@ const KNOWN_COLS = [
   "deploy_amount_gbp", "factor_primary", "factor_group", "stack_layer",
   "substrate_level",
   "held_status", "reclass_status", "thesis_age_months", "thesis_first_scored",
+  "price_at_first_add", "first_add_date", "price_at_last_score",
+  "pct_from_first_add", "pct_from_last_score",
 ];
 
 interface SheetFetchOptions {
@@ -145,6 +147,11 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
   if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
   if (labelLower.includes("substrate level") || labelLower.includes("substrate_level")) return "substrate_level";
+  if (labelLower.includes("price at first add") || labelLower.includes("price_at_first_add")) return "price_at_first_add";
+  if (labelLower.includes("first add date") || labelLower.includes("first_add_date")) return "first_add_date";
+  if (labelLower.includes("price at last score") || labelLower.includes("price_at_last_score")) return "price_at_last_score";
+  if (labelLower.includes("pct from first add") || labelLower.includes("pct_from_first_add")) return "pct_from_first_add";
+  if (labelLower.includes("pct from last score") || labelLower.includes("pct_from_last_score")) return "pct_from_last_score";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
@@ -351,6 +358,9 @@ function parseHoldings(rows: Record<string, any>[]) {
       factor_primary: String(findCol(row, "factor_primary", "FACTOR_PRIMARY", "Factor_Primary") ?? ""),
       factor_group: String(findCol(row, "factor_group", "FACTOR_GROUP", "Factor_Group") ?? ""),
       stack_layer: String(findCol(row, "stack_layer", "STACK_LAYER", "Stack_Layer") ?? ""),
+      priceAtFirstAdd: parseNum(findCol(row, "price_at_first_add", "PRICE_AT_FIRST_ADD", "Price_At_First_Add", "price at first add")),
+      firstAddDate: parseSheetDate(findCol(row, "first_add_date", "FIRST_ADD_DATE", "First_Add_Date", "first add date")),
+      priceAtLastScore: parseNum(findCol(row, "price_at_last_score", "PRICE_AT_LAST_SCORE", "Price_At_Last_Score", "price at last score")),
     }));
 }
 
@@ -377,6 +387,9 @@ function parseWatchlist(rows: Record<string, any>[]) {
         currency: String(findCol(row, "currency", "CURRENCY", "Currency") ?? "USD").trim(),
         factor_group: String(findCol(row, "factor_group", "FACTOR_GROUP", "Factor_Group") ?? ""),
         stack_layer: String(findCol(row, "stack_layer", "STACK_LAYER", "Stack_Layer") ?? ""),
+        priceAtFirstAdd: parseNum(findCol(row, "price_at_first_add", "PRICE_AT_FIRST_ADD", "Price_At_First_Add", "price at first add")),
+        firstAddDate: parseSheetDate(findCol(row, "first_add_date", "FIRST_ADD_DATE", "First_Add_Date", "first add date")),
+        priceAtLastScore: parseNum(findCol(row, "price_at_last_score", "PRICE_AT_LAST_SCORE", "Price_At_Last_Score", "price at last score")),
       };
     })
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
@@ -440,6 +453,9 @@ function parseScores(rows: Record<string, any>[]) {
       compounderSubtype: String(findCol(row, "COMPOUNDER_SUBTYPE", "compounder_subtype", "Compounder_Subtype") ?? ""),
       substrateLevel: String(findCol(row, "SUBSTRATE_LEVEL", "substrate_level", "Substrate_Level") ?? ""),
       stackLayer: String(findCol(row, "STACK_LAYER", "stack_layer", "Stack_Layer") ?? ""),
+      priceAtFirstAdd: parseNum(findCol(row, "price_at_first_add", "PRICE_AT_FIRST_ADD", "Price_At_First_Add", "price at first add")),
+      firstAddDate: parseSheetDate(findCol(row, "first_add_date", "FIRST_ADD_DATE", "First_Add_Date", "first add date")),
+      priceAtLastScore: parseNum(findCol(row, "price_at_last_score", "PRICE_AT_LAST_SCORE", "Price_At_Last_Score", "price at last score")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 }

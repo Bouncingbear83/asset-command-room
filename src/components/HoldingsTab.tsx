@@ -816,7 +816,7 @@ function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" 
     price: 0, prevClose: 0, currency: "USD", costGbp: 0, costLocal: 0, shares: 0,
     add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "",
     alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null,
-    deploy_target_gbp: 0, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "",
+    deploy_target_gbp: 0, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "", priceAtFirstAdd: null, firstAddDate: "", priceAtLastScore: null,
   };
 }
 
