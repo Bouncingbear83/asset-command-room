@@ -1,7 +1,38 @@
 import { useState, useMemo } from "react";
 import { AssetRow } from "@/components/intelligence/AssetRow";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
-import type { AssetIntelligence } from "@/types/intelligence";
+import type {
+  AssetIntelligence,
+  AssetThesisFraming,
+  AssetPriceAnchors,
+} from "@/types/intelligence";
+
+// ── Defensive defaults so missing v2.13 fields never crash the UI ───────────
+
+export const EMPTY_FRAMING: AssetThesisFraming = {
+  bull_case: "",
+  bear_case: "",
+  asymmetry: { raw: "", pairs: [], max: null, spot: null },
+  stage2_subclass: null,
+  china_exposure_flag: null,
+};
+
+export const EMPTY_PRICE_ANCHORS: AssetPriceAnchors = {
+  price_at_first_add: null,
+  first_add_date: null,
+  price_at_last_score: null,
+};
+
+/** Fill any missing v2.13 fields on an AssetIntelligence-shaped object. */
+export function withSafeV213Defaults<T extends Partial<AssetIntelligence>>(
+  asset: T,
+): T & Pick<AssetIntelligence, "framing" | "price_anchors"> {
+  return {
+    ...asset,
+    framing: asset.framing ?? EMPTY_FRAMING,
+    price_anchors: asset.price_anchors ?? EMPTY_PRICE_ANCHORS,
+  };
+}
 
 // ── Edge-case fixtures (kept for visual regression coverage) ────────────────
 
@@ -309,7 +340,7 @@ export default function IntelligencePreview() {
         <p style={SUBTITLE_STYLE}>
           NVDA (HELD, SIPP+ISA, GREEN) · KLAC (WATCHLIST, AMBER) · APD (REJECTED, RED) · ASTS (RESEARCH, no disruption row)
         </p>
-        <ExpandableList assets={FIXTURES} />
+        <ExpandableList assets={FIXTURES.map(withSafeV213Defaults)} />
       </div>
     </div>
   );
