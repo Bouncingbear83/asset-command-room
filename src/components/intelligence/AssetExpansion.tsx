@@ -317,6 +317,129 @@ function FiftyTwoWeekBar({ asset }: { asset: AssetIntelligence }) {
   );
 }
 
+// ── Section: Price Anchors ──────────────────────────────────────────────────
+
+function anchorCurrency(asset: AssetIntelligence): string {
+  return asset.position?.currency ?? asset.buy_range.currency ?? "USD";
+}
+
+function formatPct(pct: number | null): { text: string; color: string } {
+  if (pct === null || !Number.isFinite(pct)) return { text: "—", color: "var(--text-dim)" };
+  const sign = pct > 0 ? "+" : "";
+  const color = pct > 0 ? "var(--gold)" : pct < 0 ? "var(--text-dim)" : "var(--text-mid)";
+  return { text: `${sign}${pct.toFixed(1)}%`, color };
+}
+
+function detectAnchorConflict(
+  raw: AssetIntelligence["price_anchors"]["raw"],
+  field: "first_add_price" | "last_score_price",
+): boolean {
+  const vals: number[] = [];
+  for (const src of Object.keys(raw) as Array<keyof typeof raw>) {
+    const v = raw[src]?.[field];
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) vals.push(v);
+  }
+  if (vals.length < 2) return false;
+  const lo = Math.min(...vals);
+  const hi = Math.max(...vals);
+  return (hi - lo) / lo > 0.01;
+}
+
+function AnchorCell({
+  label, anchor, pct, currency, conflict,
+}: {
+  label: string;
+  anchor: AnchorValue;
+  pct: number | null;
+  currency: string;
+  conflict: boolean;
+}) {
+  const hasPrice = anchor.price !== null && Number.isFinite(anchor.price);
+  const pctFmt = formatPct(pct);
+  return (
+    <div style={CARD_STYLE}>
+      <div style={LABEL_STYLE}>
+        <span>{label}</span>
+        {anchor.source && (
+          <span style={{
+            padding: "2px 6px",
+            fontFamily: "var(--font-mono)",
+            fontSize: 8,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            background: "rgba(28,28,48,0.4)",
+            color: "var(--text-dim)",
+            border: "1px solid var(--rim)",
+            borderRadius: 2,
+          }}>{anchor.source}</span>
+        )}
+      </div>
+      {hasPrice ? (
+        <div style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 13,
+          color: "var(--text-mid)",
+          display: "flex",
+          gap: 8,
+          alignItems: "baseline",
+          flexWrap: "wrap",
+        }}>
+          <span>{formatCurrency(anchor.price as number, currency)}</span>
+          {anchor.date && <span style={{ fontSize: 10, color: "var(--text-dim)" }}>· {anchor.date}</span>}
+          <span style={{ color: pctFmt.color, fontWeight: 600 }}>{pctFmt.text}</span>
+        </div>
+      ) : (
+        <div style={NO_DATA_STYLE}>No anchor recorded.</div>
+      )}
+      {conflict && (
+        <div style={{
+          marginTop: 6,
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--amber)",
+        }}>
+          ⚠ source conflict &gt;1%
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
+  const pa = asset.price_anchors;
+  const hasFirst = pa.first_add.price !== null;
+  const hasLast = pa.last_score.price !== null;
+  if (!hasFirst && !hasLast) return null;
+
+  const currency = anchorCurrency(asset);
+  const firstConflict = detectAnchorConflict(pa.raw, "first_add_price");
+  const lastConflict = detectAnchorConflict(pa.raw, "last_score_price");
+
+  return (
+    <div style={SECTION_STYLE}>
+      <div style={LABEL_STYLE}><span>Price Anchors</span></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+        <AnchorCell
+          label="First Add"
+          anchor={pa.first_add}
+          pct={pa.pct_from_first_add}
+          currency={currency}
+          conflict={firstConflict}
+        />
+        <AnchorCell
+          label="Last Score"
+          anchor={pa.last_score}
+          pct={pa.pct_from_last_score}
+          currency={currency}
+          conflict={lastConflict}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Main expansion ──────────────────────────────────────────────────────────
 
 export function AssetExpansion({ asset }: Props) {
