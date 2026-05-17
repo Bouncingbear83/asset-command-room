@@ -407,12 +407,22 @@ function AnchorCell({
   );
 }
 
+const LAST_REFRESH_KEY = "lovable:portfolio-last-refreshed";
+
 function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
   const pa = asset.price_anchors;
   const hasFirst = pa.first_add.price !== null;
   const hasLast = pa.last_score.price !== null;
   const [recomputing, setRecomputing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<number | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<number | null>(() => {
+    try {
+      const raw = window.localStorage.getItem(LAST_REFRESH_KEY);
+      const n = raw ? parseInt(raw, 10) : NaN;
+      return Number.isFinite(n) ? n : null;
+    } catch {
+      return null;
+    }
+  });
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -420,6 +430,11 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
       const at = (e as CustomEvent<{ at: number }>).detail?.at ?? Date.now();
       setLastRefreshed(at);
       setRecomputing(false);
+      try {
+        window.localStorage.setItem(LAST_REFRESH_KEY, String(at));
+      } catch {
+        // ignore quota / privacy errors
+      }
     };
     window.addEventListener("lovable:portfolio-refreshed", onRefreshed);
     // tick every 30s so relative timestamp stays fresh
@@ -440,7 +455,8 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
     setRecomputing(true);
     window.dispatchEvent(new CustomEvent("lovable:portfolio-refresh"));
     toast.success("Recomputing price anchors…");
-    window.setTimeout(() => setRecomputing(false), 2000);
+    // safety: clear after 15s if refreshed event never arrives
+    window.setTimeout(() => setRecomputing(false), 15_000);
   };
 
   const refreshedLabel = (() => {
@@ -458,9 +474,30 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
     : undefined;
 
   return (
-    <div style={SECTION_STYLE}>
+    <div style={{ ...SECTION_STYLE, position: "relative" }}>
       <div style={{ ...LABEL_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span>Price Anchors</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          Price Anchors
+          {recomputing && (
+            <span
+              aria-label="Recomputing"
+              style={{
+                display: "inline-block",
+                width: 10,
+                height: 10,
+                border: "1.5px solid var(--rim)",
+                borderTopColor: "var(--gold, #c9a84c)",
+                borderRadius: "50%",
+                animation: "aex-spin 0.8s linear infinite",
+              }}
+            />
+          )}
+          {recomputing && (
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--text-dim)", textTransform: "uppercase" }}>
+              Recalculating…
+            </span>
+          )}
+        </span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {refreshedLabel && (
             <span
