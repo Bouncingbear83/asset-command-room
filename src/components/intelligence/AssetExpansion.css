@@ -29,3 +29,7 @@
   .aex-grid-disruption,
   .aex-grid-position { grid-template-columns: 1fr; }
 }
+
+@keyframes aex-spin {
+  to { transform: rotate(360deg); }
+}
