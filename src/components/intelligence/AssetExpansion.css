@@ -33,3 +33,16 @@
 @keyframes aex-spin {
   to { transform: rotate(360deg); }
 }
+
+.aex-skel {
+  display: inline-block;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.04) 100%);
+  background-size: 200% 100%;
+  animation: aex-skel-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes aex-skel-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

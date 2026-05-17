@@ -346,13 +346,14 @@ function detectAnchorConflict(
 }
 
 function AnchorCell({
-  label, anchor, pct, currency, conflict,
+  label, anchor, pct, currency, conflict, loading,
 }: {
   label: string;
   anchor: AnchorValue;
   pct: number | null;
   currency: string;
   conflict: boolean;
+  loading?: boolean;
 }) {
   const hasPrice = anchor.price !== null && Number.isFinite(anchor.price);
   const pctFmt = formatPct(pct);
@@ -374,7 +375,13 @@ function AnchorCell({
           }}>{anchor.source}</span>
         )}
       </div>
-      {hasPrice ? (
+      {loading ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="aex-skel" style={{ width: 56, height: 14 }} />
+          <span className="aex-skel" style={{ width: 72, height: 10 }} />
+          <span className="aex-skel" style={{ width: 40, height: 12 }} />
+        </div>
+      ) : hasPrice ? (
         <div style={{
           fontFamily: "var(--font-mono)",
           fontSize: 13,
@@ -391,7 +398,7 @@ function AnchorCell({
       ) : (
         <div style={NO_DATA_STYLE}>No anchor recorded.</div>
       )}
-      {conflict && (
+      {conflict && !loading && (
         <div style={{
           marginTop: 6,
           fontFamily: "var(--font-mono)",
@@ -436,11 +443,20 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
         // ignore quota / privacy errors
       }
     };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LAST_REFRESH_KEY || !e.newValue) return;
+      const at = parseInt(e.newValue, 10);
+      if (!Number.isFinite(at)) return;
+      setLastRefreshed(at);
+      setRecomputing(false);
+    };
     window.addEventListener("lovable:portfolio-refreshed", onRefreshed);
+    window.addEventListener("storage", onStorage);
     // tick every 30s so relative timestamp stays fresh
     const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
     return () => {
       window.removeEventListener("lovable:portfolio-refreshed", onRefreshed);
+      window.removeEventListener("storage", onStorage);
       window.clearInterval(id);
     };
   }, []);
@@ -541,6 +557,7 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
           pct={pa.pct_from_first_add}
           currency={currency}
           conflict={firstConflict}
+          loading={recomputing}
         />
         <AnchorCell
           label="Last Score"
@@ -548,6 +565,7 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
           pct={pa.pct_from_last_score}
           currency={currency}
           conflict={lastConflict}
+          loading={recomputing}
         />
       </div>
     </div>
