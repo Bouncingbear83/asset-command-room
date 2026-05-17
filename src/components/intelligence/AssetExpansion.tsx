@@ -1,5 +1,5 @@
 import { CSSProperties, useState } from "react";
-import type { AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
+import type { AnchorValue, AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
 import { PriceChart } from "@/components/intelligence/PriceChart";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
