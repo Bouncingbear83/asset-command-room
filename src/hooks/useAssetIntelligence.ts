@@ -453,10 +453,83 @@ function buildOne(
     stage2_subclass: scoreRationaleRow?.stage2_subclass?.trim() || null,
     china_exposure_flag: normalizeChinaFlag(scoreRationaleRow?.china_exposure_flag),
   };
+  // v2.13 price anchors — merge SCORES > HOLDINGS > WATCHLIST > rationale.
+  // pct_from_* computed client-side using same-source current-price pairing
+  // (HELD → HOLDINGS.PRICE_LOCAL; research-only → WATCHLIST.CURRENT_PRICE).
+  const watchRow = watchlistByTicker.get(ticker);
+  const holdingRow = positionRows[0];
+  const rawAnchors: Partial<Record<AnchorSource, RawAnchorBundle>> = {};
+
+  const ingestRaw = (
+    source: AnchorSource,
+    firstPrice: unknown,
+    firstDate: unknown,
+    lastPrice: unknown,
+  ) => {
+    const fp = toNum(firstPrice);
+    const lp = toNum(lastPrice);
+    const fd = normalizeAnchorDate(firstDate);
+    if (fp === null && lp === null && fd === null) return;
+    rawAnchors[source] = {
+      first_add_price: fp,
+      first_add_date: fd,
+      last_score_price: lp,
+    };
+  };
+
+  ingestRaw("scores", (s as { priceAtFirstAdd?: unknown }).priceAtFirstAdd, (s as { firstAddDate?: unknown }).firstAddDate, (s as { priceAtLastScore?: unknown }).priceAtLastScore);
+  if (holdingRow) ingestRaw("holdings", (holdingRow as { priceAtFirstAdd?: unknown }).priceAtFirstAdd, (holdingRow as { firstAddDate?: unknown }).firstAddDate, (holdingRow as { priceAtLastScore?: unknown }).priceAtLastScore);
+  if (watchRow) ingestRaw("watchlist", (watchRow as { priceAtFirstAdd?: unknown }).priceAtFirstAdd, (watchRow as { firstAddDate?: unknown }).firstAddDate, (watchRow as { priceAtLastScore?: unknown }).priceAtLastScore);
+  if (scoreRationaleRow) ingestRaw("rationale", scoreRationaleRow.price_at_first_add, scoreRationaleRow.first_add_date, scoreRationaleRow.price_at_last_score);
+
+  const resolveAnchor = (field: "first_add" | "last_score"): AnchorValue => {
+    for (const src of ANCHOR_SOURCE_ORDER) {
+      const bundle = rawAnchors[src];
+      if (!bundle) continue;
+      const price = field === "first_add" ? bundle.first_add_price : bundle.last_score_price;
+      if (price !== null && price !== undefined && price > 0) {
+        return {
+          price,
+          date: field === "first_add" ? bundle.first_add_date ?? null : null,
+          source: src,
+        };
+      }
+    }
+    return { ...EMPTY_ANCHOR_VALUE };
+  };
+
+  const first_add = resolveAnchor("first_add");
+  const last_score = resolveAnchor("last_score");
+
+  // Same-source current-price pairing
+  const holdingsCurrent = position && position.price_local > 0 ? position.price_local : null;
+  const watchlistCurrent = watchlistPriceByTicker.get(ticker) ?? null;
+  const anchorCurrent = held_status === "HELD" ? holdingsCurrent : watchlistCurrent;
+
+  // Unit-mismatch detector: HELD ticker present in both HOLDINGS and WATCHLIST
+  if (
+    held_status === "HELD" &&
+    holdingsCurrent !== null &&
+    watchlistCurrent !== null &&
+    holdingsCurrent > 0
+  ) {
+    const divergence = Math.abs(holdingsCurrent - watchlistCurrent) / holdingsCurrent;
+    if (divergence > 0.1) {
+      console.warn(
+        `[useAssetIntelligence] ${ticker} price unit-mismatch: HOLDINGS=${holdingsCurrent} vs WATCHLIST=${watchlistCurrent} diverge by ${(divergence * 100).toFixed(0)}% — likely GBp/GBP or JPY-unit mismatch.`,
+      );
+    }
+  }
+
+  const computePct = (cur: number | null, anchor: number | null): number | null =>
+    cur !== null && anchor !== null && anchor > 0 ? ((cur - anchor) / anchor) * 100 : null;
+
   const price_anchors: AssetPriceAnchors = {
-    price_at_first_add: toNum(scoreRationaleRow?.price_at_first_add),
-    first_add_date: scoreRationaleRow?.first_add_date ?? null,
-    price_at_last_score: toNum(scoreRationaleRow?.price_at_last_score),
+    first_add,
+    last_score,
+    pct_from_first_add: computePct(anchorCurrent, first_add.price),
+    pct_from_last_score: computePct(anchorCurrent, last_score.price),
+    raw: rawAnchors,
   };
 
   return {
