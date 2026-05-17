@@ -449,6 +449,9 @@ export function AssetExpansion({ asset }: Props) {
         </div>
       )}
 
+      {/* ─── Section 3.5: PRICE ANCHORS ─────────────────────────────── */}
+      <PriceAnchorsBlock asset={asset} />
+
       {/* ─── Section 4: PRICE CONTEXT (held only) ───────────────────── */}
       {showPosition && asset.position && (
         <div style={SECTION_STYLE}>
