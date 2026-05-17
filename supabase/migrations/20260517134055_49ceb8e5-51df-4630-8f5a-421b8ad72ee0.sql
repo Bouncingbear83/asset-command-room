@@ -1,0 +1,1 @@
+DELETE FROM public.score_rationales WHERE ticker = 'TEST';
