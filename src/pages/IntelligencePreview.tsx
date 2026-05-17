@@ -350,12 +350,14 @@ function ExpandableList({ assets }: { assets: AssetIntelligence[] }) {
   return (
     <div style={{ border: "1px solid var(--rim)", background: "rgba(0,0,0,0.2)" }}>
       {assets.map(asset => (
-        <AssetRow
-          key={asset.ticker}
-          asset={asset}
-          expanded={openSet.has(asset.ticker)}
-          onToggle={() => toggle(asset.ticker)}
-        />
+        <div key={asset.ticker} style={{ position: "relative" }}>
+          <V213FallbackBadge asset={asset} />
+          <AssetRow
+            asset={asset}
+            expanded={openSet.has(asset.ticker)}
+            onToggle={() => toggle(asset.ticker)}
+          />
+        </div>
       ))}
     </div>
   );
