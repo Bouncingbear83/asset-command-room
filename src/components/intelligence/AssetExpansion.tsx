@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import type { AnchorValue, AssetIntelligence, DisruptionStatus } from "@/types/intelligence";
 import { PriceChart } from "@/components/intelligence/PriceChart";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
