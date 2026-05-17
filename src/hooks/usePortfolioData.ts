@@ -1066,7 +1066,12 @@ export function usePortfolioData(): PortfolioData {
   useEffect(() => {
     load();
     const interval = setInterval(load, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    const onExternalRefresh = () => load();
+    window.addEventListener("lovable:portfolio-refresh", onExternalRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("lovable:portfolio-refresh", onExternalRefresh);
+    };
   }, [load]);
 
   return { ...state, refresh: load };
