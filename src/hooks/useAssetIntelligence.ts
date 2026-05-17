@@ -43,6 +43,18 @@ interface ScoreRationaleRow {
   valuation_rationale: string | null;
   mgmt_rationale: string | null;
   disruption_rationale: string | null;
+  // v2.13 additions
+  bull_case: string | null;
+  bear_case: string | null;
+  asymmetry_ratio: string | null;
+  stage2_subclass: string | null;
+  china_exposure_flag: string | null;
+  price_at_first_add: number | null;
+  first_add_date: string | null;
+  price_at_last_score: number | null;
+  factor_group: string | null;
+  factor_primary: string | null;
+  stack_layer: string | null;
 }
 
 interface DisruptionRationaleRow {
