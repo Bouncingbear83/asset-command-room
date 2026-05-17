@@ -32,6 +32,11 @@ import {
   CompounderSubtype,
   AssetThesisFraming,
   AssetPriceAnchors,
+  AnchorValue,
+  AnchorSource,
+  ANCHOR_SOURCE_ORDER,
+  RawAnchorBundle,
+  EMPTY_ANCHOR_VALUE,
   ChinaExposureFlag,
 } from "@/types/intelligence";
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
