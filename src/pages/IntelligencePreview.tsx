@@ -23,10 +23,31 @@ export const EMPTY_PRICE_ANCHORS: AssetPriceAnchors = {
   price_at_last_score: null,
 };
 
-/** Fill any missing v2.13 fields on an AssetIntelligence-shaped object. */
+/**
+ * Fill any missing v2.13 fields on an AssetIntelligence-shaped object.
+ * Emits a single warn per ticker per missing field so bad upstream data is
+ * traceable without crashing the UI. Dedupes via module-level Set.
+ */
+const _warnedV213 = new Set<string>();
+
 export function withSafeV213Defaults<T extends Partial<AssetIntelligence>>(
   asset: T,
 ): T & Pick<AssetIntelligence, "framing" | "price_anchors"> {
+  const ticker = asset.ticker ?? "<unknown>";
+  if (!asset.framing) {
+    const key = `${ticker}:framing`;
+    if (!_warnedV213.has(key)) {
+      _warnedV213.add(key);
+      console.warn(`[IntelligencePreview] ${ticker} missing framing — using EMPTY_FRAMING fallback`);
+    }
+  }
+  if (!asset.price_anchors) {
+    const key = `${ticker}:price_anchors`;
+    if (!_warnedV213.has(key)) {
+      _warnedV213.add(key);
+      console.warn(`[IntelligencePreview] ${ticker} missing price_anchors — using EMPTY_PRICE_ANCHORS fallback`);
+    }
+  }
   return {
     ...asset,
     framing: asset.framing ?? EMPTY_FRAMING,
