@@ -759,8 +759,9 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
       trendByTicker.set(t, { latest: sorted[0], prior: sorted[1] ?? null });
     }
 
-    // Watchlist current price (lenient parse on raw cell)
+    // Watchlist current price (lenient parse on raw cell) + full row for anchor merge
     const watchlistPriceByTicker = new Map<string, number | null>();
+    const watchlistByTicker = new Map<string, LiveWatchItem>();
     for (const w of (watchlist ?? []) as LiveWatchItem[]) {
       const t = canonTicker(w.ticker);
       if (!t) continue;
@@ -768,6 +769,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
         ? w.current
         : parseLenientPrice(w.currentRaw);
       watchlistPriceByTicker.set(t, parsed);
+      if (!watchlistByTicker.has(t)) watchlistByTicker.set(t, w);
     }
 
     // Warn about orphan rationales (ticker not in SCORES)
@@ -792,6 +794,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
         disruptionRationaleByTicker,
         trendByTicker,
         watchlistPriceByTicker,
+        watchlistByTicker,
       ),
     );
   }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker, disruptionSnapshotByTicker]);
