@@ -412,6 +412,24 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
   const hasFirst = pa.first_add.price !== null;
   const hasLast = pa.last_score.price !== null;
   const [recomputing, setRecomputing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<number | null>(null);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const onRefreshed = (e: Event) => {
+      const at = (e as CustomEvent<{ at: number }>).detail?.at ?? Date.now();
+      setLastRefreshed(at);
+      setRecomputing(false);
+    };
+    window.addEventListener("lovable:portfolio-refreshed", onRefreshed);
+    // tick every 30s so relative timestamp stays fresh
+    const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => {
+      window.removeEventListener("lovable:portfolio-refreshed", onRefreshed);
+      window.clearInterval(id);
+    };
+  }, []);
+
   if (!hasFirst && !hasLast) return null;
 
   const currency = anchorCurrency(asset);
@@ -422,32 +440,62 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
     setRecomputing(true);
     window.dispatchEvent(new CustomEvent("lovable:portfolio-refresh"));
     toast.success("Recomputing price anchors…");
-    window.setTimeout(() => setRecomputing(false), 1200);
+    window.setTimeout(() => setRecomputing(false), 2000);
   };
+
+  const refreshedLabel = (() => {
+    if (!lastRefreshed) return null;
+    const secs = Math.max(0, Math.round((Date.now() - lastRefreshed) / 1000));
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.round(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    return `${hrs}h ago`;
+  })();
+
+  const refreshedAbs = lastRefreshed
+    ? new Date(lastRefreshed).toLocaleTimeString("en-GB")
+    : undefined;
 
   return (
     <div style={SECTION_STYLE}>
-      <div style={{ ...LABEL_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ ...LABEL_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <span>Price Anchors</span>
-        <button
-          onClick={handleRecompute}
-          disabled={recomputing}
-          style={{
-            background: "none",
-            border: "1px solid var(--rim)",
-            color: "var(--text-dim)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 9,
-            letterSpacing: "0.15em",
-            padding: "2px 8px",
-            cursor: recomputing ? "default" : "pointer",
-            opacity: recomputing ? 0.5 : 1,
-            textTransform: "uppercase",
-          }}
-          title="Re-fetch sheet data and recompute pct moves"
-        >
-          {recomputing ? "Recomputing…" : "↻ Recompute"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {refreshedLabel && (
+            <span
+              title={refreshedAbs ? `Last refreshed at ${refreshedAbs}` : undefined}
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.12em",
+                color: "var(--text-dim)",
+                textTransform: "uppercase",
+              }}
+            >
+              Refreshed {refreshedLabel}
+            </span>
+          )}
+          <button
+            onClick={handleRecompute}
+            disabled={recomputing}
+            style={{
+              background: "none",
+              border: "1px solid var(--rim)",
+              color: "var(--text-dim)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.15em",
+              padding: "2px 8px",
+              cursor: recomputing ? "default" : "pointer",
+              opacity: recomputing ? 0.5 : 1,
+              textTransform: "uppercase",
+            }}
+            title="Re-fetch sheet data and recompute pct moves"
+          >
+            {recomputing ? "Recomputing…" : "↻ Recompute"}
+          </button>
+        </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
         <AnchorCell
