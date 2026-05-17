@@ -286,6 +286,58 @@ const SECTION_HEADER_STYLE = {
 
 const SUBTITLE_STYLE = { fontSize: 11, color: "var(--text-dim)", marginTop: 4, marginBottom: 16 };
 
+function isEmptyFraming(f: AssetThesisFraming): boolean {
+  return (
+    !f.bull_case &&
+    !f.bear_case &&
+    !f.asymmetry.raw &&
+    f.stage2_subclass === null &&
+    f.china_exposure_flag === null
+  );
+}
+
+function isEmptyPriceAnchors(p: AssetPriceAnchors): boolean {
+  return (
+    p.price_at_first_add === null &&
+    p.first_add_date === null &&
+    p.price_at_last_score === null
+  );
+}
+
+function V213FallbackBadge({ asset }: { asset: AssetIntelligence }) {
+  const emptyFraming = isEmptyFraming(asset.framing);
+  const emptyAnchors = isEmptyPriceAnchors(asset.price_anchors);
+  if (!emptyFraming && !emptyAnchors) return null;
+
+  const labels: string[] = [];
+  if (emptyFraming) labels.push("framing");
+  if (emptyAnchors) labels.push("anchors");
+
+  return (
+    <span
+      title={`v2.13 defaults active: ${labels.join(" + ")}`}
+      style={{
+        position: "absolute",
+        top: 4,
+        right: 4,
+        zIndex: 2,
+        fontFamily: "var(--font-mono)",
+        fontSize: 8,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        padding: "2px 5px",
+        borderRadius: 2,
+        background: "var(--amber-dim)",
+        color: "var(--amber)",
+        border: "1px solid rgba(200,146,90,0.35)",
+        pointerEvents: "none",
+      }}
+    >
+      v2.13 · {labels.join("+")}
+    </span>
+  );
+}
+
 function ExpandableList({ assets }: { assets: AssetIntelligence[] }) {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   const toggle = (t: string) => {
@@ -298,12 +350,14 @@ function ExpandableList({ assets }: { assets: AssetIntelligence[] }) {
   return (
     <div style={{ border: "1px solid var(--rim)", background: "rgba(0,0,0,0.2)" }}>
       {assets.map(asset => (
-        <AssetRow
-          key={asset.ticker}
-          asset={asset}
-          expanded={openSet.has(asset.ticker)}
-          onToggle={() => toggle(asset.ticker)}
-        />
+        <div key={asset.ticker} style={{ position: "relative" }}>
+          <V213FallbackBadge asset={asset} />
+          <AssetRow
+            asset={asset}
+            expanded={openSet.has(asset.ticker)}
+            onToggle={() => toggle(asset.ticker)}
+          />
+        </div>
       ))}
     </div>
   );
