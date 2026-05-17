@@ -219,7 +219,6 @@ function normalizeAnchorDate(raw: unknown): string | null {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-}
 
 /** Lenient price parser — strips ~, currency symbols, takes midpoint of ranges. */
 function parseLenientPrice(raw: unknown): number | null {
