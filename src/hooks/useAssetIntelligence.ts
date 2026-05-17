@@ -201,6 +201,9 @@ function parseUkDate(raw: unknown): Date | null {
   if (uk) {
     const d = new Date(+uk[3], +uk[2] - 1, +uk[1]);
     return isNaN(d.getTime()) ? null : d;
+  }
+  const iso = new Date(s);
+  return isNaN(iso.getTime()) ? null : iso;
 }
 
 /** Normalize anchor date input (sheet "YYYY-MM-DD", UK "DD/MM/YYYY", gviz "Date(y,m,d)") → ISO YYYY-MM-DD or null. */
@@ -208,7 +211,6 @@ function normalizeAnchorDate(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
   const s = String(raw).trim();
   if (!s) return null;
-  // Already ISO?
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const d = parseUkDate(s);
   if (!d) return null;
@@ -216,8 +218,7 @@ function normalizeAnchorDate(raw: unknown): string | null {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-  const iso = new Date(s);
-  return isNaN(iso.getTime()) ? null : iso;
+}
 }
 
 /** Lenient price parser — strips ~, currency symbols, takes midpoint of ranges. */
