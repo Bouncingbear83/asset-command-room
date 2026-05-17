@@ -79,6 +79,8 @@ const KNOWN_COLS = [
   "deploy_amount_gbp", "factor_primary", "factor_group", "stack_layer",
   "substrate_level",
   "held_status", "reclass_status", "thesis_age_months", "thesis_first_scored",
+  "price_at_first_add", "first_add_date", "price_at_last_score",
+  "pct_from_first_add", "pct_from_last_score",
 ];
 
 interface SheetFetchOptions {
@@ -145,6 +147,11 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
   if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
   if (labelLower.includes("substrate level") || labelLower.includes("substrate_level")) return "substrate_level";
+  if (labelLower.includes("price at first add") || labelLower.includes("price_at_first_add")) return "price_at_first_add";
+  if (labelLower.includes("first add date") || labelLower.includes("first_add_date")) return "first_add_date";
+  if (labelLower.includes("price at last score") || labelLower.includes("price_at_last_score")) return "price_at_last_score";
+  if (labelLower.includes("pct from first add") || labelLower.includes("pct_from_first_add")) return "pct_from_first_add";
+  if (labelLower.includes("pct from last score") || labelLower.includes("pct_from_last_score")) return "pct_from_last_score";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
