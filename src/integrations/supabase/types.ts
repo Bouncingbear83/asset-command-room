@@ -563,7 +563,11 @@ export type Database = {
       score_rationales: {
         Row: {
           action: string
+          asymmetry_ratio: string | null
+          bear_case: string | null
+          bull_case: string | null
           change_note: string | null
+          china_exposure_flag: string | null
           created_at: string
           demand_rationale: string
           demand_score: number
@@ -571,16 +575,20 @@ export type Database = {
           disruption_score: number
           factor_group: string | null
           factor_primary: string | null
+          first_add_date: string | null
           id: number
           mgmt_rationale: string
           mgmt_score: number
           moat_rationale: string
           moat_score: number
           mv_gbp_at_scoring: number | null
+          price_at_first_add: number | null
+          price_at_last_score: number | null
           price_at_scoring: number | null
           scored_at: string
           scored_by: string
           stack_layer: string | null
+          stage2_subclass: string | null
           substrate_level: string | null
           substrate_rationale: string
           substrate_score: number
@@ -593,7 +601,11 @@ export type Database = {
         }
         Insert: {
           action: string
+          asymmetry_ratio?: string | null
+          bear_case?: string | null
+          bull_case?: string | null
           change_note?: string | null
+          china_exposure_flag?: string | null
           created_at?: string
           demand_rationale: string
           demand_score: number
@@ -601,16 +613,20 @@ export type Database = {
           disruption_score: number
           factor_group?: string | null
           factor_primary?: string | null
+          first_add_date?: string | null
           id?: never
           mgmt_rationale: string
           mgmt_score: number
           moat_rationale: string
           moat_score: number
           mv_gbp_at_scoring?: number | null
+          price_at_first_add?: number | null
+          price_at_last_score?: number | null
           price_at_scoring?: number | null
           scored_at: string
           scored_by: string
           stack_layer?: string | null
+          stage2_subclass?: string | null
           substrate_level?: string | null
           substrate_rationale: string
           substrate_score: number
@@ -623,7 +639,11 @@ export type Database = {
         }
         Update: {
           action?: string
+          asymmetry_ratio?: string | null
+          bear_case?: string | null
+          bull_case?: string | null
           change_note?: string | null
+          china_exposure_flag?: string | null
           created_at?: string
           demand_rationale?: string
           demand_score?: number
@@ -631,16 +651,20 @@ export type Database = {
           disruption_score?: number
           factor_group?: string | null
           factor_primary?: string | null
+          first_add_date?: string | null
           id?: never
           mgmt_rationale?: string
           mgmt_score?: number
           moat_rationale?: string
           moat_score?: number
           mv_gbp_at_scoring?: number | null
+          price_at_first_add?: number | null
+          price_at_last_score?: number | null
           price_at_scoring?: number | null
           scored_at?: string
           scored_by?: string
           stack_layer?: string | null
+          stage2_subclass?: string | null
           substrate_level?: string | null
           substrate_rationale?: string
           substrate_score?: number
