@@ -209,14 +209,47 @@ export interface AssetThesisFraming {
   china_exposure_flag: ChinaExposureFlag | null;
 }
 
-export interface AssetPriceAnchors {
-  /** Local-currency price at the time of the first BUY. Null when not yet held. */
-  price_at_first_add: number | null;
-  /** ISO date (YYYY-MM-DD) of the first BUY. Null when not yet held. */
-  first_add_date: string | null;
-  /** Local-currency price recorded at the latest score commit. Null when missing. */
-  price_at_last_score: number | null;
+/** Where a resolved anchor value originated. Precedence: scores > holdings > watchlist > rationale. */
+export type AnchorSource = "scores" | "holdings" | "watchlist" | "rationale";
+
+export const ANCHOR_SOURCE_ORDER: AnchorSource[] = ["scores", "holdings", "watchlist", "rationale"];
+
+export interface AnchorValue {
+  /** Local-currency price for the anchor event. Null when no source has it. */
+  price: number | null;
+  /** ISO YYYY-MM-DD (first_add only). Null when not applicable / missing. */
+  date: string | null;
+  /** Winning source under precedence, or null when no source provided this anchor. */
+  source: AnchorSource | null;
 }
+
+export interface RawAnchorBundle {
+  first_add_price?: number | null;
+  first_add_date?: string | null;
+  last_score_price?: number | null;
+}
+
+export interface AssetPriceAnchors {
+  /** Resolved first-add anchor (winning source under precedence). */
+  first_add: AnchorValue;
+  /** Resolved last-score anchor (winning source under precedence). */
+  last_score: AnchorValue;
+  /** Live % move from anchor → current price (same-unit pairing). Null when not computable. */
+  pct_from_first_add: number | null;
+  pct_from_last_score: number | null;
+  /** Per-source raw values retained for provenance + conflict detection. */
+  raw: Partial<Record<AnchorSource, RawAnchorBundle>>;
+}
+
+export const EMPTY_ANCHOR_VALUE: AnchorValue = { price: null, date: null, source: null };
+
+export const EMPTY_PRICE_ANCHORS: AssetPriceAnchors = {
+  first_add: EMPTY_ANCHOR_VALUE,
+  last_score: EMPTY_ANCHOR_VALUE,
+  pct_from_first_add: null,
+  pct_from_last_score: null,
+  raw: {},
+};
 
 export interface AssetIntelligence {
   // Identity
