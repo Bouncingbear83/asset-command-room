@@ -443,11 +443,20 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
         // ignore quota / privacy errors
       }
     };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LAST_REFRESH_KEY || !e.newValue) return;
+      const at = parseInt(e.newValue, 10);
+      if (!Number.isFinite(at)) return;
+      setLastRefreshed(at);
+      setRecomputing(false);
+    };
     window.addEventListener("lovable:portfolio-refreshed", onRefreshed);
+    window.addEventListener("storage", onStorage);
     // tick every 30s so relative timestamp stays fresh
     const id = window.setInterval(() => setTick((n) => n + 1), 30_000);
     return () => {
       window.removeEventListener("lovable:portfolio-refreshed", onRefreshed);
+      window.removeEventListener("storage", onStorage);
       window.clearInterval(id);
     };
   }, []);
@@ -548,6 +557,7 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
           pct={pa.pct_from_first_add}
           currency={currency}
           conflict={firstConflict}
+          loading={recomputing}
         />
         <AnchorCell
           label="Last Score"
@@ -555,6 +565,7 @@ function PriceAnchorsBlock({ asset }: { asset: AssetIntelligence }) {
           pct={pa.pct_from_last_score}
           currency={currency}
           conflict={lastConflict}
+          loading={recomputing}
         />
       </div>
     </div>
