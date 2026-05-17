@@ -346,13 +346,14 @@ function detectAnchorConflict(
 }
 
 function AnchorCell({
-  label, anchor, pct, currency, conflict,
+  label, anchor, pct, currency, conflict, loading,
 }: {
   label: string;
   anchor: AnchorValue;
   pct: number | null;
   currency: string;
   conflict: boolean;
+  loading?: boolean;
 }) {
   const hasPrice = anchor.price !== null && Number.isFinite(anchor.price);
   const pctFmt = formatPct(pct);
@@ -374,7 +375,13 @@ function AnchorCell({
           }}>{anchor.source}</span>
         )}
       </div>
-      {hasPrice ? (
+      {loading ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="aex-skel" style={{ width: 56, height: 14 }} />
+          <span className="aex-skel" style={{ width: 72, height: 10 }} />
+          <span className="aex-skel" style={{ width: 40, height: 12 }} />
+        </div>
+      ) : hasPrice ? (
         <div style={{
           fontFamily: "var(--font-mono)",
           fontSize: 13,
@@ -391,7 +398,7 @@ function AnchorCell({
       ) : (
         <div style={NO_DATA_STYLE}>No anchor recorded.</div>
       )}
-      {conflict && (
+      {conflict && !loading && (
         <div style={{
           marginTop: 6,
           fontFamily: "var(--font-mono)",
