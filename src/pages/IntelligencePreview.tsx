@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
 import { AssetRow } from "@/components/intelligence/AssetRow";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
-import type {
-  AssetIntelligence,
-  AssetThesisFraming,
-  AssetPriceAnchors,
+import {
+  EMPTY_PRICE_ANCHORS,
+  type AssetIntelligence,
+  type AssetThesisFraming,
+  type AssetPriceAnchors,
 } from "@/types/intelligence";
+
+export { EMPTY_PRICE_ANCHORS } from "@/types/intelligence";
 
 // ── Defensive defaults so missing v2.13 fields never crash the UI ───────────
 
@@ -15,12 +18,6 @@ export const EMPTY_FRAMING: AssetThesisFraming = {
   asymmetry: { raw: "", pairs: [], max: null, spot: null },
   stage2_subclass: null,
   china_exposure_flag: null,
-};
-
-export const EMPTY_PRICE_ANCHORS: AssetPriceAnchors = {
-  price_at_first_add: null,
-  first_add_date: null,
-  price_at_last_score: null,
 };
 
 /**
