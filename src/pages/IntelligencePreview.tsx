@@ -295,9 +295,9 @@ function isEmptyFraming(f: AssetThesisFraming): boolean {
 
 function isEmptyPriceAnchors(p: AssetPriceAnchors): boolean {
   return (
-    p.price_at_first_add === null &&
-    p.first_add_date === null &&
-    p.price_at_last_score === null
+    p.first_add.price === null &&
+    p.last_score.price === null &&
+    Object.keys(p.raw).length === 0
   );
 }
 

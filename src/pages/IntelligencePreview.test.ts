@@ -25,9 +25,11 @@ describe("withSafeV213Defaults", () => {
       china_exposure_flag: "LOW" as const,
     };
     const price_anchors = {
-      price_at_first_add: 10,
-      first_add_date: "2025-01-01",
-      price_at_last_score: 12,
+      first_add: { price: 10, date: "2025-01-01", source: "scores" as const },
+      last_score: { price: 12, date: null, source: "scores" as const },
+      pct_from_first_add: 20,
+      pct_from_last_score: 0,
+      raw: { scores: { first_add_price: 10, first_add_date: "2025-01-01", last_score_price: 12 } },
     };
     const out = withSafeV213Defaults({ ticker: "BBB", framing, price_anchors });
     expect(out.framing).toBe(framing);
