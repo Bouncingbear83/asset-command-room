@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const CRITICAL_COLS = [
@@ -29,7 +30,7 @@ const HARD_ALERT_COLS = [
   "price_at_last_score",
 ] as const;
 
-// v2.14 hard validation cutover (UTC)
+// v2.14 hard validation cutover — anything before this date had no schema requirement
 const V214_DEPLOY_DATE = "2026-05-17T18:30:00.000Z";
 
 Deno.serve(async (req) => {
@@ -45,10 +46,10 @@ Deno.serve(async (req) => {
 
   const ingestSecret = Deno.env.get("INGEST_SECRET");
   if (!ingestSecret) {
-    return new Response(JSON.stringify({ error: "INGEST_SECRET not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "INGEST_SECRET not configured" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -60,9 +61,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
-    // -- Pull score_rationales (full history) --
+    // -- Pull score_rationales (full history, paginated) --
     const selectCols = ["ticker", "scored_at", ...CRITICAL_COLS].join(",");
     const pageSize = 1000;
     let from = 0;
@@ -79,28 +83,36 @@ Deno.serve(async (req) => {
       from += pageSize;
     }
 
-    // -- Pull current held set from latest holdings_snapshot --
-    // Strategy: find max(snapshot_date) and select tickers from that date.
+    // -- Determine "currently held" set: tickers in the latest holdings_snapshot date --
     const heldSet = new Set<string>();
     {
-      const { data: latestSnap, error: snapErr } = await supabase
+      const { data: latestDateRow, error: dateErr } = await supabase
         .from("holdings_snapshot")
         .select("snapshot_date")
         .order("snapshot_date", { ascending: false })
         .limit(1);
-      if (snapErr) throw snapErr;
-      const latestDate = latestSnap?.[0]?.snapshot_date;
+      if (dateErr) throw dateErr;
+      const latestDate = latestDateRow?.[0]?.snapshot_date;
       if (latestDate) {
-        const { data: heldRows, error: heldErr } = await supabase
-          .from("holdings_snapshot")
-          .select("ticker")
-          .eq("snapshot_date", latestDate);
-        if (heldErr) throw heldErr;
-        for (const r of (heldRows ?? []) as Array<{ ticker: string }>) {
-          if (r.ticker) heldSet.add(r.ticker);
+        let hFrom = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("holdings_snapshot")
+            .select("ticker")
+            .eq("snapshot_date", latestDate)
+            .range(hFrom, hFrom + pageSize - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          for (const r of data as Array<{ ticker: string }>) {
+            if (r.ticker) heldSet.add(r.ticker.toUpperCase());
+          }
+          if (data.length < pageSize) break;
+          hFrom += pageSize;
         }
       }
     }
+
+    const isHeld = (ticker: string) => heldSet.has((ticker ?? "").toUpperCase());
 
     // Pass 1: null_counts across ALL rows (informational)
     const null_counts: Record<string, number> = {};
@@ -119,31 +131,28 @@ Deno.serve(async (req) => {
       const scoredAt = row.scored_at ? new Date(row.scored_at as string).getTime() : NaN;
       if (Number.isNaN(scoredAt)) continue;
       const existing = latestPerTicker.get(ticker);
-      const existingTime = existing ? new Date(existing.scored_at as string).getTime() : -Infinity;
+      const existingTime = existing
+        ? new Date(existing.scored_at as string).getTime()
+        : -Infinity;
       if (scoredAt > existingTime) {
         latestPerTicker.set(ticker, row);
       }
     }
 
-    // Pass 3: classify latest-per-ticker NULL hits
+    // Pass 3: classify latest-per-ticker NULL hits using HELD binary gate
     const cutoff = new Date(V214_DEPLOY_DATE).getTime();
 
-    // Held + post-cutover NULL = real alert (enforcement broke)
     const alerts: Array<{
       ticker: string;
       scored_at: unknown;
       null_columns: string[];
     }> = [];
-
-    // Held + pre-cutover NULL = stale rationale schema, clears at next rescore
     const stale_rescore_warnings: Array<{
       ticker: string;
       scored_at: unknown;
       null_columns: string[];
     }> = [];
-
-    // Not held + NULL = exempt (WATCHLIST / RESEARCH / REJECTED / EXITED)
-    const inactive_with_nulls: Array<{
+    const inactive_informational: Array<{
       ticker: string;
       scored_at: unknown;
       null_columns: string[];
@@ -151,11 +160,14 @@ Deno.serve(async (req) => {
 
     for (const row of latestPerTicker.values()) {
       const ticker = row.ticker as string;
-      const missing = HARD_ALERT_COLS.filter((c) => row[c] === null || row[c] === undefined);
+      const missing = HARD_ALERT_COLS.filter(
+        (c) => row[c] === null || row[c] === undefined,
+      );
       if (missing.length === 0) continue;
 
-      if (!heldSet.has(ticker)) {
-        inactive_with_nulls.push({
+      if (!isHeld(ticker)) {
+        // Not in latest holdings_snapshot — informational only
+        inactive_informational.push({
           ticker,
           scored_at: row.scored_at,
           null_columns: missing,
@@ -163,6 +175,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // HELD with NULL hard cols — split by v2.14 cutover
       const scoredAt = new Date(row.scored_at as string).getTime();
       if (scoredAt >= cutoff) {
         alerts.push({
@@ -179,17 +192,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Pass 4: historical post-v2.14 violations (compliance archive, never decreases)
+    // Pass 4: historical post-v2.14 violations (compliance archive — never decreases)
     const historical_violations: Array<{
       ticker: unknown;
       scored_at: unknown;
       null_columns: string[];
     }> = [];
-
     for (const row of rows) {
       const scoredAt = row.scored_at ? new Date(row.scored_at as string).getTime() : NaN;
       if (Number.isNaN(scoredAt) || scoredAt < cutoff) continue;
-      const missing = HARD_ALERT_COLS.filter((c) => row[c] === null || row[c] === undefined);
+      const missing = HARD_ALERT_COLS.filter(
+        (c) => row[c] === null || row[c] === undefined,
+      );
       if (missing.length > 0) {
         historical_violations.push({
           ticker: row.ticker,
@@ -202,22 +216,22 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         total_rows: rows.length,
-        held_count: heldSet.size,
+        held_ticker_count: heldSet.size,
         null_counts,
 
-        // Primary operational signal — held + post-cutover NULL. Should be 0.
+        // Primary operational signal — HELD ticker with NULL hard col scored post-v2.14
         alerts,
         alert_count: alerts.length,
 
-        // Held + pre-cutover NULL. Clears at natural rescore cadence.
+        // HELD ticker with NULL hard col, last scored before v2.14 — clears at rescore
         stale_rescore_warnings,
         stale_rescore_warning_count: stale_rescore_warnings.length,
 
-        // Not currently held + NULL. Informational only.
-        inactive_with_nulls,
-        inactive_with_nulls_count: inactive_with_nulls.length,
+        // Not in latest holdings_snapshot — exempt, informational
+        inactive_informational,
+        inactive_informational_count: inactive_informational.length,
 
-        // Compliance archive — never decreases.
+        // All post-v2.14 NULL events ever shipped — compliance archive
         historical_violations,
         historical_violation_count: historical_violations.length,
 
@@ -228,9 +242,9 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("audit-rationales-nulls error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: (err as Error).message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
