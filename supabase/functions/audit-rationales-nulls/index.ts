@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
       scored_at: unknown;
       null_columns: string[];
     }> = [];
-    const inactive_informational: Array<{
+    const inactive_with_nulls: Array<{
       ticker: string;
       scored_at: unknown;
       null_columns: string[];
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
       if (!isHeld(ticker)) {
         // Not in latest holdings_snapshot — informational only
-        inactive_informational.push({
+        inactive_with_nulls.push({
           ticker,
           scored_at: row.scored_at,
           null_columns: missing,
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         total_rows: rows.length,
-        held_ticker_count: heldSet.size,
+        held_count: heldSet.size,
         null_counts,
 
         // Primary operational signal — HELD ticker with NULL hard col scored post-v2.14
@@ -228,8 +228,8 @@ Deno.serve(async (req) => {
         stale_rescore_warning_count: stale_rescore_warnings.length,
 
         // Not in latest holdings_snapshot — exempt, informational
-        inactive_informational,
-        inactive_informational_count: inactive_informational.length,
+        inactive_with_nulls,
+        inactive_with_nulls_count: inactive_with_nulls.length,
 
         // All post-v2.14 NULL events ever shipped — compliance archive
         historical_violations,
