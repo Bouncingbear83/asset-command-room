@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
       if (!isHeld(ticker)) {
         // Not in latest holdings_snapshot — informational only
-        inactive_informational.push({
+        inactive_with_nulls.push({
           ticker,
           scored_at: row.scored_at,
           null_columns: missing,
@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
 
         // Not in latest holdings_snapshot — exempt, informational
         inactive_with_nulls,
-        inactive_with_nulls_count: inactive_informational.length,
+        inactive_with_nulls_count: inactive_with_nulls.length,
 
         // All post-v2.14 NULL events ever shipped — compliance archive
         historical_violations,
