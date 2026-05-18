@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const CRITICAL_COLS = [
@@ -44,10 +45,10 @@ Deno.serve(async (req) => {
 
   const ingestSecret = Deno.env.get("INGEST_SECRET");
   if (!ingestSecret) {
-    return new Response(JSON.stringify({ error: "INGEST_SECRET not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "INGEST_SECRET not configured" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -59,7 +60,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
     const selectCols = ["ticker", "scored_at", ...CRITICAL_COLS].join(",");
 
@@ -96,7 +100,9 @@ Deno.serve(async (req) => {
       const scoredAt = row.scored_at ? new Date(row.scored_at as string).getTime() : NaN;
       if (Number.isNaN(scoredAt)) continue;
       const existing = latestPerTicker.get(ticker);
-      const existingTime = existing ? new Date(existing.scored_at as string).getTime() : -Infinity;
+      const existingTime = existing
+        ? new Date(existing.scored_at as string).getTime()
+        : -Infinity;
       if (scoredAt > existingTime) {
         latestPerTicker.set(ticker, row);
       }
@@ -111,7 +117,9 @@ Deno.serve(async (req) => {
     }> = [];
 
     for (const row of latestPerTicker.values()) {
-      const missing = HARD_ALERT_COLS.filter((c) => row[c] === null || row[c] === undefined);
+      const missing = HARD_ALERT_COLS.filter(
+        (c) => row[c] === null || row[c] === undefined,
+      );
       if (missing.length > 0) {
         current_state_alerts.push({
           ticker: row.ticker,
@@ -131,7 +139,9 @@ Deno.serve(async (req) => {
     for (const row of rows) {
       const scoredAt = row.scored_at ? new Date(row.scored_at as string).getTime() : NaN;
       if (Number.isNaN(scoredAt) || scoredAt < cutoff) continue;
-      const missing = HARD_ALERT_COLS.filter((c) => row[c] === null || row[c] === undefined);
+      const missing = HARD_ALERT_COLS.filter(
+        (c) => row[c] === null || row[c] === undefined,
+      );
       if (missing.length > 0) {
         historical_violations.push({
           ticker: row.ticker,
@@ -162,9 +172,9 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("audit-rationales-nulls error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: (err as Error).message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
