@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const CRITICAL_COLS = [
@@ -30,7 +29,8 @@ const HARD_ALERT_COLS = [
   "price_at_last_score",
 ] as const;
 
-const V214_DEPLOY_DATE = "2026-05-17";
+// v2.14 hard validation cutover (UTC)
+const V214_DEPLOY_DATE = "2026-05-17T18:30:00.000Z";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,10 +45,10 @@ Deno.serve(async (req) => {
 
   const ingestSecret = Deno.env.get("INGEST_SECRET");
   if (!ingestSecret) {
-    return new Response(
-      JSON.stringify({ error: "INGEST_SECRET not configured" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "INGEST_SECRET not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -60,14 +60,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    // -- Pull score_rationales (full history) --
     const selectCols = ["ticker", "scored_at", ...CRITICAL_COLS].join(",");
-
-    // Paginate through all rows (Supabase caps at 1000/req)
     const pageSize = 1000;
     let from = 0;
     const rows: Record<string, unknown>[] = [];
@@ -83,7 +79,30 @@ Deno.serve(async (req) => {
       from += pageSize;
     }
 
-    // Pass 1: null_counts across ALL rows (informational, unchanged behaviour)
+    // -- Pull current held set from latest holdings_snapshot --
+    // Strategy: find max(snapshot_date) and select tickers from that date.
+    const heldSet = new Set<string>();
+    {
+      const { data: latestSnap, error: snapErr } = await supabase
+        .from("holdings_snapshot")
+        .select("snapshot_date")
+        .order("snapshot_date", { ascending: false })
+        .limit(1);
+      if (snapErr) throw snapErr;
+      const latestDate = latestSnap?.[0]?.snapshot_date;
+      if (latestDate) {
+        const { data: heldRows, error: heldErr } = await supabase
+          .from("holdings_snapshot")
+          .select("ticker")
+          .eq("snapshot_date", latestDate);
+        if (heldErr) throw heldErr;
+        for (const r of (heldRows ?? []) as Array<{ ticker: string }>) {
+          if (r.ticker) heldSet.add(r.ticker);
+        }
+      }
+    }
+
+    // Pass 1: null_counts across ALL rows (informational)
     const null_counts: Record<string, number> = {};
     for (const c of CRITICAL_COLS) null_counts[c] = 0;
     for (const row of rows) {
@@ -92,7 +111,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Pass 2: build "latest scored_at per ticker" map
+    // Pass 2: latest scored_at per ticker
     const latestPerTicker = new Map<string, Record<string, unknown>>();
     for (const row of rows) {
       const ticker = row.ticker as string;
@@ -100,36 +119,67 @@ Deno.serve(async (req) => {
       const scoredAt = row.scored_at ? new Date(row.scored_at as string).getTime() : NaN;
       if (Number.isNaN(scoredAt)) continue;
       const existing = latestPerTicker.get(ticker);
-      const existingTime = existing
-        ? new Date(existing.scored_at as string).getTime()
-        : -Infinity;
+      const existingTime = existing ? new Date(existing.scored_at as string).getTime() : -Infinity;
       if (scoredAt > existingTime) {
         latestPerTicker.set(ticker, row);
       }
     }
 
-    // Pass 3: current state alerts — latest row per ticker that fails HARD_ALERT_COLS
-    const cutoff = new Date(V214_DEPLOY_DATE + "T00:00:00.000Z").getTime();
-    const current_state_alerts: Array<{
-      ticker: unknown;
+    // Pass 3: classify latest-per-ticker NULL hits
+    const cutoff = new Date(V214_DEPLOY_DATE).getTime();
+
+    // Held + post-cutover NULL = real alert (enforcement broke)
+    const alerts: Array<{
+      ticker: string;
+      scored_at: unknown;
+      null_columns: string[];
+    }> = [];
+
+    // Held + pre-cutover NULL = stale rationale schema, clears at next rescore
+    const stale_rescore_warnings: Array<{
+      ticker: string;
+      scored_at: unknown;
+      null_columns: string[];
+    }> = [];
+
+    // Not held + NULL = exempt (WATCHLIST / RESEARCH / REJECTED / EXITED)
+    const inactive_with_nulls: Array<{
+      ticker: string;
       scored_at: unknown;
       null_columns: string[];
     }> = [];
 
     for (const row of latestPerTicker.values()) {
-      const missing = HARD_ALERT_COLS.filter(
-        (c) => row[c] === null || row[c] === undefined,
-      );
-      if (missing.length > 0) {
-        current_state_alerts.push({
-          ticker: row.ticker,
+      const ticker = row.ticker as string;
+      const missing = HARD_ALERT_COLS.filter((c) => row[c] === null || row[c] === undefined);
+      if (missing.length === 0) continue;
+
+      if (!heldSet.has(ticker)) {
+        inactive_with_nulls.push({
+          ticker,
+          scored_at: row.scored_at,
+          null_columns: missing,
+        });
+        continue;
+      }
+
+      const scoredAt = new Date(row.scored_at as string).getTime();
+      if (scoredAt >= cutoff) {
+        alerts.push({
+          ticker,
+          scored_at: row.scored_at,
+          null_columns: missing,
+        });
+      } else {
+        stale_rescore_warnings.push({
+          ticker,
           scored_at: row.scored_at,
           null_columns: missing,
         });
       }
     }
 
-    // Pass 4: historical post-v2.14 violations (compliance archive — never decreases)
+    // Pass 4: historical post-v2.14 violations (compliance archive, never decreases)
     const historical_violations: Array<{
       ticker: unknown;
       scored_at: unknown;
@@ -139,9 +189,7 @@ Deno.serve(async (req) => {
     for (const row of rows) {
       const scoredAt = row.scored_at ? new Date(row.scored_at as string).getTime() : NaN;
       if (Number.isNaN(scoredAt) || scoredAt < cutoff) continue;
-      const missing = HARD_ALERT_COLS.filter(
-        (c) => row[c] === null || row[c] === undefined,
-      );
+      const missing = HARD_ALERT_COLS.filter((c) => row[c] === null || row[c] === undefined);
       if (missing.length > 0) {
         historical_violations.push({
           ticker: row.ticker,
@@ -154,27 +202,35 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         total_rows: rows.length,
+        held_count: heldSet.size,
         null_counts,
 
-        // Primary operational signal — repairable by backfill, should trend to 0
-        alerts: current_state_alerts,
-        alert_count: current_state_alerts.length,
+        // Primary operational signal — held + post-cutover NULL. Should be 0.
+        alerts,
+        alert_count: alerts.length,
 
-        // Enforcement-layer signal — should be 0 unless v2.14 hard validation broken
-        // Pre-existing alerts on 2026-05-17 (before 18:30 UTC cutover) live here
+        // Held + pre-cutover NULL. Clears at natural rescore cadence.
+        stale_rescore_warnings,
+        stale_rescore_warning_count: stale_rescore_warnings.length,
+
+        // Not currently held + NULL. Informational only.
+        inactive_with_nulls,
+        inactive_with_nulls_count: inactive_with_nulls.length,
+
+        // Compliance archive — never decreases.
         historical_violations,
         historical_violation_count: historical_violations.length,
 
-        v214_deploy_date: V214_DEPLOY_DATE,
+        v214_deploy_cutoff: V214_DEPLOY_DATE,
         checked_at: new Date().toISOString(),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("audit-rationales-nulls error:", err);
-    return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
