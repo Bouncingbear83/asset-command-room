@@ -937,7 +937,14 @@ export default function CommandTab() {
                       {wlTop.map((m) => {
                         const currencySymbol = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : "$";
                         const pd = priceData?.get(normaliseTicker(m.ticker));
-                        const hasSpark = pd && pd.points.length >= 5;
+                        const traj = wlHistory[m.ticker.toUpperCase()];
+                        const sparkPoints = pd && pd.points.length >= 5
+                          ? pd.points
+                          : traj && traj.spark30d.length >= 5
+                          ? traj.spark30d.map((p) => ({ date: p.date, priceLocal: p.close, priceGbp: p.close }))
+                          : null;
+                        const sparkColor = pd?.sparklineColor ?? (m.day >= 0 ? "green" : "red");
+                        const hasSpark = !!sparkPoints;
                         const priceStr = typeof m.price === "number" && !isNaN(m.price) ? `${currencySymbol}${m.price.toFixed(2)}` : "—";
                         const dayPctEl = (
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: m.day >= 0 ? "var(--green)" : "var(--red)", minWidth: 60 }}>
