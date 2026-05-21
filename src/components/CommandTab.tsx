@@ -875,9 +875,109 @@ export default function CommandTab() {
                   );
                 })}
               </div>
+              {(() => {
+                // Watchlist movers — derive day% from daily_prices (last 2 points per ticker).
+                const holdingsTickers = new Set(Array.from(deduped.keys()));
+                const wlMovers: { ticker: string; day: number; price: number; currency: string; entry: string }[] = [];
+                for (const w of watchlist) {
+                  if (!w.ticker) continue;
+                  const key = w.ticker.toUpperCase();
+                  if (holdingsTickers.has(key)) continue;
+                  const pd = priceData?.get(normaliseTicker(w.ticker));
+                  if (!pd || pd.points.length < 2) continue;
+                  const last = pd.points[pd.points.length - 1];
+                  const prev = pd.points[pd.points.length - 2];
+                  if (!prev.priceLocal || last.priceLocal === prev.priceLocal) continue;
+                  const day = ((last.priceLocal - prev.priceLocal) / prev.priceLocal) * 100;
+                  wlMovers.push({
+                    ticker: w.ticker,
+                    day,
+                    price: typeof w.current === "number" ? w.current : last.priceLocal,
+                    currency: w.currency || "USD",
+                    entry: w.entry || "",
+                  });
+                }
+                const wlUp = wlMovers.filter(m => m.day > 0).length;
+                const wlDown = wlMovers.filter(m => m.day < 0).length;
+                const wlSorted = moverSort === "gainers"
+                  ? wlMovers.filter(m => m.day > 0).sort((a, b) => b.day - a.day)
+                  : moverSort === "losers"
+                  ? wlMovers.filter(m => m.day < 0).sort((a, b) => a.day - b.day)
+                  : [...wlMovers].sort((a, b) => Math.abs(b.day) - Math.abs(a.day));
+                const wlTop = wlSorted.slice(0, 5);
+                if (wlTop.length === 0) return null;
+
+                return (
+                  <div style={{ borderTop: "1px solid rgba(28,28,48,0.6)", marginTop: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "10px 12px 4px" : "10px 20px 4px" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", fontWeight: 700 }}>WATCHLIST</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em" }}>
+                        <span style={{ color: "var(--green)" }}>{wlUp} ▲</span>
+                        <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+                        <span style={{ color: "var(--red)" }}>{wlDown} ▼</span>
+                      </span>
+                    </div>
+                    <div style={{ padding: isMobile ? "4px 12px 10px" : "4px 20px 10px" }}>
+                      {wlTop.map((m) => {
+                        const currencySymbol = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : "$";
+                        const pd = priceData?.get(normaliseTicker(m.ticker));
+                        const hasSpark = pd && pd.points.length >= 5;
+                        const priceStr = typeof m.price === "number" && !isNaN(m.price) ? `${currencySymbol}${m.price.toFixed(2)}` : "—";
+                        const dayPctEl = (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: m.day >= 0 ? "var(--green)" : "var(--red)", minWidth: 60 }}>
+                            {m.day >= 0 ? "▲" : "▼"} {m.day >= 0 ? "+" : ""}{m.day.toFixed(2)}%
+                          </span>
+                        );
+                        const entryEl = (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.entry}>
+                            {m.entry ? `@ ${m.entry}` : ""}
+                          </span>
+                        );
+
+                        if (isMobile) {
+                          return (
+                            <div key={`wl-${m.ticker}`} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                                <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>WL</span>
+                                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
+                                {dayPctEl}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                {hasSpark ? (
+                                  <Sparkline points={pd.points} color={pd.sparklineColor} width={140} height={20} />
+                                ) : (
+                                  <span style={{ width: 140, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4 }}>—</span>
+                                )}
+                                {entryEl}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={`wl-${m.ticker}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>{m.ticker}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>WL</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
+                            {dayPctEl}
+                            {hasSpark ? (
+                              <Sparkline points={pd.points} color={pd.sparklineColor} width={90} height={22} />
+                            ) : (
+                              <span style={{ width: 90, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4, textAlign: "center" }}>—</span>
+                            )}
+                            {entryEl}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ) : null;
         })()}
+
 
         {/* Deploy Queue card */}
         <div style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}` }}>
