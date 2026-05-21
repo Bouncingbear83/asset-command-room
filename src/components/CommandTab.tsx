@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { GOLDEN_RULES } from "@/data/portfolio";
 import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
@@ -11,6 +11,7 @@ import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
+import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 
 // Quick Commands now route through buildClaudePromptUrl().
@@ -409,6 +410,11 @@ export default function CommandTab() {
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, scores, loading, error } = usePortfolioData();
   const { recentResearch } = useResearchSummary();
   const { priceData } = useDailyPrices();
+  const watchlistTickerList = useMemo(
+    () => Array.from(new Set((watchlist || []).map((w) => String(w.ticker || "").toUpperCase()).filter(Boolean))),
+    [watchlist],
+  );
+  const { byTicker: wlHistory } = useWatchlistHistory(watchlistTickerList);
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")
@@ -883,16 +889,26 @@ export default function CommandTab() {
                   if (!w.ticker) continue;
                   const key = w.ticker.toUpperCase();
                   if (holdingsTickers.has(key)) continue;
+                  // Try daily_prices first (covers a few overlap tickers), then watchlist_price_history
+                  let last: number | null = null;
+                  let prev: number | null = null;
                   const pd = priceData?.get(normaliseTicker(w.ticker));
-                  if (!pd || pd.points.length < 2) continue;
-                  const last = pd.points[pd.points.length - 1];
-                  const prev = pd.points[pd.points.length - 2];
-                  if (!prev.priceLocal || last.priceLocal === prev.priceLocal) continue;
-                  const day = ((last.priceLocal - prev.priceLocal) / prev.priceLocal) * 100;
+                  if (pd && pd.points.length >= 2) {
+                    last = pd.points[pd.points.length - 1].priceLocal;
+                    prev = pd.points[pd.points.length - 2].priceLocal;
+                  } else {
+                    const traj = wlHistory[key];
+                    if (traj && traj.spark30d.length >= 2) {
+                      last = traj.spark30d[traj.spark30d.length - 1].close;
+                      prev = traj.spark30d[traj.spark30d.length - 2].close;
+                    }
+                  }
+                  if (last == null || prev == null || !prev || last === prev) continue;
+                  const day = ((last - prev) / prev) * 100;
                   wlMovers.push({
                     ticker: w.ticker,
                     day,
-                    price: typeof w.current === "number" ? w.current : last.priceLocal,
+                    price: typeof w.current === "number" ? w.current : last,
                     currency: w.currency || "USD",
                     entry: w.entry || "",
                   });
@@ -921,7 +937,14 @@ export default function CommandTab() {
                       {wlTop.map((m) => {
                         const currencySymbol = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : "$";
                         const pd = priceData?.get(normaliseTicker(m.ticker));
-                        const hasSpark = pd && pd.points.length >= 5;
+                        const traj = wlHistory[m.ticker.toUpperCase()];
+                        const sparkPoints = pd && pd.points.length >= 5
+                          ? pd.points
+                          : traj && traj.spark30d.length >= 5
+                          ? traj.spark30d.map((p) => ({ date: p.date, priceLocal: p.close, priceGbp: p.close }))
+                          : null;
+                        const sparkColor = pd?.sparklineColor ?? (m.day >= 0 ? "green" : "red");
+                        const hasSpark = !!sparkPoints;
                         const priceStr = typeof m.price === "number" && !isNaN(m.price) ? `${currencySymbol}${m.price.toFixed(2)}` : "—";
                         const dayPctEl = (
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: m.day >= 0 ? "var(--green)" : "var(--red)", minWidth: 60 }}>
@@ -945,7 +968,7 @@ export default function CommandTab() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                 {hasSpark ? (
-                                  <Sparkline points={pd.points} color={pd.sparklineColor} width={140} height={20} />
+                                  <Sparkline points={sparkPoints!} color={sparkColor} width={140} height={20} />
                                 ) : (
                                   <span style={{ width: 140, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4 }}>—</span>
                                 )}
@@ -962,7 +985,7 @@ export default function CommandTab() {
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
                             {dayPctEl}
                             {hasSpark ? (
-                              <Sparkline points={pd.points} color={pd.sparklineColor} width={90} height={22} />
+                              <Sparkline points={sparkPoints!} color={sparkColor} width={90} height={22} />
                             ) : (
                               <span style={{ width: 90, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4, textAlign: "center" }}>—</span>
                             )}
