@@ -410,6 +410,11 @@ export default function CommandTab() {
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, scores, loading, error } = usePortfolioData();
   const { recentResearch } = useResearchSummary();
   const { priceData } = useDailyPrices();
+  const watchlistTickerList = useMemo(
+    () => Array.from(new Set((watchlist || []).map((w) => String(w.ticker || "").toUpperCase()).filter(Boolean))),
+    [watchlist],
+  );
+  const { byTicker: wlHistory } = useWatchlistHistory(watchlistTickerList);
 
   const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
     .map((item) => item?.trim() ?? "")
