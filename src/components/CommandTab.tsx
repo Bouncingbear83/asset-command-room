@@ -889,16 +889,26 @@ export default function CommandTab() {
                   if (!w.ticker) continue;
                   const key = w.ticker.toUpperCase();
                   if (holdingsTickers.has(key)) continue;
+                  // Try daily_prices first (covers a few overlap tickers), then watchlist_price_history
+                  let last: number | null = null;
+                  let prev: number | null = null;
                   const pd = priceData?.get(normaliseTicker(w.ticker));
-                  if (!pd || pd.points.length < 2) continue;
-                  const last = pd.points[pd.points.length - 1];
-                  const prev = pd.points[pd.points.length - 2];
-                  if (!prev.priceLocal || last.priceLocal === prev.priceLocal) continue;
-                  const day = ((last.priceLocal - prev.priceLocal) / prev.priceLocal) * 100;
+                  if (pd && pd.points.length >= 2) {
+                    last = pd.points[pd.points.length - 1].priceLocal;
+                    prev = pd.points[pd.points.length - 2].priceLocal;
+                  } else {
+                    const traj = wlHistory[key];
+                    if (traj && traj.spark30d.length >= 2) {
+                      last = traj.spark30d[traj.spark30d.length - 1].close;
+                      prev = traj.spark30d[traj.spark30d.length - 2].close;
+                    }
+                  }
+                  if (last == null || prev == null || !prev || last === prev) continue;
+                  const day = ((last - prev) / prev) * 100;
                   wlMovers.push({
                     ticker: w.ticker,
                     day,
-                    price: typeof w.current === "number" ? w.current : last.priceLocal,
+                    price: typeof w.current === "number" ? w.current : last,
                     currency: w.currency || "USD",
                     entry: w.entry || "",
                   });
