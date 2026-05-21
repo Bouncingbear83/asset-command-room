@@ -985,7 +985,7 @@ export default function CommandTab() {
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", minWidth: 70 }}>{priceStr}</span>
                             {dayPctEl}
                             {hasSpark ? (
-                              <Sparkline points={pd.points} color={pd.sparklineColor} width={90} height={22} />
+                              <Sparkline points={sparkPoints!} color={sparkColor} width={90} height={22} />
                             ) : (
                               <span style={{ width: 90, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4, textAlign: "center" }}>—</span>
                             )}
