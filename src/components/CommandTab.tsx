@@ -968,7 +968,7 @@ export default function CommandTab() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                 {hasSpark ? (
-                                  <Sparkline points={pd.points} color={pd.sparklineColor} width={140} height={20} />
+                                  <Sparkline points={sparkPoints!} color={sparkColor} width={140} height={20} />
                                 ) : (
                                   <span style={{ width: 140, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.4 }}>—</span>
                                 )}
