@@ -11,6 +11,7 @@ import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
+import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 
 // Quick Commands now route through buildClaudePromptUrl().
