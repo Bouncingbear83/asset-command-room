@@ -126,7 +126,7 @@ export function useFactSheetData(
 
   useEffect(() => {
     if (!ticker) {
-      setSupaState({ rationale: null, history: [], disruption: null, disruptionLatest: null, pricePoints: [], priceSource: "none", priceCurrency: null, loading: false, errors: {} });
+      setSupaState({ rationale: null, history: [], disruption: null, disruptionLatest: null, pricePoints: [], priceSource: "none", priceCurrency: null, narratives: [], alerts: [], loading: false, errors: {} });
       return;
     }
     let cancelled = false;
