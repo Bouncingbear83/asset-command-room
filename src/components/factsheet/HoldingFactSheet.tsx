@@ -59,6 +59,67 @@ function daysUntil(dateStr: string): number | null {
   return Math.round(diff / (1000 * 60 * 60 * 24));
 }
 
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return "—";
+  const s = String(d).slice(0, 10);
+  return s || "—";
+}
+
+// Pick first finite value across an ordered list of candidates.
+function pickNum(...vals: Array<number | null | undefined>): number | null {
+  for (const v of vals) {
+    if (v !== null && v !== undefined && Number.isFinite(Number(v))) return Number(v);
+  }
+  return null;
+}
+function pickStr(...vals: Array<string | null | undefined>): string | null {
+  for (const v of vals) {
+    if (v !== null && v !== undefined && String(v).trim() !== "") return String(v);
+  }
+  return null;
+}
+
+// Resolve a Price Anchor (first_add or last_score) with precedence
+// SCORES > HOLDINGS > WATCHLIST > Supabase score_rationales.
+function resolveAnchor(
+  field: "first_add" | "last_score",
+  d: FactSheetData,
+): { price: number | null; date: string | null; source: string | null } {
+  const s: any = d.score || {};
+  const h: any = d.holdings[0] || {};
+  const w: any = d.watchlist || {};
+  const r: any = d.rationale || {};
+
+  const tryGet = (
+    src: string,
+    price: unknown,
+    date: unknown,
+  ): { price: number | null; date: string | null; source: string } | null => {
+    const pn = price === null || price === undefined ? null : Number(price);
+    const finite = pn !== null && Number.isFinite(pn);
+    const dStr = date === null || date === undefined ? null : String(date).slice(0, 10);
+    if (!finite && !dStr) return null;
+    return { price: finite ? pn : null, date: dStr || null, source: src };
+  };
+
+  if (field === "first_add") {
+    return (
+      tryGet("SCORES", s.priceAtFirstAdd, s.firstAddDate) ||
+      tryGet("HOLDINGS", h.priceAtFirstAdd, h.firstAddDate) ||
+      tryGet("WATCHLIST", w.priceAtFirstAdd, w.firstAddDate) ||
+      tryGet("rationale", r.price_at_first_add, r.first_add_date) ||
+      { price: null, date: null, source: null }
+    );
+  }
+  return (
+    tryGet("SCORES", s.priceAtLastScore, s.scoreDate) ||
+    tryGet("HOLDINGS", h.priceAtLastScore, null) ||
+    tryGet("WATCHLIST", w.priceAtLastScore, null) ||
+    tryGet("rationale", r.price_at_last_score, r.scored_at) ||
+    { price: null, date: null, source: null }
+  );
+}
+
 function computeBanners(d: FactSheetData) {
   const banners: { tone: "red" | "amber" | "info"; text: string }[] = [];
   const s: any = d.score || {};
@@ -322,9 +383,13 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               }
             </div>
 
+            {/* Price Anchors (first add / last score with pct from now) */}
+            <PriceAnchorsBlock data={data} livePrice={stripPrice} />
+
             {/* 6D Score Grid */}
             <div style={sectionStyle}>
               <div style={sectionTitle}>6D Score · {data.score?.score ?? data.rationale?.total_score ?? "—"} / 100</div>
+              <ScoreMetaStrip data={data} />
               {!data.score && !data.rationale ? (
                 <span style={monoLabel}>No score recorded</span>
               ) : (
@@ -419,33 +484,12 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               </div>
             )}
 
-            {/* Disruption */}
+            {/* Disruption v2 */}
             {(data.disruption || data.disruptionLatest) && (
-              <div style={sectionStyle}>
-                <div style={sectionTitle}>Disruption Resilience · {data.disruption?.disruption_score ?? data.disruptionLatest?.disruption_score ?? "—"} / 25</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
-                  {([
-                    ["Sub avail", data.disruption?.sub_avail_score ?? data.disruptionLatest?.sub_avail],
-                    ["Economics", data.disruption?.economics_score ?? data.disruptionLatest?.economics],
-                    ["Govt", data.disruption?.govt_support_score ?? data.disruptionLatest?.govt_support],
-                    ["Demand vuln", data.disruption?.demand_vuln_score ?? data.disruptionLatest?.demand_vuln],
-                    ["Time", data.disruption?.time_viability_score ?? data.disruptionLatest?.time_viability],
-                  ] as const).map(([k, v]) => (
-                    <div key={k} style={{ border: "1px solid var(--rim)", padding: "6px 6px", textAlign: "center", borderRadius: 2 }}>
-                      <div style={{ ...monoLabel, fontSize: 8 }}>{k}</div>
-                      <div style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--text-bright)" }}>{v ?? "—"}</div>
-                    </div>
-                  ))}
-                </div>
-                {data.disruption?.evidence && (
-                  <div style={{ marginTop: 8, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-dim)" }}>
-                    {data.disruption.evidence}
-                  </div>
-                )}
-              </div>
+              <DisruptionBlock data={data} />
             )}
 
-            {/* Position (HELD only) */}
+            {/* Position (HELD only) — extended */}
             {isHeld && (
               <div style={sectionStyle}>
                 <div style={sectionTitle}>Position</div>
@@ -457,15 +501,41 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                       <Cell label="AUM %" value={fmtPct(h.aum_pct)} />
                       <Cell label="G/L" value={fmtPct(h.gl)} tone={h.gl >= 0 ? "green" : "red"} />
                       <Cell label="Shares" value={h.shares ? h.shares.toLocaleString() : "—"} />
-                      <Cell label="Cost" value={fmtMoney(h.costGbp)} />
+                      <Cell label="Cost £" value={fmtMoney(h.costGbp)} />
+                      <Cell label="Cost local" value={h.costLocal ? h.costLocal.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"} />
+                      <Cell label="Prev close" value={h.prevClose !== null ? h.prevClose.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"} />
+                      <Cell label="MA60" value={h.ma60 !== null ? fmtNum(h.ma60) : "—"} />
+                      <Cell label="% below 52w hi" value={fmtPct(h.pct_below_52w_high)} />
+                      <Cell label="% above 52w lo" value={fmtPct(h.pct_above_52w_low)} />
                       <Cell label="Action" value={h.action || "HOLD"} />
                       <Cell label="Alert" value={h.alert_status || "CLEAR"} tone={h.alert_status === "FIRED" ? "amber" : undefined} />
+                      <Cell label="Alert fired" value={fmtDate(h.alert_fired_date)} />
                       <Cell label="Deploy £" value={h.deploy_target_gbp ? fmtMoney(h.deploy_target_gbp) : "—"} />
                     </div>
+                    {(h.trigger_type || h.trigger_price_add || h.trigger_price_exit) && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+                        Triggers · {[h.trigger_type, h.trigger_price_add && `ADD ${h.trigger_price_add}`, h.trigger_price_exit && `EXIT ${h.trigger_price_exit}`].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                     {(h.add_trigger || h.exit_trigger) && (
                       <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
                         {h.add_trigger && <div>ADD: {h.add_trigger}</div>}
                         {h.exit_trigger && <div>EXIT: {h.exit_trigger}</div>}
+                      </div>
+                    )}
+                    {h.deploy_note && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>
+                        <span style={monoLabel}>Deploy note </span>{h.deploy_note}
+                      </div>
+                    )}
+                    {(h.trigger_review_date || h.trigger_review_note) && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>
+                        <span style={monoLabel}>Review {fmtDate(h.trigger_review_date)} </span>{h.trigger_review_note}
+                      </div>
+                    )}
+                    {h.notes && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", whiteSpace: "pre-wrap" }}>
+                        <span style={monoLabel}>Notes </span>{h.notes}
                       </div>
                     )}
                   </div>
@@ -473,16 +543,25 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               </div>
             )}
 
-            {/* Watchlist (WATCH only) */}
+            {/* Watchlist (WATCH only) — extended */}
             {isWatchlist && data.watchlist && (
               <div style={sectionStyle}>
                 <div style={sectionTitle}>Watchlist</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, fontFamily: "var(--font-mono)", fontSize: 11 }}>
                   <Cell label="Status" value={data.watchlist.status} />
+                  <Cell label="Alert" value={(data.watchlist as any).alertStatus || "—"} tone={(data.watchlist as any).alertStatus === "FIRED" ? "amber" : undefined} />
                   <Cell label="Entry target" value={data.watchlist.entry || "—"} />
+                  <Cell label="Trigger px" value={(data.watchlist as any).triggerPriceNumeric !== null && (data.watchlist as any).triggerPriceNumeric !== undefined ? String((data.watchlist as any).triggerPriceNumeric) : "—"} />
                   <Cell label="Current" value={data.watchlist.current !== null ? String(data.watchlist.current) : (data.watchlist as any).currentRaw || "—"} />
                   <Cell label="Trigger" value={data.watchlist.trigger || "—"} />
+                  <Cell label="Last checked" value={fmtDate((data.watchlist as any).lastChecked)} />
+                  <Cell label="Deploy £" value={(data.watchlist as any).deploy_amount_gbp ? fmtMoney((data.watchlist as any).deploy_amount_gbp) : "—"} />
                 </div>
+                {((data.watchlist as any).triggerReviewDate || (data.watchlist as any).triggerReviewNote) && (
+                  <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>
+                    <span style={monoLabel}>Review {fmtDate((data.watchlist as any).triggerReviewDate)} </span>{(data.watchlist as any).triggerReviewNote}
+                  </div>
+                )}
                 {data.watchlist.rationale && (
                   <div style={{ marginTop: 8, fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--text-mid)", lineHeight: 1.5 }}>
                     {data.watchlist.rationale}
@@ -490,6 +569,15 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 )}
               </div>
             )}
+
+            {/* Earnings */}
+            {data.earnings && <EarningsBlock data={data} />}
+
+            {/* Narrative signals */}
+            {data.narratives.length > 0 && <NarrativeBlock rows={data.narratives} />}
+
+            {/* Alerts log */}
+            {data.alerts.length > 0 && <AlertsBlock rows={data.alerts} />}
 
             {/* Score history */}
             {data.rationaleHistory.length > 0 && (
@@ -575,6 +663,185 @@ function Cell({ label, value, tone }: { label: string; value: string | number | 
     <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 6px", border: "1px solid var(--rim)", borderRadius: 2 }}>
       <span style={{ color: "var(--text-dim)" }}>{label}</span>
       <span style={{ color }}>{value ?? "—"}</span>
+    </div>
+  );
+}
+
+function PriceAnchorsBlock({ data, livePrice }: { data: FactSheetData; livePrice: number | null }) {
+  const first = resolveAnchor("first_add", data);
+  const last = resolveAnchor("last_score", data);
+  if (first.price === null && last.price === null && !first.date && !last.date) return null;
+  const pct = (anchor: number | null) =>
+    anchor !== null && livePrice !== null ? ((livePrice - anchor) / anchor) * 100 : null;
+  const pFirst = pct(first.price);
+  const pLast = pct(last.price);
+  const Row = ({ title, a, p }: { title: string; a: typeof first; p: number | null }) => (
+    <div style={{ border: "1px solid var(--rim)", padding: "8px 10px", borderRadius: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <span style={monoLabel}>{title}</span>
+        {a.source && <span style={{ ...monoLabel, color: "var(--text-dim)", fontSize: 8 }}>{a.source}</span>}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 12 }}>
+        <span style={{ color: "var(--text-bright)" }}>{a.price !== null ? a.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}</span>
+        <span style={{ color: "var(--text-dim)" }}>{fmtDate(a.date)}</span>
+        <span style={{ color: p === null ? "var(--text-dim)" : p >= 0 ? "var(--green)" : "var(--red)" }}>
+          {p === null ? "—" : `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`}
+        </span>
+      </div>
+    </div>
+  );
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Price Anchors</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <Row title="First add" a={first} p={pFirst} />
+        <Row title="Last score" a={last} p={pLast} />
+      </div>
+    </div>
+  );
+}
+
+function ScoreMetaStrip({ data }: { data: FactSheetData }) {
+  const s: any = data.score || {};
+  const r: any = data.rationale || {};
+  const items: Array<[string, string | number | null | undefined]> = [
+    ["Scored", fmtDate(pickStr(s.scoreDate, r.scored_at))],
+    ["Scorer", pickStr(s.scorer, r.scorer_version)],
+    ["Conviction", pickStr(s.conviction, r.conviction)],
+    ["Return profile", pickStr(s.returnProfile, r.return_profile)],
+    ["Compounder", pickStr(s.compounderSubtype, r.compounder_subtype)],
+    ["Substrate lvl", pickStr(s.substrateLevel, r.substrate_level)],
+    ["Stack layer", pickStr(s.stackLayer, r.stack_layer)],
+  ];
+  const filled = items.filter(([, v]) => v !== null && v !== undefined && v !== "");
+  if (filled.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+      {filled.map(([k, v]) => (
+        <span key={k} style={{ ...monoLabel, color: "var(--text-mid)", border: "1px solid var(--rim)", padding: "2px 6px", borderRadius: 2 }}>
+          {k} · <span style={{ color: "var(--text-bright)" }}>{v}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function DisruptionBlock({ data }: { data: FactSheetData }) {
+  const d: any = data.disruption || {};
+  const l: any = data.disruptionLatest || {};
+  const score = d.disruption_score ?? l.disruption_score ?? "—";
+  const subs: Array<{ k: string; v: any; rat: string | null }> = [
+    { k: "Sub avail", v: d.sub_avail_score ?? l.sub_avail, rat: d.sub_avail_rationale || null },
+    { k: "Economics", v: d.economics_score ?? l.economics, rat: d.economics_rationale || null },
+    { k: "Govt", v: d.govt_support_score ?? l.govt_support, rat: d.govt_support_rationale || null },
+    { k: "Demand vuln", v: d.demand_vuln_score ?? l.demand_vuln, rat: d.demand_vuln_rationale || null },
+    { k: "Time", v: d.time_viability_score ?? l.time_viability, rat: d.time_viability_rationale || null },
+  ];
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Disruption Resilience · {score} / 25</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+        {subs.map((s) => (
+          <div key={s.k} style={{ border: "1px solid var(--rim)", padding: "6px 6px", textAlign: "center", borderRadius: 2 }}>
+            <div style={{ ...monoLabel, fontSize: 8 }}>{s.k}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--text-bright)" }}>{s.v ?? "—"}</div>
+          </div>
+        ))}
+      </div>
+      {subs.some((s) => s.rat) && (
+        <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+          {subs.filter((s) => s.rat).map((s) => (
+            <div key={s.k} style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", lineHeight: 1.4 }}>
+              <span style={monoLabel}>{s.k} </span>{s.rat}
+            </div>
+          ))}
+        </div>
+      )}
+      {(d.amber_triggers || d.red_triggers) && (
+        <div style={{ marginTop: 8, display: "grid", gap: 4, fontFamily: "var(--font-mono)", fontSize: 11 }}>
+          {d.amber_triggers && <div style={{ color: "var(--amber)" }}>AMBER: {d.amber_triggers}</div>}
+          {d.red_triggers && <div style={{ color: "var(--red)" }}>RED: {d.red_triggers}</div>}
+        </div>
+      )}
+      {d.evidence && (
+        <div style={{ marginTop: 8, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-dim)" }}>{d.evidence}</div>
+      )}
+      {(d.scorer_version || d.scored_at) && (
+        <div style={{ marginTop: 6, ...monoLabel, color: "var(--text-dim)" }}>
+          {d.scorer_version && <>scorer {d.scorer_version} · </>}{fmtDate(d.scored_at)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EarningsBlock({ data }: { data: FactSheetData }) {
+  const e: any = data.earnings || {};
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Earnings</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, fontFamily: "var(--font-mono)", fontSize: 11 }}>
+        <Cell label="Next" value={fmtDate(e.next_earnings_date || e.date)} />
+        <Cell label="Period" value={pickStr(e.fiscal_period, e.period)} />
+        <Cell label="Confirmed" value={e.confirmed === true ? "YES" : e.confirmed === false ? "NO" : "—"} tone={e.confirmed === false ? "amber" : undefined} />
+      </div>
+      {e.notes && (
+        <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>{e.notes}</div>
+      )}
+    </div>
+  );
+}
+
+function NarrativeBlock({ rows }: { rows: FactSheetData["narratives"] }) {
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Narrative Signals</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {rows.map((n: any) => (
+          <div key={n.id} style={{ borderTop: "1px dashed var(--rim)", paddingTop: 6 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+              <span style={{ color: "var(--text-dim)" }}>{fmtDate(n.published_date || n.created_at)}</span>
+              {n.strength && <span style={{ color: "var(--accent)" }}>· {n.strength}</span>}
+              {n.signal_class && <span style={{ color: "var(--gold)" }}>· {n.signal_class}</span>}
+              {n.source_table && <span style={{ color: "var(--text-dim)" }}>· {n.source_table}</span>}
+              {n.review_status && <span style={{ color: "var(--text-mid)" }}>· {n.review_status}</span>}
+            </div>
+            {n.headline && (
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--text-bright)", marginTop: 2 }}>
+                {n.url ? <a href={n.url} target="_blank" rel="noreferrer" style={{ color: "var(--text-bright)" }}>{n.headline}</a> : n.headline}
+              </div>
+            )}
+            {n.snippet && (
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", marginTop: 2, lineHeight: 1.4 }}>{n.snippet}</div>
+            )}
+            {n.matched_keywords && (
+              <div style={{ ...monoLabel, marginTop: 2 }}>kw: {Array.isArray(n.matched_keywords) ? n.matched_keywords.join(", ") : String(n.matched_keywords)}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AlertsBlock({ rows }: { rows: FactSheetData["alerts"] }) {
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Alerts Log</div>
+      <div style={{ display: "grid", gap: 4 }}>
+        {rows.map((a: any) => (
+          <div key={a.id} style={{ display: "flex", gap: 10, fontFamily: "var(--font-mono)", fontSize: 11, borderTop: "1px dashed var(--rim)", padding: "4px 0" }}>
+            <span style={{ color: "var(--text-dim)", minWidth: 90 }}>{fmtDate(a.triggered_at)}</span>
+            <span style={{ color: "var(--accent)", minWidth: 90 }}>{a.alert_type || "—"}</span>
+            <span style={{ color: "var(--text-mid)", minWidth: 100 }}>{a.previous_status || "—"} → {a.new_status || "—"}</span>
+            <span style={{ color: "var(--text-bright)", flex: 1 }}>
+              {a.trigger_value !== null && a.trigger_value !== undefined ? `val ${a.trigger_value}` : ""}
+              {a.threshold !== null && a.threshold !== undefined ? ` / thr ${a.threshold}` : ""}
+              {a.note ? ` · ${a.note}` : ""}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
