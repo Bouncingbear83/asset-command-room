@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem, LiveMacroState, LiveScore } from "@/hooks/usePortfolioData";
 import { parseEntryTarget } from "@/lib/parseEntryTarget";
+import TickerButton from "@/components/factsheet/TickerButton";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
@@ -136,9 +137,9 @@ function ResearchRow({ row }: { row: DerivedRow }) {
   return (
     <div style={{ padding: "10px 18px 8px", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
+        <TickerButton ticker={item.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
           {item.ticker}
-        </span>
+        </TickerButton>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
           {item.name}
         </span>

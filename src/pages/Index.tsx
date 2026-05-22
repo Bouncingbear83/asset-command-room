@@ -14,6 +14,7 @@ import JisasTab from "@/components/JisasTab";
 import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
 import JapanSleeveTab from "@/components/JapanSleeveTab";
+import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
 const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
@@ -115,6 +116,7 @@ export default function Index() {
     : "var(--text-dim)";
 
   return (
+    <FactSheetProvider portfolio={portfolio} priceData={priceData}>
     <div style={s.app}>
       <header className="stellar-header">
         <div className="stellar-logo">
@@ -208,5 +210,6 @@ export default function Index() {
         aria-label="Back to top"
       >↑</button>
     </div>
+    </FactSheetProvider>
   );
 }

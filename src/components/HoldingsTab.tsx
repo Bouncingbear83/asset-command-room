@@ -8,6 +8,7 @@ import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";
 import { Sparkline } from "@/components/Sparkline";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
+import TickerButton from "@/components/factsheet/TickerButton";
 import { useResearchSummary } from "@/hooks/useResearchSummary";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
@@ -409,9 +410,9 @@ function UnifiedView({
                     >
                       {/* Line 1: ticker · score badge · alert · flag · chevron */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)", letterSpacing: "0.04em" }}>
+                        <TickerButton ticker={h.ticker} style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)", letterSpacing: "0.04em" }}>
                           {h.ticker}
-                        </span>
+                        </TickerButton>
                         {summary && (() => {
                           const sc = summary.total_score;
                           const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
@@ -572,7 +573,7 @@ function UnifiedView({
                             <TooltipProvider delayDuration={200}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span style={{ cursor: "default" }}>{h.ticker}</span>
+                                  <TickerButton ticker={h.ticker}>{h.ticker}</TickerButton>
                                 </TooltipTrigger>
                                 {(() => {
                                   const summary = getSummary(h.ticker);
@@ -758,7 +759,7 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
                 <div key={h.ticker || h.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
                   <div style={{ width: 140, flexShrink: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                      <TickerButton ticker={h.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</TickerButton>
                       <HoldStatusBadge status={h.alert_status} />
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>
