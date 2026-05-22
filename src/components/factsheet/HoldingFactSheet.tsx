@@ -227,8 +227,25 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 {data.score?.action && <span style={{ ...monoLabel, color: "var(--accent)" }}>· {data.score.action}</span>}
                 {isHeld && <span style={{ ...monoLabel, color: "var(--green)" }}>· HELD</span>}
                 {isWatchlist && <span style={{ ...monoLabel, color: "var(--accent)" }}>· WATCHLIST</span>}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={onClose}
+                  style={{
+                    flexShrink: 0,
+                    background: "transparent", border: "1px solid var(--rim)",
+                    color: "var(--text-dim)", fontFamily: "var(--font-mono)",
+                    fontSize: 18, lineHeight: 1,
+                    minWidth: 40, minHeight: 40,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", borderRadius: 2,
+                  }}
+                >×</button>
               </div>
             </div>
+
 
             {/* Compliance banners */}
             {banners.length > 0 && (
