@@ -24,6 +24,33 @@ export interface ScoreHistoryRow {
   change_note: string | null;
 }
 
+export interface NarrativeRow {
+  id: string;
+  ticker: string;
+  strength: string;
+  signal_class: string;
+  source_table: string;
+  matched_keywords: string | null;
+  headline: string | null;
+  url: string | null;
+  snippet: string | null;
+  published_date: string | null;
+  review_status: string | null;
+  created_at: string;
+}
+
+export interface AlertRow {
+  id: number;
+  ticker: string;
+  alert_type: string;
+  previous_status: string | null;
+  new_status: string;
+  trigger_value: string | null;
+  threshold: string | null;
+  note: string | null;
+  triggered_at: string;
+}
+
 export type PriceSource = "holdings" | "daily_prices" | "watchlist_history" | "none";
 
 export interface FactSheetData {
@@ -43,6 +70,8 @@ export interface FactSheetData {
   priceMeta: { ma20: number | null; ma50: number | null } | null;
   priceSource: PriceSource;
   priceCurrency: string | null;         // currency carried with watchlist_history rows
+  narratives: NarrativeRow[];
+  alerts: AlertRow[];
 }
 
 const EMPTY: FactSheetData = {
@@ -62,6 +91,8 @@ const EMPTY: FactSheetData = {
   priceMeta: null,
   priceSource: "none",
   priceCurrency: null,
+  narratives: [],
+  alerts: [],
 };
 
 
