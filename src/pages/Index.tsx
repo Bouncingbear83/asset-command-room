@@ -116,6 +116,7 @@ export default function Index() {
     : "var(--text-dim)";
 
   return (
+    <FactSheetProvider portfolio={portfolio} priceData={priceData}>
     <div style={s.app}>
       <header className="stellar-header">
         <div className="stellar-logo">
@@ -209,5 +210,6 @@ export default function Index() {
         aria-label="Back to top"
       >↑</button>
     </div>
+    </FactSheetProvider>
   );
 }
