@@ -24,6 +24,8 @@ export interface ScoreHistoryRow {
   change_note: string | null;
 }
 
+export type PriceSource = "holdings" | "daily_prices" | "watchlist_history" | "none";
+
 export interface FactSheetData {
   ticker: string;
   canonicalTicker: string;
@@ -39,6 +41,8 @@ export interface FactSheetData {
   disruptionLatest: DisruptionRow | null;
   pricePoints: DailyPricePoint[];       // up to 180d for chart
   priceMeta: { ma20: number | null; ma50: number | null } | null;
+  priceSource: PriceSource;
+  priceCurrency: string | null;         // currency carried with watchlist_history rows
 }
 
 const EMPTY: FactSheetData = {
@@ -56,7 +60,10 @@ const EMPTY: FactSheetData = {
   disruptionLatest: null,
   pricePoints: [],
   priceMeta: null,
+  priceSource: "none",
+  priceCurrency: null,
 };
+
 
 function matchTicker(a: string | null | undefined, b: string): boolean {
   return normaliseTicker(a) === normaliseTicker(b);
