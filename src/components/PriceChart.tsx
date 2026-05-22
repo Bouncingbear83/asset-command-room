@@ -197,13 +197,52 @@ export function PriceChart({ points, loading, height = 140, milestones }: PriceC
   const hoverXPct = hoverIdx != null ? toPctX(hoverIdx) : 0;
   const hoverYPct = hoverIdx != null ? toPctY(prices[hoverIdx], minP, range_) : 0;
 
+  // Resolve milestones to in-range data indices (nearest day at or before the milestone date).
+  type ResolvedMilestone = { idx: number; xPct: number; yPct: number; kinds: PriceMilestone["kind"][]; labels: string[] };
+  const resolvedMilestones: ResolvedMilestone[] = [];
+  if (milestones && milestones.length && data.length > 1) {
+    const firstD = data[0].date;
+    const lastD = data[data.length - 1].date;
+    const byIdx = new Map<number, ResolvedMilestone>();
+    for (const m of milestones) {
+      if (!m.date || m.date < firstD || m.date > lastD) continue;
+      // binary search: largest i where data[i].date <= m.date
+      let lo = 0, hi = data.length - 1, found = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (data[mid].date <= m.date) { found = mid; lo = mid + 1; } else { hi = mid - 1; }
+      }
+      const existing = byIdx.get(found);
+      if (existing) {
+        if (!existing.kinds.includes(m.kind)) existing.kinds.push(m.kind);
+        existing.labels.push(m.label);
+      } else {
+        byIdx.set(found, {
+          idx: found,
+          xPct: toPctX(found),
+          yPct: toPctY(prices[found], minP, range_),
+          kinds: [m.kind],
+          labels: [m.label],
+        });
+      }
+    }
+    resolvedMilestones.push(...byIdx.values());
+  }
+
   return (
     <div style={{ padding: "8px 12px 4px 36px", background: "rgba(20,20,40,0.4)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)" }}>PRICE HISTORY</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{data[0].date} → {data[data.length - 1].date}</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#7bb8ff" }}>— MA20</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)" }}>-- MA50</span>
+        {resolvedMilestones.length > 0 && (
+          <span style={{ display: "inline-flex", gap: 8, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>
+            {(["added","scored","alert","earnings"] as const).filter(k => resolvedMilestones.some(r => r.kinds.includes(k))).map(k => (
+              <span key={k} style={{ color: MILESTONE_STYLE[k].color }}>{MILESTONE_STYLE[k].glyph} {k}</span>
+            ))}
+          </span>
+        )}
       </div>
       {rangeRow}
 
@@ -230,14 +269,63 @@ export function PriceChart({ points, loading, height = 140, milestones }: PriceC
           {yearBoundaries.slice(1).map((xPct, i) => (
             <line key={`yv${i}`} x1={xPct} x2={xPct} y1={padTop} y2={bottomY} stroke="rgba(140,140,170,0.18)" strokeWidth="0.5" strokeDasharray="0.5,0.5" vectorEffect="non-scaling-stroke" />
           ))}
+          {/* Milestone vertical lines (under price line) */}
+          {resolvedMilestones.map((m, i) => {
+            const primary = m.kinds[0];
+            const style = MILESTONE_STYLE[primary];
+            return (
+              <line
+                key={`ms${i}`}
+                x1={m.xPct} x2={m.xPct} y1={padTop} y2={bottomY}
+                stroke={style.color} strokeWidth="0.5" strokeDasharray={style.dash} opacity="0.55"
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          })}
           {ma50Points.length > 1 && <path d={ma50Points.join(" ")} fill="none" stroke="var(--gold)" strokeWidth="0.5" strokeDasharray="1,0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />}
           {ma20Points.length > 1 && <path d={ma20Points.join(" ")} fill="none" stroke="#7bb8ff" strokeWidth="0.5" opacity="0.7" vectorEffect="non-scaling-stroke" />}
           <path d={pricePath} fill="none" stroke={trendColor} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {/* Milestone dots on price line */}
+          {resolvedMilestones.map((m, i) => (
+            <circle key={`md${i}`} cx={m.xPct} cy={m.yPct} r="0.9" fill={MILESTONE_STYLE[m.kinds[0]].color} stroke="rgba(10,10,30,0.9)" strokeWidth="0.25" vectorEffect="non-scaling-stroke" />
+          ))}
           {/* Hover crosshair line */}
           {hoverIdx != null && (
             <line x1={hoverXPct} x2={hoverXPct} y1={padTop} y2={bottomY} stroke="rgba(200,200,220,0.4)" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
           )}
         </svg>
+
+        {/* Milestone glyph chips (HTML, above SVG) */}
+        {resolvedMilestones.map((m, i) => {
+          const primary = m.kinds[0];
+          const style = MILESTONE_STYLE[primary];
+          const title = `${data[m.idx].date} · ${m.labels.join(" · ")}`;
+          return (
+            <span
+              key={`mc${i}`}
+              title={title}
+              style={{
+                position: "absolute",
+                left: `${m.xPct}%`,
+                top: `${padTop}%`,
+                transform: "translate(-50%, -110%)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9, lineHeight: 1,
+                padding: "2px 4px",
+                background: "rgba(10,10,30,0.85)",
+                border: `1px solid ${style.color}`,
+                color: style.color,
+                borderRadius: 2,
+                pointerEvents: "auto",
+                cursor: "help",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {m.kinds.map(k => MILESTONE_STYLE[k].glyph).join("")}
+            </span>
+          );
+        })}
+
 
         {/* Hover dot */}
         {hoverIdx != null && hoverPoint && (
