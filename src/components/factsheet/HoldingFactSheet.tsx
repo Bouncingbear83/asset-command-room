@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/PriceChart";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
@@ -130,24 +129,67 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
 
   const chartPoints = data.pricePoints.slice(-chartRange);
 
+  // Defer heavy sections until after the panel shell mounts to keep open snappy.
+  const [readyHeavy, setReadyHeavy] = useState(false);
+  useEffect(() => {
+    if (!isOpen) { setReadyHeavy(false); return; }
+    const id = window.setTimeout(() => setReadyHeavy(true), 60);
+    return () => window.clearTimeout(id);
+  }, [isOpen, ticker]);
+
+  // Close on Esc.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
   return (
-    <Sheet open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent
-        side="right"
-        className="overflow-y-auto p-0 sm:max-w-[640px] w-full"
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${tkr}${display ? ` — ${display}` : ""} fact sheet`}
+      style={{ position: "fixed", inset: 0, zIndex: 60 }}
+    >
+      {/* Overlay */}
+      <div
+        onClick={onClose}
+        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }}
+      />
+      {/* Panel */}
+      <div
         style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "min(640px, 100%)",
           background: "var(--void)",
           color: "var(--text-mid)",
           borderLeft: "1px solid var(--rim)",
+          overflowY: "auto",
+          boxShadow: "-10px 0 30px rgba(0,0,0,0.5)",
         }}
       >
-        {!ticker ? null : (
+        {ticker && (
           <div>
-            {/* Accessible title/description for screen readers (Radix requirement) */}
-            <SheetTitle className="sr-only">{tkr}{display ? ` — ${display}` : ""}</SheetTitle>
-            <SheetDescription className="sr-only">
-              Holding fact sheet for {tkr}: price, scores, classification, thesis, and position details.
-            </SheetDescription>
+            {/* Close button */}
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              style={{
+                position: "absolute", top: 12, right: 14, zIndex: 2,
+                background: "transparent", border: "1px solid var(--rim)",
+                color: "var(--text-dim)", fontFamily: "var(--font-mono)",
+                fontSize: 12, lineHeight: 1, padding: "4px 8px",
+                cursor: "pointer", borderRadius: 2,
+              }}
+            >×</button>
+
 
             {/* Sticky header */}
             <div
@@ -240,7 +282,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                   ))}
                 </div>
               </div>
-              {data.loading && data.pricePoints.length === 0
+              {!readyHeavy || (data.loading && data.pricePoints.length === 0)
                 ? <SectionSkeleton rows={4} />
                 : data.pricePoints.length === 0
                   ? <span style={monoLabel}>{data.errors.prices || "No price history available"}</span>
@@ -468,8 +510,8 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 }
 
