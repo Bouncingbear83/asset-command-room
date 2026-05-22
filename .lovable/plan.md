@@ -1,31 +1,41 @@
-## Plan: unfreeze ticker fact sheet open
+# Fix: Price info missing for watchlist tickers in HoldingFactSheet
 
-The symptom is now clearer: clicking any ticker, including RKLB, shows no slide-over and makes the page unresponsive. The prior `DialogTitle` fix did not address the actual failure.
+## Why it's blank today
 
-### 1. Confirm the actual freeze path
-- Reproduce the ticker click from the unlocked app in the browser debugger.
-- Use console/network/performance profiling around the click to identify whether the lock happens in:
-  - Radix `Sheet` focus/portal/body-lock behavior,
-  - factsheet data fetch/render,
-  - the price chart/heavy sections,
-  - or a click-handler/render loop.
+The fact sheet pulls price from two places only:
 
-### 2. Make opening non-blocking and fail-safe
-- Change `FactSheetProvider` so a ticker click only stores the selected ticker and opens a lightweight shell immediately.
-- Defer expensive factsheet sections until after the shell has mounted.
-- Ensure the close action works even while data is still loading.
+1. `firstHolding?.price` — the live GOOGLEFINANCE value from the HOLDINGS sheet. Watchlist tickers aren't in holdings, so this is `null`.
+2. `daily_prices` table (queried in `useFactSheetData.ts`) — only populated for HELD tickers by the nightly snapshot. Watchlist tickers return zero rows.
 
-### 3. Remove the likely modal/focus trap bottleneck if profiling confirms it
-- If Radix `Sheet` is the freeze point, keep the shadcn-compatible styling but replace the factsheet usage with a controlled fixed-position slide-over shell for this feature only.
-- This avoids focus trapping/body pointer locking while preserving the same 640px right panel design and close behavior.
-- Do not change other shadcn Sheet components in the app.
+Result: `stripPrice` is `null`, "no price" is shown, and the chart prints "No price history available".
 
-### 4. Reduce heavy first render
-- Render header + price strip first.
-- Gate chart, rationale history, disruption blocks, and long text sections behind loading/ready checks.
-- Keep existing data sources and response shapes unchanged.
+Meanwhile the Watchlist tab and Command tab Movers card already render sparklines because they read `watchlist_price_history` via `useWatchlistHistory` — a separate yfinance-backed table the fact sheet never consults.
 
-### 5. Validate
-- Click RKLB and at least one holding ticker.
-- Confirm the panel opens, the app remains interactive, close works, and no blocking console errors appear.
-- If any long task remains, use the profiler output to target the specific component.
+## Fix
+
+Extend the fact sheet data layer to fall back to `watchlist_price_history` when a ticker is not held / has no `daily_prices` rows.
+
+### Changes
+
+1. **`src/components/factsheet/useFactSheetData.ts`**
+   - Add a parallel `supabase.from("watchlist_price_history")` query for the same ticker variants over the last 180d.
+   - If `daily_prices` returns rows, keep current behaviour (held path).
+   - Otherwise map watchlist rows into `DailyPricePoint` shape: `priceLocal = close_price`, `priceGbp = null` (no FX in that table), carry `currency` through a new optional field on the returned shape.
+   - Return a small `priceSource: "holdings" | "daily_prices" | "watchlist_history" | "none"` flag so the UI can label freshness honestly.
+
+2. **`src/components/factsheet/HoldingFactSheet.tsx`**
+   - When `firstHolding` is null and `pricePoints` come from `watchlist_price_history`:
+     - `stripPrice` = latest `close_price`
+     - `liveCcy` = currency from the watchlist row (fallback `""`)
+     - Day change = `(latest - prevClose) / prevClose` computed from the last two points
+     - `asOf` label = `Watchlist EOD {date}` and keep the `isStale` styling (it is EOD, not live)
+   - Chart already consumes `pricePoints` so it will render automatically once they're populated.
+   - MA20/MA50 strip stays hidden for the watchlist path (we don't compute MAs in `watchlist_price_history`).
+
+3. No schema or backend changes. RLS on `watchlist_price_history` already allows anon read.
+
+## Out of scope
+
+- Mid-day live price for watchlist tickers (would need a separate quote source).
+- Backfilling `daily_prices` with watchlist data — keeping the two tables separate matches existing architecture.
+- Cost / P&L blocks — these stay hidden for watchlist tickers since there's no position.

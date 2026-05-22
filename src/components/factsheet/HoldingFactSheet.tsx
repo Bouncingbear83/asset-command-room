@@ -115,17 +115,28 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
   // Price strip
   const firstHolding: LiveHolding | null = data.holdings[0] || null;
   const livePrice = firstHolding?.price ?? null;
-  const liveCcy = firstHolding?.currency || data.score?.currency || data.watchlist?.layer || "USD";
-  const dayPct = firstHolding?.day ?? null;
   const latestEod = data.pricePoints.length > 0 ? data.pricePoints[data.pricePoints.length - 1] : null;
+  const prevEod = data.pricePoints.length > 1 ? data.pricePoints[data.pricePoints.length - 2] : null;
   const eodPrice = latestEod?.priceLocal ?? null;
   const eodDate = latestEod?.date || null;
   const stripPrice = livePrice ?? eodPrice;
+  const isWlPrice = livePrice === null && data.priceSource === "watchlist_history";
+  const liveCcy = firstHolding?.currency
+    || data.score?.currency
+    || (isWlPrice ? (data.priceCurrency || "") : "")
+    || "USD";
+  const wlDayPct = (isWlPrice && latestEod && prevEod && prevEod.priceLocal)
+    ? ((latestEod.priceLocal - prevEod.priceLocal) / prevEod.priceLocal) * 100
+    : null;
+  const dayPct = firstHolding?.day ?? wlDayPct;
   // Price freshness
   const asOf = livePrice !== null
     ? (portfolio.lastUpdated ? `as of ${portfolio.lastUpdated}` : "live (sheet)")
-    : (eodDate ? `EOD ${eodDate}` : "no price");
+    : isWlPrice && eodDate
+      ? `Watchlist EOD ${eodDate}`
+      : (eodDate ? `EOD ${eodDate}` : "no price");
   const isStale = livePrice === null;
+
 
   const chartPoints = data.pricePoints.slice(-chartRange);
 
