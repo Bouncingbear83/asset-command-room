@@ -282,7 +282,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                   ))}
                 </div>
               </div>
-              {data.loading && data.pricePoints.length === 0
+              {!readyHeavy || (data.loading && data.pricePoints.length === 0)
                 ? <SectionSkeleton rows={4} />
                 : data.pricePoints.length === 0
                   ? <span style={monoLabel}>{data.errors.prices || "No price history available"}</span>
