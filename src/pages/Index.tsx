@@ -14,6 +14,7 @@ import JisasTab from "@/components/JisasTab";
 import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
 import JapanSleeveTab from "@/components/JapanSleeveTab";
+import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
 const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
