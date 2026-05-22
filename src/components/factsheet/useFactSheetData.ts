@@ -113,11 +113,14 @@ export function useFactSheetData(
     pricePoints: DailyPricePoint[];
     priceSource: PriceSource;
     priceCurrency: string | null;
+    narratives: NarrativeRow[];
+    alerts: AlertRow[];
     loading: boolean;
     errors: Record<string, string>;
   }>({
     rationale: null, history: [], disruption: null, disruptionLatest: null,
     pricePoints: [], priceSource: "none", priceCurrency: null,
+    narratives: [], alerts: [],
     loading: !!ticker, errors: {},
   });
 
