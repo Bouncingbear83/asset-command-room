@@ -201,6 +201,28 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
 
   const chartPoints = data.pricePoints.slice(-chartRange);
 
+  // Assemble milestone markers from already-loaded data (no extra fetches).
+  const milestones = useMemo(() => {
+    const out: Array<{ date: string; kind: "added" | "scored" | "alert" | "earnings"; label: string }> = [];
+    const norm = (d: any) => (d ? String(d).slice(0, 10) : "");
+    const firstAdd = resolveAnchor("first_add", data);
+    if (firstAdd.date) out.push({ date: norm(firstAdd.date), kind: "added", label: `First add${firstAdd.price !== null ? ` @ ${firstAdd.price}` : ""}` });
+    for (const h of data.rationaleHistory) {
+      const d = norm(h.scored_at);
+      if (d) out.push({ date: d, kind: "scored", label: `Score ${h.total_score ?? ""}${h.action ? ` · ${h.action}` : ""}`.trim() });
+    }
+    for (const h of data.holdings) {
+      const d = norm((h as any).alert_fired_date);
+      if (d) out.push({ date: d, kind: "alert", label: `Alert ${(h as any).alert_status || "FIRED"}` });
+    }
+    const e: any = data.earnings;
+    const ed = norm(e?.next_earnings_date || e?.date);
+    if (ed && ed >= new Date().toISOString().slice(0, 10)) {
+      out.push({ date: ed, kind: "earnings", label: `Earnings${e?.fiscal_period ? ` ${e.fiscal_period}` : ""}` });
+    }
+    return out;
+  }, [data]);
+
   // Defer heavy sections until after the panel shell mounts to keep open snappy.
   const [readyHeavy, setReadyHeavy] = useState(false);
   useEffect(() => {
