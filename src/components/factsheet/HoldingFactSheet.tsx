@@ -383,9 +383,13 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               }
             </div>
 
+            {/* Price Anchors (first add / last score with pct from now) */}
+            <PriceAnchorsBlock data={data} livePrice={stripPrice} />
+
             {/* 6D Score Grid */}
             <div style={sectionStyle}>
               <div style={sectionTitle}>6D Score · {data.score?.score ?? data.rationale?.total_score ?? "—"} / 100</div>
+              <ScoreMetaStrip data={data} />
               {!data.score && !data.rationale ? (
                 <span style={monoLabel}>No score recorded</span>
               ) : (
