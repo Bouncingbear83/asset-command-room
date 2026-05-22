@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
+import TickerButton from "@/components/factsheet/TickerButton";
 
 // Quick Commands now route through buildClaudePromptUrl().
 
