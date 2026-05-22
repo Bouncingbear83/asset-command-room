@@ -510,8 +510,8 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 }
 
