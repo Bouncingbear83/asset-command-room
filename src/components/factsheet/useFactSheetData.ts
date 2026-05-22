@@ -288,6 +288,8 @@ export function useFactSheetData(
       ? supaState.priceSource
       : (priceMapEntry?.points?.length ? "daily_prices" : "none"),
     priceCurrency: supaState.priceCurrency,
+    narratives: supaState.narratives,
+    alerts: supaState.alerts,
   };
 }
 
