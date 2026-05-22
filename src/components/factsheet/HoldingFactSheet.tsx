@@ -540,8 +540,30 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 </button>
               )}
             </div>
+
+            {/* Sticky footer — secondary close for long sheets */}
+            <div style={{
+              position: "sticky", bottom: 0, zIndex: 10,
+              background: "linear-gradient(to top, var(--void) 70%, rgba(4,4,10,0))",
+              padding: "12px 14px calc(12px + env(safe-area-inset-bottom))",
+              borderTop: "1px solid var(--rim)",
+              display: "flex", justifyContent: "center",
+            }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  background: "var(--panel)", border: "1px solid var(--rim)",
+                  color: "var(--text-mid)", padding: "10px 28px",
+                  borderRadius: 2, cursor: "pointer", minHeight: 40, minWidth: 140,
+                }}
+              >Done</button>
+            </div>
           </div>
         )}
+
       </div>
     </div>
   );
