@@ -666,3 +666,182 @@ function Cell({ label, value, tone }: { label: string; value: string | number | 
     </div>
   );
 }
+
+function PriceAnchorsBlock({ data, livePrice }: { data: FactSheetData; livePrice: number | null }) {
+  const first = resolveAnchor("first_add", data);
+  const last = resolveAnchor("last_score", data);
+  if (first.price === null && last.price === null && !first.date && !last.date) return null;
+  const pct = (anchor: number | null) =>
+    anchor !== null && livePrice !== null ? ((livePrice - anchor) / anchor) * 100 : null;
+  const pFirst = pct(first.price);
+  const pLast = pct(last.price);
+  const Row = ({ title, a, p }: { title: string; a: typeof first; p: number | null }) => (
+    <div style={{ border: "1px solid var(--rim)", padding: "8px 10px", borderRadius: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <span style={monoLabel}>{title}</span>
+        {a.source && <span style={{ ...monoLabel, color: "var(--text-dim)", fontSize: 8 }}>{a.source}</span>}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 12 }}>
+        <span style={{ color: "var(--text-bright)" }}>{a.price !== null ? a.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}</span>
+        <span style={{ color: "var(--text-dim)" }}>{fmtDate(a.date)}</span>
+        <span style={{ color: p === null ? "var(--text-dim)" : p >= 0 ? "var(--green)" : "var(--red)" }}>
+          {p === null ? "—" : `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`}
+        </span>
+      </div>
+    </div>
+  );
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Price Anchors</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <Row title="First add" a={first} p={pFirst} />
+        <Row title="Last score" a={last} p={pLast} />
+      </div>
+    </div>
+  );
+}
+
+function ScoreMetaStrip({ data }: { data: FactSheetData }) {
+  const s: any = data.score || {};
+  const r: any = data.rationale || {};
+  const items: Array<[string, string | number | null | undefined]> = [
+    ["Scored", fmtDate(pickStr(s.scoreDate, r.scored_at))],
+    ["Scorer", pickStr(s.scorer, r.scorer_version)],
+    ["Conviction", pickStr(s.conviction, r.conviction)],
+    ["Return profile", pickStr(s.returnProfile, r.return_profile)],
+    ["Compounder", pickStr(s.compounderSubtype, r.compounder_subtype)],
+    ["Substrate lvl", pickStr(s.substrateLevel, r.substrate_level)],
+    ["Stack layer", pickStr(s.stackLayer, r.stack_layer)],
+  ];
+  const filled = items.filter(([, v]) => v !== null && v !== undefined && v !== "");
+  if (filled.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+      {filled.map(([k, v]) => (
+        <span key={k} style={{ ...monoLabel, color: "var(--text-mid)", border: "1px solid var(--rim)", padding: "2px 6px", borderRadius: 2 }}>
+          {k} · <span style={{ color: "var(--text-bright)" }}>{v}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function DisruptionBlock({ data }: { data: FactSheetData }) {
+  const d: any = data.disruption || {};
+  const l: any = data.disruptionLatest || {};
+  const score = d.disruption_score ?? l.disruption_score ?? "—";
+  const subs: Array<{ k: string; v: any; rat: string | null }> = [
+    { k: "Sub avail", v: d.sub_avail_score ?? l.sub_avail, rat: d.sub_avail_rationale || null },
+    { k: "Economics", v: d.economics_score ?? l.economics, rat: d.economics_rationale || null },
+    { k: "Govt", v: d.govt_support_score ?? l.govt_support, rat: d.govt_support_rationale || null },
+    { k: "Demand vuln", v: d.demand_vuln_score ?? l.demand_vuln, rat: d.demand_vuln_rationale || null },
+    { k: "Time", v: d.time_viability_score ?? l.time_viability, rat: d.time_viability_rationale || null },
+  ];
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Disruption Resilience · {score} / 25</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+        {subs.map((s) => (
+          <div key={s.k} style={{ border: "1px solid var(--rim)", padding: "6px 6px", textAlign: "center", borderRadius: 2 }}>
+            <div style={{ ...monoLabel, fontSize: 8 }}>{s.k}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--text-bright)" }}>{s.v ?? "—"}</div>
+          </div>
+        ))}
+      </div>
+      {subs.some((s) => s.rat) && (
+        <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+          {subs.filter((s) => s.rat).map((s) => (
+            <div key={s.k} style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", lineHeight: 1.4 }}>
+              <span style={monoLabel}>{s.k} </span>{s.rat}
+            </div>
+          ))}
+        </div>
+      )}
+      {(d.amber_triggers || d.red_triggers) && (
+        <div style={{ marginTop: 8, display: "grid", gap: 4, fontFamily: "var(--font-mono)", fontSize: 11 }}>
+          {d.amber_triggers && <div style={{ color: "var(--amber)" }}>AMBER: {d.amber_triggers}</div>}
+          {d.red_triggers && <div style={{ color: "var(--red)" }}>RED: {d.red_triggers}</div>}
+        </div>
+      )}
+      {d.evidence && (
+        <div style={{ marginTop: 8, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-dim)" }}>{d.evidence}</div>
+      )}
+      {(d.scorer_version || d.scored_at) && (
+        <div style={{ marginTop: 6, ...monoLabel, color: "var(--text-dim)" }}>
+          {d.scorer_version && <>scorer {d.scorer_version} · </>}{fmtDate(d.scored_at)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EarningsBlock({ data }: { data: FactSheetData }) {
+  const e: any = data.earnings || {};
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Earnings</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, fontFamily: "var(--font-mono)", fontSize: 11 }}>
+        <Cell label="Next" value={fmtDate(e.next_earnings_date || e.date)} />
+        <Cell label="Period" value={pickStr(e.fiscal_period, e.period)} />
+        <Cell label="Confirmed" value={e.confirmed === true ? "YES" : e.confirmed === false ? "NO" : "—"} tone={e.confirmed === false ? "amber" : undefined} />
+      </div>
+      {e.notes && (
+        <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>{e.notes}</div>
+      )}
+    </div>
+  );
+}
+
+function NarrativeBlock({ rows }: { rows: FactSheetData["narratives"] }) {
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Narrative Signals</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {rows.map((n: any) => (
+          <div key={n.id} style={{ borderTop: "1px dashed var(--rim)", paddingTop: 6 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+              <span style={{ color: "var(--text-dim)" }}>{fmtDate(n.published_date || n.created_at)}</span>
+              {n.strength && <span style={{ color: "var(--accent)" }}>· {n.strength}</span>}
+              {n.signal_class && <span style={{ color: "var(--gold)" }}>· {n.signal_class}</span>}
+              {n.source_table && <span style={{ color: "var(--text-dim)" }}>· {n.source_table}</span>}
+              {n.review_status && <span style={{ color: "var(--text-mid)" }}>· {n.review_status}</span>}
+            </div>
+            {n.headline && (
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--text-bright)", marginTop: 2 }}>
+                {n.url ? <a href={n.url} target="_blank" rel="noreferrer" style={{ color: "var(--text-bright)" }}>{n.headline}</a> : n.headline}
+              </div>
+            )}
+            {n.snippet && (
+              <div style={{ fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", marginTop: 2, lineHeight: 1.4 }}>{n.snippet}</div>
+            )}
+            {n.matched_keywords && (
+              <div style={{ ...monoLabel, marginTop: 2 }}>kw: {Array.isArray(n.matched_keywords) ? n.matched_keywords.join(", ") : String(n.matched_keywords)}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AlertsBlock({ rows }: { rows: FactSheetData["alerts"] }) {
+  return (
+    <div style={sectionStyle}>
+      <div style={sectionTitle}>Alerts Log</div>
+      <div style={{ display: "grid", gap: 4 }}>
+        {rows.map((a: any) => (
+          <div key={a.id} style={{ display: "flex", gap: 10, fontFamily: "var(--font-mono)", fontSize: 11, borderTop: "1px dashed var(--rim)", padding: "4px 0" }}>
+            <span style={{ color: "var(--text-dim)", minWidth: 90 }}>{fmtDate(a.triggered_at)}</span>
+            <span style={{ color: "var(--accent)", minWidth: 90 }}>{a.alert_type || "—"}</span>
+            <span style={{ color: "var(--text-mid)", minWidth: 100 }}>{a.previous_status || "—"} → {a.new_status || "—"}</span>
+            <span style={{ color: "var(--text-bright)", flex: 1 }}>
+              {a.trigger_value !== null && a.trigger_value !== undefined ? `val ${a.trigger_value}` : ""}
+              {a.threshold !== null && a.threshold !== undefined ? ` / thr ${a.threshold}` : ""}
+              {a.note ? ` · ${a.note}` : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
