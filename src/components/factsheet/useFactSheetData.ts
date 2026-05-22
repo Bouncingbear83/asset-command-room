@@ -111,9 +111,10 @@ export function useFactSheetData(
       supabase.from("disruption_snapshot").select("*").in("ticker", variants).order("snapshot_date", { ascending: false }).limit(1),
       supabase.from("daily_prices").select("snapshot_date, price_local, price_gbp").in("ticker", variants).gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(300),
       supabase.from("watchlist_price_history").select("snapshot_date, close_price, currency").in("ticker", variants).gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(300),
+      supabase.from("fx_rates").select("snapshot_date, pair, rate").gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(1000),
     ]).then((results) => {
       if (cancelled) return;
-      const [rRationale, rDisruption, rDisruptionSnap, rPrices, rWlPrices] = results;
+      const [rRationale, rDisruption, rDisruptionSnap, rPrices, rWlPrices, rFx] = results;
 
       let rationale: ScoreRationale | null = null;
       let history: ScoreHistoryRow[] = [];
@@ -159,13 +160,40 @@ export function useFactSheetData(
       }
 
       // Fallback to watchlist_price_history when daily_prices has nothing.
+      // Convert close_price -> GBP using fx_rates so downstream GBP metrics work.
       if (pricePoints.length === 0 && rWlPrices.status === "fulfilled" && !rWlPrices.value.error) {
         const wlRows = (rWlPrices.value.data || []) as any[];
         if (wlRows.length > 0) {
+          const fxByPair = new Map<string, { date: string; rate: number }[]>();
+          if (rFx.status === "fulfilled" && !rFx.value.error) {
+            for (const f of (rFx.value.data || []) as any[]) {
+              const arr = fxByPair.get(f.pair) || [];
+              arr.push({ date: f.snapshot_date, rate: Number(f.rate) });
+              fxByPair.set(f.pair, arr);
+            }
+          }
+          const rateOn = (ccy: string, date: string): number | null => {
+            const arr = fxByPair.get(`GBP${ccy}`);
+            if (!arr || arr.length === 0) return null;
+            let r: number | null = null;
+            for (const e of arr) { if (e.date <= date) r = e.rate; else break; }
+            return r ?? arr[0].rate; // carry-forward; fall back to earliest known
+          };
+          const toGbp = (price: number, ccy: string | null, date: string): number => {
+            if (!ccy || !isFinite(price)) return NaN;
+            const c = String(ccy).trim();
+            const upper = c.toUpperCase();
+            if (upper === "GBP") return price;
+            if (upper === "GBX" || c === "GBp" || upper === "GBP_PENCE") return price / 100;
+            if (!/^[A-Z]{3}$/.test(upper)) return NaN; // junk like "25000"
+            const rate = rateOn(upper, date);
+            if (!rate || !isFinite(rate) || rate === 0) return NaN;
+            return price / rate;
+          };
           pricePoints = wlRows.map((r) => ({
             date: r.snapshot_date,
             priceLocal: Number(r.close_price),
-            priceGbp: NaN,
+            priceGbp: toGbp(Number(r.close_price), r.currency, r.snapshot_date),
           }));
           priceSource = "watchlist_history";
           priceCurrency = wlRows[wlRows.length - 1]?.currency || null;
