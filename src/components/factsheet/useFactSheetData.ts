@@ -238,7 +238,21 @@ export function useFactSheetData(
         errors.watchlistPrices = rWlPrices.value.error?.message || "fetch failed";
       }
 
-      setSupaState({ rationale, history, disruption, disruptionLatest, pricePoints, priceSource, priceCurrency, loading: false, errors });
+      let narratives: NarrativeRow[] = [];
+      if (rNarr.status === "fulfilled" && !rNarr.value.error) {
+        narratives = (rNarr.value.data || []) as NarrativeRow[];
+      } else if (rNarr.status === "fulfilled") {
+        errors.narratives = rNarr.value.error?.message || "fetch failed";
+      }
+
+      let alerts: AlertRow[] = [];
+      if (rAlerts.status === "fulfilled" && !rAlerts.value.error) {
+        alerts = (rAlerts.value.data || []) as AlertRow[];
+      } else if (rAlerts.status === "fulfilled") {
+        errors.alerts = rAlerts.value.error?.message || "fetch failed";
+      }
+
+      setSupaState({ rationale, history, disruption, disruptionLatest, pricePoints, priceSource, priceCurrency, narratives, alerts, loading: false, errors });
     });
 
     return () => { cancelled = true; };
