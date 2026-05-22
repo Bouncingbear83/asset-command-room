@@ -484,33 +484,12 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               </div>
             )}
 
-            {/* Disruption */}
+            {/* Disruption v2 */}
             {(data.disruption || data.disruptionLatest) && (
-              <div style={sectionStyle}>
-                <div style={sectionTitle}>Disruption Resilience · {data.disruption?.disruption_score ?? data.disruptionLatest?.disruption_score ?? "—"} / 25</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
-                  {([
-                    ["Sub avail", data.disruption?.sub_avail_score ?? data.disruptionLatest?.sub_avail],
-                    ["Economics", data.disruption?.economics_score ?? data.disruptionLatest?.economics],
-                    ["Govt", data.disruption?.govt_support_score ?? data.disruptionLatest?.govt_support],
-                    ["Demand vuln", data.disruption?.demand_vuln_score ?? data.disruptionLatest?.demand_vuln],
-                    ["Time", data.disruption?.time_viability_score ?? data.disruptionLatest?.time_viability],
-                  ] as const).map(([k, v]) => (
-                    <div key={k} style={{ border: "1px solid var(--rim)", padding: "6px 6px", textAlign: "center", borderRadius: 2 }}>
-                      <div style={{ ...monoLabel, fontSize: 8 }}>{k}</div>
-                      <div style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--text-bright)" }}>{v ?? "—"}</div>
-                    </div>
-                  ))}
-                </div>
-                {data.disruption?.evidence && (
-                  <div style={{ marginTop: 8, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-dim)" }}>
-                    {data.disruption.evidence}
-                  </div>
-                )}
-              </div>
+              <DisruptionBlock data={data} />
             )}
 
-            {/* Position (HELD only) */}
+            {/* Position (HELD only) — extended */}
             {isHeld && (
               <div style={sectionStyle}>
                 <div style={sectionTitle}>Position</div>
@@ -522,15 +501,41 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                       <Cell label="AUM %" value={fmtPct(h.aum_pct)} />
                       <Cell label="G/L" value={fmtPct(h.gl)} tone={h.gl >= 0 ? "green" : "red"} />
                       <Cell label="Shares" value={h.shares ? h.shares.toLocaleString() : "—"} />
-                      <Cell label="Cost" value={fmtMoney(h.costGbp)} />
+                      <Cell label="Cost £" value={fmtMoney(h.costGbp)} />
+                      <Cell label="Cost local" value={h.costLocal ? h.costLocal.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"} />
+                      <Cell label="Prev close" value={h.prevClose !== null ? h.prevClose.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"} />
+                      <Cell label="MA60" value={h.ma60 !== null ? fmtNum(h.ma60) : "—"} />
+                      <Cell label="% below 52w hi" value={fmtPct(h.pct_below_52w_high)} />
+                      <Cell label="% above 52w lo" value={fmtPct(h.pct_above_52w_low)} />
                       <Cell label="Action" value={h.action || "HOLD"} />
                       <Cell label="Alert" value={h.alert_status || "CLEAR"} tone={h.alert_status === "FIRED" ? "amber" : undefined} />
+                      <Cell label="Alert fired" value={fmtDate(h.alert_fired_date)} />
                       <Cell label="Deploy £" value={h.deploy_target_gbp ? fmtMoney(h.deploy_target_gbp) : "—"} />
                     </div>
+                    {(h.trigger_type || h.trigger_price_add || h.trigger_price_exit) && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+                        Triggers · {[h.trigger_type, h.trigger_price_add && `ADD ${h.trigger_price_add}`, h.trigger_price_exit && `EXIT ${h.trigger_price_exit}`].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                     {(h.add_trigger || h.exit_trigger) && (
                       <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
                         {h.add_trigger && <div>ADD: {h.add_trigger}</div>}
                         {h.exit_trigger && <div>EXIT: {h.exit_trigger}</div>}
+                      </div>
+                    )}
+                    {h.deploy_note && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>
+                        <span style={monoLabel}>Deploy note </span>{h.deploy_note}
+                      </div>
+                    )}
+                    {(h.trigger_review_date || h.trigger_review_note) && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>
+                        <span style={monoLabel}>Review {fmtDate(h.trigger_review_date)} </span>{h.trigger_review_note}
+                      </div>
+                    )}
+                    {h.notes && (
+                      <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)", whiteSpace: "pre-wrap" }}>
+                        <span style={monoLabel}>Notes </span>{h.notes}
                       </div>
                     )}
                   </div>
@@ -538,16 +543,25 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               </div>
             )}
 
-            {/* Watchlist (WATCH only) */}
+            {/* Watchlist (WATCH only) — extended */}
             {isWatchlist && data.watchlist && (
               <div style={sectionStyle}>
                 <div style={sectionTitle}>Watchlist</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, fontFamily: "var(--font-mono)", fontSize: 11 }}>
                   <Cell label="Status" value={data.watchlist.status} />
+                  <Cell label="Alert" value={(data.watchlist as any).alertStatus || "—"} tone={(data.watchlist as any).alertStatus === "FIRED" ? "amber" : undefined} />
                   <Cell label="Entry target" value={data.watchlist.entry || "—"} />
+                  <Cell label="Trigger px" value={(data.watchlist as any).triggerPriceNumeric !== null && (data.watchlist as any).triggerPriceNumeric !== undefined ? String((data.watchlist as any).triggerPriceNumeric) : "—"} />
                   <Cell label="Current" value={data.watchlist.current !== null ? String(data.watchlist.current) : (data.watchlist as any).currentRaw || "—"} />
                   <Cell label="Trigger" value={data.watchlist.trigger || "—"} />
+                  <Cell label="Last checked" value={fmtDate((data.watchlist as any).lastChecked)} />
+                  <Cell label="Deploy £" value={(data.watchlist as any).deploy_amount_gbp ? fmtMoney((data.watchlist as any).deploy_amount_gbp) : "—"} />
                 </div>
+                {((data.watchlist as any).triggerReviewDate || (data.watchlist as any).triggerReviewNote) && (
+                  <div style={{ marginTop: 6, fontFamily: "var(--font-ui)", fontSize: 11, color: "var(--text-mid)" }}>
+                    <span style={monoLabel}>Review {fmtDate((data.watchlist as any).triggerReviewDate)} </span>{(data.watchlist as any).triggerReviewNote}
+                  </div>
+                )}
                 {data.watchlist.rationale && (
                   <div style={{ marginTop: 8, fontFamily: "var(--font-ui)", fontSize: 12, color: "var(--text-mid)", lineHeight: 1.5 }}>
                     {data.watchlist.rationale}
@@ -555,6 +569,15 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 )}
               </div>
             )}
+
+            {/* Earnings */}
+            {data.earnings && <EarningsBlock data={data} />}
+
+            {/* Narrative signals */}
+            {data.narratives.length > 0 && <NarrativeBlock rows={data.narratives} />}
+
+            {/* Alerts log */}
+            {data.alerts.length > 0 && <AlertsBlock rows={data.alerts} />}
 
             {/* Score history */}
             {data.rationaleHistory.length > 0 && (
