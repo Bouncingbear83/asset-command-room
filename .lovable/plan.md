@@ -1,70 +1,49 @@
-## Audit: Fact Sheet vs. Sheets + Supabase
+## Goal
 
-Below is everything the data layer carries for a ticker but the popout does NOT currently render. Anything not listed is already surfaced.
+Render event milestones on the fact sheet's price chart so the line is anchored to *why* moves happened — when we first added, when we re-scored, when an alert fired, and the next earnings date.
 
-### Sheets — gaps
+## What to mark
 
-**HOLDINGS row** (`LiveHolding`):
-- `priceAtFirstAdd` / `firstAddDate` / `priceAtLastScore` — Price Anchors (was previously added to AssetExpansion, never to the fact sheet)
-- `prevClose`, `costLocal`, `notes`
-- `pct_below_52w_high`, `pct_above_52w_low` (proximity to range)
-- `ma60` (matches the price strip's MA20/MA50)
-- `trigger_type`, `trigger_price_add`, `trigger_price_exit` (currently only free-text ADD/EXIT shown)
-- `alert_fired_date`, `deploy_note`, `trigger_review_date`, `trigger_review_note`
+Sourced from data already loaded by `useFactSheetData` + `usePortfolioData` (no new queries):
 
-**WATCHLIST row** (`LiveWatchItem`):
-- `priceAtFirstAdd` / `firstAddDate` / `priceAtLastScore`
-- `triggerPriceNumeric`, `alertStatus`, `lastChecked`
-- `deploy_amount_gbp`, `triggerReviewDate`, `triggerReviewNote`
+| Kind | Source | Colour |
+|------|--------|--------|
+| `added` — First Add | resolveAnchor("first_add") date — SCORES > HOLDINGS > WATCHLIST > rationale | gold (`--gold`) |
+| `scored` — every score event | `data.rationaleHistory[*].scored_at` (latest 10) | accent blue |
+| `alert` — Alert fired | `holdings[].alert_fired_date` | amber |
+| `earnings` — Next earnings (future only, if inside chart range) | `data.earnings.next_earnings_date` | silver, dotted |
 
-**SCORES row** (`LiveScore`):
-- `scoreDate`, `thesisAgeMonths`
-- Anchor trio (mirrors of the above)
+Each milestone is `{ date: "YYYY-MM-DD", kind, label, tooltip? }`. Duplicates on the same day are merged into one marker with a combined label (e.g. "Added · Scored").
 
-**EARNINGS_CALENDAR row**: only triggers the blackout banner; never shown as its own block (`nextEarningsDate`, `fiscalPeriod`, `confirmed`, `lastUpdated`, days-until).
+## PriceChart changes (`src/components/PriceChart.tsx`)
 
-### Supabase — gaps
+1. Add optional prop:
+   ```ts
+   milestones?: Array<{ date: string; kind: "added" | "scored" | "alert" | "earnings"; label: string; tooltip?: string }>;
+   ```
+2. Map each milestone's date to the nearest in-range data index (binary search on `data[i].date`). Drop ones outside the current `range` slice.
+3. Render per milestone inside the existing SVG:
+   - Vertical dashed line from `padTop` to `bottomY`, coloured by `kind`.
+   - A small filled circle (3px) on the price line at that x.
+4. Render an HTML chip layer above the SVG with a 1-char glyph (A / S / ! / E) positioned at the milestone's x, top-aligned just under the range row. Hover shows the tooltip (native `title`).
+5. Add a compact legend row next to the existing "MA20 / MA50" labels.
+6. Hover behaviour unchanged; if the cursor is within ~1.5% of a milestone x, the tooltip text appends "· {label}".
 
-**`score_rationales`**: `price_at_scoring`, `mv_gbp_at_scoring`, `scored_by`, `scored_at`-as-meta (only embedded in history list today).
+Performance: O(n + m); milestones are usually ≤ 15.
 
-**`disruption_rationales`**: per-subscore rationales (`sub_avail_rationale`, `economics_rationale`, `govt_support_rationale`, `demand_vuln_rationale`, `time_viability_rationale`), `amber_trigger`, `red_trigger`, `status`, `change_note`, `scored_at`, `scored_by`. Today only the 5 numbers + `evidence` show.
+## HoldingFactSheet wiring (`src/components/factsheet/HoldingFactSheet.tsx`)
 
-**`narrative_signals`**: not queried by the fact sheet at all. Relevant per-ticker headlines/snippets/url/published_date/strength/review_status are invisible inside the popout.
+- Build a `milestones` memo from existing data (no new fetches).
+- Pass it to `<PriceChart points={chartPoints} milestones={milestones} ... />`.
+- Earnings only included when `next_earnings_date` is within the active chart window and in the future.
 
-**`alerts_log`**: not queried. Recent fires (`alert_type`, `previous_status → new_status`, `trigger_value`, `threshold`, `note`, `triggered_at`) are invisible.
+## Out of scope
 
-## Plan
+- Transactions (buys/sells) — would need transactions passed into the fact sheet; can be added in a follow-up if useful.
+- User-toggleable layers — single combined view for v1.
+- Persisting hover/click state.
 
-Add to `useFactSheetData.ts`:
-1. Two parallel Supabase queries: `narrative_signals` (latest 5 for ticker) and `alerts_log` (latest 5 for ticker), both filtered by `tickerVariants`.
-2. Extend `FactSheetData` with `narratives: NarrativeRow[]` and `alerts: AlertRow[]`.
+## Files touched
 
-Add to `HoldingFactSheet.tsx` (in this order, after existing sections):
-
-A. **Price Anchors block** (always, when score/holding/watch has any of the three): two cells — First add (price · date · pct from now), Last score (price · pct from now), reusing the same precedence as `useAssetIntelligence` (SCORES > HOLDINGS > WATCHLIST > Supabase `score_rationales`).
-
-B. **Earnings block** (when `data.earnings`): date · fiscal period · confirmed · days until · last updated. Sits above existing "Earnings prep" button.
-
-C. **Position (HELD) v2**: append cells for `prevClose`, `ma60`, `pct_below_52w_high`, `pct_above_52w_low`, `costLocal`, `alert_fired_date`. Add a small "Triggers" sub-line showing `trigger_type · trigger_price_add · trigger_price_exit`. Show `deploy_note`, `trigger_review_date`/`note`, `notes` as a stacked footer below the grid.
-
-D. **Watchlist (WATCH) v2**: append `triggerPriceNumeric`, `alertStatus`, `lastChecked`, `deploy_amount_gbp`, `triggerReviewDate`/`Note` to the existing grid.
-
-E. **Score meta strip** under the 6D grid title: `scoreDate · thesisAgeMonths mo · scored_by · price_at_scoring (CCY) · mv_gbp_at_scoring`.
-
-F. **Disruption v2**: expand each of the 5 sub-score tiles into a small accordion (or always-on caption) showing its rationale; below the row show `status`, `amber_trigger`, `red_trigger`, `change_note`, and `scored_at · scored_by`.
-
-G. **Narrative Signals block** (when rows exist): up to 5 rows — strength chip, signal_class, headline (linked to `url`), snippet, published_date, source_table. Reuse the styling pattern from `NarrativeSignalsCard`.
-
-H. **Alerts Log block** (when rows exist): up to 5 rows — triggered_at, alert_type, previous_status → new_status, trigger_value vs threshold, note.
-
-### Non-goals
-
-- No business-logic changes (precedence rules, banner triggers, webhooks, Claude deep-link prompt all stay).
-- No styling overhaul — reuse `sectionStyle`, `sectionTitle`, `Cell`, `monoLabel`.
-- No new tables, RLS, or edge functions; all four Supabase tables already allow anon SELECT.
-
-### Validation
-
-- Pick one HELD ticker with a populated `score_rationales` row and one WATCH-only ticker (e.g. ENR.DE) and confirm every new block renders or hides cleanly.
-- Confirm narrative_signals + alerts_log queries return 0 rows without throwing for tickers with no history.
-- Confirm sheet recompute event still updates the new Price Anchors block.
+- `src/components/PriceChart.tsx` — prop + render logic.
+- `src/components/factsheet/HoldingFactSheet.tsx` — assemble + pass milestones.
