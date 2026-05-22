@@ -246,7 +246,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
       role="dialog"
       aria-modal="true"
       aria-label={`${tkr}${display ? ` — ${display}` : ""} fact sheet`}
-      style={{ position: "fixed", inset: 0, zIndex: 60 }}
+      style={{ position: "fixed", inset: 0, zIndex: 1000 }}
     >
       {/* Overlay */}
       <div
