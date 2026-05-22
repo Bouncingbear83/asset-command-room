@@ -143,6 +143,12 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
       >
         {!ticker ? null : (
           <div>
+            {/* Accessible title/description for screen readers (Radix requirement) */}
+            <SheetTitle className="sr-only">{tkr}{display ? ` — ${display}` : ""}</SheetTitle>
+            <SheetDescription className="sr-only">
+              Holding fact sheet for {tkr}: price, scores, classification, thesis, and position details.
+            </SheetDescription>
+
             {/* Sticky header */}
             <div
               style={{
