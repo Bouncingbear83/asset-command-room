@@ -401,7 +401,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 ? <SectionSkeleton rows={4} />
                 : data.pricePoints.length === 0
                   ? <span style={monoLabel}>{data.errors.prices || "No price history available"}</span>
-                  : <PriceChart points={chartPoints} height={160} />
+                  : <PriceChart points={chartPoints} height={160} milestones={milestones} />
               }
             </div>
 
