@@ -118,7 +118,7 @@ export default function EarningsCalendarTab({ items }: Props) {
 
                 return (
                   <tr key={`${item.ticker}-${item.nextEarningsDate}`} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                    <td style={{ padding: "12px 16px", color: "var(--gold)", fontWeight: 700 }}>{item.ticker}</td>
+                    <td style={{ padding: "12px 16px", color: "var(--gold)", fontWeight: 700 }}><TickerButton ticker={item.ticker} style={{ color: "var(--gold)", fontWeight: 700 }}>{item.ticker}</TickerButton></td>
                     <td style={{ padding: "12px 16px", color: "var(--text)" }}>{formatDate(item.nextEarningsDate)}</td>
                     <td style={{ padding: "12px 16px" }}>
                       <span style={{ ...urgencyStyle, padding: "3px 10px", borderRadius: 2, fontSize: 9, letterSpacing: "0.12em", whiteSpace: "nowrap" }}>
