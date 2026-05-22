@@ -85,7 +85,7 @@ function buildXLabels(data: DailyPricePoint[], range: RangeKey, toPct: (i: numbe
   return labels.map(l => ({ ...l, pct: Math.min(l.pct, 95) }));
 }
 
-export function PriceChart({ points, loading, height = 140 }: PriceChartProps) {
+export function PriceChart({ points, loading, height = 140, milestones }: PriceChartProps) {
   const [range, setRange] = useState<RangeKey>("1Y");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
