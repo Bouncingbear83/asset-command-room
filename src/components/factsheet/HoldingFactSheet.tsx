@@ -59,6 +59,67 @@ function daysUntil(dateStr: string): number | null {
   return Math.round(diff / (1000 * 60 * 60 * 24));
 }
 
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return "—";
+  const s = String(d).slice(0, 10);
+  return s || "—";
+}
+
+// Pick first finite value across an ordered list of candidates.
+function pickNum(...vals: Array<number | null | undefined>): number | null {
+  for (const v of vals) {
+    if (v !== null && v !== undefined && Number.isFinite(Number(v))) return Number(v);
+  }
+  return null;
+}
+function pickStr(...vals: Array<string | null | undefined>): string | null {
+  for (const v of vals) {
+    if (v !== null && v !== undefined && String(v).trim() !== "") return String(v);
+  }
+  return null;
+}
+
+// Resolve a Price Anchor (first_add or last_score) with precedence
+// SCORES > HOLDINGS > WATCHLIST > Supabase score_rationales.
+function resolveAnchor(
+  field: "first_add" | "last_score",
+  d: FactSheetData,
+): { price: number | null; date: string | null; source: string | null } {
+  const s: any = d.score || {};
+  const h: any = d.holdings[0] || {};
+  const w: any = d.watchlist || {};
+  const r: any = d.rationale || {};
+
+  const tryGet = (
+    src: string,
+    price: unknown,
+    date: unknown,
+  ): { price: number | null; date: string | null; source: string } | null => {
+    const pn = price === null || price === undefined ? null : Number(price);
+    const finite = pn !== null && Number.isFinite(pn);
+    const dStr = date === null || date === undefined ? null : String(date).slice(0, 10);
+    if (!finite && !dStr) return null;
+    return { price: finite ? pn : null, date: dStr || null, source: src };
+  };
+
+  if (field === "first_add") {
+    return (
+      tryGet("SCORES", s.priceAtFirstAdd, s.firstAddDate) ||
+      tryGet("HOLDINGS", h.priceAtFirstAdd, h.firstAddDate) ||
+      tryGet("WATCHLIST", w.priceAtFirstAdd, w.firstAddDate) ||
+      tryGet("rationale", r.price_at_first_add, r.first_add_date) ||
+      { price: null, date: null, source: null }
+    );
+  }
+  return (
+    tryGet("SCORES", s.priceAtLastScore, s.scoreDate) ||
+    tryGet("HOLDINGS", h.priceAtLastScore, null) ||
+    tryGet("WATCHLIST", w.priceAtLastScore, null) ||
+    tryGet("rationale", r.price_at_last_score, r.scored_at) ||
+    { price: null, date: null, source: null }
+  );
+}
+
 function computeBanners(d: FactSheetData) {
   const banners: { tone: "red" | "amber" | "info"; text: string }[] = [];
   const s: any = d.score || {};
