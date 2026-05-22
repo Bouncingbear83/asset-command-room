@@ -187,37 +187,41 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
       >
         {ticker && (
           <div>
-            {/* Close button */}
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={onClose}
-              style={{
-                position: "absolute", top: 12, right: 14, zIndex: 2,
-                background: "transparent", border: "1px solid var(--rim)",
-                color: "var(--text-dim)", fontFamily: "var(--font-mono)",
-                fontSize: 12, lineHeight: 1, padding: "4px 8px",
-                cursor: "pointer", borderRadius: 2,
-              }}
-            >×</button>
-
-
-            {/* Sticky header */}
+            {/* Sticky header (with close button + swipe-down handle) */}
             <div
+              onTouchStart={(e) => {
+                (e.currentTarget as any).__sy = e.touches[0]?.clientY ?? 0;
+                (e.currentTarget as any).__dy = 0;
+              }}
+              onTouchMove={(e) => {
+                const sy = (e.currentTarget as any).__sy ?? 0;
+                (e.currentTarget as any).__dy = (e.touches[0]?.clientY ?? sy) - sy;
+              }}
+              onTouchEnd={(e) => {
+                if (((e.currentTarget as any).__dy ?? 0) > 60) onClose();
+              }}
               style={{
                 position: "sticky",
                 top: 0,
                 zIndex: 10,
                 background: "var(--void)",
-                padding: "16px 18px 12px",
+                padding: "10px 14px 12px",
                 borderBottom: "1px solid var(--rim)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 26, color: "var(--gold)", letterSpacing: "0.04em" }}>{tkr}</span>
-                <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 16, color: "var(--text-mid)" }}>{display}</span>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+              {/* Mobile swipe handle */}
+              <div style={{
+                width: 36, height: 3, borderRadius: 2, background: "var(--rim)",
+                margin: "0 auto 8px",
+              }} />
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: 26, color: "var(--gold)", letterSpacing: "0.04em" }}>{tkr}</span>
+                    <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 16, color: "var(--text-mid)" }}>{display}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+
                 {layer && <span style={monoLabel}>{layer}</span>}
                 {data.score?.tier && <span style={{ ...monoLabel, color: "var(--silver)" }}>· {data.score.tier}</span>}
                 {data.score?.action && <span style={{ ...monoLabel, color: "var(--accent)" }}>· {data.score.action}</span>}
