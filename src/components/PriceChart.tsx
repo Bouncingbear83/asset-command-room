@@ -1,11 +1,26 @@
 import React, { useState, useRef, useCallback } from "react";
 import type { DailyPricePoint } from "@/hooks/useDailyPrices";
 
+export type PriceMilestone = {
+  date: string; // YYYY-MM-DD
+  kind: "added" | "scored" | "alert" | "earnings";
+  label: string;
+  tooltip?: string;
+};
+
 interface PriceChartProps {
   points: DailyPricePoint[];
   loading?: boolean;
   height?: number;
+  milestones?: PriceMilestone[];
 }
+
+const MILESTONE_STYLE: Record<PriceMilestone["kind"], { color: string; glyph: string; dash: string }> = {
+  added:    { color: "var(--gold)",    glyph: "A", dash: "1.2,0.8" },
+  scored:   { color: "#7bb8ff",         glyph: "S", dash: "0.8,0.8" },
+  alert:    { color: "var(--amber)",   glyph: "!", dash: "0.6,0.6" },
+  earnings: { color: "var(--silver)",  glyph: "E", dash: "0.3,0.6" },
+};
 
 type RangeKey = "1W" | "1M" | "1Y" | "5Y" | "MAX";
 const RANGE_DAYS: Record<RangeKey, number> = { "1W": 5, "1M": 22, "1Y": 252, "5Y": 1260, MAX: Infinity };
