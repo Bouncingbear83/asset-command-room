@@ -1,4 +1,5 @@
 import { LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
+import TickerButton from "@/components/factsheet/TickerButton";
 import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
