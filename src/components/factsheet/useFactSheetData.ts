@@ -206,5 +206,10 @@ export function useFactSheetData(
     disruptionLatest: supaState.disruptionLatest,
     pricePoints: supaState.pricePoints.length > 0 ? supaState.pricePoints : (priceMapEntry?.points || []),
     priceMeta: priceMapEntry ? { ma20: priceMapEntry.ma20, ma50: priceMapEntry.ma50 } : null,
+    priceSource: supaState.priceSource !== "none"
+      ? supaState.priceSource
+      : (priceMapEntry?.points?.length ? "daily_prices" : "none"),
+    priceCurrency: supaState.priceCurrency,
   };
 }
+
