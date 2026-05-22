@@ -80,16 +80,19 @@ export function useFactSheetData(
     disruption: DisruptionRationale | null;
     disruptionLatest: DisruptionRow | null;
     pricePoints: DailyPricePoint[];
+    priceSource: PriceSource;
+    priceCurrency: string | null;
     loading: boolean;
     errors: Record<string, string>;
   }>({
     rationale: null, history: [], disruption: null, disruptionLatest: null,
-    pricePoints: [], loading: !!ticker, errors: {},
+    pricePoints: [], priceSource: "none", priceCurrency: null,
+    loading: !!ticker, errors: {},
   });
 
   useEffect(() => {
     if (!ticker) {
-      setSupaState({ rationale: null, history: [], disruption: null, disruptionLatest: null, pricePoints: [], loading: false, errors: {} });
+      setSupaState({ rationale: null, history: [], disruption: null, disruptionLatest: null, pricePoints: [], priceSource: "none", priceCurrency: null, loading: false, errors: {} });
       return;
     }
     let cancelled = false;
@@ -107,9 +110,10 @@ export function useFactSheetData(
       supabase.from("disruption_rationales").select("*").in("ticker", variants).order("scored_at", { ascending: false }).limit(1),
       supabase.from("disruption_snapshot").select("*").in("ticker", variants).order("snapshot_date", { ascending: false }).limit(1),
       supabase.from("daily_prices").select("snapshot_date, price_local, price_gbp").in("ticker", variants).gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(300),
+      supabase.from("watchlist_price_history").select("snapshot_date, close_price, currency").in("ticker", variants).gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(300),
     ]).then((results) => {
       if (cancelled) return;
-      const [rRationale, rDisruption, rDisruptionSnap, rPrices] = results;
+      const [rRationale, rDisruption, rDisruptionSnap, rPrices, rWlPrices] = results;
 
       let rationale: ScoreRationale | null = null;
       let history: ScoreHistoryRow[] = [];
@@ -141,21 +145,41 @@ export function useFactSheetData(
       }
 
       let pricePoints: DailyPricePoint[] = [];
+      let priceSource: PriceSource = "none";
+      let priceCurrency: string | null = null;
       if (rPrices.status === "fulfilled" && !rPrices.value.error) {
         pricePoints = (rPrices.value.data || []).map((r: any) => ({
           date: r.snapshot_date,
           priceLocal: Number(r.price_local),
           priceGbp: Number(r.price_gbp),
         }));
+        if (pricePoints.length > 0) priceSource = "daily_prices";
       } else if (rPrices.status === "fulfilled") {
         errors.prices = rPrices.value.error?.message || "fetch failed";
       }
 
-      setSupaState({ rationale, history, disruption, disruptionLatest, pricePoints, loading: false, errors });
+      // Fallback to watchlist_price_history when daily_prices has nothing.
+      if (pricePoints.length === 0 && rWlPrices.status === "fulfilled" && !rWlPrices.value.error) {
+        const wlRows = (rWlPrices.value.data || []) as any[];
+        if (wlRows.length > 0) {
+          pricePoints = wlRows.map((r) => ({
+            date: r.snapshot_date,
+            priceLocal: Number(r.close_price),
+            priceGbp: NaN,
+          }));
+          priceSource = "watchlist_history";
+          priceCurrency = wlRows[wlRows.length - 1]?.currency || null;
+        }
+      } else if (pricePoints.length === 0 && rWlPrices.status === "fulfilled") {
+        errors.watchlistPrices = rWlPrices.value.error?.message || "fetch failed";
+      }
+
+      setSupaState({ rationale, history, disruption, disruptionLatest, pricePoints, priceSource, priceCurrency, loading: false, errors });
     });
 
     return () => { cancelled = true; };
   }, [ticker]);
+
 
   if (!ticker) return EMPTY;
 
