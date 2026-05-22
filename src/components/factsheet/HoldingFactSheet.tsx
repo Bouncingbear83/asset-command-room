@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/PriceChart";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
