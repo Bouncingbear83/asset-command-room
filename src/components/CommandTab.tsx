@@ -940,7 +940,7 @@ export default function CommandTab() {
                 }
                 return (
 
-                  <div style={{ borderTop: "1px solid rgba(28,28,48,0.6)", marginTop: 4 }}>
+                  <div style={{ borderTop: topMovers.length > 0 ? "1px solid rgba(28,28,48,0.6)" : "none", marginTop: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "10px 12px 4px" : "10px 20px 4px" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", fontWeight: 700 }}>WATCHLIST</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em" }}>
