@@ -818,7 +818,48 @@ export default function CommandTab() {
             letterSpacing: "0.05em",
           } as React.CSSProperties);
 
-          return topMovers.length > 0 ? (
+          // Compute watchlist movers up-front so the card surfaces even when
+          // there are no holdings movers today.
+          const holdingsTickers = new Set(Array.from(deduped.keys()));
+          const wlMovers: { ticker: string; day: number; price: number; currency: string; entry: string }[] = [];
+          for (const w of watchlist) {
+            if (!w.ticker) continue;
+            const key = w.ticker.toUpperCase();
+            if (holdingsTickers.has(key)) continue;
+            let last: number | null = null;
+            let prev: number | null = null;
+            const pd = priceData?.get(normaliseTicker(w.ticker));
+            if (pd && pd.points.length >= 2) {
+              last = pd.points[pd.points.length - 1].priceLocal;
+              prev = pd.points[pd.points.length - 2].priceLocal;
+            } else {
+              const traj = wlHistory[key];
+              if (traj && traj.spark30d.length >= 2) {
+                last = traj.spark30d[traj.spark30d.length - 1].close;
+                prev = traj.spark30d[traj.spark30d.length - 2].close;
+              }
+            }
+            if (last == null || prev == null || !prev) continue;
+            const day = ((last - prev) / prev) * 100;
+            wlMovers.push({
+              ticker: w.ticker,
+              day,
+              price: typeof w.current === "number" ? w.current : last,
+              currency: w.currency || "USD",
+              entry: w.entry || "",
+            });
+          }
+          const wlUp = wlMovers.filter(m => m.day > 0).length;
+          const wlDown = wlMovers.filter(m => m.day < 0).length;
+          const wlSorted = moverSort === "gainers"
+            ? wlMovers.filter(m => m.day > 0).sort((a, b) => b.day - a.day)
+            : moverSort === "losers"
+            ? wlMovers.filter(m => m.day < 0).sort((a, b) => a.day - b.day)
+            : [...wlMovers].sort((a, b) => Math.abs(b.day) - Math.abs(a.day));
+          const wlTop = wlSorted.slice(0, 5);
+          const hasWatchlistSection = !!(watchlist && watchlist.length > 0);
+
+          return (topMovers.length > 0 || hasWatchlistSection) ? (
             <div style={card}>
               <div style={cardHeader}>
                 <span style={cardTitle}>Today's Movers</span>
@@ -833,6 +874,7 @@ export default function CommandTab() {
                 <button style={toggleBtn("▲ GAIN", "gainers")} onClick={() => setMoverSort("gainers")}>▲ GAIN</button>
                 <button style={toggleBtn("▼ LOSS", "losers")} onClick={() => setMoverSort("losers")}>▼ LOSS</button>
               </div>
+              {topMovers.length > 0 && (
               <div style={{ padding: isMobile ? "10px 12px" : "10px 20px" }}>
                 {topMovers.map((m) => {
                   const currencySymbol = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : "$";
