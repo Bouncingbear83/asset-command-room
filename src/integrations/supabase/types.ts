@@ -303,6 +303,7 @@ export type Database = {
           source: string
           stack_layer: string | null
           substrate_level: string | null
+          substrate_stage: string | null
           ticker: string
         }
         Insert: {
@@ -326,6 +327,7 @@ export type Database = {
           source?: string
           stack_layer?: string | null
           substrate_level?: string | null
+          substrate_stage?: string | null
           ticker: string
         }
         Update: {
@@ -349,6 +351,7 @@ export type Database = {
           source?: string
           stack_layer?: string | null
           substrate_level?: string | null
+          substrate_stage?: string | null
           ticker?: string
         }
         Relationships: []
@@ -697,6 +700,7 @@ export type Database = {
           stack_layer: string | null
           substrate: number
           substrate_level: string | null
+          substrate_stage: string | null
           ticker: string
           tier: string | null
           valuation: number
@@ -720,6 +724,7 @@ export type Database = {
           stack_layer?: string | null
           substrate: number
           substrate_level?: string | null
+          substrate_stage?: string | null
           ticker: string
           tier?: string | null
           valuation: number
@@ -743,6 +748,7 @@ export type Database = {
           stack_layer?: string | null
           substrate?: number
           substrate_level?: string | null
+          substrate_stage?: string | null
           ticker?: string
           tier?: string | null
           valuation?: number
