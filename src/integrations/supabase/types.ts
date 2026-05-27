@@ -56,6 +56,51 @@ export type Database = {
         }
         Relationships: []
       }
+      asymmetry_snapshot: {
+        Row: {
+          bear_floor_pct: number | null
+          bear_substrate_fail: number | null
+          bear_thesis_weak: number | null
+          bull_base: number | null
+          bull_bear_at_date: string | null
+          bull_implied_pct: number | null
+          bull_stretch: number | null
+          created_at: string | null
+          id: number
+          price_at_last_score: number | null
+          snapshot_date: string
+          ticker: string
+        }
+        Insert: {
+          bear_floor_pct?: number | null
+          bear_substrate_fail?: number | null
+          bear_thesis_weak?: number | null
+          bull_base?: number | null
+          bull_bear_at_date?: string | null
+          bull_implied_pct?: number | null
+          bull_stretch?: number | null
+          created_at?: string | null
+          id?: number
+          price_at_last_score?: number | null
+          snapshot_date: string
+          ticker: string
+        }
+        Update: {
+          bear_floor_pct?: number | null
+          bear_substrate_fail?: number | null
+          bear_thesis_weak?: number | null
+          bull_base?: number | null
+          bull_bear_at_date?: string | null
+          bull_implied_pct?: number | null
+          bull_stretch?: number | null
+          created_at?: string | null
+          id?: number
+          price_at_last_score?: number | null
+          snapshot_date?: string
+          ticker?: string
+        }
+        Relationships: []
+      }
       daily_prices: {
         Row: {
           created_at: string
@@ -683,6 +728,11 @@ export type Database = {
       scores_snapshot: {
         Row: {
           action: string | null
+          bear_substrate_fail: number | null
+          bear_thesis_weak: number | null
+          bull_base: number | null
+          bull_bear_at_date: string | null
+          bull_stretch: number | null
           buy_high: number | null
           buy_low: number | null
           compounder_subtype: string | null
@@ -707,6 +757,11 @@ export type Database = {
         }
         Insert: {
           action?: string | null
+          bear_substrate_fail?: number | null
+          bear_thesis_weak?: number | null
+          bull_base?: number | null
+          bull_bear_at_date?: string | null
+          bull_stretch?: number | null
           buy_high?: number | null
           buy_low?: number | null
           compounder_subtype?: string | null
@@ -731,6 +786,11 @@ export type Database = {
         }
         Update: {
           action?: string | null
+          bear_substrate_fail?: number | null
+          bear_thesis_weak?: number | null
+          bull_base?: number | null
+          bull_bear_at_date?: string | null
+          bull_stretch?: number | null
           buy_high?: number | null
           buy_low?: number | null
           compounder_subtype?: string | null
