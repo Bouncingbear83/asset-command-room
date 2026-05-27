@@ -1,0 +1,2 @@
+ALTER TABLE public.scores_snapshot ADD COLUMN IF NOT EXISTS s3_transition_modifier SMALLINT DEFAULT 0;
+ALTER TABLE public.score_rationales ADD COLUMN IF NOT EXISTS s3_transition_modifier SMALLINT DEFAULT 0;

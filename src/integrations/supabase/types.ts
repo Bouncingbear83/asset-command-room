@@ -633,6 +633,7 @@ export type Database = {
           price_at_first_add: number | null
           price_at_last_score: number | null
           price_at_scoring: number | null
+          s3_transition_modifier: number | null
           scored_at: string
           scored_by: string
           stack_layer: string | null
@@ -671,6 +672,7 @@ export type Database = {
           price_at_first_add?: number | null
           price_at_last_score?: number | null
           price_at_scoring?: number | null
+          s3_transition_modifier?: number | null
           scored_at: string
           scored_by: string
           stack_layer?: string | null
@@ -709,6 +711,7 @@ export type Database = {
           price_at_first_add?: number | null
           price_at_last_score?: number | null
           price_at_scoring?: number | null
+          s3_transition_modifier?: number | null
           scored_at?: string
           scored_by?: string
           stack_layer?: string | null
@@ -745,6 +748,7 @@ export type Database = {
           moat: number
           reject_reason: string | null
           return_profile: string | null
+          s3_transition_modifier: number | null
           score: number
           snapshot_date: string
           source: string
@@ -776,6 +780,7 @@ export type Database = {
           moat: number
           reject_reason?: string | null
           return_profile?: string | null
+          s3_transition_modifier?: number | null
           score: number
           snapshot_date: string
           source?: string
@@ -807,6 +812,7 @@ export type Database = {
           moat?: number
           reject_reason?: string | null
           return_profile?: string | null
+          s3_transition_modifier?: number | null
           score?: number
           snapshot_date?: string
           source?: string
