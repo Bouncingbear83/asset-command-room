@@ -743,11 +743,13 @@ export type Database = {
           layer: string
           mgmt: number
           moat: number
+          reject_reason: string | null
           return_profile: string | null
           score: number
           snapshot_date: string
           source: string
           stack_layer: string | null
+          stellar_type: string | null
           substrate: number
           substrate_level: string | null
           substrate_stage: string | null
@@ -772,11 +774,13 @@ export type Database = {
           layer: string
           mgmt: number
           moat: number
+          reject_reason?: string | null
           return_profile?: string | null
           score: number
           snapshot_date: string
           source?: string
           stack_layer?: string | null
+          stellar_type?: string | null
           substrate: number
           substrate_level?: string | null
           substrate_stage?: string | null
@@ -801,11 +805,13 @@ export type Database = {
           layer?: string
           mgmt?: number
           moat?: number
+          reject_reason?: string | null
           return_profile?: string | null
           score?: number
           snapshot_date?: string
           source?: string
           stack_layer?: string | null
+          stellar_type?: string | null
           substrate?: number
           substrate_level?: string | null
           substrate_stage?: string | null
