@@ -1,0 +1,1 @@
+ALTER TABLE public.score_rationales ADD COLUMN IF NOT EXISTS pre_reclass_modifier SMALLINT DEFAULT 0;
