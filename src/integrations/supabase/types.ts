@@ -630,6 +630,7 @@ export type Database = {
           moat_rationale: string
           moat_score: number
           mv_gbp_at_scoring: number | null
+          pre_reclass_modifier: number | null
           price_at_first_add: number | null
           price_at_last_score: number | null
           price_at_scoring: number | null
@@ -669,6 +670,7 @@ export type Database = {
           moat_rationale: string
           moat_score: number
           mv_gbp_at_scoring?: number | null
+          pre_reclass_modifier?: number | null
           price_at_first_add?: number | null
           price_at_last_score?: number | null
           price_at_scoring?: number | null
@@ -708,6 +710,7 @@ export type Database = {
           moat_rationale?: string
           moat_score?: number
           mv_gbp_at_scoring?: number | null
+          pre_reclass_modifier?: number | null
           price_at_first_add?: number | null
           price_at_last_score?: number | null
           price_at_scoring?: number | null
