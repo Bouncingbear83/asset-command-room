@@ -8,6 +8,8 @@ import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+
 import {
   RETURN_PROFILE_VALUES,
   type ReturnProfile,
