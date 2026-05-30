@@ -7,6 +7,12 @@ import {
   type AssetThesisFraming,
   type AssetPriceAnchors,
 } from "@/types/intelligence";
+import { computeLiveAsymmetry } from "@/lib/liveAsymmetry";
+
+const EMPTY_LIVE_ASYMMETRY = computeLiveAsymmetry(
+  { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
+  null,
+);
 
 export { EMPTY_PRICE_ANCHORS } from "@/types/intelligence";
 
