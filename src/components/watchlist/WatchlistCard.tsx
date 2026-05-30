@@ -18,8 +18,12 @@ import {
   subtypeChipStyle,
 } from "@/components/intelligence/profileChips";
 import { DriverChip, StackBadge } from "@/components/holdings/DriverChip";
+import type { LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
+
 
 export interface DerivedRow {
   item: LiveWatchItem;
@@ -37,7 +41,12 @@ export interface DerivedRow {
   return_profile: ReturnProfile | null;
   /** Sub-type (only when return_profile === "COMPOUNDER"). */
   compounder_subtype: CompounderSubtype | null;
+  /** Live asymmetry computed from the quartet + current price. */
+  liveAsymmetry: LiveAsymmetryResult;
+  /** Raw China exposure flag from SCORES (HIGH/MEDIUM/LOW/N/A/blank). */
+  chinaExposureFlag: string;
 }
+
 
 /** Tiny inline chip pair used on watchlist rows. */
 export function ProfileChip({
@@ -336,6 +345,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
             {item.ticker}
           </span>
+          <ChinaRiskChip flag={row.chinaExposureFlag} />
+
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {item.name}
           </span>
@@ -370,7 +381,9 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             }
             return null;
           })()}
+          {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
           <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
+
           {daysSinceReview != null && (
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
               {row.isOverdue ? `${daysSinceReview}d ⚠` : `${daysSinceReview}d`}

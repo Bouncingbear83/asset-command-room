@@ -20,7 +20,9 @@ export type HoldingsSortField =
   | "annReturn"
   | "action"
   | "driver"
-  | "stack";
+  | "stack"
+  | "asymmetry";
+
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
@@ -59,7 +61,8 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
 
 const SORT_FIELDS: HoldingsSortField[] = [
   "ticker", "name", "layer", "account", "mv", "gl", "day", "price",
-  "cost", "truePL", "annReturn", "action", "driver", "stack",
+  "cost", "truePL", "annReturn", "action", "driver", "stack", "asymmetry",
+
 ];
 const GROUP_BYS: HoldingsGroupBy[] = ["none", "layer", "account", "tier"];
 

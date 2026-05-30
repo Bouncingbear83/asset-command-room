@@ -8,6 +8,8 @@ import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+
 import {
   RETURN_PROFILE_VALUES,
   type ReturnProfile,
@@ -380,7 +382,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   );
   const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
   const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
-  type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile";
+  type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile" | "asymmetry";
   const [sortBy, setSortBy] = useState<SortKey>("default");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
@@ -416,6 +418,17 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     }
     return map;
   }, [scores]);
+
+  // Case-insensitive score lookup for asymmetry quartet + China flag
+  const scoreByTicker = useMemo(() => {
+    const m = new Map<string, LiveScore>();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (t) m.set(t, s);
+    }
+    return m;
+  }, [scores]);
+
 
   // Layer + status filter options
   const layerOptions = useMemo(
@@ -465,6 +478,16 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       const days = daysSince(item.triggerReviewDate);
       const isOverdue = days != null && days > OVERDUE_DAYS;
 
+      const matched = scoreByTicker.get(ticker);
+      const quartet: AsymmetryQuartet = {
+        bullBase: (matched as any)?.bullBase ?? null,
+        bullStretch: (matched as any)?.bullStretch ?? null,
+        bearThesisWeak: (matched as any)?.bearThesisWeak ?? null,
+        bearSubstrateFail: (matched as any)?.bearSubstrateFail ?? null,
+        bullBearAtDate: (matched as any)?.bullBearAtDate ?? null,
+      };
+      const liveAsymmetry = computeLiveAsymmetry(quartet, currentPrice);
+
       return {
         item,
         zone,
@@ -478,9 +501,12 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         score,
         return_profile: profileEntry?.profile ?? null,
         compounder_subtype: profileEntry?.subtype ?? null,
+        liveAsymmetry,
+        chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
       };
     });
-  }, [liveData, traj, scoresByTicker, profileByTicker]);
+  }, [liveData, traj, scoresByTicker, profileByTicker, scoreByTicker]);
+
 
   // Apply search + filter chips
   const allProfilesSelected = profileFilter.size === PROFILE_FILTER_KEYS.length;
@@ -552,9 +578,15 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           profileSortRank(a.return_profile, a.compounder_subtype) -
           profileSortRank(b.return_profile, b.compounder_subtype)
         );
+      case "asymmetry": {
+        const ra = a.liveAsymmetry?.baseRatio ?? -1;
+        const rb = b.liveAsymmetry?.baseRatio ?? -1;
+        return rb - ra;
+      }
       default:
         return 0;
     }
+
   };
 
   const activeBuys = useMemo(
@@ -859,6 +891,8 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
             <option value="driver">Sort · Driver</option>
             <option value="stack">Sort · Stack</option>
             <option value="profile">Sort · Profile</option>
+            <option value="asymmetry">Sort · Asymmetry (high→low)</option>
+
           </select>
         </div>
       </div>

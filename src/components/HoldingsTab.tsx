@@ -33,6 +33,10 @@ import {
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/DriverChip";
+import { computeLiveAsymmetry, type AsymmetryQuartet, type LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
+
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
 
@@ -127,7 +131,12 @@ const cardTitle: React.CSSProperties = {
   color: "var(--text-mid)",
 };
 
-type HoldingWithReturns = LiveHolding & { returns?: HoldingReturns };
+type HoldingWithReturns = LiveHolding & {
+  returns?: HoldingReturns;
+  liveAsymmetry?: LiveAsymmetryResult;
+  chinaExposureFlag?: string;
+};
+
 
 function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): HoldingWithReturns[] {
   return [...data].sort((a, b) => {
@@ -139,6 +148,8 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
       case "account": av = a.account ?? ""; bv = b.account ?? ""; break;
       case "driver": av = (a as any).factor_group ?? ""; bv = (b as any).factor_group ?? ""; break;
       case "stack": av = stackLayerOrder((a as any).stack_layer); bv = stackLayerOrder((b as any).stack_layer); break;
+      case "asymmetry": av = a.liveAsymmetry?.baseRatio ?? -1; bv = b.liveAsymmetry?.baseRatio ?? -1; break;
+
       default: av = a[key as keyof typeof a] ?? ""; bv = b[key as keyof typeof b] ?? "";
     }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
@@ -181,8 +192,10 @@ const UNIFIED_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobil
   { label: "MV £", key: "mv", align: "right", sortable: true },
   { label: "G/L %", key: "gl", align: "right", sortable: true },
   { label: "Day %", key: "day", align: "right", sortable: true },
+  { label: "Asym", key: "asymmetry", align: "right", sortable: true },
   { label: "Price", key: "price", align: "right", sortable: false },
 ];
+
 
 // Extra columns rendered manually after Price: 30D sparkline, MA20, MA50, then Cost/P&L/Ann.Ret/Notes/Action
 
@@ -240,12 +253,35 @@ function UnifiedView({
   // already loads rationales eagerly, so per-row fetches are no longer needed.
   const { getSummary, getResearchFreshness } = useResearchSummary();
 
+  // Case-insensitive score lookup (Sheets ticker matching project rule)
+  const scoreByTicker = useMemo(() => {
+    const m = new Map<string, LiveScore>();
+    for (const s of scores ?? []) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (t) m.set(t, s);
+    }
+    return m;
+  }, [scores]);
+
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
-    return allHoldings.map(h => ({
-      ...h,
-      returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
-    }));
-  }, [allHoldings, transactions]);
+    return allHoldings.map(h => {
+      const matched = scoreByTicker.get(String(h.ticker ?? "").trim().toUpperCase());
+      const quartet: AsymmetryQuartet = {
+        bullBase: (matched as any)?.bullBase ?? null,
+        bullStretch: (matched as any)?.bullStretch ?? null,
+        bearThesisWeak: (matched as any)?.bearThesisWeak ?? null,
+        bearSubstrateFail: (matched as any)?.bearSubstrateFail ?? null,
+        bullBearAtDate: (matched as any)?.bullBearAtDate ?? null,
+      };
+      return {
+        ...h,
+        returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
+        liveAsymmetry: computeLiveAsymmetry(quartet, h.price ?? null),
+        chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
+      };
+    });
+  }, [allHoldings, transactions, scoreByTicker]);
+
 
   const toggle = (key: string) => {
     setExpanded((prev) => {
@@ -430,6 +466,8 @@ function UnifiedView({
                             {flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢"}
                           </span>
                         )}
+                        <ChinaRiskChip flag={h.chinaExposureFlag} />
+
                         <span style={{
                           marginLeft: "auto",
                           fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap",
@@ -456,7 +494,9 @@ function UnifiedView({
                         <span style={{ fontSize: 11, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)" }}>
                           {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"} day
                         </span>
+                        {h.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={h.liveAsymmetry} />}
                       </div>
+
 
                       {/* Line 4: layer · account · ann return */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -603,8 +643,10 @@ function UnifiedView({
                               const emoji = flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢";
                               return <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 8, cursor: "help" }}>{emoji}</span>;
                             })()}
+                            <ChinaRiskChip flag={h.chinaExposureFlag} />
                           </div>
                         </td>
+
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 240 }}>{h.name}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                         {!isMobile && <td style={{ padding: cellPad }}><DriverChip value={(h as any).factor_group} /></td>}
@@ -621,7 +663,9 @@ function UnifiedView({
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
+                        <td style={{ padding: cellPad, textAlign: "right" }}>{h.liveAsymmetry ? <AsymmetryPill asymmetry={h.liveAsymmetry} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}</td>
                         <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+
                         {!isMobile && (() => {
                           const pd = priceData?.get(normaliseTicker(h.ticker));
                           return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
