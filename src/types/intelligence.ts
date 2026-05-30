@@ -193,6 +193,7 @@ export interface BuyDistance {
 // ── v2.13 Research Commit additions ────────────────────────────────────────
 
 import type { ParsedAsymmetry } from "@/lib/asymmetry";
+import type { LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 
 export type ChinaExposureFlag = "LOW" | "MEDIUM" | "HIGH" | "N/A";
 
