@@ -35,7 +35,7 @@ const _warnedV213 = new Set<string>();
 
 export function withSafeV213Defaults<T extends Partial<AssetIntelligence>>(
   asset: T,
-): T & Pick<AssetIntelligence, "framing" | "price_anchors"> {
+): T & Pick<AssetIntelligence, "framing" | "price_anchors" | "liveAsymmetry"> {
   const ticker = asset.ticker ?? "<unknown>";
   if (!asset.framing) {
     const key = `${ticker}:framing`;
@@ -55,12 +55,13 @@ export function withSafeV213Defaults<T extends Partial<AssetIntelligence>>(
     ...asset,
     framing: asset.framing ?? EMPTY_FRAMING,
     price_anchors: asset.price_anchors ?? EMPTY_PRICE_ANCHORS,
+    liveAsymmetry: asset.liveAsymmetry ?? EMPTY_LIVE_ASYMMETRY,
   };
 }
 
 // ── Edge-case fixtures (kept for visual regression coverage) ────────────────
 
-const FIXTURES: AssetIntelligence[] = [
+const FIXTURES: Array<Omit<AssetIntelligence, "liveAsymmetry">> = [
   {
     ticker: "NVDA",
     name: "NVIDIA Corporation",
