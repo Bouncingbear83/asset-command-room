@@ -18,8 +18,12 @@ import {
   subtypeChipStyle,
 } from "@/components/intelligence/profileChips";
 import { DriverChip, StackBadge } from "@/components/holdings/DriverChip";
+import type { LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
+
 
 export interface DerivedRow {
   item: LiveWatchItem;
