@@ -519,7 +519,13 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     : { sym: "·", color: "var(--text-dim)", title: "Flat vs score" })
                 : { sym: "·", color: "var(--text-dim)", title: "No prior price" };
               return (
-                <tr key={r.ticker}>
+                <tr
+                  key={r.ticker}
+                  onClick={() => openFactSheet(r.ticker)}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "rgba(201,168,76,0.06)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
+                >
                   <td style={td}>
                     <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
                       {r.ticker}
@@ -532,6 +538,26 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     <AsymmetryPill asymmetry={r.asymmetry} />
                   </td>
                   <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
+                  <td style={{ ...td, textAlign: "center" }}>
+                    <button
+                      type="button"
+                      title={`Open ${r.ticker} fact sheet`}
+                      onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid var(--rim)",
+                        color: "var(--gold)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        padding: "2px 8px",
+                        borderRadius: 2,
+                        cursor: "pointer",
+                        lineHeight: 1,
+                      }}
+                    >
+                      ↗
+                    </button>
+                  </td>
                 </tr>
               );
             })}
