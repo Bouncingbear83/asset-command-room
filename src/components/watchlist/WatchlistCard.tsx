@@ -41,7 +41,12 @@ export interface DerivedRow {
   return_profile: ReturnProfile | null;
   /** Sub-type (only when return_profile === "COMPOUNDER"). */
   compounder_subtype: CompounderSubtype | null;
+  /** Live asymmetry computed from the quartet + current price. */
+  liveAsymmetry: LiveAsymmetryResult;
+  /** Raw China exposure flag from SCORES (HIGH/MEDIUM/LOW/N/A/blank). */
+  chinaExposureFlag: string;
 }
+
 
 /** Tiny inline chip pair used on watchlist rows. */
 export function ProfileChip({
