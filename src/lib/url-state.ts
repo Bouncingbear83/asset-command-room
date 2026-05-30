@@ -7,7 +7,7 @@ import type { HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES, RETURN_PROFILE_VALUES } from "@/types/intelligence";
 import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES } from "@/components/holdings/DriverChip";
 
-export type SortField = "score" | "ticker" | "layer" | "disruption" | "buy_distance" | "lband" | "stack";
+export type SortField = "score" | "ticker" | "layer" | "disruption" | "buy_distance" | "lband" | "stack" | "asymmetry";
 export type GroupBy = "none" | "layer" | "status" | "tier" | "driver" | "lband";
 
 export type SubstrateLevel = "L1" | "L2" | "L3" | "L4";
@@ -62,7 +62,7 @@ export const DEFAULT_STATE: IntelligenceUiState = {
   search: "",
 };
 
-const SORT_FIELDS: SortField[] = ["score", "ticker", "layer", "disruption", "buy_distance", "lband", "stack"];
+const SORT_FIELDS: SortField[] = ["score", "ticker", "layer", "disruption", "buy_distance", "lband", "stack", "asymmetry"];
 const GROUP_BYS: GroupBy[] = ["none", "layer", "status", "tier", "driver", "lband"];
 
 export function stateFromParams(params: URLSearchParams): IntelligenceUiState {

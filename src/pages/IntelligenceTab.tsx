@@ -88,6 +88,11 @@ function compareAssets(a: AssetIntelligence, b: AssetIntelligence, field: SortFi
       const br = b.stack_layer ? stackLayerOrder(b.stack_layer) : 999;
       return sign * (ar - br);
     }
+    case "asymmetry": {
+      const av = a.liveAsymmetry?.baseRatio ?? -1;
+      const bv = b.liveAsymmetry?.baseRatio ?? -1;
+      return sign * (av - bv);
+    }
   }
 }
 

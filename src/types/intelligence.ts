@@ -193,6 +193,7 @@ export interface BuyDistance {
 // ── v2.13 Research Commit additions ────────────────────────────────────────
 
 import type { ParsedAsymmetry } from "@/lib/asymmetry";
+import type { LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 
 export type ChinaExposureFlag = "LOW" | "MEDIUM" | "HIGH" | "N/A";
 
@@ -299,6 +300,8 @@ export interface AssetIntelligence {
 
   // v2.13 — bull/bear/asymmetry + Stage 2 framing (always present; empty when absent)
   framing: AssetThesisFraming;
+  /** Live asymmetry computed from quartet + current price. Always present (nulls inside when quartet missing). */
+  liveAsymmetry: LiveAsymmetryResult;
   // v2.13 — local-ccy price anchors from score_rationales
   price_anchors: AssetPriceAnchors;
 }

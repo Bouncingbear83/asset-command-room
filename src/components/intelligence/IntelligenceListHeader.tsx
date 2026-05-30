@@ -90,6 +90,9 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
       <div className="asset-row-buy-range" style={{ width: COL.buyRange, flexShrink: 0, textAlign: "center" }}>
         {sortBtn("Buy Range", "buy_distance", "left")}
       </div>
+      <div style={{ width: COL.asymmetry, flexShrink: 0, textAlign: "center" }}>
+        {sortBtn("Asym", "asymmetry", "left")}
+      </div>
       <div style={{ width: COL.status, flexShrink: 0, textAlign: "center" }}>
         <span style={{ ...labelBase, cursor: "default" }}>Status</span>
       </div>

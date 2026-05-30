@@ -40,6 +40,7 @@ import {
   ChinaExposureFlag,
 } from "@/types/intelligence";
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
+import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 
 function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
   const s = String(raw ?? "").trim().toUpperCase();
@@ -546,6 +547,16 @@ function buildOne(
     raw: rawAnchors,
   };
 
+  // Live asymmetry from quartet (SCORES sheet AK-AO) + current price
+  const quartet: AsymmetryQuartet = {
+    bullBase: (s as { bullBase?: number | null }).bullBase ?? null,
+    bullStretch: (s as { bullStretch?: number | null }).bullStretch ?? null,
+    bearThesisWeak: (s as { bearThesisWeak?: number | null }).bearThesisWeak ?? null,
+    bearSubstrateFail: (s as { bearSubstrateFail?: number | null }).bearSubstrateFail ?? null,
+    bullBearAtDate: (s as { bullBearAtDate?: string | null }).bullBearAtDate ?? null,
+  };
+  const liveAsymmetry = computeLiveAsymmetry(quartet, current_price);
+
   return {
     ticker,
     name: String(s.name ?? ""),
@@ -584,6 +595,7 @@ function buildOne(
     current_price,
     buy_distance,
     framing,
+    liveAsymmetry,
     price_anchors,
   };
 }

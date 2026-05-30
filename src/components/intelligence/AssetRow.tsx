@@ -6,6 +6,8 @@ import { COL } from "./columns";
 import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
 import { LBandPill } from "./LBandPill";
 import { StackBadge } from "@/components/holdings/DriverChip";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import "./AssetRow.css";
 
 interface Props {
@@ -474,7 +476,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
         </div>
 
-        <div className="asset-row-mobile-line4">
+        <div className="asset-row-mobile-line4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <DistanceChip
             buyDistance={asset.buy_distance}
             currentPrice={asset.current_price}
@@ -482,6 +484,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
             high={asset.buy_range.high}
             currency={asset.buy_range.currency}
           />
+          {asset.liveAsymmetry.baseRatio !== null && <AsymmetryPill asymmetry={asset.liveAsymmetry} />}
         </div>
       </div>
 
@@ -514,8 +517,9 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
       >
         {/* Ticker + name + dual-account badge */}
         <div style={{ width: COL.ticker, minWidth: COL.ticker, maxWidth: COL.ticker, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 4 }}>
             {asset.ticker}
+            {asset.framing?.china_exposure_flag && <ChinaRiskChip flag={asset.framing.china_exposure_flag} />}
           </span>
           <span style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
             {asset.name}
@@ -593,6 +597,11 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
             high={asset.buy_range.high}
             currency={asset.buy_range.currency}
           />
+        </div>
+
+        {/* Asymmetry pill */}
+        <div style={{ width: COL.asymmetry, minWidth: COL.asymmetry, maxWidth: COL.asymmetry, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+          <AsymmetryPill asymmetry={asset.liveAsymmetry} />
         </div>
 
         {/* Status chip */}
