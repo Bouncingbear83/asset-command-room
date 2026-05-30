@@ -639,8 +639,10 @@ function UnifiedView({
                               const emoji = flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢";
                               return <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 8, cursor: "help" }}>{emoji}</span>;
                             })()}
+                            <ChinaRiskChip flag={h.chinaExposureFlag} />
                           </div>
                         </td>
+
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 240 }}>{h.name}</td>}
                         {!isMobile && <td style={{ padding: cellPad, color: "var(--text-dim)", fontSize: 10 }}>{h.layer}</td>}
                         {!isMobile && <td style={{ padding: cellPad }}><DriverChip value={(h as any).factor_group} /></td>}
