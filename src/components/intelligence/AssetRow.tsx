@@ -598,6 +598,11 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           />
         </div>
 
+        {/* Asymmetry pill */}
+        <div style={{ width: COL.asymmetry, minWidth: COL.asymmetry, maxWidth: COL.asymmetry, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+          <AsymmetryPill asymmetry={asset.liveAsymmetry} />
+        </div>
+
         {/* Status chip */}
         <div style={{ width: COL.status, minWidth: COL.status, maxWidth: COL.status, flexShrink: 0 }}>
           <StatusChip status={asset.held_status} />
