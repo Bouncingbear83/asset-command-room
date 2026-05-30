@@ -595,6 +595,7 @@ function buildOne(
     current_price,
     buy_distance,
     framing,
+    liveAsymmetry,
     price_anchors,
   };
 }
