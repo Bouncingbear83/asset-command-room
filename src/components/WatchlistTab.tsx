@@ -476,6 +476,16 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       const days = daysSince(item.triggerReviewDate);
       const isOverdue = days != null && days > OVERDUE_DAYS;
 
+      const matched = scoreByTicker.get(ticker);
+      const quartet: AsymmetryQuartet = {
+        bullBase: (matched as any)?.bullBase ?? null,
+        bullStretch: (matched as any)?.bullStretch ?? null,
+        bearThesisWeak: (matched as any)?.bearThesisWeak ?? null,
+        bearSubstrateFail: (matched as any)?.bearSubstrateFail ?? null,
+        bullBearAtDate: (matched as any)?.bullBearAtDate ?? null,
+      };
+      const liveAsymmetry = computeLiveAsymmetry(quartet, currentPrice);
+
       return {
         item,
         zone,
@@ -489,9 +499,12 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         score,
         return_profile: profileEntry?.profile ?? null,
         compounder_subtype: profileEntry?.subtype ?? null,
+        liveAsymmetry,
+        chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
       };
     });
-  }, [liveData, traj, scoresByTicker, profileByTicker]);
+  }, [liveData, traj, scoresByTicker, profileByTicker, scoreByTicker]);
+
 
   // Apply search + filter chips
   const allProfilesSelected = profileFilter.size === PROFILE_FILTER_KEYS.length;
