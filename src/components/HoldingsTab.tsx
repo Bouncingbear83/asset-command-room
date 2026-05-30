@@ -192,8 +192,10 @@ const UNIFIED_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobil
   { label: "MV £", key: "mv", align: "right", sortable: true },
   { label: "G/L %", key: "gl", align: "right", sortable: true },
   { label: "Day %", key: "day", align: "right", sortable: true },
+  { label: "Asym", key: "asymmetry", align: "right", sortable: true },
   { label: "Price", key: "price", align: "right", sortable: false },
 ];
+
 
 // Extra columns rendered manually after Price: 30D sparkline, MA20, MA50, then Cost/P&L/Ann.Ret/Notes/Action
 
