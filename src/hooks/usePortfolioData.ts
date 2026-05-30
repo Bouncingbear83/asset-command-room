@@ -456,8 +456,27 @@ function parseScores(rows: Record<string, any>[]) {
       priceAtFirstAdd: parseNum(findCol(row, "price_at_first_add", "PRICE_AT_FIRST_ADD", "Price_At_First_Add", "price at first add")),
       firstAddDate: parseSheetDate(findCol(row, "first_add_date", "FIRST_ADD_DATE", "First_Add_Date", "first add date")),
       priceAtLastScore: parseNum(findCol(row, "price_at_last_score", "PRICE_AT_LAST_SCORE", "Price_At_Last_Score", "price at last score")),
+      // Stage 2 classification (AB-AC)
+      stage2Subclass: String(findCol(row, "STAGE2_SUBCLASS", "stage2_subclass", "Stage2_Subclass") ?? ""),
+      chinaExposureFlag: String(findCol(row, "CHINA_EXPOSURE_FLAG", "china_exposure_flag", "China_Exposure_Flag") ?? ""),
+      // Substrate stage (AG)
+      substrateStage: String(findCol(row, "SUBSTRATE_STAGE", "substrate_stage", "Substrate_Stage") ?? ""),
+      // Stellar Type + Reject + Anchor pathway (AH-AJ)
+      stellarType: String(findCol(row, "STELLAR_TYPE", "stellar_type", "Stellar_Type") ?? ""),
+      rejectReason: String(findCol(row, "REJECT_REASON", "reject_reason", "Reject_Reason") ?? ""),
+      anchorSizingPathway: String(findCol(row, "ANCHOR_SIZING_PATHWAY", "anchor_sizing_pathway", "Anchor_Sizing_Pathway") ?? ""),
+      // Asymmetry quartet (AK-AO)
+      bullBase: parseNum(findCol(row, "BULL_BASE", "bull_base", "Bull_Base")),
+      bullStretch: parseNum(findCol(row, "BULL_STRETCH", "bull_stretch", "Bull_Stretch")),
+      bearThesisWeak: parseNum(findCol(row, "BEAR_THESIS_WEAK", "bear_thesis_weak", "Bear_Thesis_Weak")),
+      bearSubstrateFail: parseNum(findCol(row, "BEAR_SUBSTRATE_FAIL", "bear_substrate_fail", "Bear_Substrate_Fail")),
+      bullBearAtDate: parseSheetDate(findCol(row, "BULL_BEAR_AT_DATE", "bull_bear_at_date", "Bull_Bear_At_Date")),
+      // Modifiers (AP-AQ)
+      preReclassModifier: parseNum(findCol(row, "PRE_RECLASS_MODIFIER", "pre_reclass_modifier", "Pre_Reclass_Modifier")),
+      s3TransitionModifier: parseNum(findCol(row, "S3_TRANSITION_MODIFIER", "s3_transition_modifier", "S3_Transition_Modifier")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
+
 }
 
 function parseScoreLog(rows: Record<string, any>[]) {
