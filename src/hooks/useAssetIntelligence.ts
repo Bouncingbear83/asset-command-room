@@ -40,6 +40,7 @@ import {
   ChinaExposureFlag,
 } from "@/types/intelligence";
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
+import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 
 function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
   const s = String(raw ?? "").trim().toUpperCase();
