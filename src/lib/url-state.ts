@@ -62,7 +62,7 @@ export const DEFAULT_STATE: IntelligenceUiState = {
   search: "",
 };
 
-const SORT_FIELDS: SortField[] = ["score", "ticker", "layer", "disruption", "buy_distance", "lband", "stack"];
+const SORT_FIELDS: SortField[] = ["score", "ticker", "layer", "disruption", "buy_distance", "lband", "stack", "asymmetry"];
 const GROUP_BYS: GroupBy[] = ["none", "layer", "status", "tier", "driver", "lband"];
 
 export function stateFromParams(params: URLSearchParams): IntelligenceUiState {
