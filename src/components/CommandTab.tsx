@@ -14,6 +14,7 @@ import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
+import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 
