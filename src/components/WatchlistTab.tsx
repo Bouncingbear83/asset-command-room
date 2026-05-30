@@ -194,6 +194,7 @@ function SectionHeader({
   collapsible,
   expanded,
   onToggle,
+  extra,
 }: {
   label: string;
   count: number;
@@ -201,6 +202,7 @@ function SectionHeader({
   collapsible?: boolean;
   expanded?: boolean;
   onToggle?: () => void;
+  extra?: React.ReactNode;
 }) {
   const isMobile = useIsMobile();
   return (
@@ -230,6 +232,19 @@ function SectionHeader({
         {label}
       </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>· {count}</span>
+      {extra && (
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            color: "var(--text-dim)",
+            letterSpacing: "0.08em",
+            marginLeft: 4,
+          }}
+        >
+          {extra}
+        </span>
+      )}
       {collapsible && (
         <span style={{ marginLeft: "auto", color: "var(--text-dim)" }}>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -613,8 +628,27 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
     if (sortBy !== "default") return [...rows].sort(applySorts);
-    return rows;
+    // Default: sort IN_ZONE by live asymmetry baseRatio desc (nulls last).
+    return [...rows].sort((a, b) => {
+      const ra = a.liveAsymmetry?.baseRatio;
+      const rb = b.liveAsymmetry?.baseRatio;
+      const va = ra == null ? -Infinity : ra;
+      const vb = rb == null ? -Infinity : rb;
+      if (vb !== va) return vb - va;
+      return a.item.ticker.localeCompare(b.item.ticker);
+    });
   }, [filtered, activeBuyIds, sortBy]);
+
+  // IN_ZONE asymmetry stats for the section header
+  const inZoneAsymStats = useMemo(() => {
+    const ratios = inZone
+      .map((r) => r.liveAsymmetry?.baseRatio)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    if (ratios.length === 0) return null;
+    const avg = ratios.reduce((s, v) => s + v, 0) / ratios.length;
+    const highCount = ratios.filter((v) => v >= 3).length;
+    return { avg, highCount, total: ratios.length };
+  }, [inZone]);
 
   const approaching = useMemo(
     () =>
@@ -1076,7 +1110,16 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       {/* ── 1. IN ZONE ── */}
       {inZone.length > 0 ? (
         <div style={sectionStyle}>
-          <SectionHeader label="In Zone" count={inZone.length} dotColor="var(--green)" />
+          <SectionHeader
+            label="In Zone"
+            count={inZone.length}
+            dotColor="var(--green)"
+            extra={
+              inZoneAsymStats
+                ? `· avg ${inZoneAsymStats.avg.toFixed(1)}:1 · ${inZoneAsymStats.highCount}/${inZoneAsymStats.total} ≥3:1${sortBy === "default" ? " · sorted by asym" : ""}`
+                : null
+            }
+          />
           {inZone.map((r) => (
             <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
           ))}
