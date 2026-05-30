@@ -6,6 +6,8 @@ import { COL } from "./columns";
 import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from "./profileChips";
 import { LBandPill } from "./LBandPill";
 import { StackBadge } from "@/components/holdings/DriverChip";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import "./AssetRow.css";
 
 interface Props {
