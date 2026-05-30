@@ -417,6 +417,17 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return map;
   }, [scores]);
 
+  // Case-insensitive score lookup for asymmetry quartet + China flag
+  const scoreByTicker = useMemo(() => {
+    const m = new Map<string, LiveScore>();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (t) m.set(t, s);
+    }
+    return m;
+  }, [scores]);
+
+
   // Layer + status filter options
   const layerOptions = useMemo(
     () => Array.from(new Set(liveData.map((d) => d.layer).filter(Boolean))).sort(),
