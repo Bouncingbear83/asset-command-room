@@ -6,6 +6,7 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { GIDS, type PortfolioData, type LiveHolding } from "@/hooks/usePortfolioData";
 import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
+import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 
 interface Props {
   ticker: string | null;
