@@ -20,7 +20,9 @@ export type HoldingsSortField =
   | "annReturn"
   | "action"
   | "driver"
-  | "stack";
+  | "stack"
+  | "asymmetry";
+
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
