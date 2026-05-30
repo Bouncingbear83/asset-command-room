@@ -345,6 +345,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
             {item.ticker}
           </span>
+          <ChinaRiskChip flag={row.chinaExposureFlag} />
+
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {item.name}
           </span>
