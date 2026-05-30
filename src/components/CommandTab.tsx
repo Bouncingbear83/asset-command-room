@@ -505,6 +505,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               <th style={th}>Band</th>
               <th style={{ ...th, textAlign: "right" }}>Live Ratio</th>
               <th style={{ ...th, textAlign: "center" }}>Trend</th>
+              <th style={{ ...th, textAlign: "center" }}>Action</th>
             </tr>
           </thead>
           <tbody>
