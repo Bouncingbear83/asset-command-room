@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { GOLDEN_RULES } from "@/data/portfolio";
 import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
