@@ -635,6 +635,19 @@ export default function CommandTab() {
         {/* Narrative Signals — realtime intel from ingest pipeline */}
         <NarrativeSignalsCard />
 
+        {/* Asymmetry Snapshot — top 10 live ratios across held + watchlist */}
+        <AsymmetrySnapshotCard
+          scores={scores}
+          holdings={holdings}
+          watchlist={watchlist}
+          card={card}
+          cardHeader={cardHeader}
+          cardTitle={cardTitle}
+          mp={mp}
+          isMobile={isMobile}
+        />
+
+
         {/* Latest Research Cards */}
         {recentResearch.length > 0 && (
           <div style={card}>
