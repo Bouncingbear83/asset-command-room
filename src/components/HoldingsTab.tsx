@@ -657,7 +657,9 @@ function UnifiedView({
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
+                        <td style={{ padding: cellPad, textAlign: "right" }}>{h.liveAsymmetry ? <AsymmetryPill asymmetry={h.liveAsymmetry} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}</td>
                         <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+
                         {!isMobile && (() => {
                           const pd = priceData?.get(normaliseTicker(h.ticker));
                           return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
