@@ -253,12 +253,35 @@ function UnifiedView({
   // already loads rationales eagerly, so per-row fetches are no longer needed.
   const { getSummary, getResearchFreshness } = useResearchSummary();
 
+  // Case-insensitive score lookup (Sheets ticker matching project rule)
+  const scoreByTicker = useMemo(() => {
+    const m = new Map<string, LiveScore>();
+    for (const s of scores ?? []) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (t) m.set(t, s);
+    }
+    return m;
+  }, [scores]);
+
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
-    return allHoldings.map(h => ({
-      ...h,
-      returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
-    }));
-  }, [allHoldings, transactions]);
+    return allHoldings.map(h => {
+      const matched = scoreByTicker.get(String(h.ticker ?? "").trim().toUpperCase());
+      const quartet: AsymmetryQuartet = {
+        bullBase: (matched as any)?.bullBase ?? null,
+        bullStretch: (matched as any)?.bullStretch ?? null,
+        bearThesisWeak: (matched as any)?.bearThesisWeak ?? null,
+        bearSubstrateFail: (matched as any)?.bearSubstrateFail ?? null,
+        bullBearAtDate: (matched as any)?.bullBearAtDate ?? null,
+      };
+      return {
+        ...h,
+        returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
+        liveAsymmetry: computeLiveAsymmetry(quartet, h.price ?? null),
+        chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
+      };
+    });
+  }, [allHoldings, transactions, scoreByTicker]);
+
 
   const toggle = (key: string) => {
     setExpanded((prev) => {
