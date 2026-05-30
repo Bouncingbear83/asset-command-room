@@ -407,7 +407,139 @@ function CommitResearchPanel() {
   );
 }
 
+interface AsymmetrySnapshotProps {
+  scores: any[];
+  holdings: any[];
+  watchlist: any[];
+  card: React.CSSProperties;
+  cardHeader: React.CSSProperties;
+  cardTitle: React.CSSProperties;
+  mp: number | string;
+  isMobile: boolean;
+}
+
+function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, cardTitle, mp, isMobile }: AsymmetrySnapshotProps) {
+  const rows = useMemo(() => {
+    // Price lookup: prefer holdings (live), fall back to watchlist current
+    const priceByTicker = new Map<string, number>();
+    for (const h of holdings ?? []) {
+      const t = String(h.ticker ?? "").trim().toUpperCase();
+      if (t && typeof h.price === "number" && h.price > 0 && !priceByTicker.has(t)) priceByTicker.set(t, h.price);
+    }
+    for (const w of watchlist ?? []) {
+      const t = String(w.ticker ?? "").trim().toUpperCase();
+      if (t && typeof w.current === "number" && w.current > 0 && !priceByTicker.has(t)) priceByTicker.set(t, w.current);
+    }
+
+    const out: Array<{
+      ticker: string;
+      score: number | null;
+      status: string;
+      band: string;
+      ratio: number;
+      asymmetry: ReturnType<typeof computeLiveAsymmetry>;
+      priceAtLastScore: number | null;
+      price: number;
+    }> = [];
+
+    for (const s of scores ?? []) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
+      const price = priceByTicker.get(t);
+      if (!price) continue;
+      const quartet: AsymmetryQuartet = {
+        bullBase: s.bullBase ?? null,
+        bullStretch: s.bullStretch ?? null,
+        bearThesisWeak: s.bearThesisWeak ?? null,
+        bearSubstrateFail: s.bearSubstrateFail ?? null,
+        bullBearAtDate: s.bullBearAtDate ?? null,
+      };
+      const asym = computeLiveAsymmetry(quartet, price);
+      if (asym.baseRatio === null) continue;
+      const status = priceByTicker.has(t) && (holdings ?? []).some((h) => String(h.ticker ?? "").trim().toUpperCase() === t)
+        ? "HELD" : "WATCH";
+      out.push({
+        ticker: s.ticker,
+        score: s.score ?? null,
+        status,
+        band: asym.band ?? "—",
+        ratio: asym.baseRatio,
+        asymmetry: asym,
+        priceAtLastScore: s.priceAtLastScore ?? null,
+        price,
+      });
+    }
+
+    return out.sort((a, b) => b.ratio - a.ratio).slice(0, 10);
+  }, [scores, holdings, watchlist]);
+
+  if (rows.length === 0) return null;
+
+  const th: React.CSSProperties = {
+    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
+    color: "var(--text-dim)", padding: "8px 10px", textAlign: "left", borderBottom: "1px solid var(--rim)",
+  };
+  const td: React.CSSProperties = {
+    fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", padding: "8px 10px",
+    borderBottom: "1px solid var(--rim)",
+  };
+
+  return (
+    <div style={card}>
+      <div style={cardHeader}>
+        <span style={cardTitle}>Asymmetry Snapshot</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>
+          TOP {rows.length} LIVE
+        </span>
+      </div>
+      <div style={{ padding: mp, overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 480 : "auto" }}>
+          <thead>
+            <tr>
+              <th style={th}>Ticker</th>
+              <th style={th}>Score</th>
+              <th style={th}>Status</th>
+              <th style={th}>Band</th>
+              <th style={{ ...th, textAlign: "right" }}>Live Ratio</th>
+              <th style={{ ...th, textAlign: "center" }}>Trend</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
+              const trend = r.priceAtLastScore && r.priceAtLastScore > 0
+                ? (r.price < r.priceAtLastScore
+                    ? { sym: "▲", color: "var(--green)", title: `Cheaper than at score (${r.priceAtLastScore})` }
+                    : r.price > r.priceAtLastScore
+                    ? { sym: "▼", color: "var(--amber)", title: `Richer than at score (${r.priceAtLastScore})` }
+                    : { sym: "·", color: "var(--text-dim)", title: "Flat vs score" })
+                : { sym: "·", color: "var(--text-dim)", title: "No prior price" };
+              return (
+                <tr key={r.ticker}>
+                  <td style={td}>
+                    <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                      {r.ticker}
+                    </TickerButton>
+                  </td>
+                  <td style={td}>{r.score ?? "—"}</td>
+                  <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>
+                  <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>
+                  <td style={{ ...td, textAlign: "right" }}>
+                    <AsymmetryPill asymmetry={r.asymmetry} />
+                  </td>
+                  <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function CommandTab() {
+
   const isMobile = useIsMobile();
   const [moverSort, setMoverSort] = useState<"abs" | "gainers" | "losers">("abs");
   const { holdings, watchlist, layers, narrativeData, macroState, riskControls, earningsCalendar, scores, loading, error } = usePortfolioData();
