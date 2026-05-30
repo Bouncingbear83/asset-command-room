@@ -547,6 +547,16 @@ function buildOne(
     raw: rawAnchors,
   };
 
+  // Live asymmetry from quartet (SCORES sheet AK-AO) + current price
+  const quartet: AsymmetryQuartet = {
+    bullBase: (s as { bullBase?: number | null }).bullBase ?? null,
+    bullStretch: (s as { bullStretch?: number | null }).bullStretch ?? null,
+    bearThesisWeak: (s as { bearThesisWeak?: number | null }).bearThesisWeak ?? null,
+    bearSubstrateFail: (s as { bearSubstrateFail?: number | null }).bearSubstrateFail ?? null,
+    bullBearAtDate: (s as { bullBearAtDate?: string | null }).bullBearAtDate ?? null,
+  };
+  const liveAsymmetry = computeLiveAsymmetry(quartet, current_price);
+
   return {
     ticker,
     name: String(s.name ?? ""),
