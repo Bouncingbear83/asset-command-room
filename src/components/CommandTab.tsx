@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { GOLDEN_RULES } from "@/data/portfolio";
 import { LiveMacroStateRow, LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { triggerWebhook } from "@/lib/webhooks";
@@ -421,6 +421,13 @@ interface AsymmetrySnapshotProps {
 
 function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, cardTitle, mp, isMobile }: AsymmetrySnapshotProps) {
   const { open: openFactSheet } = useFactSheet();
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (t: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(t)) next.delete(t); else next.add(t);
+    return next;
+  });
+
 
   const rows = useMemo(() => {
     // Price lookup: prefer holdings (live), fall back to watchlist current
@@ -499,6 +506,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 480 : "auto" }}>
           <thead>
             <tr>
+              <th style={{ ...th, width: 24 }}></th>
               <th style={th}>Ticker</th>
               <th style={th}>Score</th>
               <th style={th}>Status</th>
@@ -513,52 +521,157 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
               const trend = r.priceAtLastScore && r.priceAtLastScore > 0
                 ? (r.price < r.priceAtLastScore
-                    ? { sym: "▲", color: "var(--green)", title: `Cheaper than at score (${r.priceAtLastScore})` }
+                    ? { sym: "▲", color: "var(--green)", title: `Cheaper than at score (${r.priceAtLastScore})`, pct: ((r.price - r.priceAtLastScore) / r.priceAtLastScore) * 100 }
                     : r.price > r.priceAtLastScore
-                    ? { sym: "▼", color: "var(--amber)", title: `Richer than at score (${r.priceAtLastScore})` }
-                    : { sym: "·", color: "var(--text-dim)", title: "Flat vs score" })
-                : { sym: "·", color: "var(--text-dim)", title: "No prior price" };
+                    ? { sym: "▼", color: "var(--amber)", title: `Richer than at score (${r.priceAtLastScore})`, pct: ((r.price - r.priceAtLastScore) / r.priceAtLastScore) * 100 }
+                    : { sym: "·", color: "var(--text-dim)", title: "Flat vs score", pct: 0 })
+                : { sym: "·", color: "var(--text-dim)", title: "No prior price", pct: null as number | null };
+              const isOpen = expanded.has(r.ticker);
+              const q = r.asymmetry.quartet;
+              const pctTo = (target: number | null) =>
+                target !== null && target > 0 && r.price > 0
+                  ? ((target - r.price) / r.price) * 100
+                  : null;
+              const fmtPct = (n: number | null) => n === null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
+              const fmtPrice = (n: number | null) => n === null ? "—" : n.toFixed(2);
+              const driftBits: string[] = [];
+              if (trend.pct !== null) {
+                const absPct = Math.abs(trend.pct);
+                driftBits.push(
+                  trend.pct < 0
+                    ? `Price has fallen ${absPct.toFixed(1)}% since scoring — upside has widened, ratio improved.`
+                    : trend.pct > 0
+                    ? `Price has risen ${absPct.toFixed(1)}% since scoring — upside has compressed, ratio degraded.`
+                    : "Price is flat vs scoring."
+                );
+              }
+              if (r.asymmetry.belowBear) driftBits.push("Below BEAR_THESIS_WEAK — thesis under stress.");
+              if (r.asymmetry.aboveBull) driftBits.push("Above BULL_BASE — upside already captured.");
+              if (r.asymmetry.quartetAgeDays !== null) driftBits.push(`Quartet set ${r.asymmetry.quartetAgeDays}d ago.`);
+              const drift = driftBits.join(" ");
               return (
-                <tr
-                  key={r.ticker}
-                  onClick={() => openFactSheet(r.ticker)}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "rgba(201,168,76,0.06)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
-                >
-                  <td style={td}>
-                    <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
-                      {r.ticker}
-                    </TickerButton>
-                  </td>
-                  <td style={td}>{r.score ?? "—"}</td>
-                  <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>
-                  <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>
-                  <td style={{ ...td, textAlign: "right" }}>
-                    <AsymmetryPill asymmetry={r.asymmetry} />
-                  </td>
-                  <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
-                  <td style={{ ...td, textAlign: "center" }}>
-                    <button
-                      type="button"
-                      title={`Open ${r.ticker} fact sheet`}
-                      onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
-                      style={{
-                        background: "transparent",
-                        border: "1px solid var(--rim)",
-                        color: "var(--gold)",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 10,
-                        padding: "2px 8px",
-                        borderRadius: 2,
-                        cursor: "pointer",
-                        lineHeight: 1,
-                      }}
-                    >
-                      ↗
-                    </button>
-                  </td>
-                </tr>
+                <React.Fragment key={r.ticker}>
+                  <tr
+                    onClick={() => toggle(r.ticker)}
+                    style={{ cursor: "pointer", background: isOpen ? "rgba(201,168,76,0.06)" : "transparent" }}
+                    onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLTableRowElement).style.background = "rgba(201,168,76,0.04)"; }}
+                    onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
+                  >
+                    <td style={{ ...td, color: "var(--text-dim)", textAlign: "center" }} aria-label={isOpen ? "Collapse" : "Expand"}>
+                      {isOpen ? "▾" : "▸"}
+                    </td>
+                    <td style={td}>
+                      <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                        {r.ticker}
+                      </TickerButton>
+                    </td>
+                    <td style={td}>{r.score ?? "—"}</td>
+                    <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>
+                    <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>
+                    <td style={{ ...td, textAlign: "right" }}>
+                      <AsymmetryPill asymmetry={r.asymmetry} />
+                    </td>
+                    <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
+                    <td style={{ ...td, textAlign: "center" }}>
+                      <button
+                        type="button"
+                        title={`Open ${r.ticker} fact sheet`}
+                        onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid var(--rim)",
+                          color: "var(--gold)",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 10,
+                          padding: "2px 8px",
+                          borderRadius: 2,
+                          cursor: "pointer",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ↗
+                      </button>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr style={{ background: "rgba(201,168,76,0.03)" }}>
+                      <td colSpan={8} style={{ padding: "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+                          <div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6 }}>
+                              QUARTET TARGETS
+                            </div>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ padding: "3px 0", color: "var(--green)" }}>BULL_STRETCH</td>
+                                  <td style={{ padding: "3px 0", textAlign: "right", color: "var(--text)" }}>{fmtPrice(q.bullStretch)}</td>
+                                  <td style={{ padding: "3px 0 3px 12px", textAlign: "right", color: "var(--text-dim)" }}>{fmtPct(pctTo(q.bullStretch))}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: "3px 0", color: "var(--green)" }}>BULL_BASE</td>
+                                  <td style={{ padding: "3px 0", textAlign: "right", color: "var(--text)" }}>{fmtPrice(q.bullBase)}</td>
+                                  <td style={{ padding: "3px 0 3px 12px", textAlign: "right", color: "var(--text-dim)" }}>{fmtPct(pctTo(q.bullBase))}</td>
+                                </tr>
+                                <tr style={{ borderTop: "1px dashed var(--rim)", borderBottom: "1px dashed var(--rim)" }}>
+                                  <td style={{ padding: "4px 0", color: "var(--gold)" }}>CURRENT</td>
+                                  <td style={{ padding: "4px 0", textAlign: "right", color: "var(--gold)", fontWeight: 700 }}>{fmtPrice(r.price)}</td>
+                                  <td style={{ padding: "4px 0 4px 12px", textAlign: "right", color: "var(--text-dim)" }}>—</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: "3px 0", color: "var(--amber)" }}>BEAR_THESIS_WEAK</td>
+                                  <td style={{ padding: "3px 0", textAlign: "right", color: "var(--text)" }}>{fmtPrice(q.bearThesisWeak)}</td>
+                                  <td style={{ padding: "3px 0 3px 12px", textAlign: "right", color: "var(--text-dim)" }}>{fmtPct(pctTo(q.bearThesisWeak))}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: "3px 0", color: "var(--red)" }}>BEAR_SUBSTRATE_FAIL</td>
+                                  <td style={{ padding: "3px 0", textAlign: "right", color: "var(--text)" }}>{fmtPrice(q.bearSubstrateFail)}</td>
+                                  <td style={{ padding: "3px 0 3px 12px", textAlign: "right", color: "var(--text-dim)" }}>{fmtPct(pctTo(q.bearSubstrateFail))}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6 }}>
+                                DRIFT EXPLANATION
+                              </div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-mid)", lineHeight: 1.55 }}>
+                                {drift || "No drift signals available."}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                                Base {formatRatio(r.asymmetry.baseRatio)} · Stretch {formatRatio(r.asymmetry.stretchRatio)}
+                                {r.priceAtLastScore ? ` · Score price ${r.priceAtLastScore.toFixed(2)}` : ""}
+                              </div>
+                            </div>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
+                                style={{
+                                  background: "var(--gold)",
+                                  border: "1px solid var(--gold)",
+                                  color: "var(--bg)",
+                                  fontFamily: "var(--font-mono)",
+                                  fontSize: 10,
+                                  letterSpacing: "0.1em",
+                                  padding: "6px 12px",
+                                  borderRadius: 2,
+                                  cursor: "pointer",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                OPEN FACT SHEET ↗
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -567,6 +680,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     </div>
   );
 }
+
 
 export default function CommandTab() {
 
