@@ -131,7 +131,12 @@ const cardTitle: React.CSSProperties = {
   color: "var(--text-mid)",
 };
 
-type HoldingWithReturns = LiveHolding & { returns?: HoldingReturns };
+type HoldingWithReturns = LiveHolding & {
+  returns?: HoldingReturns;
+  liveAsymmetry?: LiveAsymmetryResult;
+  chinaExposureFlag?: string;
+};
+
 
 function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): HoldingWithReturns[] {
   return [...data].sort((a, b) => {
