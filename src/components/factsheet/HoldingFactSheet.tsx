@@ -487,25 +487,106 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
             )}
 
             {/* Bull / Bear / Asymmetry */}
-            {((data.rationale as any)?.bull_case || (data.rationale as any)?.bear_case || (data.rationale as any)?.asymmetry_ratio) && (
-              <div style={sectionStyle}>
-                <div style={sectionTitle}>Asymmetry</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                  <div>
-                    <div style={{ ...monoLabel, color: "var(--green)" }}>Bull</div>
-                    <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{(data.rationale as any)?.bull_case || "—"}</div>
+            {(() => {
+              const score: any = data.score;
+              const quartet: AsymmetryQuartet = {
+                bullBase: score?.bullBase ?? null,
+                bullStretch: score?.bullStretch ?? null,
+                bearThesisWeak: score?.bearThesisWeak ?? null,
+                bearSubstrateFail: score?.bearSubstrateFail ?? null,
+                bullBearAtDate: score?.bullBearAtDate ?? null,
+              };
+              const livePrice = data.holdings[0]?.price ?? data.watchlist?.current ?? data.pricePoints[data.pricePoints.length - 1]?.priceLocal ?? null;
+              const live = computeLiveAsymmetry(quartet, livePrice);
+              const rationale: any = data.rationale;
+              const hasQuartet = quartet.bullBase !== null || quartet.bearThesisWeak !== null;
+              if (!rationale?.bull_case && !rationale?.bear_case && !rationale?.asymmetry_ratio && !hasQuartet) return null;
+
+              // Mini-bar: spans BEAR_SUBSTRATE_FAIL -> BULL_STRETCH
+              const lo = quartet.bearSubstrateFail ?? quartet.bearThesisWeak;
+              const hi = quartet.bullStretch ?? quartet.bullBase;
+              const range = lo !== null && hi !== null && hi > lo ? hi - lo : null;
+              const pctOf = (v: number | null) => range !== null && v !== null ? Math.max(0, Math.min(100, ((v - lo!) / range) * 100)) : null;
+              const priceP = pctOf(live.price);
+              const bullBaseP = pctOf(quartet.bullBase);
+              const bullStretchP = pctOf(quartet.bullStretch);
+              const bearWeakP = pctOf(quartet.bearThesisWeak);
+              const bearFailP = pctOf(quartet.bearSubstrateFail);
+
+              return (
+                <div style={sectionStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+                    <div style={sectionTitle}>Asymmetry</div>
+                    {live.baseRatio !== null && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
+                        Live {formatRatio(live.baseRatio)}{live.stretchRatio !== null ? <span style={{ opacity: 0.5 }}> / {formatRatio(live.stretchRatio)}</span> : null}
+                        {live.band && <span style={{ marginLeft: 8, fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)" }}>{live.band}</span>}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <div style={{ ...monoLabel, color: "var(--red)" }}>Bear</div>
-                    <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{(data.rationale as any)?.bear_case || "—"}</div>
-                  </div>
-                  <div>
-                    <div style={{ ...monoLabel, color: "var(--gold)" }}>Ratio</div>
-                    <div style={{ fontSize: 14, color: "var(--gold)", marginTop: 4, fontFamily: "var(--font-mono)" }}>{(data.rationale as any)?.asymmetry_ratio || "—"}</div>
+
+                  {/* Live quartet mini-bar */}
+                  {range !== null && priceP !== null && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ position: "relative", height: 6, background: "var(--surface)", border: "1px solid var(--rim)", borderRadius: 1 }}>
+                        {/* Downside band (lo -> price) */}
+                        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${priceP}%`, background: "rgba(180,80,80,0.18)" }} />
+                        {/* Upside band (price -> hi) */}
+                        <div style={{ position: "absolute", left: `${priceP}%`, top: 0, bottom: 0, right: 0, background: "rgba(200,169,110,0.18)" }} />
+                        {/* Bear thesis weak marker */}
+                        {bearWeakP !== null && bearWeakP !== bearFailP && (
+                          <div style={{ position: "absolute", left: `${bearWeakP}%`, top: -2, bottom: -2, width: 1, background: "var(--red)", opacity: 0.6 }} title={`Bear weak: ${quartet.bearThesisWeak}`} />
+                        )}
+                        {/* Bull base marker */}
+                        {bullBaseP !== null && bullBaseP !== bullStretchP && (
+                          <div style={{ position: "absolute", left: `${bullBaseP}%`, top: -2, bottom: -2, width: 1, background: "var(--gold)", opacity: 0.6 }} title={`Bull base: ${quartet.bullBase}`} />
+                        )}
+                        {/* Current price marker */}
+                        <div style={{ position: "absolute", left: `calc(${priceP}% - 1px)`, top: -3, bottom: -3, width: 2, background: "var(--text)" }} title={`Current: ${live.price}`} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.05em" }}>
+                        <span title="Bear substrate fail">{lo}</span>
+                        <span style={{ color: "var(--text)" }}>● {live.price}</span>
+                        <span title="Bull stretch">{hi}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    <div>
+                      <div style={{ ...monoLabel, color: "var(--green)" }}>Bull</div>
+                      <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{rationale?.bull_case || "—"}</div>
+                      {(quartet.bullBase !== null || quartet.bullStretch !== null) && (
+                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)" }}>
+                          {quartet.bullBase !== null && <div>Base: {quartet.bullBase}</div>}
+                          {quartet.bullStretch !== null && <div style={{ opacity: 0.6 }}>Stretch: {quartet.bullStretch}</div>}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ ...monoLabel, color: "var(--red)" }}>Bear</div>
+                      <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{rationale?.bear_case || "—"}</div>
+                      {(quartet.bearThesisWeak !== null || quartet.bearSubstrateFail !== null) && (
+                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--red)" }}>
+                          {quartet.bearThesisWeak !== null && <div>Thesis: {quartet.bearThesisWeak}</div>}
+                          {quartet.bearSubstrateFail !== null && <div style={{ opacity: 0.6 }}>Substrate: {quartet.bearSubstrateFail}</div>}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ ...monoLabel, color: "var(--gold)" }}>Ratio (stored)</div>
+                      <div style={{ fontSize: 14, color: "var(--gold)", marginTop: 4, fontFamily: "var(--font-mono)" }}>{rationale?.asymmetry_ratio || "—"}</div>
+                      {live.quartetAgeDays !== null && (
+                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                          Quartet {live.quartetAgeDays}d old
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
+
 
             {/* Disruption v2 */}
             {(data.disruption || data.disruptionLatest) && (
