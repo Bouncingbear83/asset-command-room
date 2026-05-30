@@ -466,6 +466,8 @@ function UnifiedView({
                             {flag.priority === "HIGH" ? "🔴" : flag.priority === "MEDIUM" ? "🟡" : "🟢"}
                           </span>
                         )}
+                        <ChinaRiskChip flag={h.chinaExposureFlag} />
+
                         <span style={{
                           marginLeft: "auto",
                           fontSize: 9, letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap",
