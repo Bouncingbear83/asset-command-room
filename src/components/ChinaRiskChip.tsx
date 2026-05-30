@@ -1,6 +1,6 @@
 import { type CSSProperties } from "react";
 
-type Flag = "HIGH" | "MEDIUM" | "LOW" | "N/A" | "" | null | undefined;
+type Flag = string | null | undefined;
 
 const STYLE_MAP: Record<string, CSSProperties> = {
   HIGH:   { background: "var(--red-dim)", color: "var(--red)", border: "1px solid rgba(200,90,90,0.2)" },
@@ -21,6 +21,7 @@ const BASE: CSSProperties = {
 interface Props {
   flag: Flag;
 }
+
 
 export function ChinaRiskChip({ flag }: Props) {
   const norm = (flag ?? "").toUpperCase().trim();
