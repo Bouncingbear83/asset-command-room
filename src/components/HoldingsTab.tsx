@@ -33,6 +33,10 @@ import {
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/DriverChip";
+import { computeLiveAsymmetry, type AsymmetryQuartet, type LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
+
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
 
