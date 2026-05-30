@@ -494,7 +494,9 @@ function UnifiedView({
                         <span style={{ fontSize: 11, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)" }}>
                           {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"} day
                         </span>
+                        {h.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={h.liveAsymmetry} />}
                       </div>
+
 
                       {/* Line 4: layer · account · ann return */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
