@@ -1110,7 +1110,16 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       {/* ── 1. IN ZONE ── */}
       {inZone.length > 0 ? (
         <div style={sectionStyle}>
-          <SectionHeader label="In Zone" count={inZone.length} dotColor="var(--green)" />
+          <SectionHeader
+            label="In Zone"
+            count={inZone.length}
+            dotColor="var(--green)"
+            extra={
+              inZoneAsymStats
+                ? `· avg ${inZoneAsymStats.avg.toFixed(1)}:1 · ${inZoneAsymStats.highCount}/${inZoneAsymStats.total} ≥3:1${sortBy === "default" ? " · sorted by asym" : ""}`
+                : null
+            }
+          />
           {inZone.map((r) => (
             <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
           ))}
