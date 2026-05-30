@@ -15,6 +15,7 @@ export const COL = {
   lband: 56,
   disruption: 84,        // "GREEN 100" fits
   buyRange: 92,          // "IN ZONE" / "+287%" / "£1400–1500"
+  asymmetry: 72,         // "5.2:1" fits
   status: 104,           // "WATCHLIST" fits
   chevron: 20,
   rowGap: 12,
