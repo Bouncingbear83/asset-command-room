@@ -194,6 +194,7 @@ function SectionHeader({
   collapsible,
   expanded,
   onToggle,
+  extra,
 }: {
   label: string;
   count: number;
@@ -201,6 +202,7 @@ function SectionHeader({
   collapsible?: boolean;
   expanded?: boolean;
   onToggle?: () => void;
+  extra?: React.ReactNode;
 }) {
   const isMobile = useIsMobile();
   return (
@@ -230,6 +232,19 @@ function SectionHeader({
         {label}
       </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>· {count}</span>
+      {extra && (
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            color: "var(--text-dim)",
+            letterSpacing: "0.08em",
+            marginLeft: 4,
+          }}
+        >
+          {extra}
+        </span>
+      )}
       {collapsible && (
         <span style={{ marginLeft: "auto", color: "var(--text-dim)" }}>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
