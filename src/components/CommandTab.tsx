@@ -420,6 +420,8 @@ interface AsymmetrySnapshotProps {
 }
 
 function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, cardTitle, mp, isMobile }: AsymmetrySnapshotProps) {
+  const { open: openFactSheet } = useFactSheet();
+
   const rows = useMemo(() => {
     // Price lookup: prefer holdings (live), fall back to watchlist current
     const priceByTicker = new Map<string, number>();
