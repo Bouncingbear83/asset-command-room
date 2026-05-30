@@ -516,8 +516,9 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
       >
         {/* Ticker + name + dual-account badge */}
         <div style={{ width: COL.ticker, minWidth: COL.ticker, maxWidth: COL.ticker, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 4 }}>
             {asset.ticker}
+            {asset.framing?.china_exposure_flag && <ChinaRiskChip flag={asset.framing.china_exposure_flag} />}
           </span>
           <span style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
             {asset.name}
