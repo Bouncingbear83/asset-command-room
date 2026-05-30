@@ -381,7 +381,9 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             }
             return null;
           })()}
+          {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
           <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
+
           {daysSinceReview != null && (
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
               {row.isOverdue ? `${daysSinceReview}d ⚠` : `${daysSinceReview}d`}
