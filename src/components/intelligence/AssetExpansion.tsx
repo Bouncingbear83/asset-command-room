@@ -3,6 +3,9 @@ import type { AnchorValue, AssetIntelligence, DisruptionStatus } from "@/types/i
 import { PriceChart } from "@/components/intelligence/PriceChart";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
+import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { ChinaRiskChip } from "@/components/ChinaRiskChip";
+import { formatRatio } from "@/lib/liveAsymmetry";
 import { toast } from "sonner";
 import "./AssetExpansion.css";
 
