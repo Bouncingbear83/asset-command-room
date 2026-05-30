@@ -421,6 +421,13 @@ interface AsymmetrySnapshotProps {
 
 function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, cardTitle, mp, isMobile }: AsymmetrySnapshotProps) {
   const { open: openFactSheet } = useFactSheet();
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (t: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(t)) next.delete(t); else next.add(t);
+    return next;
+  });
+
 
   const rows = useMemo(() => {
     // Price lookup: prefer holdings (live), fall back to watchlist current
