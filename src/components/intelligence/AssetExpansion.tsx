@@ -631,6 +631,105 @@ export function AssetExpansion({ asset }: Props) {
         );
       })()}
 
+      {/* ─── Section 1.5: BULL / BEAR / ASYMMETRY ──────────────────── */}
+      {(() => {
+        const f = asset.framing;
+        const live = asset.liveAsymmetry;
+        const q = live.quartet;
+        const hasBullBear = f.bull_case || f.bear_case;
+        const hasQuartet = q.bullBase !== null || q.bearThesisWeak !== null;
+        if (!hasBullBear && !hasQuartet) return null;
+
+        const lo = q.bearSubstrateFail ?? q.bearThesisWeak;
+        const hi = q.bullStretch ?? q.bullBase;
+        const range = lo !== null && hi !== null && hi > lo ? hi - lo : null;
+        const pctOf = (v: number | null) =>
+          range !== null && v !== null && lo !== null
+            ? Math.max(0, Math.min(100, ((v - lo) / range) * 100))
+            : null;
+        const priceP = pctOf(live.price);
+        const bullBaseP = pctOf(q.bullBase);
+        const bearWeakP = pctOf(q.bearThesisWeak);
+
+        return (
+          <div style={SECTION_STYLE}>
+            <div style={LABEL_STYLE}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                Asymmetry
+                {f.china_exposure_flag && <ChinaRiskChip flag={f.china_exposure_flag} />}
+                {f.stage2_subclass && (
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em",
+                    color: "var(--text-dim)", padding: "1px 5px", border: "1px solid var(--rim)", borderRadius: 2,
+                  }}>{f.stage2_subclass}</span>
+                )}
+              </span>
+              {live.baseRatio !== null && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <AsymmetryPill asymmetry={live} showStretch />
+                </span>
+              )}
+            </div>
+
+            {range !== null && priceP !== null && (
+              <div style={{ marginTop: 4, marginBottom: hasBullBear ? 14 : 4 }}>
+                <div style={{ position: "relative", height: 14 }}>
+                  <div style={{ position: "absolute", top: 6, left: 0, width: `${priceP}%`, height: 2, background: "var(--red-dim)" }} />
+                  <div style={{ position: "absolute", top: 6, left: `${priceP}%`, width: `${100 - priceP}%`, height: 2, background: "var(--green-dim)" }} />
+                  {bearWeakP !== null && (
+                    <div style={{ position: "absolute", top: 2, left: `calc(${bearWeakP}% - 1px)`, width: 2, height: 10, background: "var(--red)" }} title={`Bear (thesis weak): ${q.bearThesisWeak}`} />
+                  )}
+                  {bullBaseP !== null && (
+                    <div style={{ position: "absolute", top: 2, left: `calc(${bullBaseP}% - 1px)`, width: 2, height: 10, background: "var(--green)" }} title={`Bull base: ${q.bullBase}`} />
+                  )}
+                  <div style={{ position: "absolute", top: 0, left: `calc(${priceP}% - 4px)`, width: 8, height: 14, background: "var(--accent)", border: "2px solid var(--void)", borderRadius: 2 }} title={`Current: ${live.price}`} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                  <span>{lo}</span>
+                  <span style={{ color: "var(--accent)" }}>● {live.price}</span>
+                  <span>{hi}</span>
+                </div>
+              </div>
+            )}
+
+            {hasBullBear && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
+                <div style={CARD_STYLE}>
+                  <div style={{ ...LABEL_STYLE, color: "var(--green)" }}><span>Bull Case</span></div>
+                  <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.bull_case || "—"}</div>
+                  {q.bullBase !== null && (
+                    <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                      Base: {q.bullBase}
+                      {q.bullStretch !== null && <span> · Stretch: {q.bullStretch}</span>}
+                    </div>
+                  )}
+                </div>
+                <div style={CARD_STYLE}>
+                  <div style={{ ...LABEL_STYLE, color: "var(--red)" }}><span>Bear Case</span></div>
+                  <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.bear_case || "—"}</div>
+                  {q.bearThesisWeak !== null && (
+                    <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                      Thesis: {q.bearThesisWeak}
+                      {q.bearSubstrateFail !== null && <span> · Substrate: {q.bearSubstrateFail}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {live.quartetAgeDays !== null && (
+              <div style={{
+                marginTop: 10, fontFamily: "var(--font-mono)", fontSize: 9,
+                color: live.quartetAgeDays > 90 ? "var(--amber)" : "var(--text-dim)",
+                letterSpacing: "0.08em",
+              }}>
+                Quartet set {live.quartetAgeDays}d ago{live.quartetAgeDays > 90 && " ⚠ stale"}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ─── Section 2: 6D RATIONALES ───────────────────────────────── */}
       <div style={SECTION_STYLE}>
         <div style={LABEL_STYLE}><span>6D Rationales</span></div>
