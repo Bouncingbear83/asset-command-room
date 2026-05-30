@@ -476,7 +476,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
         </div>
 
-        <div className="asset-row-mobile-line4">
+        <div className="asset-row-mobile-line4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <DistanceChip
             buyDistance={asset.buy_distance}
             currentPrice={asset.current_price}
@@ -484,6 +484,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
             high={asset.buy_range.high}
             currency={asset.buy_range.currency}
           />
+          {asset.liveAsymmetry.baseRatio !== null && <AsymmetryPill asymmetry={asset.liveAsymmetry} />}
         </div>
       </div>
 
