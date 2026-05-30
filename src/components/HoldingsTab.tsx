@@ -148,6 +148,8 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
       case "account": av = a.account ?? ""; bv = b.account ?? ""; break;
       case "driver": av = (a as any).factor_group ?? ""; bv = (b as any).factor_group ?? ""; break;
       case "stack": av = stackLayerOrder((a as any).stack_layer); bv = stackLayerOrder((b as any).stack_layer); break;
+      case "asymmetry": av = a.liveAsymmetry?.baseRatio ?? -1; bv = b.liveAsymmetry?.baseRatio ?? -1; break;
+
       default: av = a[key as keyof typeof a] ?? ""; bv = b[key as keyof typeof b] ?? "";
     }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
