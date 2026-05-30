@@ -14,6 +14,7 @@ import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
+import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 
@@ -419,6 +420,8 @@ interface AsymmetrySnapshotProps {
 }
 
 function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, cardTitle, mp, isMobile }: AsymmetrySnapshotProps) {
+  const { open: openFactSheet } = useFactSheet();
+
   const rows = useMemo(() => {
     // Price lookup: prefer holdings (live), fall back to watchlist current
     const priceByTicker = new Map<string, number>();
@@ -502,6 +505,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               <th style={th}>Band</th>
               <th style={{ ...th, textAlign: "right" }}>Live Ratio</th>
               <th style={{ ...th, textAlign: "center" }}>Trend</th>
+              <th style={{ ...th, textAlign: "center" }}>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -515,7 +519,13 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     : { sym: "·", color: "var(--text-dim)", title: "Flat vs score" })
                 : { sym: "·", color: "var(--text-dim)", title: "No prior price" };
               return (
-                <tr key={r.ticker}>
+                <tr
+                  key={r.ticker}
+                  onClick={() => openFactSheet(r.ticker)}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "rgba(201,168,76,0.06)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
+                >
                   <td style={td}>
                     <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
                       {r.ticker}
@@ -528,6 +538,26 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     <AsymmetryPill asymmetry={r.asymmetry} />
                   </td>
                   <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
+                  <td style={{ ...td, textAlign: "center" }}>
+                    <button
+                      type="button"
+                      title={`Open ${r.ticker} fact sheet`}
+                      onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid var(--rim)",
+                        color: "var(--gold)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        padding: "2px 8px",
+                        borderRadius: 2,
+                        cursor: "pointer",
+                        lineHeight: 1,
+                      }}
+                    >
+                      ↗
+                    </button>
+                  </td>
                 </tr>
               );
             })}
