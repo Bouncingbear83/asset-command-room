@@ -578,9 +578,15 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           profileSortRank(a.return_profile, a.compounder_subtype) -
           profileSortRank(b.return_profile, b.compounder_subtype)
         );
+      case "asymmetry": {
+        const ra = a.liveAsymmetry?.baseRatio ?? -1;
+        const rb = b.liveAsymmetry?.baseRatio ?? -1;
+        return rb - ra;
+      }
       default:
         return 0;
     }
+
   };
 
   const activeBuys = useMemo(
