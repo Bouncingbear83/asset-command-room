@@ -891,6 +891,8 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
             <option value="driver">Sort · Driver</option>
             <option value="stack">Sort · Stack</option>
             <option value="profile">Sort · Profile</option>
+            <option value="asymmetry">Sort · Asymmetry (high→low)</option>
+
           </select>
         </div>
       </div>
