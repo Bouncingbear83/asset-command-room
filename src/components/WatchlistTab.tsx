@@ -613,8 +613,27 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
     if (sortBy !== "default") return [...rows].sort(applySorts);
-    return rows;
+    // Default: sort IN_ZONE by live asymmetry baseRatio desc (nulls last).
+    return [...rows].sort((a, b) => {
+      const ra = a.liveAsymmetry?.baseRatio;
+      const rb = b.liveAsymmetry?.baseRatio;
+      const va = ra == null ? -Infinity : ra;
+      const vb = rb == null ? -Infinity : rb;
+      if (vb !== va) return vb - va;
+      return a.item.ticker.localeCompare(b.item.ticker);
+    });
   }, [filtered, activeBuyIds, sortBy]);
+
+  // IN_ZONE asymmetry stats for the section header
+  const inZoneAsymStats = useMemo(() => {
+    const ratios = inZone
+      .map((r) => r.liveAsymmetry?.baseRatio)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    if (ratios.length === 0) return null;
+    const avg = ratios.reduce((s, v) => s + v, 0) / ratios.length;
+    const highCount = ratios.filter((v) => v >= 3).length;
+    return { avg, highCount, total: ratios.length };
+  }, [inZone]);
 
   const approaching = useMemo(
     () =>
