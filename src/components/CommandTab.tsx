@@ -1326,15 +1326,28 @@ export default function CommandTab() {
                 })}
               </div>
               )}
-              {hasWatchlistSection && (() => {
-                if (wlTop.length === 0) {
+              {(() => {
+                // WATCHLIST stripe: render unconditionally with three clear states.
+                const headerBorder = topMovers.length > 0 ? "1px solid rgba(28,28,48,0.6)" : "none";
+                const watchlistEmpty = wlList.length === 0;
+                if (watchlistEmpty || wlTop.length === 0) {
+                  const copy = watchlistEmpty
+                    ? "Watchlist empty — no tickers being tracked"
+                    : "No watchlist price moves today — awaiting next refresh";
                   return (
-                    <div style={{ borderTop: topMovers.length > 0 ? "1px solid rgba(28,28,48,0.6)" : "none", marginTop: 4 }}>
+                    <div style={{ borderTop: headerBorder, marginTop: 4 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "10px 12px 4px" : "10px 20px 4px" }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", fontWeight: 700 }}>WATCHLIST</span>
+                        {!watchlistEmpty && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em" }}>
+                            <span style={{ color: "var(--green)" }}>{wlUp} ▲</span>
+                            <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+                            <span style={{ color: "var(--red)" }}>{wlDown} ▼</span>
+                          </span>
+                        )}
                       </div>
                       <div style={{ padding: isMobile ? "6px 12px 12px" : "6px 20px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.7 }}>
-                        No watchlist movers — awaiting next price refresh
+                        {copy}
                       </div>
                     </div>
                   );
