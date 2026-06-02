@@ -19,8 +19,17 @@ interface FullReport {
 interface VersionMeta {
   id: string;
   version: number | null;
-  report_date: string;
+  report_date: string | null;
   is_latest: boolean | null;
+  created_at?: string | null;
+}
+
+function formatVersionDate(v: VersionMeta): string {
+  const raw = v.report_date || v.created_at;
+  if (!raw) return "no date";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function ReportViewer({ reportId, onBack }: Props) {
@@ -54,10 +63,27 @@ export default function ReportViewer({ reportId, onBack }: Props) {
     (async () => {
       const { data } = await (supabase as any)
         .from("research_reports")
-        .select("id, version, report_date, is_latest")
+        .select("id, version, report_date, is_latest, created_at")
         .eq("ticker", report.ticker)
-        .order("version", { ascending: false });
-      if (data) setVersions(data as VersionMeta[]);
+        .order("version", { ascending: false, nullsFirst: false })
+        .order("report_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false, nullsFirst: false });
+      if (data) {
+        // Stable fallback sort: latest first, then version desc, then date desc, then id
+        const sorted = [...(data as VersionMeta[])].sort((a, b) => {
+          if ((b.is_latest ? 1 : 0) !== (a.is_latest ? 1 : 0)) {
+            return (b.is_latest ? 1 : 0) - (a.is_latest ? 1 : 0);
+          }
+          const av = a.version ?? -Infinity;
+          const bv = b.version ?? -Infinity;
+          if (av !== bv) return bv - av;
+          const ad = new Date(a.report_date || a.created_at || 0).getTime();
+          const bd = new Date(b.report_date || b.created_at || 0).getTime();
+          if (ad !== bd) return bd - ad;
+          return a.id.localeCompare(b.id);
+        });
+        setVersions(sorted);
+      }
     })();
   }, [report?.ticker]);
 
@@ -228,7 +254,7 @@ export default function ReportViewer({ reportId, onBack }: Props) {
                         >
                           <span>v{v.version ?? "—"}</span>
                           <span style={{ color: "var(--text-dim)", fontSize: 10 }}>
-                            {v.report_date}
+                            {formatVersionDate(v)}
                             {v.is_latest && (
                               <span style={{ color: "var(--gold)", marginLeft: 8 }}>★</span>
                             )}
