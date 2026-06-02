@@ -19,8 +19,17 @@ interface FullReport {
 interface VersionMeta {
   id: string;
   version: number | null;
-  report_date: string;
+  report_date: string | null;
   is_latest: boolean | null;
+  created_at?: string | null;
+}
+
+function formatVersionDate(v: VersionMeta): string {
+  const raw = v.report_date || v.created_at;
+  if (!raw) return "no date";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function ReportViewer({ reportId, onBack }: Props) {
