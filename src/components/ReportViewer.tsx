@@ -254,7 +254,7 @@ export default function ReportViewer({ reportId, onBack }: Props) {
                         >
                           <span>v{v.version ?? "—"}</span>
                           <span style={{ color: "var(--text-dim)", fontSize: 10 }}>
-                            {v.report_date}
+                            {formatVersionDate(v)}
                             {v.is_latest && (
                               <span style={{ color: "var(--gold)", marginLeft: 8 }}>★</span>
                             )}
