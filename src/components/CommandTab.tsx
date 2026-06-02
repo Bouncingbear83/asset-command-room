@@ -576,33 +576,34 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
           WebkitOverflowScrolling: "touch",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 640 : "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 0 : "auto", tableLayout: isMobile ? "fixed" : undefined }}>
 
           <thead>
             <tr>
-              <th style={{ ...th, width: 24 }}></th>
-              <th style={th}>Ticker</th>
-              <th style={th}>Score</th>
-              <th style={th}>Status</th>
-              <th style={th}>Band</th>
+              <th style={{ ...th, width: 24, padding: isMobile ? "8px 4px" : th.padding }}></th>
+              <th style={{ ...th, padding: isMobile ? "8px 6px" : th.padding }}>Ticker</th>
+              {!isMobile && <th style={th}>Score</th>}
+              {!isMobile && <th style={th}>Status</th>}
+              {!isMobile && <th style={th}>Band</th>}
               <th
-                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "base" ? "var(--gold)" : "var(--text-dim)" }}
+                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "base" ? "var(--gold)" : "var(--text-dim)", padding: isMobile ? "8px 6px" : th.padding }}
                 onClick={() => setSortKey("base")}
                 title="Sort by base ratio"
               >
                 Base{sortKey === "base" ? " ▼" : ""}
               </th>
               <th
-                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "stretch" ? "var(--gold)" : "var(--text-dim)" }}
+                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "stretch" ? "var(--gold)" : "var(--text-dim)", padding: isMobile ? "8px 6px" : th.padding }}
                 onClick={() => setSortKey("stretch")}
                 title="Sort by stretch ratio"
               >
                 Stretch{sortKey === "stretch" ? " ▼" : ""}
               </th>
-              <th style={{ ...th, textAlign: "center" }}>Trend</th>
-              <th style={{ ...th, textAlign: "center" }}>Action</th>
+              {!isMobile && <th style={{ ...th, textAlign: "center" }}>Trend</th>}
+              {!isMobile && <th style={{ ...th, textAlign: "center" }}>Action</th>}
             </tr>
           </thead>
+
 
           <tbody>
             {filteredRows.map((r) => {
