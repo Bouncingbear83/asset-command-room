@@ -16,6 +16,7 @@ export interface ReportMeta {
   prob_weighted_ev: number | null;
   spot_at_report: number | null;
   quartet_json: { bb: number; bs: number; bw: number; bf: number } | null;
+  version: number | null;
 }
 
 export default function ResearchTab() {
@@ -25,9 +26,10 @@ export default function ResearchTab() {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("research_reports")
-        .select("id, ticker, name, layer, score, tier, reclass_status, report_date, summary, prob_weighted_ev, spot_at_report, quartet_json")
+        .select("id, ticker, name, layer, score, tier, reclass_status, report_date, summary, prob_weighted_ev, spot_at_report, quartet_json, version")
+        .eq("is_latest", true)
         .order("report_date", { ascending: false });
       if (!error && data) setReports(data as ReportMeta[]);
       setLoading(false);
