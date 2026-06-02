@@ -11,6 +11,7 @@ import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
+import { normaliseTicker as normaliseTickerAlias } from "@/lib/tickerAlias";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
