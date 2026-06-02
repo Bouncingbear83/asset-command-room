@@ -28,6 +28,11 @@ export default function ReportCard({ report, onClick }: { report: ReportMeta; on
       {/* Middle: chips + summary */}
       <div className="report-row-body">
         <div className="report-row-chips">
+          {version != null && (
+            <span className="report-chip" style={{ color: "var(--text)", borderColor: "var(--gold-dim)" }}>
+              v{version}
+            </span>
+          )}
           {layer && <span className="report-chip">{layer.toUpperCase()}</span>}
           {tier && <span className="report-chip">{tier.toUpperCase()}</span>}
           {reclass_status && (
