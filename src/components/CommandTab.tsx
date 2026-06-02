@@ -576,33 +576,34 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
           WebkitOverflowScrolling: "touch",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 640 : "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 0 : "auto", tableLayout: isMobile ? "fixed" : undefined }}>
 
           <thead>
             <tr>
-              <th style={{ ...th, width: 24 }}></th>
-              <th style={th}>Ticker</th>
-              <th style={th}>Score</th>
-              <th style={th}>Status</th>
-              <th style={th}>Band</th>
+              <th style={{ ...th, width: 24, padding: isMobile ? "8px 4px" : th.padding }}></th>
+              <th style={{ ...th, padding: isMobile ? "8px 6px" : th.padding }}>Ticker</th>
+              {!isMobile && <th style={th}>Score</th>}
+              {!isMobile && <th style={th}>Status</th>}
+              {!isMobile && <th style={th}>Band</th>}
               <th
-                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "base" ? "var(--gold)" : "var(--text-dim)" }}
+                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "base" ? "var(--gold)" : "var(--text-dim)", padding: isMobile ? "8px 6px" : th.padding }}
                 onClick={() => setSortKey("base")}
                 title="Sort by base ratio"
               >
                 Base{sortKey === "base" ? " ▼" : ""}
               </th>
               <th
-                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "stretch" ? "var(--gold)" : "var(--text-dim)" }}
+                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "stretch" ? "var(--gold)" : "var(--text-dim)", padding: isMobile ? "8px 6px" : th.padding }}
                 onClick={() => setSortKey("stretch")}
                 title="Sort by stretch ratio"
               >
                 Stretch{sortKey === "stretch" ? " ▼" : ""}
               </th>
-              <th style={{ ...th, textAlign: "center" }}>Trend</th>
-              <th style={{ ...th, textAlign: "center" }}>Action</th>
+              {!isMobile && <th style={{ ...th, textAlign: "center" }}>Trend</th>}
+              {!isMobile && <th style={{ ...th, textAlign: "center" }}>Action</th>}
             </tr>
           </thead>
+
 
           <tbody>
             {filteredRows.map((r) => {
@@ -645,51 +646,83 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLTableRowElement).style.background = "rgba(201,168,76,0.04)"; }}
                     onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
                   >
-                    <td style={{ ...td, color: "var(--text-dim)", textAlign: "center" }} aria-label={isOpen ? "Collapse" : "Expand"}>
+                    <td style={{ ...td, color: "var(--text-dim)", textAlign: "center", padding: isMobile ? "8px 4px" : td.padding }} aria-label={isOpen ? "Collapse" : "Expand"}>
                       {isOpen ? "▾" : "▸"}
                     </td>
-                    <td style={td}>
+                    <td style={{ ...td, padding: isMobile ? "8px 6px" : td.padding }}>
                       <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
                         {r.ticker}
                       </TickerButton>
                     </td>
-                    <td style={td}>{r.score ?? "—"}</td>
-                    <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>
-                    <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>
-                    <td style={{ ...td, textAlign: "right" }}>
+                    {!isMobile && <td style={td}>{r.score ?? "—"}</td>}
+                    {!isMobile && <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>}
+                    {!isMobile && <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>}
+                    <td style={{ ...td, textAlign: "right", padding: isMobile ? "8px 6px" : td.padding }}>
                       <AsymmetryPill asymmetry={r.asymmetry} />
                     </td>
-                    <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400 }}>
+                    <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400, padding: isMobile ? "8px 6px" : td.padding }}>
                       {formatRatio(r.asymmetry.stretchRatio)}
                     </td>
-                    <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
-                    <td style={{ ...td, textAlign: "center" }}>
-                      <button
-                        type="button"
-                        title={`Open ${r.ticker} fact sheet`}
-                        onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
-                        style={{
-                          background: "transparent",
-                          border: "1px solid var(--rim)",
-                          color: "var(--gold)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 10,
-                          padding: "2px 8px",
-                          borderRadius: 2,
-                          cursor: "pointer",
-                          lineHeight: 1,
-                        }}
-                      >
-                        ↗
-                      </button>
-                    </td>
+                    {!isMobile && <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>}
+                    {!isMobile && (
+                      <td style={{ ...td, textAlign: "center" }}>
+                        <button
+                          type="button"
+                          title={`Open ${r.ticker} fact sheet`}
+                          onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--rim)",
+                            color: "var(--gold)",
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 10,
+                            padding: "2px 8px",
+                            borderRadius: 2,
+                            cursor: "pointer",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ↗
+                        </button>
+                      </td>
+                    )}
                   </tr>
                   {isOpen && (
                     <tr style={{ background: "rgba(201,168,76,0.03)" }}>
-                      <td colSpan={9} style={{ padding: isMobile ? "8px 10px 10px" : "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
+                      <td colSpan={isMobile ? 4 : 9} style={{ padding: isMobile ? "8px 10px 10px" : "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
+
                         {isMobile ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {/* Tier summary — surfaces Base + Stretch prominently so mobile users don't need horizontal scroll */}
+                            <div style={{
+                              display: "flex",
+                              gap: 8,
+                              padding: "8px 10px",
+                              border: "1px solid var(--rim)",
+                              borderRadius: 2,
+                              background: "rgba(201,168,76,0.04)",
+                            }}>
+                              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--text-dim)" }}>BASE</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--gold)", fontWeight: 700 }}>{formatRatio(r.asymmetry.baseRatio)}</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>bullBase vs bearThesisWeak</div>
+                              </div>
+                              <div style={{ width: 1, background: "var(--rim)" }} />
+                              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--text-dim)" }}>STRETCH</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: stretchColor(r.asymmetry.stretchRatio), fontWeight: 700 }}>{formatRatio(r.asymmetry.stretchRatio)}</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>bullStretch vs bearSubstrateFail</div>
+                              </div>
+                            </div>
+                            {/* Meta chips: score / status / band / trend (hidden from main row on mobile) */}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" }}>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: "var(--text-dim)" }}>SCORE {r.score ?? "—"}</span>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: statusColor }}>{r.status}</span>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: "var(--text-dim)" }}>{r.band}</span>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: trend.color }} title={trend.title}>{trend.sym} TREND</span>
+                            </div>
                             {/* Swipeable horizontal quartet chips, current in the middle */}
+
                             <div
                               style={{
                                 display: "flex",
