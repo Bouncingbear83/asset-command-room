@@ -1214,13 +1214,17 @@ export default function CommandTab() {
           } as React.CSSProperties);
 
           // Compute watchlist movers up-front so the card surfaces even when
-          // there are no holdings movers today.
-          const holdingsTickers = new Set(Array.from(deduped.keys()));
+          // there are no holdings movers today. Only filter out tickers that
+          // are already rendered in topMovers above (avoid duplicate rows);
+          // a held ticker that didn't make the top movers cut is still valid
+          // to show in the watchlist stripe.
+          const topMoverTickers = new Set(topMovers.map((m) => String(m.ticker || "").toUpperCase()));
+          const wlList = watchlist ?? [];
           const wlMovers: { ticker: string; day: number; price: number; currency: string; entry: string }[] = [];
-          for (const w of watchlist) {
+          for (const w of wlList) {
             if (!w.ticker) continue;
             const key = w.ticker.toUpperCase();
-            if (holdingsTickers.has(key)) continue;
+            if (topMoverTickers.has(key)) continue;
             let last: number | null = null;
             let prev: number | null = null;
             const pd = priceData?.get(normaliseTicker(w.ticker));
@@ -1244,17 +1248,19 @@ export default function CommandTab() {
               entry: w.entry || "",
             });
           }
-          const wlUp = wlMovers.filter(m => m.day > 0).length;
-          const wlDown = wlMovers.filter(m => m.day < 0).length;
+          const wlUp = wlMovers.filter((m) => m.day > 0).length;
+          const wlDown = wlMovers.filter((m) => m.day < 0).length;
           const wlSorted = moverSort === "gainers"
-            ? wlMovers.filter(m => m.day > 0).sort((a, b) => b.day - a.day)
+            ? wlMovers.filter((m) => m.day > 0).sort((a, b) => b.day - a.day)
             : moverSort === "losers"
-            ? wlMovers.filter(m => m.day < 0).sort((a, b) => a.day - b.day)
+            ? wlMovers.filter((m) => m.day < 0).sort((a, b) => a.day - b.day)
             : [...wlMovers].sort((a, b) => Math.abs(b.day) - Math.abs(a.day));
           const wlTop = wlSorted.slice(0, 5);
-          const hasWatchlistSection = !!(watchlist && watchlist.length > 0);
 
-          return (topMovers.length > 0 || hasWatchlistSection) ? (
+          // Always render the card — the WATCHLIST stripe is a permanent
+          // sub-section, even when both holdings movers and watchlist movers
+          // are empty (e.g. pre-market, empty sheet, all held).
+          return (
             <div style={card}>
               <div style={cardHeader}>
                 <span style={cardTitle}>Today's Movers</span>
@@ -1320,15 +1326,28 @@ export default function CommandTab() {
                 })}
               </div>
               )}
-              {hasWatchlistSection && (() => {
-                if (wlTop.length === 0) {
+              {(() => {
+                // WATCHLIST stripe: render unconditionally with three clear states.
+                const headerBorder = topMovers.length > 0 ? "1px solid rgba(28,28,48,0.6)" : "none";
+                const watchlistEmpty = wlList.length === 0;
+                if (watchlistEmpty || wlTop.length === 0) {
+                  const copy = watchlistEmpty
+                    ? "Watchlist empty — no tickers being tracked"
+                    : "No watchlist price moves today — awaiting next refresh";
                   return (
-                    <div style={{ borderTop: topMovers.length > 0 ? "1px solid rgba(28,28,48,0.6)" : "none", marginTop: 4 }}>
+                    <div style={{ borderTop: headerBorder, marginTop: 4 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "10px 12px 4px" : "10px 20px 4px" }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", fontWeight: 700 }}>WATCHLIST</span>
+                        {!watchlistEmpty && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em" }}>
+                            <span style={{ color: "var(--green)" }}>{wlUp} ▲</span>
+                            <span style={{ color: "var(--text-dim)", margin: "0 4px" }}>·</span>
+                            <span style={{ color: "var(--red)" }}>{wlDown} ▼</span>
+                          </span>
+                        )}
                       </div>
                       <div style={{ padding: isMobile ? "6px 12px 12px" : "6px 20px 12px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.7 }}>
-                        No watchlist movers — awaiting next price refresh
+                        {copy}
                       </div>
                     </div>
                   );
@@ -1409,7 +1428,7 @@ export default function CommandTab() {
                 );
               })()}
             </div>
-          ) : null;
+          );
         })()}
 
 
