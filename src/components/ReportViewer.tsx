@@ -38,7 +38,7 @@ export default function ReportViewer({ reportId, onBack }: Props) {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("research_reports")
         .select("id, ticker, name, report_date, report_html, version, is_latest")
         .eq("id", currentId)
@@ -52,7 +52,7 @@ export default function ReportViewer({ reportId, onBack }: Props) {
   useEffect(() => {
     if (!report?.ticker) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("research_reports")
         .select("id, version, report_date, is_latest")
         .eq("ticker", report.ticker)
