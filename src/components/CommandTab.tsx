@@ -1214,13 +1214,17 @@ export default function CommandTab() {
           } as React.CSSProperties);
 
           // Compute watchlist movers up-front so the card surfaces even when
-          // there are no holdings movers today.
-          const holdingsTickers = new Set(Array.from(deduped.keys()));
+          // there are no holdings movers today. Only filter out tickers that
+          // are already rendered in topMovers above (avoid duplicate rows);
+          // a held ticker that didn't make the top movers cut is still valid
+          // to show in the watchlist stripe.
+          const topMoverTickers = new Set(topMovers.map((m) => String(m.ticker || "").toUpperCase()));
+          const wlList = watchlist ?? [];
           const wlMovers: { ticker: string; day: number; price: number; currency: string; entry: string }[] = [];
-          for (const w of watchlist) {
+          for (const w of wlList) {
             if (!w.ticker) continue;
             const key = w.ticker.toUpperCase();
-            if (holdingsTickers.has(key)) continue;
+            if (topMoverTickers.has(key)) continue;
             let last: number | null = null;
             let prev: number | null = null;
             const pd = priceData?.get(normaliseTicker(w.ticker));
@@ -1244,17 +1248,19 @@ export default function CommandTab() {
               entry: w.entry || "",
             });
           }
-          const wlUp = wlMovers.filter(m => m.day > 0).length;
-          const wlDown = wlMovers.filter(m => m.day < 0).length;
+          const wlUp = wlMovers.filter((m) => m.day > 0).length;
+          const wlDown = wlMovers.filter((m) => m.day < 0).length;
           const wlSorted = moverSort === "gainers"
-            ? wlMovers.filter(m => m.day > 0).sort((a, b) => b.day - a.day)
+            ? wlMovers.filter((m) => m.day > 0).sort((a, b) => b.day - a.day)
             : moverSort === "losers"
-            ? wlMovers.filter(m => m.day < 0).sort((a, b) => a.day - b.day)
+            ? wlMovers.filter((m) => m.day < 0).sort((a, b) => a.day - b.day)
             : [...wlMovers].sort((a, b) => Math.abs(b.day) - Math.abs(a.day));
           const wlTop = wlSorted.slice(0, 5);
-          const hasWatchlistSection = !!(watchlist && watchlist.length > 0);
 
-          return (topMovers.length > 0 || hasWatchlistSection) ? (
+          // Always render the card — the WATCHLIST stripe is a permanent
+          // sub-section, even when both holdings movers and watchlist movers
+          // are empty (e.g. pre-market, empty sheet, all held).
+          return (
             <div style={card}>
               <div style={cardHeader}>
                 <span style={cardTitle}>Today's Movers</span>
