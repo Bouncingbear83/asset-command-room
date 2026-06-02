@@ -714,6 +714,36 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>bullStretch vs bearSubstrateFail</div>
                               </div>
                             </div>
+                            {/* Inline sort controls for mobile — reorder rows without scrolling to header */}
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--text-dim)" }}>SORT</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSortKey("base"); }}
+                                style={{
+                                  ...segBase,
+                                  ...(sortKey === "base" ? segActive : null),
+                                  borderRadius: 2,
+                                  padding: "4px 10px",
+                                  fontSize: 10,
+                                }}
+                              >
+                                Base{sortKey === "base" ? " ▼" : ""}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSortKey("stretch"); }}
+                                style={{
+                                  ...segBase,
+                                  ...(sortKey === "stretch" ? segActive : null),
+                                  borderRadius: 2,
+                                  padding: "4px 10px",
+                                  fontSize: 10,
+                                }}
+                              >
+                                Stretch{sortKey === "stretch" ? " ▼" : ""}
+                              </button>
+                            </div>
                             {/* Meta chips: score / status / band / trend (hidden from main row on mobile) */}
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" }}>
                               <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: "var(--text-dim)" }}>SCORE {r.score ?? "—"}</span>
