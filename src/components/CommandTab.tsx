@@ -489,8 +489,6 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     return out.sort((a, b) => b.ratio - a.ratio);
   }, [scores, holdings, watchlist]);
 
-  if (rows.length === 0) return null;
-
   const filteredRows = useMemo(() => {
     const f = filter === "ALL"
       ? rows
@@ -504,6 +502,9 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     });
     return sorted;
   }, [rows, filter, sortKey]);
+
+  if (rows.length === 0) return null;
+
 
   const th: React.CSSProperties = {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
