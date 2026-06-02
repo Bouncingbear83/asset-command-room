@@ -528,9 +528,18 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
   return (
     <div style={card}>
-      <div style={{ ...cardHeader, flexWrap: "wrap", gap: 8 }}>
+      <div style={{ ...cardHeader, flexWrap: "wrap", gap: 8, rowGap: 6 }}>
         <span style={cardTitle}>Asymmetry Snapshot</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: isMobile ? 8 : 10,
+            marginLeft: isMobile ? 0 : "auto",
+            width: isMobile ? "100%" : "auto",
+            justifyContent: isMobile ? "space-between" : "flex-end",
+          }}
+        >
           <div role="group" aria-label="Filter" style={{ display: "inline-flex" }}>
             {(["ALL", "HELD", "WATCH"] as const).map((opt, i) => (
               <button
@@ -540,6 +549,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                 aria-pressed={filter === opt}
                 style={{
                   ...segBase,
+                  ...(isMobile ? { padding: "4px 10px", fontSize: 10 } : null),
                   ...(filter === opt ? segActive : null),
                   borderLeftWidth: i === 0 ? 1 : 0,
                   borderTopLeftRadius: i === 0 ? 2 : 0,
@@ -552,13 +562,22 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               </button>
             ))}
           </div>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>
             {filteredRows.length} LIVE
           </span>
         </div>
       </div>
-      <div style={{ padding: mp, overflowX: "auto", overflowY: "auto", maxHeight: 520 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 520 : "auto" }}>
+      <div
+        style={{
+          padding: mp,
+          overflowX: "auto",
+          overflowY: "auto",
+          maxHeight: 520,
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 640 : "auto" }}>
+
           <thead>
             <tr>
               <th style={{ ...th, width: 24 }}></th>
