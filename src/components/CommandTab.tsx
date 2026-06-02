@@ -770,7 +770,15 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                             </div>
                           </div>
                         ) : (
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-mid)", letterSpacing: "0.02em" }}>
+                              <span style={{ color: "var(--gold)", fontWeight: 700 }}>Base {formatRatio(r.asymmetry.baseRatio)}</span>
+                              <span style={{ color: "var(--text-dim)" }}> (bullBase vs bearThesisWeak)</span>
+                              <span style={{ color: "var(--text-dim)" }}> · </span>
+                              <span style={{ color: stretchColor(r.asymmetry.stretchRatio), fontWeight: 700 }}>Stretch {formatRatio(r.asymmetry.stretchRatio)}</span>
+                              <span style={{ color: "var(--text-dim)" }}> (bullStretch vs bearSubstrateFail)</span>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                             <div>
                               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6 }}>
                                 QUARTET TARGETS
