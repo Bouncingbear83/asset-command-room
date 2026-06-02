@@ -849,6 +849,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                                 </button>
                               </div>
                             </div>
+                            </div>
                           </div>
                         )}
                       </td>
