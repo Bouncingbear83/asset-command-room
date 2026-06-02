@@ -3,7 +3,7 @@ import type { ReportMeta } from "./ResearchTab";
 export default function ReportCard({ report, onClick }: { report: ReportMeta; onClick: () => void }) {
   const {
     ticker, name, layer, score, tier, reclass_status,
-    report_date, summary, prob_weighted_ev, spot_at_report,
+    report_date, summary, prob_weighted_ev, spot_at_report, version,
   } = report;
 
   const evMultiple = prob_weighted_ev && spot_at_report ? prob_weighted_ev / spot_at_report : null;
