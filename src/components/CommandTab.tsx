@@ -667,7 +667,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                   </tr>
                   {isOpen && (
                     <tr style={{ background: "rgba(201,168,76,0.03)" }}>
-                      <td colSpan={8} style={{ padding: isMobile ? "8px 10px 10px" : "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
+                      <td colSpan={9} style={{ padding: isMobile ? "8px 10px 10px" : "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
                         {isMobile ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             {/* Swipeable horizontal quartet chips, current in the middle */}
