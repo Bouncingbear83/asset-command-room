@@ -693,7 +693,36 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
                         {isMobile ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {/* Tier summary — surfaces Base + Stretch prominently so mobile users don't need horizontal scroll */}
+                            <div style={{
+                              display: "flex",
+                              gap: 8,
+                              padding: "8px 10px",
+                              border: "1px solid var(--rim)",
+                              borderRadius: 2,
+                              background: "rgba(201,168,76,0.04)",
+                            }}>
+                              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--text-dim)" }}>BASE</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--gold)", fontWeight: 700 }}>{formatRatio(r.asymmetry.baseRatio)}</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>bullBase vs bearThesisWeak</div>
+                              </div>
+                              <div style={{ width: 1, background: "var(--rim)" }} />
+                              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--text-dim)" }}>STRETCH</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: stretchColor(r.asymmetry.stretchRatio), fontWeight: 700 }}>{formatRatio(r.asymmetry.stretchRatio)}</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>bullStretch vs bearSubstrateFail</div>
+                              </div>
+                            </div>
+                            {/* Meta chips: score / status / band / trend (hidden from main row on mobile) */}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" }}>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: "var(--text-dim)" }}>SCORE {r.score ?? "—"}</span>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: statusColor }}>{r.status}</span>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: "var(--text-dim)" }}>{r.band}</span>
+                              <span style={{ padding: "3px 7px", border: "1px solid var(--rim)", borderRadius: 2, color: trend.color }} title={trend.title}>{trend.sym} TREND</span>
+                            </div>
                             {/* Swipeable horizontal quartet chips, current in the middle */}
+
                             <div
                               style={{
                                 display: "flex",
