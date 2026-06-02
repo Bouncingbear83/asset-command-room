@@ -14,15 +14,16 @@ import JisasTab from "@/components/JisasTab";
 import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
 import JapanSleeveTab from "@/components/JapanSleeveTab";
+import ResearchTab from "@/components/ResearchTab";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Research", "Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
   Command: "command", Monitor: "monitor", Watchlist: "watchlist", Layers: "layers",
   Drivers: "drivers",
-  Intelligence: "intelligence", Returns: "returns", Holdings: "holdings",
+  Intelligence: "intelligence", Research: "research", Returns: "returns", Holdings: "holdings",
   "Japan Sleeve": "japan",
   Transactions: "transactions", JISAs: "jisas", "Earnings Calendar": "earnings",
 };
@@ -194,6 +195,7 @@ export default function Index() {
           />
         )}
         {active === "Intelligence" && <IntelligenceTab />}
+        {active === "Research" && <ResearchTab />}
         {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
