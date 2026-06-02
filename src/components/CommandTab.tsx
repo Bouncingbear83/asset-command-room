@@ -1415,7 +1415,7 @@ export default function CommandTab() {
                 );
               })()}
             </div>
-          ) : null;
+          );
         })()}
 
 
