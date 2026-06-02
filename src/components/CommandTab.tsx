@@ -860,6 +860,36 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                               <span style={{ color: stretchColor(r.asymmetry.stretchRatio), fontWeight: 700 }}>Stretch {formatRatio(r.asymmetry.stretchRatio)}</span>
                               <span style={{ color: "var(--text-dim)" }}> (bullStretch vs bearSubstrateFail)</span>
                             </div>
+                            {/* Inline sort controls for desktop expansion */}
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--text-dim)" }}>SORT</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSortKey("base"); }}
+                                style={{
+                                  ...segBase,
+                                  ...(sortKey === "base" ? segActive : null),
+                                  borderRadius: 2,
+                                  padding: "4px 10px",
+                                  fontSize: 10,
+                                }}
+                              >
+                                Base{sortKey === "base" ? " ▼" : ""}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSortKey("stretch"); }}
+                                style={{
+                                  ...segBase,
+                                  ...(sortKey === "stretch" ? segActive : null),
+                                  borderRadius: 2,
+                                  padding: "4px 10px",
+                                  fontSize: 10,
+                                }}
+                              >
+                                Stretch{sortKey === "stretch" ? " ▼" : ""}
+                              </button>
+                            </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                             <div>
                               <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6 }}>
