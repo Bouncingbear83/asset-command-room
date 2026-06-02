@@ -608,6 +608,60 @@ export type Database = {
         }
         Relationships: []
       }
+      research_reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          layer: string | null
+          name: string | null
+          prob_weighted_ev: number | null
+          quartet_json: Json | null
+          reclass_status: string | null
+          report_date: string
+          report_html: string
+          score: number | null
+          spot_at_report: number | null
+          summary: string | null
+          ticker: string
+          tier: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          layer?: string | null
+          name?: string | null
+          prob_weighted_ev?: number | null
+          quartet_json?: Json | null
+          reclass_status?: string | null
+          report_date: string
+          report_html: string
+          score?: number | null
+          spot_at_report?: number | null
+          summary?: string | null
+          ticker: string
+          tier?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          layer?: string | null
+          name?: string | null
+          prob_weighted_ev?: number | null
+          quartet_json?: Json | null
+          reclass_status?: string | null
+          report_date?: string
+          report_html?: string
+          score?: number | null
+          spot_at_report?: number | null
+          summary?: string | null
+          ticker?: string
+          tier?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       score_rationales: {
         Row: {
           action: string
