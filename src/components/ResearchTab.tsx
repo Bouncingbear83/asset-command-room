@@ -54,7 +54,7 @@ export default function ResearchTab() {
       ) : reports.length === 0 ? (
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>No reports yet.</div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {reports.map((r) => (
             <ReportCard key={r.id} report={r} onClick={() => setSelected(r.id)} />
           ))}
