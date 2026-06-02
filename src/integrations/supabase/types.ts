@@ -612,6 +612,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_latest: boolean
           layer: string | null
           name: string | null
           prob_weighted_ev: number | null
@@ -625,10 +626,12 @@ export type Database = {
           ticker: string
           tier: string | null
           updated_at: string | null
+          version: number
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_latest?: boolean
           layer?: string | null
           name?: string | null
           prob_weighted_ev?: number | null
@@ -642,10 +645,12 @@ export type Database = {
           ticker: string
           tier?: string | null
           updated_at?: string | null
+          version?: number
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_latest?: boolean
           layer?: string | null
           name?: string | null
           prob_weighted_ev?: number | null
@@ -659,6 +664,7 @@ export type Database = {
           ticker?: string
           tier?: string | null
           updated_at?: string | null
+          version?: number
         }
         Relationships: []
       }
