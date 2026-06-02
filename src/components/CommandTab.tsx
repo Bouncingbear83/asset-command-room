@@ -423,6 +423,8 @@ interface AsymmetrySnapshotProps {
 function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, cardTitle, mp, isMobile }: AsymmetrySnapshotProps) {
   const { open: openFactSheet } = useFactSheet();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<"ALL" | "HELD" | "WATCH">("ALL");
+  const [sortKey, setSortKey] = useState<"base" | "stretch">("base");
   const toggle = (t: string) => setExpanded((prev) => {
     const next = new Set(prev);
     if (next.has(t)) next.delete(t); else next.add(t);
@@ -431,14 +433,18 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
 
   const rows = useMemo(() => {
-    // Price lookup: prefer holdings (live), fall back to watchlist current
+    // Price lookup: prefer holdings (live), fall back to watchlist current.
+    // Keyed by alias-normalised ticker so dotted/hyphenated variants match.
     const priceByTicker = new Map<string, number>();
+    const heldSet = new Set<string>();
     for (const h of holdings ?? []) {
-      const t = String(h.ticker ?? "").trim().toUpperCase();
-      if (t && typeof h.price === "number" && h.price > 0 && !priceByTicker.has(t)) priceByTicker.set(t, h.price);
+      const t = normaliseTickerAlias(h.ticker);
+      if (!t) continue;
+      heldSet.add(t);
+      if (typeof h.price === "number" && h.price > 0 && !priceByTicker.has(t)) priceByTicker.set(t, h.price);
     }
     for (const w of watchlist ?? []) {
-      const t = String(w.ticker ?? "").trim().toUpperCase();
+      const t = normaliseTickerAlias(w.ticker);
       if (t && typeof w.current === "number" && w.current > 0 && !priceByTicker.has(t)) priceByTicker.set(t, w.current);
     }
 
@@ -454,7 +460,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     }> = [];
 
     for (const s of scores ?? []) {
-      const t = String(s.ticker ?? "").trim().toUpperCase();
+      const t = normaliseTickerAlias(s.ticker);
       if (!t) continue;
       const price = priceByTicker.get(t);
       if (!price) continue;
@@ -467,8 +473,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       };
       const asym = computeLiveAsymmetry(quartet, price);
       if (asym.baseRatio === null) continue;
-      const status = priceByTicker.has(t) && (holdings ?? []).some((h) => String(h.ticker ?? "").trim().toUpperCase() === t)
-        ? "HELD" : "WATCH";
+      const status = heldSet.has(t) ? "HELD" : "WATCH";
       out.push({
         ticker: s.ticker,
         score: s.score ?? null,
@@ -481,10 +486,24 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       });
     }
 
-    return out.sort((a, b) => b.ratio - a.ratio).slice(0, 10);
+    return out.sort((a, b) => b.ratio - a.ratio);
   }, [scores, holdings, watchlist]);
 
   if (rows.length === 0) return null;
+
+  const filteredRows = useMemo(() => {
+    const f = filter === "ALL"
+      ? rows
+      : filter === "HELD"
+      ? rows.filter((r) => r.status === "HELD")
+      : rows.filter((r) => r.status !== "HELD");
+    const sorted = [...f].sort((a, b) => {
+      const av = sortKey === "base" ? (a.asymmetry.baseRatio ?? -Infinity) : (a.asymmetry.stretchRatio ?? -Infinity);
+      const bv = sortKey === "base" ? (b.asymmetry.baseRatio ?? -Infinity) : (b.asymmetry.stretchRatio ?? -Infinity);
+      return bv - av;
+    });
+    return sorted;
+  }, [rows, filter, sortKey]);
 
   const th: React.CSSProperties = {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
@@ -495,16 +514,51 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     borderBottom: "1px solid var(--rim)",
   };
 
+  const segBase: React.CSSProperties = {
+    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em",
+    padding: "3px 8px", border: "1px solid var(--rim)", background: "transparent",
+    color: "var(--text-dim)", cursor: "pointer", lineHeight: 1.4,
+  };
+  const segActive: React.CSSProperties = {
+    background: "rgba(201,168,76,0.15)", color: "var(--gold)", borderColor: "rgba(201,168,76,0.4)",
+  };
+
+  const stretchColor = (v: number | null) =>
+    v === null ? "var(--text-dim)" : v >= 3 ? "var(--green)" : v >= 2 ? "var(--amber)" : "var(--text-dim)";
+
   return (
     <div style={card}>
-      <div style={cardHeader}>
+      <div style={{ ...cardHeader, flexWrap: "wrap", gap: 8 }}>
         <span style={cardTitle}>Asymmetry Snapshot</span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>
-          TOP {rows.length} LIVE
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+          <div role="group" aria-label="Filter" style={{ display: "inline-flex" }}>
+            {(["ALL", "HELD", "WATCH"] as const).map((opt, i) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setFilter(opt)}
+                aria-pressed={filter === opt}
+                style={{
+                  ...segBase,
+                  ...(filter === opt ? segActive : null),
+                  borderLeftWidth: i === 0 ? 1 : 0,
+                  borderTopLeftRadius: i === 0 ? 2 : 0,
+                  borderBottomLeftRadius: i === 0 ? 2 : 0,
+                  borderTopRightRadius: i === 2 ? 2 : 0,
+                  borderBottomRightRadius: i === 2 ? 2 : 0,
+                }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>
+            {filteredRows.length} LIVE
+          </span>
+        </div>
       </div>
-      <div style={{ padding: mp, overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 480 : "auto" }}>
+      <div style={{ padding: mp, overflowX: "auto", overflowY: "auto", maxHeight: 520 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 520 : "auto" }}>
           <thead>
             <tr>
               <th style={{ ...th, width: 24 }}></th>
@@ -512,11 +566,25 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               <th style={th}>Score</th>
               <th style={th}>Status</th>
               <th style={th}>Band</th>
-              <th style={{ ...th, textAlign: "right" }}>Live Ratio</th>
+              <th
+                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "base" ? "var(--gold)" : "var(--text-dim)" }}
+                onClick={() => setSortKey("base")}
+                title="Sort by base ratio"
+              >
+                Base{sortKey === "base" ? " ▼" : ""}
+              </th>
+              <th
+                style={{ ...th, textAlign: "right", cursor: "pointer", color: sortKey === "stretch" ? "var(--gold)" : "var(--text-dim)" }}
+                onClick={() => setSortKey("stretch")}
+                title="Sort by stretch ratio"
+              >
+                Stretch{sortKey === "stretch" ? " ▼" : ""}
+              </th>
               <th style={{ ...th, textAlign: "center" }}>Trend</th>
               <th style={{ ...th, textAlign: "center" }}>Action</th>
             </tr>
           </thead>
+
           <tbody>
             {rows.map((r) => {
               const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
