@@ -640,6 +640,9 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     <td style={{ ...td, textAlign: "right" }}>
                       <AsymmetryPill asymmetry={r.asymmetry} />
                     </td>
+                    <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400 }}>
+                      {formatRatio(r.asymmetry.stretchRatio)}
+                    </td>
                     <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
                     <td style={{ ...td, textAlign: "center" }}>
                       <button
