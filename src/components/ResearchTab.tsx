@@ -35,7 +35,7 @@ export default function ResearchTab() {
   }, []);
 
   if (selected) {
-    return <ReportViewer reportId={selected} onClose={() => setSelected(null)} />;
+    return <ReportViewer reportId={selected} onBack={() => setSelected(null)} />;
   }
 
   return (
