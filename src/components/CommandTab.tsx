@@ -646,48 +646,51 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLTableRowElement).style.background = "rgba(201,168,76,0.04)"; }}
                     onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
                   >
-                    <td style={{ ...td, color: "var(--text-dim)", textAlign: "center" }} aria-label={isOpen ? "Collapse" : "Expand"}>
+                    <td style={{ ...td, color: "var(--text-dim)", textAlign: "center", padding: isMobile ? "8px 4px" : td.padding }} aria-label={isOpen ? "Collapse" : "Expand"}>
                       {isOpen ? "▾" : "▸"}
                     </td>
-                    <td style={td}>
+                    <td style={{ ...td, padding: isMobile ? "8px 6px" : td.padding }}>
                       <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
                         {r.ticker}
                       </TickerButton>
                     </td>
-                    <td style={td}>{r.score ?? "—"}</td>
-                    <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>
-                    <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>
-                    <td style={{ ...td, textAlign: "right" }}>
+                    {!isMobile && <td style={td}>{r.score ?? "—"}</td>}
+                    {!isMobile && <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>}
+                    {!isMobile && <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>}
+                    <td style={{ ...td, textAlign: "right", padding: isMobile ? "8px 6px" : td.padding }}>
                       <AsymmetryPill asymmetry={r.asymmetry} />
                     </td>
-                    <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400 }}>
+                    <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400, padding: isMobile ? "8px 6px" : td.padding }}>
                       {formatRatio(r.asymmetry.stretchRatio)}
                     </td>
-                    <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>
-                    <td style={{ ...td, textAlign: "center" }}>
-                      <button
-                        type="button"
-                        title={`Open ${r.ticker} fact sheet`}
-                        onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
-                        style={{
-                          background: "transparent",
-                          border: "1px solid var(--rim)",
-                          color: "var(--gold)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 10,
-                          padding: "2px 8px",
-                          borderRadius: 2,
-                          cursor: "pointer",
-                          lineHeight: 1,
-                        }}
-                      >
-                        ↗
-                      </button>
-                    </td>
+                    {!isMobile && <td style={{ ...td, textAlign: "center", color: trend.color }} title={trend.title}>{trend.sym}</td>}
+                    {!isMobile && (
+                      <td style={{ ...td, textAlign: "center" }}>
+                        <button
+                          type="button"
+                          title={`Open ${r.ticker} fact sheet`}
+                          onClick={(e) => { e.stopPropagation(); openFactSheet(r.ticker); }}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--rim)",
+                            color: "var(--gold)",
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 10,
+                            padding: "2px 8px",
+                            borderRadius: 2,
+                            cursor: "pointer",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ↗
+                        </button>
+                      </td>
+                    )}
                   </tr>
                   {isOpen && (
                     <tr style={{ background: "rgba(201,168,76,0.03)" }}>
-                      <td colSpan={9} style={{ padding: isMobile ? "8px 10px 10px" : "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
+                      <td colSpan={isMobile ? 4 : 9} style={{ padding: isMobile ? "8px 10px 10px" : "10px 14px 14px", borderBottom: "1px solid var(--rim)" }}>
+
                         {isMobile ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             {/* Swipeable horizontal quartet chips, current in the middle */}
