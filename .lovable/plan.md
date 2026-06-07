@@ -1,49 +1,34 @@
-# Research Tab — Conclusion, Date & Price-Change Columns
+## Problem
 
-Surface three new sortable columns on the Research tab table (rendered by `ReportCard` rows inside `ResearchTab`):
+The last few rows of the Watchlist sheet are not appearing in the app. Root cause is in `src/hooks/usePortfolioData.ts`:
 
-1. **Conclusion** (BUY / WAIT / HOLD / TRIM / SELL / ADD / etc.) — derived from existing report text
-2. **Report Date** — already on the row, but make it sortable via a column header
-3. **Δ Since Report** — % change between `spot_at_report` and the current live price from Google Sheets
+1. **`fetchSheet` row filter (lines 194–210)** drops any row that lacks a recognized id key AND has fewer than 3 populated cells. A sparse trailing watchlist row (e.g. only Ticker + Name filled, others blank) can be dropped before it ever reaches `parseWatchlist`.
+2. The watchlist fetch uses `range: "A1:S"` — gviz technically supports open-ended row syntax, but in practice it sometimes truncates at the last fully-populated row when no upper bound is given. A bounded high upper bound (e.g. `A1:S5000`) is more reliable.
 
-## Data sources
+`parseWatchlist`'s own filter (line 395) is already permissive — keeps any row where `ticker` OR `name` is non-empty. The drop is happening upstream.
 
-- **Conclusion**: parsed from `summary` (fallback: `report_html`). Token regex matches the first occurrence of `BUY | WAIT | HOLD | TRIM | SELL | ADD | EXIT | DEPLOY | PAUSE` (case-insensitive, word-bounded). Result cached per report. If none found → `—` (sorts last).
-- **Report date**: `research_reports.report_date` (existing).
-- **Current price**: live Google Sheets feed already loaded by `usePortfolioData` — match by ticker (case-insensitive, per memory). Δ% = `(live − spot_at_report) / spot_at_report`. Missing live or spot → `—`.
+## Fix
 
-## UI changes
+Two targeted changes in `src/hooks/usePortfolioData.ts`, no UI or other behaviour changes:
 
-Convert the current "stack of `ReportCard` buttons" list in `ResearchTab.tsx` into a table-style layout with a sticky header row exposing sort buttons:
+### 1. Make the watchlist fetch range bounded
 
-```text
-TICKER · LAYER/TIER · CONCLUSION ▲▼ · SCORE · EV/SPOT · REPORT DATE ▲▼ · Δ SINCE ▲▼ · →
-```
+Change line 996 from `range: "A1:S"` to `range: "A1:S5000"` so gviz returns every row in the sheet up to a guaranteed-high bound.
 
-- Reuse the existing dark-void styling (gold accents, mono font, rim borders).
-- Conclusion rendered as a colored chip: BUY/ADD/DEPLOY = green, WAIT/HOLD = gold, TRIM/SELL/EXIT/PAUSE = red, unknown = dim.
-- Δ Since Report colored: positive = green, negative = red, neutral = dim. Show `+12.4%` / `−5.1%`.
-- Default sort: `report_date desc` (preserves today's behavior).
-- Clicking the active column toggles asc/desc; clicking a new column sets desc (numeric/date) or asc (text).
+### 2. Loosen the upstream row filter so a single id cell is always enough
 
-## Implementation
+In `fetchSheet` (lines 194–210), keep the "row has any content" guard and the `row_type` guard, but when a row has a populated ticker / name / layer / type / date / key cell, accept it regardless of `populatedCount`. Only fall back to the `populatedCount >= 3` heuristic for rows that lack BOTH a row_type and any id cell. Practically this means dropping the `|| populatedCount(row) >= 3` widening and replacing it with `return hasId;` for id-bearing rows, while still allowing the populatedCount fallback for sheets like `macroState`/`cash` that have no id column. (Implementation: if `hasId` → keep; else keep only if `populatedCount(row) >= 3`.) This is already the existing logic shape — the bug is that `hasId` returns false for a watchlist row whose only populated cell happens to be ticker but whose key in `row` is `"ticker"` (which the current check already covers). I'll re-verify by logging once during dev and, if needed, also accept any row whose ticker column is non-empty via direct key lookup (`row["ticker"]`, `row["TICKER"]`, `row["Ticker"]`) as a final safety net.
 
-- `ResearchTab.tsx`:
-  - Pull live prices via `usePortfolioData` (same hook used elsewhere) and build a `Map<tickerLower, price>`.
-  - Add `sortField` / `sortDir` state; compute `sortedReports` with `useMemo`.
-  - Add a small `parseConclusion(summary, html)` helper (co-located or in `src/lib/`).
-  - Replace the `ReportCard` list with a header row + body rows. Either:
-    - (a) refactor `ReportCard` to accept the new columns and render in table grid, or
-    - (b) introduce a new `ReportRow` component and keep `ReportCard` unused/removed.
-    Plan: **(b)** — `ReportCard`'s current 4-column grid doesn't match the new layout cleanly; build a focused `ReportRow.tsx` and delete `ReportCard.tsx` once swapped.
-- New component `src/components/ReportRow.tsx` (flat per memory) — grid columns matching the header, hover state, click handler opens `ReportViewer`.
-- No schema changes, no migrations, no backend work.
+### 3. Defensive verification
 
-## Mobile
-
-Header row hides under 767px (same pattern as `IntelligenceListHeader`); on mobile the conclusion + Δ chips stack inline under the ticker, and a `MobileSortSelect` exposes the three sort options.
+Add a one-shot `console.debug` (gated by `import.meta.env.DEV`) that prints the raw watchlist row count from gviz vs. the count after `fetchSheet`'s filter vs. the count after `parseWatchlist`, so any future regression is immediately visible.
 
 ## Out of scope
 
-- Persisting sort in URL state (can add later if you want it).
-- Storing `conclusion` as its own DB column (using text parsing per your choice).
+- No schema, sheet, or backend changes.
+- No changes to other parsers (holdings, scores, layers, etc.).
+- No new dependencies.
+
+## Files touched
+
+- `src/hooks/usePortfolioData.ts` — range bump on the watchlist fetch, filter loosening in `fetchSheet`, dev-only debug log.

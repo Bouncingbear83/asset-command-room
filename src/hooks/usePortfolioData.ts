@@ -183,31 +183,38 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
   const json = JSON.parse(text.substring(47, text.length - 2));
   const cols: string[] = json.table.cols.map((column: any) => resolveColumnLabel(column.label ?? ""));
 
-  return (json.table.rows || [])
-    .map((row: any) => {
-      const next: Record<string, any> = {};
-      row.c?.forEach((cell: any, index: number) => {
-        next[cols[index] || `col_${index}`] = cell?.v ?? null;
-      });
-      return next;
-    })
-    .filter((row: Record<string, any>) => {
-      const values = Object.values(row);
-      const hasContent = values.some((value) => value !== null && value !== undefined && String(value).trim() !== "");
-      if (!hasContent) return false;
-      const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
-      if (rowType !== null && rowType !== undefined) return true;
-      const keys = Object.keys(row);
-      const hasId = keys.some((key) => {
-        const lower = key.toLowerCase();
-        return (
-          (lower.includes("ticker") || lower === "name" || lower === "type" || lower === "date" || lower === "layer" || lower === "key") &&
-          row[key] !== null &&
-          String(row[key]).trim() !== ""
-        );
-      });
-      return hasId || populatedCount(row) >= 3;
+  const rawRows = (json.table.rows || []).map((row: any) => {
+    const next: Record<string, any> = {};
+    row.c?.forEach((cell: any, index: number) => {
+      next[cols[index] || `col_${index}`] = cell?.v ?? null;
     });
+    return next;
+  });
+
+  const filtered = rawRows.filter((row: Record<string, any>) => {
+    const values = Object.values(row);
+    const hasContent = values.some((value) => value !== null && value !== undefined && String(value).trim() !== "");
+    if (!hasContent) return false;
+    const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
+    if (rowType !== null && rowType !== undefined && String(rowType).trim() !== "") return true;
+    const keys = Object.keys(row);
+    const hasId = keys.some((key) => {
+      const lower = key.toLowerCase();
+      return (
+        (lower.includes("ticker") || lower === "name" || lower === "type" || lower === "date" || lower === "layer" || lower === "key") &&
+        row[key] !== null &&
+        String(row[key]).trim() !== ""
+      );
+    });
+    if (hasId) return true;
+    return populatedCount(row) >= 3;
+  });
+
+  if (import.meta.env.DEV && options.gid === GIDS.watchlist) {
+    console.debug(`[watchlist fetchSheet] raw=${rawRows.length} filtered=${filtered.length}`);
+  }
+
+  return filtered;
 }
 
 async function fetchSheetGrid(options: SheetFetchOptions): Promise<string[][]> {
