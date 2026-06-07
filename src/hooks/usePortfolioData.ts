@@ -1000,7 +1000,7 @@ export function usePortfolioData(): PortfolioData {
         jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:S5000" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:Z5000" }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores, range: "A1:AQ" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
@@ -1058,7 +1058,11 @@ export function usePortfolioData(): PortfolioData {
         bordier,
         watchlist: (() => {
           const wl = parseWatchlist(watchlistRaw);
-          if (import.meta.env.DEV) console.debug(`[watchlist parseWatchlist] in=${watchlistRaw.length} out=${wl.length}`);
+          if (import.meta.env.DEV) {
+            const tickers = wl.map((w) => w.ticker || w.name).filter(Boolean);
+            console.debug(`[watchlist parseWatchlist] in=${watchlistRaw.length} out=${wl.length}`);
+            console.debug(`[watchlist tickers] last10=`, tickers.slice(-10));
+          }
           return wl;
         })(),
         layers: parseLayers(layersRaw),
