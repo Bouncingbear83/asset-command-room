@@ -437,6 +437,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     // Keyed by alias-normalised ticker so dotted/hyphenated variants match.
     const priceByTicker = new Map<string, number>();
     const heldSet = new Set<string>();
+    const wlByTicker = new Map<string, any>();
     for (const h of holdings ?? []) {
       const t = normaliseTickerAlias(h.ticker);
       if (!t) continue;
@@ -445,7 +446,9 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     }
     for (const w of watchlist ?? []) {
       const t = normaliseTickerAlias(w.ticker);
-      if (t && typeof w.current === "number" && w.current > 0 && !priceByTicker.has(t)) priceByTicker.set(t, w.current);
+      if (!t) continue;
+      if (!wlByTicker.has(t)) wlByTicker.set(t, w);
+      if (typeof w.current === "number" && w.current > 0 && !priceByTicker.has(t)) priceByTicker.set(t, w.current);
     }
 
     const out: Array<{
@@ -458,6 +461,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       priceAtLastScore: number | null;
       price: number;
     }> = [];
+    const seen = new Set<string>();
 
     for (const s of scores ?? []) {
       const t = normaliseTickerAlias(s.ticker);
@@ -472,16 +476,38 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         bullBearAtDate: s.bullBearAtDate ?? null,
       };
       const asym = computeLiveAsymmetry(quartet, price);
-      if (asym.baseRatio === null) continue;
       const status = heldSet.has(t) ? "HELD" : "WATCH";
+      seen.add(t);
       out.push({
         ticker: s.ticker,
         score: s.score ?? null,
         status,
         band: asym.band ?? "—",
-        ratio: asym.baseRatio,
+        ratio: asym.baseRatio ?? -1,
         asymmetry: asym,
         priceAtLastScore: s.priceAtLastScore ?? null,
+        price,
+      });
+    }
+
+    // Watchlist-only fallback: surface WL names that have no SCORES quartet so
+    // the bottom of the snapshot mirrors the Watchlist tab. Ratios show as —.
+    for (const [t, w] of wlByTicker) {
+      if (seen.has(t)) continue;
+      const price = priceByTicker.get(t);
+      if (!price) continue;
+      const asym = computeLiveAsymmetry(
+        { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
+        price,
+      );
+      out.push({
+        ticker: w.ticker,
+        score: null,
+        status: heldSet.has(t) ? "HELD" : "WATCH",
+        band: "—",
+        ratio: -1,
+        asymmetry: asym,
+        priceAtLastScore: null,
         price,
       });
     }
