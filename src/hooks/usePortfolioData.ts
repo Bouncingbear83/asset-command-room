@@ -1088,9 +1088,24 @@ export function usePortfolioData(): PortfolioData {
             const tickers = wl.map((w) => w.ticker || w.name).filter(Boolean);
             console.debug(`[watchlist parseWatchlist] in=${watchlistRaw.length} out=${wl.length}`);
             console.debug(`[watchlist tickers] last10=`, tickers.slice(-10));
+            const parsedKeys = new Set(wl.map((w) => `${w.ticker}|${w.name}`));
+            const droppedByParse = watchlistRaw
+              .map((row, i) => {
+                const t = String(row["ticker"] ?? row["TICKER"] ?? row["Ticker"] ?? "").trim();
+                const n = String(row["name"] ?? row["NAME"] ?? row["Name"] ?? "").trim();
+                return { rowIndex: i, ticker: t, name: n };
+              })
+              .filter((r) => !parsedKeys.has(`${r.ticker}|${r.name}`));
+            (window as any).__watchlistDebug = {
+              ...((window as any).__watchlistDebug ?? {}),
+              parsed: wl,
+              droppedByParse,
+              parsedAt: new Date().toISOString(),
+            };
           }
           return wl;
         })(),
+
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
         scoreLog: parseScoreLog(scoreLogRaw),
