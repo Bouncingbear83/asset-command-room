@@ -821,6 +821,12 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
   return (
     <div>
+      {import.meta.env.DEV && (
+        <div style={{ padding: "8px 14px" }}>
+          <WatchlistDebugTable />
+        </div>
+      )}
+
       {/* ── Sticky header strip ── */}
       <div
         style={{
