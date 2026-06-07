@@ -191,12 +191,21 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
     return next;
   });
 
-  const filtered = rawRows.filter((row: Record<string, any>) => {
+  const rowDecisions: Array<{ rowIndex: number; included: boolean; reason: string; ticker: string; name: string }> = [];
+  const filtered = rawRows.filter((row: Record<string, any>, rowIndex: number) => {
     const values = Object.values(row);
+    const tickerVal = String(row["ticker"] ?? row["TICKER"] ?? row["Ticker"] ?? "").trim();
+    const nameVal = String(row["name"] ?? row["NAME"] ?? row["Name"] ?? "").trim();
     const hasContent = values.some((value) => value !== null && value !== undefined && String(value).trim() !== "");
-    if (!hasContent) return false;
+    if (!hasContent) {
+      rowDecisions.push({ rowIndex, included: false, reason: "all-cells-empty", ticker: tickerVal, name: nameVal });
+      return false;
+    }
     const rowType = row["row_type"] ?? row["Row_Type"] ?? row["ROW_TYPE"];
-    if (rowType !== null && rowType !== undefined && String(rowType).trim() !== "") return true;
+    if (rowType !== null && rowType !== undefined && String(rowType).trim() !== "") {
+      rowDecisions.push({ rowIndex, included: true, reason: `row_type=${String(rowType)}`, ticker: tickerVal, name: nameVal });
+      return true;
+    }
     const keys = Object.keys(row);
     const hasId = keys.some((key) => {
       const lower = key.toLowerCase();
@@ -206,15 +215,32 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
         String(row[key]).trim() !== ""
       );
     });
-    if (hasId) return true;
-    return populatedCount(row) >= 3;
+    if (hasId) {
+      rowDecisions.push({ rowIndex, included: true, reason: "has-id-field", ticker: tickerVal, name: nameVal });
+      return true;
+    }
+    const pc = populatedCount(row);
+    if (pc >= 3) {
+      rowDecisions.push({ rowIndex, included: true, reason: `populatedCount=${pc}`, ticker: tickerVal, name: nameVal });
+      return true;
+    }
+    rowDecisions.push({ rowIndex, included: false, reason: `no-id-and-populatedCount=${pc}`, ticker: tickerVal, name: nameVal });
+    return false;
   });
 
   if (import.meta.env.DEV && options.gid === GIDS.watchlist) {
     console.debug(`[watchlist fetchSheet] raw=${rawRows.length} filtered=${filtered.length}`);
+    (window as any).__watchlistDebug = {
+      ...((window as any).__watchlistDebug ?? {}),
+      rawRows,
+      filteredRows: filtered,
+      rowDecisions,
+      fetchedAt: new Date().toISOString(),
+    };
   }
 
   return filtered;
+
 }
 
 async function fetchSheetGrid(options: SheetFetchOptions): Promise<string[][]> {
@@ -1062,9 +1088,24 @@ export function usePortfolioData(): PortfolioData {
             const tickers = wl.map((w) => w.ticker || w.name).filter(Boolean);
             console.debug(`[watchlist parseWatchlist] in=${watchlistRaw.length} out=${wl.length}`);
             console.debug(`[watchlist tickers] last10=`, tickers.slice(-10));
+            const parsedKeys = new Set(wl.map((w) => `${w.ticker}|${w.name}`));
+            const droppedByParse = watchlistRaw
+              .map((row, i) => {
+                const t = String(row["ticker"] ?? row["TICKER"] ?? row["Ticker"] ?? "").trim();
+                const n = String(row["name"] ?? row["NAME"] ?? row["Name"] ?? "").trim();
+                return { rowIndex: i, ticker: t, name: n };
+              })
+              .filter((r) => !parsedKeys.has(`${r.ticker}|${r.name}`));
+            (window as any).__watchlistDebug = {
+              ...((window as any).__watchlistDebug ?? {}),
+              parsed: wl,
+              droppedByParse,
+              parsedAt: new Date().toISOString(),
+            };
           }
           return wl;
         })(),
+
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
         scoreLog: parseScoreLog(scoreLogRaw),

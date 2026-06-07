@@ -7,6 +7,7 @@ import TickerButton from "@/components/factsheet/TickerButton";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
+import WatchlistDebugTable from "./WatchlistDebugTable";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
 import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 
@@ -821,6 +822,12 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
   return (
     <div>
+      {import.meta.env.DEV && (
+        <div style={{ padding: "8px 14px" }}>
+          <WatchlistDebugTable />
+        </div>
+      )}
+
       {/* ── Sticky header strip ── */}
       <div
         style={{
