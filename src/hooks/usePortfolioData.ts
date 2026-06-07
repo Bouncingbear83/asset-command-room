@@ -1056,7 +1056,11 @@ export function usePortfolioData(): PortfolioData {
         sipp,
         isa,
         bordier,
-        watchlist: parseWatchlist(watchlistRaw),
+        watchlist: (() => {
+          const wl = parseWatchlist(watchlistRaw);
+          if (import.meta.env.DEV) console.debug(`[watchlist parseWatchlist] in=${watchlistRaw.length} out=${wl.length}`);
+          return wl;
+        })(),
         layers: parseLayers(layersRaw),
         scores: parseScores(scoresRaw),
         scoreLog: parseScoreLog(scoreLogRaw),
