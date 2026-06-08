@@ -434,22 +434,39 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
   const rows = useMemo(() => {
     // Price lookup: prefer holdings (live), fall back to watchlist current.
-    // Keyed by alias-normalised ticker so dotted/hyphenated variants match.
-    const priceByTicker = new Map<string, number>();
+    // Keyed by BOTH alias-normalised ticker and raw uppercase so dotted
+    // exchange tickers (KODT.ZA, .T, .DE, .MI) match either way.
+    const priceByKey = new Map<string, number>();
     const heldSet = new Set<string>();
-    const wlByTicker = new Map<string, any>();
+    const wlByKey = new Map<string, any>();
+    const addKeys = (raw: any): string[] => {
+      const keys: string[] = [];
+      const alias = normaliseTickerAlias(String(raw ?? ""));
+      if (alias) keys.push(alias);
+      const upper = String(raw ?? "").trim().toUpperCase();
+      if (upper && upper !== alias) keys.push(upper);
+      return keys;
+    };
     for (const h of holdings ?? []) {
-      const t = normaliseTickerAlias(h.ticker);
-      if (!t) continue;
-      heldSet.add(t);
-      if (typeof h.price === "number" && h.price > 0 && !priceByTicker.has(t)) priceByTicker.set(t, h.price);
+      for (const k of addKeys(h.ticker)) {
+        heldSet.add(k);
+        if (typeof h.price === "number" && h.price > 0 && !priceByKey.has(k)) priceByKey.set(k, h.price);
+      }
     }
     for (const w of watchlist ?? []) {
-      const t = normaliseTickerAlias(w.ticker);
-      if (!t) continue;
-      if (!wlByTicker.has(t)) wlByTicker.set(t, w);
-      if (typeof w.current === "number" && w.current > 0 && !priceByTicker.has(t)) priceByTicker.set(t, w.current);
+      for (const k of addKeys(w.ticker)) {
+        if (!wlByKey.has(k)) wlByKey.set(k, w);
+        if (typeof w.current === "number" && w.current > 0 && !priceByKey.has(k)) priceByKey.set(k, w.current);
+      }
     }
+    const lookupPrice = (raw: any): number | null => {
+      for (const k of addKeys(raw)) {
+        const p = priceByKey.get(k);
+        if (typeof p === "number" && p > 0) return p;
+      }
+      return null;
+    };
+    const isHeld = (raw: any): boolean => addKeys(raw).some((k) => heldSet.has(k));
 
     const out: Array<{
       ticker: string;
@@ -459,15 +476,15 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       ratio: number;
       asymmetry: ReturnType<typeof computeLiveAsymmetry>;
       priceAtLastScore: number | null;
-      price: number;
+      price: number | null;
+      reason: string | null;
     }> = [];
     const seen = new Set<string>();
 
     for (const s of scores ?? []) {
-      const t = normaliseTickerAlias(s.ticker);
-      if (!t) continue;
-      const price = priceByTicker.get(t);
-      if (!price) continue;
+      const keys = addKeys(s.ticker);
+      if (keys.length === 0) continue;
+      const price = lookupPrice(s.ticker);
       const quartet: AsymmetryQuartet = {
         bullBase: s.bullBase ?? null,
         bullStretch: s.bullStretch ?? null,
@@ -475,27 +492,40 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         bearSubstrateFail: s.bearSubstrateFail ?? null,
         bullBearAtDate: s.bullBearAtDate ?? null,
       };
+      const hasAnyQuartet =
+        quartet.bullBase !== null || quartet.bullStretch !== null ||
+        quartet.bearThesisWeak !== null || quartet.bearSubstrateFail !== null;
+      // Skip rows with no quartet AND no price — nothing useful to show.
+      if (!hasAnyQuartet && price === null) continue;
       const asym = computeLiveAsymmetry(quartet, price);
-      const status = heldSet.has(t) ? "HELD" : "WATCH";
-      seen.add(t);
+      let reason: string | null = null;
+      if (asym.baseRatio === null) {
+        if (price === null) reason = "No current price";
+        else if (quartet.bullBase === null && quartet.bearThesisWeak === null) reason = "Quartet missing (base + bear)";
+        else if (quartet.bullBase === null) reason = "Missing BULL_BASE";
+        else if (quartet.bearThesisWeak === null) reason = "Missing BEAR_THESIS_WEAK";
+        else if (asym.aboveBull) reason = "Price above BULL_BASE";
+        else reason = "Quartet incomplete";
+      }
+      for (const k of keys) seen.add(k);
       out.push({
         ticker: s.ticker,
         score: s.score ?? null,
-        status,
+        status: isHeld(s.ticker) ? "HELD" : "WATCH",
         band: asym.band ?? "—",
         ratio: asym.baseRatio ?? -1,
         asymmetry: asym,
         priceAtLastScore: s.priceAtLastScore ?? null,
         price,
+        reason,
       });
     }
 
-    // Watchlist-only fallback: surface WL names that have no SCORES quartet so
+    // Watchlist-only fallback: surface WL names that have no SCORES row so
     // the bottom of the snapshot mirrors the Watchlist tab. Ratios show as —.
-    for (const [t, w] of wlByTicker) {
-      if (seen.has(t)) continue;
-      const price = priceByTicker.get(t);
-      if (!price) continue;
+    for (const [k, w] of wlByKey) {
+      if (seen.has(k)) continue;
+      const price = lookupPrice(w.ticker);
       const asym = computeLiveAsymmetry(
         { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
         price,
@@ -503,12 +533,13 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       out.push({
         ticker: w.ticker,
         score: null,
-        status: heldSet.has(t) ? "HELD" : "WATCH",
+        status: isHeld(w.ticker) ? "HELD" : "WATCH",
         band: "—",
         ratio: -1,
         asymmetry: asym,
         priceAtLastScore: null,
         price,
+        reason: price === null ? "No current price" : "No quartet set",
       });
     }
 
@@ -635,7 +666,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
           <tbody>
             {filteredRows.map((r) => {
               const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
-              const trend = r.priceAtLastScore && r.priceAtLastScore > 0
+              const trend = r.price !== null && r.priceAtLastScore && r.priceAtLastScore > 0
                 ? (r.price < r.priceAtLastScore
                     ? { sym: "▲", color: "var(--green)", title: `Cheaper than at score (${r.priceAtLastScore})`, pct: ((r.price - r.priceAtLastScore) / r.priceAtLastScore) * 100 }
                     : r.price > r.priceAtLastScore
@@ -645,7 +676,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               const isOpen = expanded.has(r.ticker);
               const q = r.asymmetry.quartet;
               const pctTo = (target: number | null) =>
-                target !== null && target > 0 && r.price > 0
+                target !== null && target > 0 && r.price !== null && r.price > 0
                   ? ((target - r.price) / r.price) * 100
                   : null;
               const fmtPct = (n: number | null) => n === null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
@@ -685,7 +716,14 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     {!isMobile && <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>}
                     {!isMobile && <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>}
                     <td style={{ ...td, textAlign: "right", padding: isMobile ? "8px 6px" : td.padding }}>
-                      <AsymmetryPill asymmetry={r.asymmetry} />
+                      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                        <AsymmetryPill asymmetry={r.asymmetry} />
+                        {r.reason && (
+                          <span title={r.reason} style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.04em", whiteSpace: "nowrap", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {r.reason}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400, padding: isMobile ? "8px 6px" : td.padding }}>
                       {formatRatio(r.asymmetry.stretchRatio)}
