@@ -11,12 +11,12 @@ import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
-import { normaliseTicker as normaliseTickerAlias, tickerVariants } from "@/lib/tickerAlias";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
-import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { computeLiveAsymmetry, formatRatio } from "@/lib/liveAsymmetry";
+import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 
 // Quick Commands now route through buildClaudePromptUrl().
@@ -432,105 +432,47 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
   });
 
 
-  const rows = useMemo(() => {
-    // Spine = Holdings ∪ Watchlist (one row per real ticker).
-    // Scores are joined onto the spine purely as a quartet lookup.
-    const nameKey = (s: any): string =>
-      String(s ?? "")
-        .normalize("NFKC")
-        .replace(/[\u200B-\u200D\uFEFF]/g, "")
-        .trim()
-        .toUpperCase();
+  const quartetMap = useQuartetMap(scores ?? [], holdings ?? [], watchlist ?? []);
 
-    type KeyKind = "exact" | "swap" | "root" | "name";
-    const buildKeys = (raw: any, name?: any): Array<{ k: string; kind: KeyKind }> => {
-      const out: Array<{ k: string; kind: KeyKind }> = [];
-      const seen = new Set<string>();
-      const push = (k: string, kind: KeyKind) => {
-        if (!k || seen.has(k)) return;
-        seen.add(k);
-        out.push({ k, kind });
-      };
-      const rawStr = String(raw ?? "")
-        .normalize("NFKC")
-        .replace(/[\u200B-\u200D\uFEFF]/g, "")
-        .trim();
-      const alias = normaliseTickerAlias(rawStr);
-      const upper = rawStr.toUpperCase();
-      if (alias) push(alias, "exact");
-      if (upper) push(upper, "exact");
-      for (const v of tickerVariants(rawStr || upper || alias || "")) {
-        if (v) push(v.toUpperCase(), "swap");
-      }
-      if (upper.includes(".")) {
-        const root = upper.split(".")[0];
-        if (root && root.length >= 2) push(`ROOT:${root}`, "root");
-      }
-      const n = nameKey(name);
-      if (n && n.length >= 3) push(`NAME:${n}`, "name");
-      return out;
-    };
-
-    // Canonical ticker — used as the dedup identity for spine rows.
-    const canon = (raw: any): string => {
-      const rawStr = String(raw ?? "").normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
-      return normaliseTickerAlias(rawStr) || rawStr.toUpperCase();
-    };
-
-    // 1. scoresByKey — lookup quartets by any key variant.
-    //    Prefer exact matches over root/name to avoid false joins.
-    const scoresByKey: Record<KeyKind, Map<string, any>> = {
-      exact: new Map(),
-      swap: new Map(),
-      root: new Map(),
-      name: new Map(),
-    };
+  // Simple score lookup by uppercase ticker (no fuzzy join)
+  const scoreMap = useMemo(() => {
+    const m = new Map<string, { score: number | null; priceAtLastScore: number | null; heldStatus: string }>();
     for (const s of scores ?? []) {
-      for (const { k, kind } of buildKeys(s.ticker, (s as any).name)) {
-        if (!scoresByKey[kind].has(k)) scoresByKey[kind].set(k, s);
-      }
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (t && !m.has(t)) m.set(t, { score: s.score ?? null, priceAtLastScore: s.priceAtLastScore ?? null, heldStatus: String(s.heldStatus ?? "") });
     }
-    const lookupScore = (raw: any, name?: any): any | null => {
-      const keys = buildKeys(raw, name);
-      for (const kind of ["exact", "swap", "root", "name"] as KeyKind[]) {
-        for (const { k, kind: kk } of keys) {
-          if (kk !== kind) continue;
-          const hit = scoresByKey[kind].get(k);
-          if (hit) return hit;
-        }
-      }
-      return null;
-    };
+    return m;
+  }, [scores]);
 
-    // 2. Build spine: Holdings ∪ Watchlist, deduped by canonical ticker.
-    type Spine = { ticker: string; name: string; price: number | null; held: boolean; source: "H" | "W" };
-    const spineByCanon = new Map<string, Spine>();
+  const rows = useMemo(() => {
+    // Spine = HOLDINGS ∪ WATCHLIST, deduped by uppercase ticker.
+    type Spine = { ticker: string; price: number | null; held: boolean };
+    const spineByTicker = new Map<string, Spine>();
 
     for (const h of holdings ?? []) {
-      const c = canon(h.ticker);
-      if (!c) continue;
+      const t = String(h.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
       const price = typeof h.price === "number" && h.price > 0 ? h.price : null;
-      const existing = spineByCanon.get(c);
+      const existing = spineByTicker.get(t);
       if (!existing) {
-        spineByCanon.set(c, { ticker: h.ticker || c, name: String((h as any).name ?? ""), price, held: true, source: "H" });
+        spineByTicker.set(t, { ticker: h.ticker || t, price, held: true });
       } else {
         existing.held = true;
         if (existing.price === null && price !== null) existing.price = price;
       }
     }
     for (const w of watchlist ?? []) {
-      const c = canon(w.ticker);
-      if (!c) continue;
+      const t = String(w.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
       const price = typeof w.current === "number" && w.current > 0 ? w.current : null;
-      const existing = spineByCanon.get(c);
+      const existing = spineByTicker.get(t);
       if (!existing) {
-        spineByCanon.set(c, { ticker: w.ticker || c, name: String(w.name ?? ""), price, held: false, source: "W" });
+        spineByTicker.set(t, { ticker: w.ticker || t, price, held: false });
       } else if (existing.price === null && price !== null) {
         existing.price = price;
       }
     }
 
-    // 3. Build rows from spine, joining scores for quartet/score.
     const out: Array<{
       ticker: string;
       score: number | null;
@@ -546,19 +488,17 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     const missingQuartet: string[] = [];
     const missingPrice: string[] = [];
 
-    for (const sp of spineByCanon.values()) {
-      const s = lookupScore(sp.ticker, sp.name);
-      const quartet: AsymmetryQuartet = {
-        bullBase: s?.bullBase ?? null,
-        bullStretch: s?.bullStretch ?? null,
-        bearThesisWeak: s?.bearThesisWeak ?? null,
-        bearSubstrateFail: s?.bearSubstrateFail ?? null,
-        bullBearAtDate: s?.bullBearAtDate ?? null,
-      };
-      const asym = computeLiveAsymmetry(quartet, sp.price);
+    for (const sp of spineByTicker.values()) {
+      const t = String(sp.ticker ?? "").trim().toUpperCase();
+      const entry = quartetMap.get(t);
+      const scoreEntry = scoreMap.get(t);
+
+      const asym = entry?.asymmetry ?? computeLiveAsymmetry({ bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null }, sp.price);
+      const quartet = entry?.quartet ?? { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
+
       let reason: string | null = null;
       if (asym.baseRatio === null) {
-        if (sp.price === null) { reason = "No current price"; missingPrice.push(sp.ticker); }
+        if ((entry?.priceUsed ?? sp.price) === null) { reason = "No current price"; missingPrice.push(sp.ticker); }
         else if (quartet.bullBase === null && quartet.bearThesisWeak === null) { reason = "Quartet missing (base + bear)"; missingQuartet.push(sp.ticker); }
         else if (quartet.bullBase === null) reason = "Missing BULL_BASE";
         else if (quartet.bearThesisWeak === null) reason = "Missing BEAR_THESIS_WEAK";
@@ -567,13 +507,13 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       }
       out.push({
         ticker: sp.ticker,
-        score: s?.score ?? null,
+        score: scoreEntry?.score ?? null,
         status: sp.held ? "HELD" : "WATCH",
         band: asym.band ?? "—",
         ratio: asym.baseRatio ?? -1,
         asymmetry: asym,
-        priceAtLastScore: s?.priceAtLastScore ?? null,
-        price: sp.price,
+        priceAtLastScore: scoreEntry?.priceAtLastScore ?? null,
+        price: entry?.priceUsed ?? sp.price,
         reason,
       });
     }
@@ -586,12 +526,13 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         return q.bullBase !== null || q.bullStretch !== null || q.bearThesisWeak !== null || q.bearSubstrateFail !== null;
       }).length;
       const dbg = {
-        spineCount: spineByCanon.size,
+        spineCount: spineByTicker.size,
         watchCount,
         heldCount,
         holdingsCount: holdings?.length ?? 0,
         watchlistCount: watchlist?.length ?? 0,
         scoresCount: scores?.length ?? 0,
+        quartetMapSize: quartetMap.size,
         withQuartet,
         missingPriceCount: missingPrice.length,
         missingPrice,
@@ -601,11 +542,11 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       (window as any).__asymDebug = dbg;
       try { (window.top as any).__asymDebug = dbg; } catch {}
       // eslint-disable-next-line no-console
-      console.info("[asym] spine:", spineByCanon.size, "watch:", watchCount, "held:", heldCount, "withQuartet:", withQuartet, "missingPrice:", missingPrice.length);
+      console.info("[asym] spine:", spineByTicker.size, "watch:", watchCount, "held:", heldCount, "withQuartet:", withQuartet, "missingPrice:", missingPrice.length, "quartetMap:", quartetMap.size);
     }
 
     return out.sort((a, b) => b.ratio - a.ratio);
-  }, [scores, holdings, watchlist]);
+  }, [scores, holdings, watchlist, quartetMap, scoreMap]);
 
   const filteredRows = useMemo(() => {
     const f = filter === "ALL"
