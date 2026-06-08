@@ -1,56 +1,57 @@
-# Fix "No current price" on Asymmetry for rows that clearly have a price
+## Problem
 
-## What the user is seeing
-Names in the Asymmetry snapshot are tagged "No current price" even though those tickers DO have a current price in HOLDINGS or WATCHLIST. So the price-lookup join is failing, not the data.
+You expect ~92 rows on the WATCH filter (your actual Watchlist). The card currently shows whatever happens to come out of `scores` (the SCORES sheet), with a fragile dedup that drops or duplicates watchlist rows. That is the wrong spine.
 
-## Suspected root causes (to confirm with a one-shot diagnostic, then fix)
+Also: `DNR.MI` is in your Watchlist but silently absent from the snapshot. Root cause is in `AsymmetrySnapshotCard` (`src/components/CommandTab.tsx`, lines 435–594):
 
-1. **Watchlist "current price" column header drift.** `parseWatchlist` only matches `"current price" | "CURRENT PRICE" | "Current Price"`. If the sheet header is `Current_Price`, `current_price`, `Price`, `CURRENT`, or has a trailing space / NBSP, `w.current` becomes `null` and the watchlist never contributes a price.
-2. **Ticker join mismatch between SCORES ↔ HOLDINGS/WATCHLIST.** `normaliseTicker` only uppercases + strips whitespace and applies a tiny alias map. It does NOT reconcile exchange-suffix drift (`4109` vs `4109.T`, `KODT` vs `KODT.ZA`, `RHM.DE` vs `RHM`, etc.), nor `.`/`-` swaps. If SCORES carries a bare ticker and HOLDINGS/WATCHLIST carries the suffixed form (or vice versa), the lookup misses.
-3. **Hidden whitespace / zero-width chars** on one side only — already partially handled by `normaliseTicker`, but only after uppercasing; need to verify with raw dump.
+- The loop iterates **scores** and only then runs a "watchlist-only fallback" over `wlByKey`.
+- `wlByKey` is keyed by **every variant** of every watchlist ticker (alias, upper, `.`/`-` swap, `ROOT:<root>`, `NAME:<name>`). The fallback iterates each entry — so:
+  - If one variant of a WL ticker (e.g. `ROOT:DNR` from some scores row like `DNR` or `DNR.US`) is in `seen`, **other variants of the same WL row still push again** → duplicates (the VARDA/X-ENERGY/4369.T warning you already saw).
+  - Conversely, when *all* variants collide with `seen` keys produced by an unrelated scores row, the WL ticker is **silently dropped**. `ROOT:` keys are the worst offender — any two tickers sharing the pre-dot root collide (e.g. `DNR` vs `DNR.MI` vs `DNR.AX`).
+- Net effect: the count is unstable and certain watchlist names disappear depending on what else is in scores.
 
-## Plan
+## Fix
 
-### Step 1 — Add a temporary DEV-only diagnostic (no UX change)
-In `AsymmetrySnapshotCard`, when `import.meta.env.DEV`, stash on `window.__asymDebug`:
-- `priceKeys`: all keys in `priceByKey` (so we can see exactly what HOLDINGS/WATCHLIST contributed).
-- `wlSample`: first 10 `{ raw: w.ticker, name: w.name, current: w.current, currentRaw: w.currentRaw, keys: addKeys(w.ticker) }` — confirms the column-header parse.
-- `missingPrice`: for every row pushed with `reason === "No current price"`, log `{ scoreTicker, keysTried: addKeys(s.ticker), name: s.name }`.
+Rewrite the row-building in `AsymmetrySnapshotCard` so the **spine is Holdings ∪ Watchlist** (the 92 you actually own/watch), and `scores` is just a *quartet lookup* joined onto that spine.
 
-Also `console.info("[asym]", ...)` a compact summary so the user can copy-paste back if needed.
+### Algorithm
 
-### Step 2 — Harden Watchlist current-price parsing
-In `parseWatchlist`, extend the header list and normalise:
-```ts
-const currentRawVal = findCol(row,
-  "current price", "CURRENT PRICE", "Current Price",
-  "current_price", "CURRENT_PRICE", "Current_Price",
-  "price", "PRICE", "Price",
-  "current", "CURRENT", "Current"
-);
+1. Build a `scoresByKey` lookup (same key strategy: alias, upper, `.`/`-` swap, `ROOT:`, `NAME:`).
+2. Iterate the **union of Holdings + Watchlist**, deduped by canonical ticker (one row per real ticker).
+3. For each spine row:
+   - Pull price from holdings.price → watchlist.current.
+   - Look up quartet via `scoresByKey` (first matching key wins; prefer non-`ROOT:`/non-`NAME:` matches to avoid false joins).
+   - Compute `computeLiveAsymmetry(quartet, price)`.
+   - `status = HELD if in holdings else WATCH`.
+   - `reason` reflects why ratio is null (no price / quartet missing / above bull / below bear).
+4. Sort by selected ratio. Render. `key={canonicalTicker}` — no index suffix needed.
+
+### Why this fixes both complaints
+
+- `WATCH` filter will return **exactly your watchlist count** (≈92), because every WL ticker contributes exactly one row.
+- `DNR.MI` can no longer be eaten by a `ROOT:DNR` collision with some unrelated scores row.
+- `ALL` count becomes `unique(Holdings ∪ Watchlist)`, which is what "live" should mean here.
+- Duplicate-key React warnings go away because canonical ticker is unique by construction.
+
+### Files touched
+
+- `src/components/CommandTab.tsx` — replace the `rows` `useMemo` (lines ~435–594) and the row `key` (line 747). Remove the index-suffix hack added previously.
+- No backend/schema changes. No changes to `usePortfolioData`, `liveAsymmetry`, or any other component.
+
+### Verification
+
+After the edit, in console:
 ```
-(Keep existing `currentRaw` string for display.)
+window.__asymDebug.spineCount        // ≈ holdings+watchlist unique tickers
+window.__asymDebug.watchCount        // ≈ 92
+window.__asymDebug.missingQuartet    // list of WL tickers with no scores match
+```
+And confirm `DNR.MI` appears in the WATCH filter.
 
-### Step 3 — Stronger ticker-join in Asymmetry
-Replace `addKeys` with a key-set that also includes:
-- raw uppercase with whitespace/zero-width stripped,
-- `.` ↔ `-` swap variants (use existing `tickerVariants`),
-- the bare root before the first `.` (e.g. `4109.T` → also key on `4109`), to bridge SCORES ↔ holdings drift,
-- the `name` (uppercased, trimmed) as a last-resort key — populate both `priceByKey` and `wlByKey` under the name key too, and try it in `lookupPrice` only when ticker keys miss.
+## Out of scope
 
-Order in `lookupPrice`: ticker variants first, then root, then name fallback. Never overwrite an existing key.
+- Changing how `scores` / `watchlist` are fetched or parsed.
+- Touching any other tab.
+- Any cosmetic changes to the table.
 
-### Step 4 — Reason text reflects the new logic
-If a row still has no price after Step 3, keep `"No current price"`; otherwise the reason will naturally switch to a quartet-component message (e.g. "Missing BULL_BASE") or disappear.
-
-### Step 5 — Verify
-1. Reload preview, open Command tab, expand Asymmetry.
-2. In console: `Object.keys(window.__asymDebug.priceKeys).length`, then `window.__asymDebug.missingPrice` — confirm none of the user's HOLDINGS/WATCHLIST names appear.
-3. Visually scan: rows previously tagged "No current price" should now either show a real ratio or a quartet-related reason.
-4. Remove the DEV diagnostic (or leave behind a single `window.__asymDebug` since the watchlist debug pattern is already accepted) — confirm with user before removing.
-
-## Files touched
-- `src/hooks/usePortfolioData.ts` — widen `parseWatchlist` current-price headers.
-- `src/components/CommandTab.tsx` — stronger `addKeys` / `lookupPrice`, DEV-only `window.__asymDebug`.
-
-No business-logic or backend changes; this is presentation-layer data-joining only.
+Approve and I'll implement just this.
