@@ -81,6 +81,8 @@ const KNOWN_COLS = [
   "held_status", "reclass_status", "thesis_age_months", "thesis_first_scored",
   "price_at_first_add", "first_add_date", "price_at_last_score",
   "pct_from_first_add", "pct_from_last_score",
+  "bull_base", "bull_stretch", "bear_thesis_weak", "bear_substrate_fail",
+  "bull_bear_at_date", "pre_reclass_modifier", "s3_transition_modifier",
 ];
 
 interface SheetFetchOptions {
@@ -152,6 +154,14 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("price at last score") || labelLower.includes("price_at_last_score")) return "price_at_last_score";
   if (labelLower.includes("pct from first add") || labelLower.includes("pct_from_first_add")) return "pct_from_first_add";
   if (labelLower.includes("pct from last score") || labelLower.includes("pct_from_last_score")) return "pct_from_last_score";
+  // Asymmetry quartet — spaced or underscored
+  if (labelLower.includes("bull stretch") || labelLower.includes("bull_stretch")) return "bull_stretch";
+  if (labelLower.includes("bull base") || labelLower.includes("bull_base")) return "bull_base";
+  if (labelLower.includes("bear thesis weak") || labelLower.includes("bear_thesis_weak")) return "bear_thesis_weak";
+  if (labelLower.includes("bear substrate fail") || labelLower.includes("bear_substrate_fail")) return "bear_substrate_fail";
+  if (labelLower.includes("bull bear at date") || labelLower.includes("bull_bear_at_date")) return "bull_bear_at_date";
+  if (labelLower.includes("pre reclass modifier") || labelLower.includes("pre_reclass_modifier")) return "pre_reclass_modifier";
+  if (labelLower.includes("s3 transition modifier") || labelLower.includes("s3_transition_modifier")) return "s3_transition_modifier";
   if (labelLower.includes("last updated") || labelLower.includes("last_updated")) return "last_updated";
   if (labelLower.includes("current price")) return "current price";
   if (labelLower.includes("entry target")) return "entry target";
@@ -507,11 +517,11 @@ function parseScores(rows: Record<string, any>[]) {
       rejectReason: String(findCol(row, "REJECT_REASON", "reject_reason", "Reject_Reason") ?? ""),
       anchorSizingPathway: String(findCol(row, "ANCHOR_SIZING_PATHWAY", "anchor_sizing_pathway", "Anchor_Sizing_Pathway") ?? ""),
       // Asymmetry quartet (AK-AO)
-      bullBase: parseNum(findCol(row, "BULL_BASE", "bull_base", "Bull_Base")),
-      bullStretch: parseNum(findCol(row, "BULL_STRETCH", "bull_stretch", "Bull_Stretch")),
-      bearThesisWeak: parseNum(findCol(row, "BEAR_THESIS_WEAK", "bear_thesis_weak", "Bear_Thesis_Weak")),
-      bearSubstrateFail: parseNum(findCol(row, "BEAR_SUBSTRATE_FAIL", "bear_substrate_fail", "Bear_Substrate_Fail")),
-      bullBearAtDate: parseSheetDate(findCol(row, "BULL_BEAR_AT_DATE", "bull_bear_at_date", "Bull_Bear_At_Date")),
+      bullBase: parseNum(findCol(row, "bull_base", "BULL_BASE", "Bull_Base", "BULL BASE", "Bull Base", "bull base")),
+      bullStretch: parseNum(findCol(row, "bull_stretch", "BULL_STRETCH", "Bull_Stretch", "BULL STRETCH", "Bull Stretch", "bull stretch")),
+      bearThesisWeak: parseNum(findCol(row, "bear_thesis_weak", "BEAR_THESIS_WEAK", "Bear_Thesis_Weak", "BEAR THESIS WEAK", "Bear Thesis Weak", "bear thesis weak")),
+      bearSubstrateFail: parseNum(findCol(row, "bear_substrate_fail", "BEAR_SUBSTRATE_FAIL", "Bear_Substrate_Fail", "BEAR SUBSTRATE FAIL", "Bear Substrate Fail", "bear substrate fail")),
+      bullBearAtDate: parseSheetDate(findCol(row, "bull_bear_at_date", "BULL_BEAR_AT_DATE", "Bull_Bear_At_Date", "BULL BEAR AT DATE", "Bull Bear At Date", "bull bear at date")),
       // Modifiers (AP-AQ)
       preReclassModifier: parseNum(findCol(row, "PRE_RECLASS_MODIFIER", "pre_reclass_modifier", "Pre_Reclass_Modifier")),
       s3TransitionModifier: parseNum(findCol(row, "S3_TRANSITION_MODIFIER", "s3_transition_modifier", "S3_Transition_Modifier")),
