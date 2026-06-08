@@ -581,12 +581,18 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     if (typeof window !== "undefined") {
       const watchCount = out.filter((r) => r.status === "WATCH").length;
       const heldCount = out.filter((r) => r.status === "HELD").length;
+      const withQuartet = out.filter((r) => {
+        const q = r.asymmetry.quartet;
+        return q.bullBase !== null || q.bullStretch !== null || q.bearThesisWeak !== null || q.bearSubstrateFail !== null;
+      }).length;
       const dbg = {
         spineCount: spineByCanon.size,
         watchCount,
         heldCount,
         holdingsCount: holdings?.length ?? 0,
         watchlistCount: watchlist?.length ?? 0,
+        scoresCount: scores?.length ?? 0,
+        withQuartet,
         missingPriceCount: missingPrice.length,
         missingPrice,
         missingQuartetCount: missingQuartet.length,
@@ -595,7 +601,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       (window as any).__asymDebug = dbg;
       try { (window.top as any).__asymDebug = dbg; } catch {}
       // eslint-disable-next-line no-console
-      console.info("[asym] spine:", spineByCanon.size, "watch:", watchCount, "held:", heldCount, "missingPrice:", missingPrice.length, "missingQuartet:", missingQuartet.length);
+      console.info("[asym] spine:", spineByCanon.size, "watch:", watchCount, "held:", heldCount, "withQuartet:", withQuartet, "missingPrice:", missingPrice.length);
     }
 
     return out.sort((a, b) => b.ratio - a.ratio);
@@ -749,7 +755,9 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               }
               if (r.asymmetry.belowBear) driftBits.push("Below BEAR_THESIS_WEAK — thesis under stress.");
               if (r.asymmetry.aboveBull) driftBits.push("Above BULL_BASE — upside already captured.");
-              if (r.asymmetry.quartetAgeDays !== null) driftBits.push(`Quartet set ${r.asymmetry.quartetAgeDays}d ago.`);
+              const hasAnyTarget = q.bullBase !== null || q.bullStretch !== null || q.bearThesisWeak !== null || q.bearSubstrateFail !== null;
+              if (!hasAnyTarget) driftBits.push("Quartet targets missing — add BULL_BASE / BULL_STRETCH / BEAR_THESIS_WEAK / BEAR_SUBSTRATE_FAIL in SCORES sheet.");
+              else if (r.asymmetry.quartetAgeDays !== null) driftBits.push(`Quartet set ${r.asymmetry.quartetAgeDays}d ago.`);
               const drift = driftBits.join(" ");
               return (
                 <React.Fragment key={r.ticker}>
