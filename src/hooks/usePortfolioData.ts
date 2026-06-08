@@ -193,10 +193,20 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
   const json = JSON.parse(text.substring(47, text.length - 2));
   const cols: string[] = json.table.cols.map((column: any) => resolveColumnLabel(column.label ?? ""));
 
+  // Narrow `cell.f` fallback to the SCORES quartet columns only. gviz types
+  // these columns as 'number' but safeNum-guarded values (100/165) land as
+  // text with v=null, so we rescue them via the formatted display string.
+  // Applying the fallback globally bleeds formatted strings (currency, dates)
+  // into other sheets and breaks downstream parsers (e.g. WATCHLIST current).
+  const QUARTET_COLS = new Set([
+    "bull_base","bull_stretch","bear_thesis_weak","bear_substrate_fail","bull_bear_at_date",
+  ]);
   const rawRows = (json.table.rows || []).map((row: any) => {
     const next: Record<string, any> = {};
     row.c?.forEach((cell: any, index: number) => {
-      next[cols[index] || `col_${index}`] = cell?.v ?? cell?.f ?? null;
+      const col = cols[index] || `col_${index}`;
+      const allowFallback = QUARTET_COLS.has(col.toLowerCase());
+      next[col] = cell?.v ?? (allowFallback ? cell?.f ?? null : null);
     });
     return next;
   });
@@ -1044,7 +1054,10 @@ export function usePortfolioData(): PortfolioData {
         jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:Z5000" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:Z5000" }).catch((e) => {
+          console.error("[watchlist fetch] failed:", e);
+          return [];
+        }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores, range: "A1:AQ" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
