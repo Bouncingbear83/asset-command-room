@@ -504,10 +504,12 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     }> = [];
     const seen = new Set<string>();
 
+    const missingPrice: Array<{ scoreTicker: string; name: string; keysTried: string[] }> = [];
+
     for (const s of scores ?? []) {
-      const keys = addKeys(s.ticker);
+      const keys = addKeys(s.ticker, (s as any).name);
       if (keys.length === 0) continue;
-      const price = lookupPrice(s.ticker);
+      const price = lookupPrice(s.ticker, (s as any).name);
       const quartet: AsymmetryQuartet = {
         bullBase: s.bullBase ?? null,
         bullStretch: s.bullStretch ?? null,
@@ -518,12 +520,14 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       const hasAnyQuartet =
         quartet.bullBase !== null || quartet.bullStretch !== null ||
         quartet.bearThesisWeak !== null || quartet.bearSubstrateFail !== null;
-      // Skip rows with no quartet AND no price — nothing useful to show.
       if (!hasAnyQuartet && price === null) continue;
       const asym = computeLiveAsymmetry(quartet, price);
       let reason: string | null = null;
       if (asym.baseRatio === null) {
-        if (price === null) reason = "No current price";
+        if (price === null) {
+          reason = "No current price";
+          missingPrice.push({ scoreTicker: String(s.ticker ?? ""), name: String((s as any).name ?? ""), keysTried: keys });
+        }
         else if (quartet.bullBase === null && quartet.bearThesisWeak === null) reason = "Quartet missing (base + bear)";
         else if (quartet.bullBase === null) reason = "Missing BULL_BASE";
         else if (quartet.bearThesisWeak === null) reason = "Missing BEAR_THESIS_WEAK";
@@ -534,7 +538,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       out.push({
         ticker: s.ticker,
         score: s.score ?? null,
-        status: isHeld(s.ticker) ? "HELD" : "WATCH",
+        status: isHeld(s.ticker, (s as any).name) ? "HELD" : "WATCH",
         band: asym.band ?? "—",
         ratio: asym.baseRatio ?? -1,
         asymmetry: asym,
@@ -544,11 +548,10 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       });
     }
 
-    // Watchlist-only fallback: surface WL names that have no SCORES row so
-    // the bottom of the snapshot mirrors the Watchlist tab. Ratios show as —.
+    // Watchlist-only fallback
     for (const [k, w] of wlByKey) {
       if (seen.has(k)) continue;
-      const price = lookupPrice(w.ticker);
+      const price = lookupPrice(w.ticker, w.name);
       const asym = computeLiveAsymmetry(
         { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
         price,
@@ -556,7 +559,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       out.push({
         ticker: w.ticker,
         score: null,
-        status: isHeld(w.ticker) ? "HELD" : "WATCH",
+        status: isHeld(w.ticker, w.name) ? "HELD" : "WATCH",
         band: "—",
         ratio: -1,
         asymmetry: asym,
@@ -564,6 +567,23 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         price,
         reason: price === null ? "No current price" : "No quartet set",
       });
+    }
+
+    if (import.meta.env.DEV && typeof window !== "undefined") {
+      (window as any).__asymDebug = {
+        priceKeys: Array.from(priceByKey.keys()),
+        priceKeyCount: priceByKey.size,
+        holdingsCount: holdings?.length ?? 0,
+        watchlistCount: watchlist?.length ?? 0,
+        wlSample: (watchlist ?? []).slice(0, 10).map((w) => ({
+          raw: w.ticker, name: w.name, current: (w as any).current, currentRaw: (w as any).currentRaw,
+          keys: addKeys(w.ticker, w.name),
+        })),
+        missingPrice,
+        missingPriceCount: missingPrice.length,
+      };
+      // eslint-disable-next-line no-console
+      console.info("[asym] priceKeys:", priceByKey.size, "missingPrice:", missingPrice.length, missingPrice.slice(0, 20));
     }
 
     return out.sort((a, b) => b.ratio - a.ratio);
