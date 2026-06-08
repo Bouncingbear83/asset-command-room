@@ -329,7 +329,7 @@ function findCol(row: Record<string, any>, ...candidates: string[]): any {
   }
   for (const candidate of candidates) {
     const lower = candidate.toLowerCase();
-    const match = keys.find((key) => key.toLowerCase().includes(lower) || lower.includes(key.toLowerCase()));
+    const match = keys.find((key) => key.toLowerCase().includes(lower));
     if (match && row[match] !== undefined && row[match] !== null) return row[match];
   }
   return null;
