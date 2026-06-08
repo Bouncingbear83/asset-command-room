@@ -495,13 +495,13 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       const isOverdue = days != null && days > OVERDUE_DAYS;
 
       const matched = scoreByTicker.get(ticker);
-      const quartet: AsymmetryQuartet = {
-        bullBase: (matched as any)?.bullBase ?? null,
-        bullStretch: (matched as any)?.bullStretch ?? null,
-        bearThesisWeak: (matched as any)?.bearThesisWeak ?? null,
-        bearSubstrateFail: (matched as any)?.bearSubstrateFail ?? null,
-        bullBearAtDate: (matched as any)?.bullBearAtDate ?? null,
-      };
+      const quartet: AsymmetryQuartet = matched ? {
+        bullBase: matched.bullBase ?? null,
+        bullStretch: matched.bullStretch ?? null,
+        bearThesisWeak: matched.bearThesisWeak ?? null,
+        bearSubstrateFail: matched.bearSubstrateFail ?? null,
+        bullBearAtDate: matched.bullBearAtDate ?? null,
+      } : { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
       const liveAsymmetry = computeLiveAsymmetry(quartet, currentPrice);
 
       return {

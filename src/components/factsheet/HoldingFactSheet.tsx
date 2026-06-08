@@ -500,7 +500,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               const live = computeLiveAsymmetry(quartet, livePrice);
               const rationale: any = data.rationale;
               const hasQuartet = quartet.bullBase !== null || quartet.bearThesisWeak !== null;
-              if (!rationale?.bull_case && !rationale?.bear_case && !rationale?.asymmetry_ratio && !hasQuartet) return null;
+              if (!rationale?.bull_case && !rationale?.bear_case && !hasQuartet) return null;
 
               // Mini-bar: spans BEAR_SUBSTRATE_FAIL -> BULL_STRETCH
               const lo = quartet.bearSubstrateFail ?? quartet.bearThesisWeak;
@@ -519,7 +519,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                     <div style={sectionTitle}>Asymmetry</div>
                     {live.baseRatio !== null && (
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--gold)" }}>
-                        Live {formatRatio(live.baseRatio)}{live.stretchRatio !== null ? <span style={{ opacity: 0.5 }}> / {formatRatio(live.stretchRatio)}</span> : null}
+                        {formatRatio(live.baseRatio)}{live.stretchRatio !== null ? <span style={{ opacity: 0.5 }}> / {formatRatio(live.stretchRatio)}</span> : null}
                         {live.band && <span style={{ marginLeft: 8, fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)" }}>{live.band}</span>}
                       </div>
                     )}
@@ -552,7 +552,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                     </div>
                   )}
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       <div style={{ ...monoLabel, color: "var(--green)" }}>Bull</div>
                       <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{rationale?.bull_case || "—"}</div>
@@ -573,16 +573,17 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                         </div>
                       )}
                     </div>
-                    <div>
-                      <div style={{ ...monoLabel, color: "var(--gold)" }}>Ratio (stored)</div>
-                      <div style={{ fontSize: 14, color: "var(--gold)", marginTop: 4, fontFamily: "var(--font-mono)" }}>{rationale?.asymmetry_ratio || "—"}</div>
-                      {live.quartetAgeDays !== null && (
-                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                          Quartet {live.quartetAgeDays}d old
-                        </div>
-                      )}
-                    </div>
                   </div>
+                  {live.quartetAgeDays !== null && (
+                    <div style={{
+                      marginTop: 10,
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9,
+                      color: live.quartetAgeDays > 90 ? "var(--amber)" : "var(--text-dim)",
+                    }}>
+                      Quartet set {live.quartetAgeDays}d ago{live.quartetAgeDays > 90 && " ⚠ stale"}
+                    </div>
+                  )}
                 </div>
               );
             })()}
