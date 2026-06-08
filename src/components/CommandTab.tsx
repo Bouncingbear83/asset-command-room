@@ -711,7 +711,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
 
           <tbody>
-            {filteredRows.map((r) => {
+            {filteredRows.map((r, idx) => {
               const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
               const trend = r.price !== null && r.priceAtLastScore && r.priceAtLastScore > 0
                 ? (r.price < r.priceAtLastScore
@@ -744,7 +744,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               if (r.asymmetry.quartetAgeDays !== null) driftBits.push(`Quartet set ${r.asymmetry.quartetAgeDays}d ago.`);
               const drift = driftBits.join(" ");
               return (
-                <React.Fragment key={r.ticker}>
+                <React.Fragment key={`${r.ticker}-${idx}`}>
                   <tr
                     onClick={() => toggle(r.ticker)}
                     style={{ cursor: "pointer", background: isOpen ? "rgba(201,168,76,0.06)" : "transparent" }}
