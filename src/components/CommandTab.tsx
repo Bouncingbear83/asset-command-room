@@ -570,7 +570,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     }
 
     if (typeof window !== "undefined") {
-      (window as any).__asymDebug = {
+      const dbg = {
         priceKeys: Array.from(priceByKey.keys()),
         priceKeyCount: priceByKey.size,
         holdingsCount: holdings?.length ?? 0,
@@ -582,8 +582,12 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         missingPrice,
         missingPriceCount: missingPrice.length,
       };
+      (window as any).__asymDebug = dbg;
+      try { (window.top as any).__asymDebug = dbg; } catch {}
       // eslint-disable-next-line no-console
-      console.info("[asym] priceKeys:", priceByKey.size, "missingPrice:", missingPrice.length, missingPrice.slice(0, 20));
+      console.info("[asym] priceKeys:", priceByKey.size, "missingPrice:", missingPrice.length);
+      // eslint-disable-next-line no-console
+      console.table(missingPrice.map((m) => ({ ticker: m.scoreTicker, name: m.name, keys: m.keysTried.slice(0, 6).join(" | ") })));
     }
 
     return out.sort((a, b) => b.ratio - a.ratio);
