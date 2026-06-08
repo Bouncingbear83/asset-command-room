@@ -439,34 +439,57 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     const priceByKey = new Map<string, number>();
     const heldSet = new Set<string>();
     const wlByKey = new Map<string, any>();
-    const addKeys = (raw: any): string[] => {
-      const keys: string[] = [];
-      const alias = normaliseTickerAlias(String(raw ?? ""));
-      if (alias) keys.push(alias);
-      const upper = String(raw ?? "").trim().toUpperCase();
-      if (upper && upper !== alias) keys.push(upper);
-      return keys;
+    const nameKey = (s: any): string =>
+      String(s ?? "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .trim()
+        .toUpperCase();
+    const addKeys = (raw: any, name?: any): string[] => {
+      const keys = new Set<string>();
+      const rawStr = String(raw ?? "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .trim();
+      const alias = normaliseTickerAlias(rawStr);
+      if (alias) keys.add(alias);
+      const upper = rawStr.toUpperCase();
+      if (upper) keys.add(upper);
+      // .<>- swap variants (KODT.ZA <-> KODT-ZA)
+      for (const v of tickerVariants(rawStr || upper || alias || "")) {
+        if (v) keys.add(v.toUpperCase());
+      }
+      // Bare root before first dot (4109.T -> 4109) — bridge exchange-suffix drift
+      if (upper.includes(".")) {
+        const root = upper.split(".")[0];
+        if (root && root.length >= 2) keys.add(`ROOT:${root}`);
+      }
+      // Name fallback (namespaced so it can't collide with a ticker)
+      const n = nameKey(name);
+      if (n && n.length >= 3) keys.add(`NAME:${n}`);
+      return Array.from(keys);
     };
     for (const h of holdings ?? []) {
-      for (const k of addKeys(h.ticker)) {
+      for (const k of addKeys(h.ticker, (h as any).name)) {
         heldSet.add(k);
         if (typeof h.price === "number" && h.price > 0 && !priceByKey.has(k)) priceByKey.set(k, h.price);
       }
     }
     for (const w of watchlist ?? []) {
-      for (const k of addKeys(w.ticker)) {
+      for (const k of addKeys(w.ticker, w.name)) {
         if (!wlByKey.has(k)) wlByKey.set(k, w);
         if (typeof w.current === "number" && w.current > 0 && !priceByKey.has(k)) priceByKey.set(k, w.current);
       }
     }
-    const lookupPrice = (raw: any): number | null => {
-      for (const k of addKeys(raw)) {
+    const lookupPrice = (raw: any, name?: any): number | null => {
+      for (const k of addKeys(raw, name)) {
         const p = priceByKey.get(k);
         if (typeof p === "number" && p > 0) return p;
       }
       return null;
     };
-    const isHeld = (raw: any): boolean => addKeys(raw).some((k) => heldSet.has(k));
+    const isHeld = (raw: any, name?: any): boolean =>
+      addKeys(raw, name).some((k) => heldSet.has(k));
 
     const out: Array<{
       ticker: string;
