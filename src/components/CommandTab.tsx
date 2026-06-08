@@ -433,64 +433,104 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
 
   const rows = useMemo(() => {
-    // Price lookup: prefer holdings (live), fall back to watchlist current.
-    // Keyed by BOTH alias-normalised ticker and raw uppercase so dotted
-    // exchange tickers (KODT.ZA, .T, .DE, .MI) match either way.
-    const priceByKey = new Map<string, number>();
-    const heldSet = new Set<string>();
-    const wlByKey = new Map<string, any>();
+    // Spine = Holdings ∪ Watchlist (one row per real ticker).
+    // Scores are joined onto the spine purely as a quartet lookup.
     const nameKey = (s: any): string =>
       String(s ?? "")
         .normalize("NFKC")
         .replace(/[\u200B-\u200D\uFEFF]/g, "")
         .trim()
         .toUpperCase();
-    const addKeys = (raw: any, name?: any): string[] => {
-      const keys = new Set<string>();
+
+    type KeyKind = "exact" | "swap" | "root" | "name";
+    const buildKeys = (raw: any, name?: any): Array<{ k: string; kind: KeyKind }> => {
+      const out: Array<{ k: string; kind: KeyKind }> = [];
+      const seen = new Set<string>();
+      const push = (k: string, kind: KeyKind) => {
+        if (!k || seen.has(k)) return;
+        seen.add(k);
+        out.push({ k, kind });
+      };
       const rawStr = String(raw ?? "")
         .normalize("NFKC")
         .replace(/[\u200B-\u200D\uFEFF]/g, "")
         .trim();
       const alias = normaliseTickerAlias(rawStr);
-      if (alias) keys.add(alias);
       const upper = rawStr.toUpperCase();
-      if (upper) keys.add(upper);
-      // .<>- swap variants (KODT.ZA <-> KODT-ZA)
+      if (alias) push(alias, "exact");
+      if (upper) push(upper, "exact");
       for (const v of tickerVariants(rawStr || upper || alias || "")) {
-        if (v) keys.add(v.toUpperCase());
+        if (v) push(v.toUpperCase(), "swap");
       }
-      // Bare root before first dot (4109.T -> 4109) — bridge exchange-suffix drift
       if (upper.includes(".")) {
         const root = upper.split(".")[0];
-        if (root && root.length >= 2) keys.add(`ROOT:${root}`);
+        if (root && root.length >= 2) push(`ROOT:${root}`, "root");
       }
-      // Name fallback (namespaced so it can't collide with a ticker)
       const n = nameKey(name);
-      if (n && n.length >= 3) keys.add(`NAME:${n}`);
-      return Array.from(keys);
+      if (n && n.length >= 3) push(`NAME:${n}`, "name");
+      return out;
     };
-    for (const h of holdings ?? []) {
-      for (const k of addKeys(h.ticker, (h as any).name)) {
-        heldSet.add(k);
-        if (typeof h.price === "number" && h.price > 0 && !priceByKey.has(k)) priceByKey.set(k, h.price);
+
+    // Canonical ticker — used as the dedup identity for spine rows.
+    const canon = (raw: any): string => {
+      const rawStr = String(raw ?? "").normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+      return normaliseTickerAlias(rawStr) || rawStr.toUpperCase();
+    };
+
+    // 1. scoresByKey — lookup quartets by any key variant.
+    //    Prefer exact matches over root/name to avoid false joins.
+    const scoresByKey: Record<KeyKind, Map<string, any>> = {
+      exact: new Map(),
+      swap: new Map(),
+      root: new Map(),
+      name: new Map(),
+    };
+    for (const s of scores ?? []) {
+      for (const { k, kind } of buildKeys(s.ticker, (s as any).name)) {
+        if (!scoresByKey[kind].has(k)) scoresByKey[kind].set(k, s);
       }
     }
-    for (const w of watchlist ?? []) {
-      for (const k of addKeys(w.ticker, w.name)) {
-        if (!wlByKey.has(k)) wlByKey.set(k, w);
-        if (typeof w.current === "number" && w.current > 0 && !priceByKey.has(k)) priceByKey.set(k, w.current);
-      }
-    }
-    const lookupPrice = (raw: any, name?: any): number | null => {
-      for (const k of addKeys(raw, name)) {
-        const p = priceByKey.get(k);
-        if (typeof p === "number" && p > 0) return p;
+    const lookupScore = (raw: any, name?: any): any | null => {
+      const keys = buildKeys(raw, name);
+      for (const kind of ["exact", "swap", "root", "name"] as KeyKind[]) {
+        for (const { k, kind: kk } of keys) {
+          if (kk !== kind) continue;
+          const hit = scoresByKey[kind].get(k);
+          if (hit) return hit;
+        }
       }
       return null;
     };
-    const isHeld = (raw: any, name?: any): boolean =>
-      addKeys(raw, name).some((k) => heldSet.has(k));
 
+    // 2. Build spine: Holdings ∪ Watchlist, deduped by canonical ticker.
+    type Spine = { ticker: string; name: string; price: number | null; held: boolean; source: "H" | "W" };
+    const spineByCanon = new Map<string, Spine>();
+
+    for (const h of holdings ?? []) {
+      const c = canon(h.ticker);
+      if (!c) continue;
+      const price = typeof h.price === "number" && h.price > 0 ? h.price : null;
+      const existing = spineByCanon.get(c);
+      if (!existing) {
+        spineByCanon.set(c, { ticker: h.ticker || c, name: String((h as any).name ?? ""), price, held: true, source: "H" });
+      } else {
+        existing.held = true;
+        if (existing.price === null && price !== null) existing.price = price;
+      }
+    }
+    for (const w of watchlist ?? []) {
+      const c = canon(w.ticker);
+      if (!c) continue;
+      const price = typeof w.current === "number" && w.current > 0 ? w.current : null;
+      const existing = spineByCanon.get(c);
+      if (!existing) {
+        spineByCanon.set(c, { ticker: w.ticker || c, name: String(w.name ?? ""), price, held: false, source: "W" });
+      } else if (existing.price === null && price !== null) {
+        existing.price = price;
+      }
+    }
+
+    // 3. Build rows from spine, joining scores for quartet/score.
     const out: Array<{
       ticker: string;
       score: number | null;
@@ -502,92 +542,60 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       price: number | null;
       reason: string | null;
     }> = [];
-    const seen = new Set<string>();
 
-    const missingPrice: Array<{ scoreTicker: string; name: string; keysTried: string[] }> = [];
+    const missingQuartet: string[] = [];
+    const missingPrice: string[] = [];
 
-    for (const s of scores ?? []) {
-      const keys = addKeys(s.ticker, (s as any).name);
-      if (keys.length === 0) continue;
-      const price = lookupPrice(s.ticker, (s as any).name);
+    for (const sp of spineByCanon.values()) {
+      const s = lookupScore(sp.ticker, sp.name);
       const quartet: AsymmetryQuartet = {
-        bullBase: s.bullBase ?? null,
-        bullStretch: s.bullStretch ?? null,
-        bearThesisWeak: s.bearThesisWeak ?? null,
-        bearSubstrateFail: s.bearSubstrateFail ?? null,
-        bullBearAtDate: s.bullBearAtDate ?? null,
+        bullBase: s?.bullBase ?? null,
+        bullStretch: s?.bullStretch ?? null,
+        bearThesisWeak: s?.bearThesisWeak ?? null,
+        bearSubstrateFail: s?.bearSubstrateFail ?? null,
+        bullBearAtDate: s?.bullBearAtDate ?? null,
       };
-      const hasAnyQuartet =
-        quartet.bullBase !== null || quartet.bullStretch !== null ||
-        quartet.bearThesisWeak !== null || quartet.bearSubstrateFail !== null;
-      if (!hasAnyQuartet && price === null) continue;
-      const asym = computeLiveAsymmetry(quartet, price);
+      const asym = computeLiveAsymmetry(quartet, sp.price);
       let reason: string | null = null;
       if (asym.baseRatio === null) {
-        if (price === null) {
-          reason = "No current price";
-          missingPrice.push({ scoreTicker: String(s.ticker ?? ""), name: String((s as any).name ?? ""), keysTried: keys });
-        }
-        else if (quartet.bullBase === null && quartet.bearThesisWeak === null) reason = "Quartet missing (base + bear)";
+        if (sp.price === null) { reason = "No current price"; missingPrice.push(sp.ticker); }
+        else if (quartet.bullBase === null && quartet.bearThesisWeak === null) { reason = "Quartet missing (base + bear)"; missingQuartet.push(sp.ticker); }
         else if (quartet.bullBase === null) reason = "Missing BULL_BASE";
         else if (quartet.bearThesisWeak === null) reason = "Missing BEAR_THESIS_WEAK";
         else if (asym.aboveBull) reason = "Price above BULL_BASE";
         else reason = "Quartet incomplete";
       }
-      for (const k of keys) seen.add(k);
       out.push({
-        ticker: s.ticker,
-        score: s.score ?? null,
-        status: isHeld(s.ticker, (s as any).name) ? "HELD" : "WATCH",
+        ticker: sp.ticker,
+        score: s?.score ?? null,
+        status: sp.held ? "HELD" : "WATCH",
         band: asym.band ?? "—",
         ratio: asym.baseRatio ?? -1,
         asymmetry: asym,
-        priceAtLastScore: s.priceAtLastScore ?? null,
-        price,
+        priceAtLastScore: s?.priceAtLastScore ?? null,
+        price: sp.price,
         reason,
       });
     }
 
-    // Watchlist-only fallback
-    for (const [k, w] of wlByKey) {
-      if (seen.has(k)) continue;
-      const price = lookupPrice(w.ticker, w.name);
-      const asym = computeLiveAsymmetry(
-        { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
-        price,
-      );
-      out.push({
-        ticker: w.ticker,
-        score: null,
-        status: isHeld(w.ticker, w.name) ? "HELD" : "WATCH",
-        band: "—",
-        ratio: -1,
-        asymmetry: asym,
-        priceAtLastScore: null,
-        price,
-        reason: price === null ? "No current price" : "No quartet set",
-      });
-    }
-
     if (typeof window !== "undefined") {
+      const watchCount = out.filter((r) => r.status === "WATCH").length;
+      const heldCount = out.filter((r) => r.status === "HELD").length;
       const dbg = {
-        priceKeys: Array.from(priceByKey.keys()),
-        priceKeyCount: priceByKey.size,
+        spineCount: spineByCanon.size,
+        watchCount,
+        heldCount,
         holdingsCount: holdings?.length ?? 0,
         watchlistCount: watchlist?.length ?? 0,
-        wlSample: (watchlist ?? []).slice(0, 10).map((w) => ({
-          raw: w.ticker, name: w.name, current: (w as any).current, currentRaw: (w as any).currentRaw,
-          keys: addKeys(w.ticker, w.name),
-        })),
-        missingPrice,
         missingPriceCount: missingPrice.length,
+        missingPrice,
+        missingQuartetCount: missingQuartet.length,
+        missingQuartet,
       };
       (window as any).__asymDebug = dbg;
       try { (window.top as any).__asymDebug = dbg; } catch {}
       // eslint-disable-next-line no-console
-      console.info("[asym] priceKeys:", priceByKey.size, "missingPrice:", missingPrice.length);
-      // eslint-disable-next-line no-console
-      console.table(missingPrice.map((m) => ({ ticker: m.scoreTicker, name: m.name, keys: m.keysTried.slice(0, 6).join(" | ") })));
+      console.info("[asym] spine:", spineByCanon.size, "watch:", watchCount, "held:", heldCount, "missingPrice:", missingPrice.length, "missingQuartet:", missingQuartet.length);
     }
 
     return out.sort((a, b) => b.ratio - a.ratio);
