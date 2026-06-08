@@ -11,12 +11,12 @@ import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
-import { normaliseTicker as normaliseTickerAlias, tickerVariants } from "@/lib/tickerAlias";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
-import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { computeLiveAsymmetry, formatRatio } from "@/lib/liveAsymmetry";
+import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 
 // Quick Commands now route through buildClaudePromptUrl().
