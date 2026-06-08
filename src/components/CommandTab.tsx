@@ -716,7 +716,14 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
                     {!isMobile && <td style={{ ...td, color: statusColor, fontSize: 9, letterSpacing: "0.1em" }}>{r.status}</td>}
                     {!isMobile && <td style={{ ...td, fontSize: 9, letterSpacing: "0.1em", color: "var(--text-dim)" }}>{r.band}</td>}
                     <td style={{ ...td, textAlign: "right", padding: isMobile ? "8px 6px" : td.padding }}>
-                      <AsymmetryPill asymmetry={r.asymmetry} />
+                      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                        <AsymmetryPill asymmetry={r.asymmetry} />
+                        {r.reason && (
+                          <span title={r.reason} style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.04em", whiteSpace: "nowrap", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {r.reason}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ ...td, textAlign: "right", color: stretchColor(r.asymmetry.stretchRatio), fontWeight: r.asymmetry.stretchRatio !== null && r.asymmetry.stretchRatio >= 3 ? 700 : 400, padding: isMobile ? "8px 6px" : td.padding }}>
                       {formatRatio(r.asymmetry.stretchRatio)}
