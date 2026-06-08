@@ -711,7 +711,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
 
 
           <tbody>
-            {filteredRows.map((r) => {
+            {filteredRows.map((r, idx) => {
               const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
               const trend = r.price !== null && r.priceAtLastScore && r.priceAtLastScore > 0
                 ? (r.price < r.priceAtLastScore
