@@ -666,7 +666,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
           <tbody>
             {filteredRows.map((r) => {
               const statusColor = r.status === "HELD" ? "var(--gold)" : "var(--text-mid)";
-              const trend = r.priceAtLastScore && r.priceAtLastScore > 0
+              const trend = r.price !== null && r.priceAtLastScore && r.priceAtLastScore > 0
                 ? (r.price < r.priceAtLastScore
                     ? { sym: "▲", color: "var(--green)", title: `Cheaper than at score (${r.priceAtLastScore})`, pct: ((r.price - r.priceAtLastScore) / r.priceAtLastScore) * 100 }
                     : r.price > r.priceAtLastScore
@@ -676,7 +676,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               const isOpen = expanded.has(r.ticker);
               const q = r.asymmetry.quartet;
               const pctTo = (target: number | null) =>
-                target !== null && target > 0 && r.price > 0
+                target !== null && target > 0 && r.price !== null && r.price > 0
                   ? ((target - r.price) / r.price) * 100
                   : null;
               const fmtPct = (n: number | null) => n === null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
