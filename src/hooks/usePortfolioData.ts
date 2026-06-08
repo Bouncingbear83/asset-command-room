@@ -196,7 +196,7 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
   const rawRows = (json.table.rows || []).map((row: any) => {
     const next: Record<string, any> = {};
     row.c?.forEach((cell: any, index: number) => {
-      next[cols[index] || `col_${index}`] = cell?.v ?? null;
+      next[cols[index] || `col_${index}`] = cell?.v ?? cell?.f ?? null;
     });
     return next;
   });
