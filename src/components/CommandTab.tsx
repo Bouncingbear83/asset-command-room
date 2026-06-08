@@ -752,7 +752,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
               if (r.asymmetry.quartetAgeDays !== null) driftBits.push(`Quartet set ${r.asymmetry.quartetAgeDays}d ago.`);
               const drift = driftBits.join(" ");
               return (
-                <React.Fragment key={`${r.ticker}-${idx}`}>
+                <React.Fragment key={r.ticker}>
                   <tr
                     onClick={() => toggle(r.ticker)}
                     style={{ cursor: "pointer", background: isOpen ? "rgba(201,168,76,0.06)" : "transparent" }}
