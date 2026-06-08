@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, usePortfolioData } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";
@@ -33,7 +33,8 @@ import {
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/DriverChip";
-import { computeLiveAsymmetry, type AsymmetryQuartet, type LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import { computeLiveAsymmetry, type LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 
@@ -220,6 +221,7 @@ function UnifiedView({
   isaTotal,
   priceData,
   scores,
+  watchlist,
   sortKey,
   sortDir,
   onSortChange,
@@ -237,6 +239,7 @@ function UnifiedView({
   isaTotal: number;
   priceData?: PriceDataMap;
   scores?: LiveScore[];
+  watchlist: LiveWatchItem[];
   sortKey: SortKey;
   sortDir: SortDir;
   onSortChange: (key: SortKey) => void;
@@ -253,7 +256,10 @@ function UnifiedView({
   // already loads rationales eagerly, so per-row fetches are no longer needed.
   const { getSummary, getResearchFreshness } = useResearchSummary();
 
-  // Case-insensitive score lookup (Sheets ticker matching project rule)
+  // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST
+  const quartetMap = useQuartetMap(scores ?? [], allHoldings, watchlist);
+
+  // Case-insensitive score lookup (for chinaExposureFlag only)
   const scoreByTicker = useMemo(() => {
     const m = new Map<string, LiveScore>();
     for (const s of scores ?? []) {
@@ -265,22 +271,17 @@ function UnifiedView({
 
   const holdingsWithReturns: HoldingWithReturns[] = useMemo(() => {
     return allHoldings.map(h => {
-      const matched = scoreByTicker.get(String(h.ticker ?? "").trim().toUpperCase());
-      const quartet: AsymmetryQuartet = {
-        bullBase: (matched as any)?.bullBase ?? null,
-        bullStretch: (matched as any)?.bullStretch ?? null,
-        bearThesisWeak: (matched as any)?.bearThesisWeak ?? null,
-        bearSubstrateFail: (matched as any)?.bearSubstrateFail ?? null,
-        bullBearAtDate: (matched as any)?.bullBearAtDate ?? null,
-      };
+      const ticker = String(h.ticker ?? "").trim().toUpperCase();
+      const matched = scoreByTicker.get(ticker);
+      const entry = quartetMap.get(ticker);
       return {
         ...h,
         returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
-        liveAsymmetry: computeLiveAsymmetry(quartet, h.price ?? null),
+        liveAsymmetry: entry?.asymmetry ?? computeLiveAsymmetry({ bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null }, null),
         chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
       };
     });
-  }, [allHoldings, transactions, scoreByTicker]);
+  }, [allHoldings, transactions, scoreByTicker, quartetMap]);
 
 
   const toggle = (key: string) => {
@@ -1300,6 +1301,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
                 isaTotal={isaTotal}
                 priceData={priceData}
                 scores={scores}
+                watchlist={portfolio.watchlist}
                 sortKey={state.sortField}
                 sortDir={state.sortDir}
                 onSortChange={handleSort}
