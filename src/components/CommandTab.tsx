@@ -11,7 +11,7 @@ import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { toast } from "sonner";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
-import { normaliseTicker as normaliseTickerAlias } from "@/lib/tickerAlias";
+import { normaliseTicker as normaliseTickerAlias, tickerVariants } from "@/lib/tickerAlias";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
@@ -439,34 +439,57 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     const priceByKey = new Map<string, number>();
     const heldSet = new Set<string>();
     const wlByKey = new Map<string, any>();
-    const addKeys = (raw: any): string[] => {
-      const keys: string[] = [];
-      const alias = normaliseTickerAlias(String(raw ?? ""));
-      if (alias) keys.push(alias);
-      const upper = String(raw ?? "").trim().toUpperCase();
-      if (upper && upper !== alias) keys.push(upper);
-      return keys;
+    const nameKey = (s: any): string =>
+      String(s ?? "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .trim()
+        .toUpperCase();
+    const addKeys = (raw: any, name?: any): string[] => {
+      const keys = new Set<string>();
+      const rawStr = String(raw ?? "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .trim();
+      const alias = normaliseTickerAlias(rawStr);
+      if (alias) keys.add(alias);
+      const upper = rawStr.toUpperCase();
+      if (upper) keys.add(upper);
+      // .<>- swap variants (KODT.ZA <-> KODT-ZA)
+      for (const v of tickerVariants(rawStr || upper || alias || "")) {
+        if (v) keys.add(v.toUpperCase());
+      }
+      // Bare root before first dot (4109.T -> 4109) — bridge exchange-suffix drift
+      if (upper.includes(".")) {
+        const root = upper.split(".")[0];
+        if (root && root.length >= 2) keys.add(`ROOT:${root}`);
+      }
+      // Name fallback (namespaced so it can't collide with a ticker)
+      const n = nameKey(name);
+      if (n && n.length >= 3) keys.add(`NAME:${n}`);
+      return Array.from(keys);
     };
     for (const h of holdings ?? []) {
-      for (const k of addKeys(h.ticker)) {
+      for (const k of addKeys(h.ticker, (h as any).name)) {
         heldSet.add(k);
         if (typeof h.price === "number" && h.price > 0 && !priceByKey.has(k)) priceByKey.set(k, h.price);
       }
     }
     for (const w of watchlist ?? []) {
-      for (const k of addKeys(w.ticker)) {
+      for (const k of addKeys(w.ticker, w.name)) {
         if (!wlByKey.has(k)) wlByKey.set(k, w);
         if (typeof w.current === "number" && w.current > 0 && !priceByKey.has(k)) priceByKey.set(k, w.current);
       }
     }
-    const lookupPrice = (raw: any): number | null => {
-      for (const k of addKeys(raw)) {
+    const lookupPrice = (raw: any, name?: any): number | null => {
+      for (const k of addKeys(raw, name)) {
         const p = priceByKey.get(k);
         if (typeof p === "number" && p > 0) return p;
       }
       return null;
     };
-    const isHeld = (raw: any): boolean => addKeys(raw).some((k) => heldSet.has(k));
+    const isHeld = (raw: any, name?: any): boolean =>
+      addKeys(raw, name).some((k) => heldSet.has(k));
 
     const out: Array<{
       ticker: string;
@@ -481,10 +504,12 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
     }> = [];
     const seen = new Set<string>();
 
+    const missingPrice: Array<{ scoreTicker: string; name: string; keysTried: string[] }> = [];
+
     for (const s of scores ?? []) {
-      const keys = addKeys(s.ticker);
+      const keys = addKeys(s.ticker, (s as any).name);
       if (keys.length === 0) continue;
-      const price = lookupPrice(s.ticker);
+      const price = lookupPrice(s.ticker, (s as any).name);
       const quartet: AsymmetryQuartet = {
         bullBase: s.bullBase ?? null,
         bullStretch: s.bullStretch ?? null,
@@ -495,12 +520,14 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       const hasAnyQuartet =
         quartet.bullBase !== null || quartet.bullStretch !== null ||
         quartet.bearThesisWeak !== null || quartet.bearSubstrateFail !== null;
-      // Skip rows with no quartet AND no price — nothing useful to show.
       if (!hasAnyQuartet && price === null) continue;
       const asym = computeLiveAsymmetry(quartet, price);
       let reason: string | null = null;
       if (asym.baseRatio === null) {
-        if (price === null) reason = "No current price";
+        if (price === null) {
+          reason = "No current price";
+          missingPrice.push({ scoreTicker: String(s.ticker ?? ""), name: String((s as any).name ?? ""), keysTried: keys });
+        }
         else if (quartet.bullBase === null && quartet.bearThesisWeak === null) reason = "Quartet missing (base + bear)";
         else if (quartet.bullBase === null) reason = "Missing BULL_BASE";
         else if (quartet.bearThesisWeak === null) reason = "Missing BEAR_THESIS_WEAK";
@@ -511,7 +538,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       out.push({
         ticker: s.ticker,
         score: s.score ?? null,
-        status: isHeld(s.ticker) ? "HELD" : "WATCH",
+        status: isHeld(s.ticker, (s as any).name) ? "HELD" : "WATCH",
         band: asym.band ?? "—",
         ratio: asym.baseRatio ?? -1,
         asymmetry: asym,
@@ -521,11 +548,10 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       });
     }
 
-    // Watchlist-only fallback: surface WL names that have no SCORES row so
-    // the bottom of the snapshot mirrors the Watchlist tab. Ratios show as —.
+    // Watchlist-only fallback
     for (const [k, w] of wlByKey) {
       if (seen.has(k)) continue;
-      const price = lookupPrice(w.ticker);
+      const price = lookupPrice(w.ticker, w.name);
       const asym = computeLiveAsymmetry(
         { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
         price,
@@ -533,7 +559,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       out.push({
         ticker: w.ticker,
         score: null,
-        status: isHeld(w.ticker) ? "HELD" : "WATCH",
+        status: isHeld(w.ticker, w.name) ? "HELD" : "WATCH",
         band: "—",
         ratio: -1,
         asymmetry: asym,
@@ -541,6 +567,23 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
         price,
         reason: price === null ? "No current price" : "No quartet set",
       });
+    }
+
+    if (import.meta.env.DEV && typeof window !== "undefined") {
+      (window as any).__asymDebug = {
+        priceKeys: Array.from(priceByKey.keys()),
+        priceKeyCount: priceByKey.size,
+        holdingsCount: holdings?.length ?? 0,
+        watchlistCount: watchlist?.length ?? 0,
+        wlSample: (watchlist ?? []).slice(0, 10).map((w) => ({
+          raw: w.ticker, name: w.name, current: (w as any).current, currentRaw: (w as any).currentRaw,
+          keys: addKeys(w.ticker, w.name),
+        })),
+        missingPrice,
+        missingPriceCount: missingPrice.length,
+      };
+      // eslint-disable-next-line no-console
+      console.info("[asym] priceKeys:", priceByKey.size, "missingPrice:", missingPrice.length, missingPrice.slice(0, 20));
     }
 
     return out.sort((a, b) => b.ratio - a.ratio);

@@ -400,7 +400,15 @@ function parseHoldings(rows: Record<string, any>[]) {
 function parseWatchlist(rows: Record<string, any>[]) {
   return rows
     .map((row) => {
-      const currentRawVal = findCol(row, "current price", "CURRENT PRICE", "Current Price");
+      const currentRawVal = findCol(
+        row,
+        "current price", "CURRENT PRICE", "Current Price",
+        "current_price", "CURRENT_PRICE", "Current_Price",
+        "current", "CURRENT", "Current",
+        "price", "PRICE", "Price",
+        "price_local", "PRICE_LOCAL", "Price_Local",
+        "last_price", "LAST_PRICE", "Last_Price",
+      );
       return {
         name: String(findCol(row, "name", "NAME", "Name") ?? ""),
         ticker: String(findCol(row, "ticker", "TICKER", "Ticker") ?? ""),
