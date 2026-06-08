@@ -569,7 +569,7 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
       });
     }
 
-    if (import.meta.env.DEV && typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
       (window as any).__asymDebug = {
         priceKeys: Array.from(priceByKey.keys()),
         priceKeyCount: priceByKey.size,
