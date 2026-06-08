@@ -1054,7 +1054,10 @@ export function usePortfolioData(): PortfolioData {
         jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:Z5000" }),
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:Z5000" }).catch((e) => {
+          console.error("[watchlist fetch] failed:", e);
+          return [];
+        }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
         fetchSheet({ gid: GIDS.scores, range: "A1:AQ" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
