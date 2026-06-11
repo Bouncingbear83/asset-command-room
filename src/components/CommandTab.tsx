@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ReviewQueue from "@/components/ReviewQueue";
 import ActionInbox from "@/components/ActionInbox";
 import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
+import { VaultRecentSessions } from "@/components/vault/VaultIntegrations";
 import { useResearchSummary, ResearchSummary } from "@/hooks/useResearchSummary";
 import { openClaudeWithPrompt, buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
@@ -1952,6 +1953,8 @@ export default function CommandTab() {
         <CommitResearchPanel />
 
         {/* Golden Rules */}
+        <VaultRecentSessions />
+
         <details style={{ ...card, marginBottom: 0 }}>
           <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
             <span style={cardTitle}>Golden Rules</span>
