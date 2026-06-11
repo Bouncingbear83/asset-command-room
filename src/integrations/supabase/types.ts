@@ -874,6 +874,8 @@ export type Database = {
       }
       vault_notes_meta: {
         Row: {
+          body: string | null
+          body_sections: Json | null
           frontmatter: Json | null
           identifier: string | null
           last_indexed: string
@@ -882,6 +884,8 @@ export type Database = {
           type: string
         }
         Insert: {
+          body?: string | null
+          body_sections?: Json | null
           frontmatter?: Json | null
           identifier?: string | null
           last_indexed?: string
@@ -890,6 +894,8 @@ export type Database = {
           type: string
         }
         Update: {
+          body?: string | null
+          body_sections?: Json | null
           frontmatter?: Json | null
           identifier?: string | null
           last_indexed?: string
