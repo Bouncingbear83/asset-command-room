@@ -7,6 +7,7 @@ import { GIDS, type PortfolioData, type LiveHolding } from "@/hooks/usePortfolio
 import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
 import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 
 interface Props {
   ticker: string | null;
@@ -485,6 +486,9 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 )}
               </div>
             )}
+
+            {/* Vault thesis content */}
+            <VaultTickerThesis ticker={ticker} />
 
             {/* Bull / Bear / Asymmetry */}
             {(() => {
