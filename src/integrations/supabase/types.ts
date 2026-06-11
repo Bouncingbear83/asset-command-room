@@ -845,6 +845,60 @@ export type Database = {
         }
         Relationships: []
       }
+      vault_backlinks: {
+        Row: {
+          id: number
+          indexed_at: string
+          source_path: string
+          source_type: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          id?: number
+          indexed_at?: string
+          source_path: string
+          source_type: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          id?: number
+          indexed_at?: string
+          source_path?: string
+          source_type?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
+      vault_notes_meta: {
+        Row: {
+          frontmatter: Json | null
+          identifier: string | null
+          last_indexed: string
+          path: string
+          title: string | null
+          type: string
+        }
+        Insert: {
+          frontmatter?: Json | null
+          identifier?: string | null
+          last_indexed?: string
+          path: string
+          title?: string | null
+          type: string
+        }
+        Update: {
+          frontmatter?: Json | null
+          identifier?: string | null
+          last_indexed?: string
+          path?: string
+          title?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
       watchlist_price_history: {
         Row: {
           close_price: number
