@@ -9,6 +9,7 @@ import type { EntryZone } from "@/lib/parseEntryTarget";
 import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
+import { VaultWatchlistSnippet } from "@/components/vault/VaultIntegrations";
 import { toast } from "sonner";
 import type { ReturnProfile, CompounderSubtype } from "@/types/intelligence";
 import {
@@ -505,6 +506,9 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           {item.rationale}
         </div>
       )}
+
+      {/* Vault thesis from vault note */}
+      <VaultWatchlistSnippet ticker={item.ticker} />
 
       {/* TRIGGER CONDITION — separate accent line */}
       {item.trigger && (
