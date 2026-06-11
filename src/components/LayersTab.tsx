@@ -1,4 +1,5 @@
 import { LiveLayer, LiveNarrativeData, LiveWatchItem, LiveHolding, LiveScore } from "@/hooks/usePortfolioData";
+import { VaultLayerNote } from "@/components/vault/VaultIntegrations";
 import React, { useMemo } from "react";
 import { triggerWebhook } from "@/lib/webhooks";
 import LayersAllocation from "./LayersAllocation";
@@ -133,6 +134,7 @@ export default function LayersTab({
                 {!isCashRow && (
                   <LayerProfileBreakdown layerName={layer.name} index={profileMix} layerCurrentPct={layer.current} />
                 )}
+                {!isCashRow && <VaultLayerNote layer={layer.name.toUpperCase()} />}
               </div>
             );
           })}
