@@ -9,6 +9,8 @@ export interface VaultSearchResult {
   title: string;
   sections: string[];
   frontmatter: Record<string, string>;
+  rank: number;
+  snippet: string | null;
 }
 
 export interface VaultSearchResponse {
