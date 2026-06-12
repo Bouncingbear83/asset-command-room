@@ -960,6 +960,25 @@ export type Database = {
           type: string
         }[]
       }
+      vault_search_with_backlinks: {
+        Args: {
+          include_backlinks?: boolean
+          max_results?: number
+          note_type?: string
+          search_query: string
+        }
+        Returns: {
+          backlinks: Json
+          body_sections: Json
+          frontmatter: Json
+          identifier: string
+          path: string
+          rank: number
+          snippet: string
+          title: string
+          type: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
