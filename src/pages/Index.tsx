@@ -20,7 +20,11 @@ import VaultTab from "@/components/VaultTab";
 import { VaultSearch } from "@/components/VaultSearch";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Research", "Vault","Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
+const TABS = [
+  "Command", "Holdings", "Watchlist", "Japan Sleeve", "JISAs",
+  "Monitor", "Layers", "Drivers", "Intelligence", "Research", "Vault",
+  "Returns", "Transactions", "Earnings Calendar"
+] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
@@ -199,7 +203,7 @@ export default function Index() {
         )}
         {active === "Intelligence" && <IntelligenceTab />}
         {active === "Research" && <ResearchTab />}
-        {active === "Vault" && <VaultTab />}
+        {active === "Vault" && <VaultSearch />}
         {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
