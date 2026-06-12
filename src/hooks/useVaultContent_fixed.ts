@@ -26,10 +26,12 @@ function rowToNote(row: any): VaultNote {
     identifier: row.identifier ?? null,
     title: row.title ?? null,
     frontmatter: fm,
-    body: typeof fm.body === "string" ? fm.body : null,
+    // body and body_sections are TOP-LEVEL columns on vault_notes_meta,
+    // not nested inside frontmatter. Read directly from row.
+    body: typeof row.body === "string" ? row.body : null,
     body_sections:
-      fm.body_sections && typeof fm.body_sections === "object"
-        ? (fm.body_sections as Record<string, string>)
+      row.body_sections && typeof row.body_sections === "object"
+        ? (row.body_sections as Record<string, string>)
         : null,
   };
 }
