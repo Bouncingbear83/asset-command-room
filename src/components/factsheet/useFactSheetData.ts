@@ -4,6 +4,7 @@ import { normaliseTicker, tickerVariants } from "@/lib/tickerAlias";
 import type { PortfolioData, LiveHolding, LiveScore, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import type { PriceDataMap, DailyPricePoint } from "@/hooks/useDailyPrices";
 import type { ScoreRationale, DisruptionRationale } from "@/hooks/useRationales";
+import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 
 export interface DisruptionRow {
   ticker: string;
@@ -60,6 +61,8 @@ export interface FactSheetData {
   errors: Record<string, string>;
   holdings: LiveHolding[];              // could be present in multiple accounts
   score: LiveScore | null;
+  /** Quartet from Supabase scores_snapshot (preferred over sheet quartet on `score`) */
+  quartetSnapshot: import("@/hooks/useScoresSnapshot").QuartetSnapshotRow | null;
   watchlist: LiveWatchItem | null;
   earnings: LiveEarningsCalendarItem | null;
   rationale: ScoreRationale | null;
@@ -81,6 +84,7 @@ const EMPTY: FactSheetData = {
   errors: {},
   holdings: [],
   score: null,
+  quartetSnapshot: null,
   watchlist: null,
   earnings: null,
   rationale: null,
@@ -105,6 +109,8 @@ export function useFactSheetData(
   portfolio: PortfolioData,
   priceData: PriceDataMap,
 ): FactSheetData {
+  const { byTicker: snapshotMap } = useScoresSnapshot();
+
   const [supaState, setSupaState] = useState<{
     rationale: ScoreRationale | null;
     history: ScoreHistoryRow[];
@@ -276,6 +282,7 @@ export function useFactSheetData(
     errors: supaState.errors,
     holdings,
     score,
+    quartetSnapshot: snapshotMap.get((ticker ?? "").toUpperCase()) ?? null,
     watchlist,
     earnings,
     rationale: supaState.rationale,
@@ -292,4 +299,3 @@ export function useFactSheetData(
     alerts: supaState.alerts,
   };
 }
-
