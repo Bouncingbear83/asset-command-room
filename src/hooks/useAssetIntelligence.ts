@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 import {
   usePortfolioData,
   type LiveScore,
@@ -404,6 +405,7 @@ function buildOne(
   trendByTicker: Map<string, TrendBuildContext>,
   watchlistPriceByTicker: Map<string, number | null>,
   watchlistByTicker: Map<string, LiveWatchItem>,
+  snapshotQuartetByTicker: Map<string, import("./useScoresSnapshot").QuartetSnapshotRow>,
 ): AssetIntelligence {
   const ticker = canonTicker(s.ticker);
   const held_status = normalizeHeldStatus(s.heldStatus, ticker);
@@ -547,13 +549,15 @@ function buildOne(
     raw: rawAnchors,
   };
 
-  // Live asymmetry from quartet (SCORES sheet AK-AO) + current price
+  // Live asymmetry from quartet (Supabase scores_snapshot preferred,
+  // SCORES sheet AK-AO fallback) + current price
+  const snap = snapshotQuartetByTicker.get(ticker.toUpperCase());
   const quartet: AsymmetryQuartet = {
-    bullBase: (s as { bullBase?: number | null }).bullBase ?? null,
-    bullStretch: (s as { bullStretch?: number | null }).bullStretch ?? null,
-    bearThesisWeak: (s as { bearThesisWeak?: number | null }).bearThesisWeak ?? null,
-    bearSubstrateFail: (s as { bearSubstrateFail?: number | null }).bearSubstrateFail ?? null,
-    bullBearAtDate: (s as { bullBearAtDate?: string | null }).bullBearAtDate ?? null,
+    bullBase: snap?.bull_base ?? (s as { bullBase?: number | null }).bullBase ?? null,
+    bullStretch: snap?.bull_stretch ?? (s as { bullStretch?: number | null }).bullStretch ?? null,
+    bearThesisWeak: snap?.bear_thesis_weak ?? (s as { bearThesisWeak?: number | null }).bearThesisWeak ?? null,
+    bearSubstrateFail: snap?.bear_substrate_fail ?? (s as { bearSubstrateFail?: number | null }).bearSubstrateFail ?? null,
+    bullBearAtDate: snap?.bull_bear_at_date ?? (s as { bullBearAtDate?: string | null }).bullBearAtDate ?? null,
   };
   const liveAsymmetry = computeLiveAsymmetry(quartet, current_price);
 
@@ -690,6 +694,8 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     error: sheetsError,
   } = usePortfolioData();
 
+  const { byTicker: snapshotMap } = useScoresSnapshot();
+
   const [scoreRationaleByTicker, setScoreRationaleByTicker] = useState<Map<string, ScoreRationaleRow>>(new Map());
   const [disruptionRationaleByTicker, setDisruptionRationaleByTicker] = useState<Map<string, DisruptionRationaleRow>>(new Map());
   const [disruptionSnapshotByTicker, setDisruptionSnapshotByTicker] = useState<Map<string, LiveDisruption>>(new Map());
@@ -807,9 +813,10 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
         trendByTicker,
         watchlistPriceByTicker,
         watchlistByTicker,
+        snapshotMap,
       ),
     );
-  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker, disruptionSnapshotByTicker]);
+  }, [scores, disruption, holdings, scoreLog, watchlist, scoreRationaleByTicker, disruptionRationaleByTicker, disruptionSnapshotByTicker, snapshotMap]);
 
   return {
     data,
@@ -824,4 +831,3 @@ export function useAssetIntelligenceByTicker(ticker: string) {
   const canonical = canonTicker(ticker);
   return { data: data.find((a) => a.ticker === canonical), ...rest };
 }
-
