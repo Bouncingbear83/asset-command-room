@@ -18,6 +18,7 @@ import TickerButton from "@/components/factsheet/TickerButton";
 import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { computeLiveAsymmetry, formatRatio } from "@/lib/liveAsymmetry";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
+import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 
 // Quick Commands now route through buildClaudePromptUrl().
@@ -433,7 +434,8 @@ function AsymmetrySnapshotCard({ scores, holdings, watchlist, card, cardHeader, 
   });
 
 
-  const quartetMap = useQuartetMap(scores ?? [], holdings ?? [], watchlist ?? []);
+  const { byTicker: snapshotMap } = useScoresSnapshot();
+  const quartetMap = useQuartetMap(scores ?? [], holdings ?? [], watchlist ?? [], snapshotMap);
 
   // Simple score lookup by uppercase ticker (no fuzzy join)
   const scoreMap = useMemo(() => {
