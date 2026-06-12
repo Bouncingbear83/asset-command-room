@@ -308,7 +308,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
   const [expanded, setExpanded] = useState(false);
 
   const { item, zone, distanceToEntryPct, change7dPct, change30dPct, trajectory, score, daysSinceReview } = row;
-  const showFull = variant === "full" || (isMobile && expanded);
+  const showFull = variant === "full" || expanded;
   const isCompact = variant === "compact";
 
   // Buyer mood: in zone OR price falling toward entry → 'good'; rising away → 'bad'
@@ -343,9 +343,19 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
       >
         {/* Primary data row */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            title={expanded ? "Collapse" : "Expand details"}
+            style={{
+              background: "none", border: "none", padding: 0, cursor: "pointer",
+              fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700,
+              color: "var(--gold)", minWidth: 60, textAlign: "left",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 10, color: "var(--text-dim)" }}>{expanded ? "▾" : "▸"}</span>
             {item.ticker}
-          </span>
+          </button>
           <ChinaRiskChip flag={row.chinaExposureFlag} />
 
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
