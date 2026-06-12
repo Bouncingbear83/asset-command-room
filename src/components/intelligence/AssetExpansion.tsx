@@ -6,6 +6,7 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import { formatRatio } from "@/lib/liveAsymmetry";
+import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 import { toast } from "sonner";
 import "./AssetExpansion.css";
 
@@ -630,6 +631,9 @@ export function AssetExpansion({ asset }: Props) {
           </div>
         );
       })()}
+
+      {/* ─── Vault thesis content ──────────────────────────────────── */}
+      <VaultTickerThesis ticker={asset.ticker} />
 
       {/* ─── Section 1.5: BULL / BEAR / ASYMMETRY ──────────────────── */}
       {(() => {
