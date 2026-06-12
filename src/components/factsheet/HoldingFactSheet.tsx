@@ -7,6 +7,7 @@ import { GIDS, type PortfolioData, type LiveHolding } from "@/hooks/usePortfolio
 import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
 import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { AsymmetryBar } from "@/components/AsymmetryBar";
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 
 interface Props {
@@ -511,16 +512,17 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               const hasQuartet = quartet.bullBase !== null || quartet.bearThesisWeak !== null;
               if (!rationale?.bull_case && !rationale?.bear_case && !hasQuartet) return null;
 
-              // Mini-bar: spans BEAR_SUBSTRATE_FAIL -> BULL_STRETCH
-              const lo = quartet.bearSubstrateFail ?? quartet.bearThesisWeak;
-              const hi = quartet.bullStretch ?? quartet.bullBase;
-              const range = lo !== null && hi !== null && hi > lo ? hi - lo : null;
-              const pctOf = (v: number | null) => range !== null && v !== null ? Math.max(0, Math.min(100, ((v - lo!) / range) * 100)) : null;
-              const priceP = pctOf(live.price);
-              const bullBaseP = pctOf(quartet.bullBase);
-              const bullStretchP = pctOf(quartet.bullStretch);
-              const bearWeakP = pctOf(quartet.bearThesisWeak);
-              const bearFailP = pctOf(quartet.bearSubstrateFail);
+              // Parse trigger price from watchlist trigger text (best-effort)
+              const triggerText = (data.watchlist as any)?.trigger as string | undefined;
+              let triggerPrice: number | null = null;
+              if (triggerText) {
+                // Look for patterns like "<=EUR 7.00" "EUR 7.50" "$155" "200p"
+                const m = triggerText.match(/<?=?\s*(?:EUR|USD|GBP|JPY|CHF|NOK|CAD|AUD|\$|£|€|¥)?\s*([0-9]{1,6}(?:[.,][0-9]{1,4})?)\s*[p]?/i);
+                if (m) {
+                  const n = parseFloat(m[1].replace(",", "."));
+                  if (Number.isFinite(n)) triggerPrice = n;
+                }
+              }
 
               return (
                 <div style={sectionStyle}>
@@ -534,53 +536,23 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                     )}
                   </div>
 
-                  {/* Live quartet mini-bar */}
-                  {range !== null && priceP !== null && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ position: "relative", height: 6, background: "var(--surface)", border: "1px solid var(--rim)", borderRadius: 1 }}>
-                        {/* Downside band (lo -> price) */}
-                        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${priceP}%`, background: "rgba(180,80,80,0.18)" }} />
-                        {/* Upside band (price -> hi) */}
-                        <div style={{ position: "absolute", left: `${priceP}%`, top: 0, bottom: 0, right: 0, background: "rgba(200,169,110,0.18)" }} />
-                        {/* Bear thesis weak marker */}
-                        {bearWeakP !== null && bearWeakP !== bearFailP && (
-                          <div style={{ position: "absolute", left: `${bearWeakP}%`, top: -2, bottom: -2, width: 1, background: "var(--red)", opacity: 0.6 }} title={`Bear weak: ${quartet.bearThesisWeak}`} />
-                        )}
-                        {/* Bull base marker */}
-                        {bullBaseP !== null && bullBaseP !== bullStretchP && (
-                          <div style={{ position: "absolute", left: `${bullBaseP}%`, top: -2, bottom: -2, width: 1, background: "var(--gold)", opacity: 0.6 }} title={`Bull base: ${quartet.bullBase}`} />
-                        )}
-                        {/* Current price marker */}
-                        <div style={{ position: "absolute", left: `calc(${priceP}% - 1px)`, top: -3, bottom: -3, width: 2, background: "var(--text)" }} title={`Current: ${live.price}`} />
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.05em" }}>
-                        <span title="Bear substrate fail">{lo}</span>
-                        <span style={{ color: "var(--text)" }}>● {live.price}</span>
-                        <span title="Bull stretch">{hi}</span>
-                      </div>
-                    </div>
-                  )}
+                  <AsymmetryBar
+                    quartet={quartet}
+                    live={live}
+                    buyZone={score ? { low: (score as any).buyLow ?? null, high: (score as any).buyHigh ?? null } : null}
+                    triggerPrice={triggerPrice}
+                    triggerLabel={triggerText ? triggerText.slice(0, 60) : null}
+                    currency={(score as any)?.currency ?? (data.watchlist as any)?.currency ?? null}
+                  />
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
                     <div>
                       <div style={{ ...monoLabel, color: "var(--green)" }}>Bull</div>
                       <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{rationale?.bull_case || "—"}</div>
-                      {(quartet.bullBase !== null || quartet.bullStretch !== null) && (
-                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--gold)" }}>
-                          {quartet.bullBase !== null && <div>Base: {quartet.bullBase}</div>}
-                          {quartet.bullStretch !== null && <div style={{ opacity: 0.6 }}>Stretch: {quartet.bullStretch}</div>}
-                        </div>
-                      )}
                     </div>
                     <div>
                       <div style={{ ...monoLabel, color: "var(--red)" }}>Bear</div>
                       <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, lineHeight: 1.4 }}>{rationale?.bear_case || "—"}</div>
-                      {(quartet.bearThesisWeak !== null || quartet.bearSubstrateFail !== null) && (
-                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--red)" }}>
-                          {quartet.bearThesisWeak !== null && <div>Thesis: {quartet.bearThesisWeak}</div>}
-                          {quartet.bearSubstrateFail !== null && <div style={{ opacity: 0.6 }}>Substrate: {quartet.bearSubstrateFail}</div>}
-                        </div>
-                      )}
                     </div>
                   </div>
                   {live.quartetAgeDays !== null && (
