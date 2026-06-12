@@ -116,9 +116,8 @@ function VaultResultCard({ result, query }: { result: VaultSearchResult; query: 
   const displayTitle = result.title || result.identifier || result.path.split("/").pop() || result.path;
 
   // Deep Dive link for tickers
-  const isHeld = result.frontmatter?.status === "HELD";
-  const deepDiveUrl = result.type === "ticker"
-    ? `https://claude.ai/project/YOUR_PROJECT_ID?q=Deep+dive+${result.identifier}`
+    const deepDiveUrl = result.type === "ticker"
+    ? `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?q=Deep+dive+${result.identifier}`
     : null;
 
   return (
@@ -147,6 +146,22 @@ function VaultResultCard({ result, query }: { result: VaultSearchResult; query: 
             {result.path}
           </div>
 
+          {/* Snippet */}
+{result.snippet && (
+  <p
+    className="text-xs text-zinc-400/70 mt-1.5 line-clamp-2 leading-relaxed"
+    dangerouslySetInnerHTML={{
+      __html: result.snippet
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/\*\*([^*]+)\*\*/g,
+          '<mark class="bg-amber-500/20 text-amber-300 px-0.5 rounded">$1</mark>'
+        )
+    }}
+  />
+)}
+
+          
           {/* Frontmatter chips for tickers */}
           {result.type === "ticker" && (
             <div className="flex flex-wrap gap-1.5 mt-2">
