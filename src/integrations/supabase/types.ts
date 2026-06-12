@@ -877,6 +877,7 @@ export type Database = {
           body: string | null
           body_sections: Json | null
           frontmatter: Json | null
+          fts: unknown
           identifier: string | null
           last_indexed: string
           path: string
@@ -887,6 +888,7 @@ export type Database = {
           body?: string | null
           body_sections?: Json | null
           frontmatter?: Json | null
+          fts?: unknown
           identifier?: string | null
           last_indexed?: string
           path: string
@@ -897,6 +899,7 @@ export type Database = {
           body?: string | null
           body_sections?: Json | null
           frontmatter?: Json | null
+          fts?: unknown
           identifier?: string | null
           last_indexed?: string
           path?: string
