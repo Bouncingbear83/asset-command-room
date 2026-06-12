@@ -1,8 +1,9 @@
 /**
  * Single source of truth for live asymmetry ratios.
  *
- * Quartet: SCORES tab AK–AO (BULL_BASE, BULL_STRETCH, BEAR_THESIS_WEAK,
- *          BEAR_SUBSTRATE_FAIL, BULL_BEAR_AT_DATE).
+ * Quartet (preferred order):
+ *   1. Supabase `scores_snapshot` (passed via `snapshotMap`)
+ *   2. SCORES sheet AK-AO (from `scores` array)
  * Price:   HOLDINGS price_local for HELD tickers;
  *          WATCHLIST current_price for non-held.
  */
@@ -14,18 +15,21 @@ import {
   type LiveAsymmetryResult,
 } from "@/lib/liveAsymmetry";
 import type { LiveScore, LiveHolding, LiveWatchItem } from "@/hooks/usePortfolioData";
+import type { QuartetSnapshotRow } from "@/hooks/useScoresSnapshot";
 
 export interface QuartetMapEntry {
   asymmetry: LiveAsymmetryResult;
   quartet: AsymmetryQuartet;
   priceUsed: number | null;
   priceSource: "holdings" | "watchlist" | "none";
+  quartetSource: "snapshot" | "sheet" | "none";
 }
 
 export function useQuartetMap(
   scores: LiveScore[],
   holdings: LiveHolding[],
   watchlist: LiveWatchItem[],
+  snapshotMap?: Map<string, QuartetSnapshotRow>,
 ): Map<string, QuartetMapEntry> {
   return useMemo(() => {
     const map = new Map<string, QuartetMapEntry>();
@@ -46,19 +50,48 @@ export function useQuartetMap(
       }
     }
 
+    // Collect all tickers we need to consider: scores + snapshot
+    const allTickers = new Set<string>();
     for (const s of scores) {
       const t = String(s.ticker ?? "").trim().toUpperCase();
-      if (!t) continue;
+      if (t) allTickers.add(t);
+    }
+    if (snapshotMap) {
+      for (const t of snapshotMap.keys()) allTickers.add(t);
+    }
 
+    // Build a lookup for sheet scores
+    const sheetScoreByTicker = new Map<string, LiveScore>();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (t && !sheetScoreByTicker.has(t)) sheetScoreByTicker.set(t, s);
+    }
+
+    for (const t of allTickers) {
+      const sheetScore = sheetScoreByTicker.get(t);
+      const snap = snapshotMap?.get(t);
+
+      // Prefer snapshot quartet; fall back to sheet field-by-field
       const quartet: AsymmetryQuartet = {
-        bullBase: s.bullBase ?? null,
-        bullStretch: s.bullStretch ?? null,
-        bearThesisWeak: s.bearThesisWeak ?? null,
-        bearSubstrateFail: s.bearSubstrateFail ?? null,
-        bullBearAtDate: s.bullBearAtDate ?? null,
+        bullBase: snap?.bull_base ?? sheetScore?.bullBase ?? null,
+        bullStretch: snap?.bull_stretch ?? sheetScore?.bullStretch ?? null,
+        bearThesisWeak: snap?.bear_thesis_weak ?? sheetScore?.bearThesisWeak ?? null,
+        bearSubstrateFail: snap?.bear_substrate_fail ?? sheetScore?.bearSubstrateFail ?? null,
+        bullBearAtDate: snap?.bull_bear_at_date ?? sheetScore?.bullBearAtDate ?? null,
       };
 
-      const isHeld = String(s.heldStatus ?? "").trim().toUpperCase() === "HELD";
+      const hasSnapshotQuartet = snap && (
+        snap.bull_base != null || snap.bull_stretch != null ||
+        snap.bear_thesis_weak != null || snap.bear_substrate_fail != null
+      );
+      const hasSheetQuartet = sheetScore && (
+        sheetScore.bullBase != null || sheetScore.bullStretch != null ||
+        sheetScore.bearThesisWeak != null || sheetScore.bearSubstrateFail != null
+      );
+      const quartetSource: QuartetMapEntry["quartetSource"] =
+        hasSnapshotQuartet ? "snapshot" : hasSheetQuartet ? "sheet" : "none";
+
+      const isHeld = String(sheetScore?.heldStatus ?? "").trim().toUpperCase() === "HELD";
       let priceUsed: number | null = null;
       let priceSource: QuartetMapEntry["priceSource"] = "none";
 
@@ -82,11 +115,12 @@ export function useQuartetMap(
         quartet,
         priceUsed,
         priceSource,
+        quartetSource,
       });
     }
 
     return map;
-  }, [scores, holdings, watchlist]);
+  }, [scores, holdings, watchlist, snapshotMap]);
 }
 
 export function lookupQuartet(
