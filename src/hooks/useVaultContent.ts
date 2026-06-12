@@ -26,8 +26,6 @@ function rowToNote(row: any): VaultNote {
     identifier: row.identifier ?? null,
     title: row.title ?? null,
     frontmatter: fm,
-    // body and body_sections are TOP-LEVEL columns on vault_notes_meta,
-    // not nested inside frontmatter. Read directly from row.
     body: typeof row.body === "string" ? row.body : null,
     body_sections:
       row.body_sections && typeof row.body_sections === "object"
@@ -36,18 +34,13 @@ function rowToNote(row: any): VaultNote {
   };
 }
 
-/** Fetch a single vault note by type + identifier (case-insensitive). */
 export function useVaultNote(type: string, identifier: string | null) {
   const [note, setNote] = useState<VaultNote | null>(null);
   const [loading, setLoading] = useState<boolean>(!!identifier);
 
   useEffect(() => {
     let cancelled = false;
-    if (!identifier) {
-      setNote(null);
-      setLoading(false);
-      return;
-    }
+    if (!identifier) { setNote(null); setLoading(false); return; }
     setLoading(true);
     (async () => {
       const { data } = await (supabase as any)
@@ -61,15 +54,12 @@ export function useVaultNote(type: string, identifier: string | null) {
       setNote(data ? rowToNote(data) : null);
       setLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [type, identifier]);
 
   return { note, loading };
 }
 
-/** Fetch most recent notes for a given type. */
 export function useVaultNotes(type: string, limit = 10) {
   const [notes, setNotes] = useState<VaultNote[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -88,26 +78,19 @@ export function useVaultNotes(type: string, limit = 10) {
       setNotes((data ?? []).map(rowToNote));
       setLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [type, limit]);
 
   return { notes, loading };
 }
 
-/** Fetch backlinks targeting a given (type, id). */
 export function useVaultBacklinks(targetType: string, targetId: string | null) {
   const [backlinks, setBacklinks] = useState<VaultBacklink[]>([]);
   const [loading, setLoading] = useState<boolean>(!!targetId);
 
   useEffect(() => {
     let cancelled = false;
-    if (!targetId) {
-      setBacklinks([]);
-      setLoading(false);
-      return;
-    }
+    if (!targetId) { setBacklinks([]); setLoading(false); return; }
     setLoading(true);
     (async () => {
       const { data } = await (supabase as any)
@@ -119,10 +102,34 @@ export function useVaultBacklinks(targetType: string, targetId: string | null) {
       setBacklinks((data ?? []) as VaultBacklink[]);
       setLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [targetType, targetId]);
 
   return { backlinks, loading };
+}
+
+/** Batch fetch notes by their paths. Useful for hydrating backlink sources. */
+export function useVaultNotesByPaths(paths: string[]) {
+  const [notes, setNotes] = useState<VaultNote[]>([]);
+  const [loading, setLoading] = useState<boolean>(paths.length > 0);
+  const key = paths.slice().sort().join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (paths.length === 0) { setNotes([]); setLoading(false); return; }
+    setLoading(true);
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("vault_notes_meta")
+        .select("*")
+        .in("path", paths);
+      if (cancelled) return;
+      setNotes((data ?? []).map(rowToNote));
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return { notes, loading };
 }
