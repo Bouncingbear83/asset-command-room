@@ -681,22 +681,10 @@ export function AssetExpansion({ asset }: Props) {
                 <div style={CARD_STYLE}>
                   <div style={{ ...LABEL_STYLE, color: "var(--green)" }}><span>Bull Case</span></div>
                   <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.bull_case || "—"}</div>
-                  {q.bullBase !== null && (
-                    <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                      Base: {q.bullBase}
-                      {q.bullStretch !== null && <span> · Stretch: {q.bullStretch}</span>}
-                    </div>
-                  )}
                 </div>
                 <div style={CARD_STYLE}>
                   <div style={{ ...LABEL_STYLE, color: "var(--red)" }}><span>Bear Case</span></div>
                   <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.bear_case || "—"}</div>
-                  {q.bearThesisWeak !== null && (
-                    <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                      Thesis: {q.bearThesisWeak}
-                      {q.bearSubstrateFail !== null && <span> · Substrate: {q.bearSubstrateFail}</span>}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
