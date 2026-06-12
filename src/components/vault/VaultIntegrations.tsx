@@ -1,11 +1,20 @@
 /**
- * Vault integration cards: self-contained components that pull
- * vault content from Supabase and render in the Stellar design.
+ * Vault integration cards.
+ *
+ * Design principle: surface what is UNIQUE to the vault (history, session
+ * discussion, evolution) and avoid duplicating what the sheet already shows.
  */
-import { useState } from "react";
-import { useVaultNote, useVaultNotes, useVaultBacklinks, VaultNote } from "@/hooks/useVaultContent";
-import { VaultNotePanel, VaultLayerPanel, VaultSections } from "@/components/vault/VaultContent";
+import { useState, useMemo } from "react";
+import {
+  useVaultNote,
+  useVaultNotes,
+  useVaultBacklinks,
+  useVaultNotesByPaths,
+  VaultNote,
+} from "@/hooks/useVaultContent";
+import { VaultLayerPanel, VaultSections } from "@/components/vault/VaultContent";
 
+/* ── shared styles ── */
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
 const cardHeader: React.CSSProperties = {
   display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -18,49 +27,132 @@ const cardTitle: React.CSSProperties = {
 const mono9: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase",
 };
-const chevron: React.CSSProperties = {
-  fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)", marginLeft: 8,
+const sectionBody: React.CSSProperties = {
+  fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.55,
+  color: "var(--text-mid)", whiteSpace: "pre-wrap", wordBreak: "break-word",
 };
 
-/* ── 1. TICKER THESIS: Holdings drill-down + Fact Sheet ── */
-export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
-  const { note, loading } = useVaultNote("ticker", ticker);
-  const { backlinks } = useVaultBacklinks("ticker", ticker);
+/* ── light markdown clean-up for display (no full parser, just tidy) ── */
+function tidyMarkdown(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\[\[(ticker|rule|framework|section|session|layer|trend|spec):([^\]]+)\]\]/g, "$2")  // strip wikilink syntax
+    .replace(/\*\*([^*]+)\*\*/g, "$1")  // strip bold markers
+    .replace(/^[-*]\s+/gm, "• ")        // normalize bullets
+    .replace(/^#{1,6}\s+/gm, "")        // strip heading markers
+    .trim();
+}
 
-  if (!ticker || loading || !note) return null;
-  if (!note.body) return null;
+function formatSessionDate(id: string | null): string {
+  // session id format: YYYY-MM-DD-N
+  if (!id) return "";
+  const m = id.match(/^(\d{4})-(\d{2})-(\d{2})-(\d+)$/);
+  if (!m) return id;
+  const [, y, mm, dd, n] = m;
+  const monthName = new Date(`${y}-${mm}-${dd}`).toLocaleDateString("en-GB", { month: "short" });
+  return `${dd} ${monthName} ${y} #${n}`;
+}
+
+/* ──────────────────────────────────────────────────────────
+ *  TICKER DISCUSSION HISTORY (for Holdings inline + Fact Sheet)
+ *  Shows sessions/research notes that touched this ticker.
+ *  Each row is click-to-expand to reveal the session body.
+ * ────────────────────────────────────────────────────────── */
+function SessionEntry({ note }: { note: VaultNote }) {
+  const [open, setOpen] = useState(false);
+  const fm = note.frontmatter ?? {};
+  const body = note.body ?? "";
 
   return (
-    <div style={{ padding: "0 18px 14px" }}>
-      <VaultNotePanel
-        note={note}
-        sections={["Score", "Latest change", "Cross-references"]}
-        backlinkCount={backlinks.length}
-        maxLines={20}
-      />
+    <div style={{ borderTop: "1px solid rgba(28,28,48,0.4)" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          background: "none", border: "none", width: "100%", textAlign: "left",
+          cursor: "pointer", padding: "8px 0", display: "flex", alignItems: "center",
+          gap: 10, color: "inherit",
+        }}
+      >
+        <span style={{ ...mono9, color: "var(--text-dim)" }}>{open ? "▾" : "▸"}</span>
+        <span style={{ ...mono9, color: "var(--gold)" }}>{formatSessionDate(note.identifier)}</span>
+        {fm.session_type && (
+          <span style={{
+            ...mono9, padding: "2px 8px", borderRadius: 2,
+            color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)",
+          }}>
+            {fm.session_type}
+          </span>
+        )}
+        {fm.fires && <span style={{ ...mono9, color: "var(--text-dim)" }}>{fm.fires} FIRES</span>}
+      </button>
+      {open && (
+        <div style={{ ...sectionBody, padding: "0 0 12px 22px", fontSize: 10 }}>
+          {body ? tidyMarkdown(body) : <span style={{ color: "var(--text-dim)" }}>No body content.</span>}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ── 2. WATCHLIST THESIS SNIPPET ── */
+export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
+  const { backlinks, loading: blLoading } = useVaultBacklinks("ticker", ticker);
+
+  // Paths of session notes that reference this ticker
+  const sessionPaths = useMemo(
+    () => backlinks.filter((b) => b.source_type === "session").map((b) => b.source_path),
+    [backlinks]
+  );
+  const { notes: sessionNotes, loading: snLoading } = useVaultNotesByPaths(sessionPaths);
+
+  // Sort newest first by identifier (YYYY-MM-DD-N)
+  const sorted = useMemo(
+    () => [...sessionNotes].sort((a, b) => (b.identifier ?? "").localeCompare(a.identifier ?? "")),
+    [sessionNotes]
+  );
+
+  if (!ticker) return null;
+  if (blLoading || snLoading) return null;
+  if (sorted.length === 0) return null;
+
+  return (
+    <div style={{ padding: "0 18px 14px" }}>
+      <div style={{ borderTop: "1px solid var(--rim)", paddingTop: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ ...mono9, color: "var(--gold)" }}>DISCUSSION HISTORY</span>
+          <span style={{ ...mono9, color: "var(--text-dim)" }}>
+            {sorted.length} SESSION{sorted.length !== 1 ? "S" : ""}
+          </span>
+        </div>
+        <div>
+          {sorted.map((n) => <SessionEntry key={n.path} note={n} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
+ *  WATCHLIST: small "Latest change" snippet
+ * ────────────────────────────────────────────────────────── */
 export function VaultWatchlistSnippet({ ticker }: { ticker: string | null }) {
   const { note, loading } = useVaultNote("ticker", ticker);
 
   if (!ticker || loading || !note) return null;
-  if (!note.body_sections?.["Latest change"] && !note.body) return null;
+  const latestChange = note.body_sections?.["Latest change"];
+  if (!latestChange) return null;
 
   return (
     <div style={{ borderTop: "1px solid var(--rim)", padding: "8px 0 4px" }}>
-      <div style={{ ...mono9, fontSize: 8, color: "var(--gold)", marginBottom: 4 }}>
-        VAULT THESIS
-      </div>
-      <VaultSections note={note} sections={["Latest change"]} maxLines={8} />
+      <div style={{ ...mono9, fontSize: 8, color: "var(--gold)", marginBottom: 4 }}>VAULT LATEST CHANGE</div>
+      <div style={{ ...sectionBody, fontSize: 10 }}>{tidyMarkdown(latestChange)}</div>
     </div>
   );
 }
 
-/* ── 3. RECENT SESSIONS: collapsible card + click-to-expand each session ── */
-function SessionRow({ note }: { note: VaultNote }) {
+/* ──────────────────────────────────────────────────────────
+ *  COMMAND TAB: Recent Sessions (collapsible card + click-to-expand)
+ * ────────────────────────────────────────────────────────── */
+function RecentSessionRow({ note }: { note: VaultNote }) {
   const [open, setOpen] = useState(false);
   const fm = note.frontmatter ?? {};
   const body = note.body ?? "";
@@ -81,8 +173,8 @@ function SessionRow({ note }: { note: VaultNote }) {
         }}
       >
         <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-          <span style={{ ...chevron, marginLeft: 0 }}>{open ? "▾" : "▸"}</span>
-          <span style={{ ...mono9, color: "var(--gold)", fontSize: 11 }}>{note.identifier}</span>
+          <span style={{ ...mono9, color: "var(--text-dim)", fontSize: 11 }}>{open ? "▾" : "▸"}</span>
+          <span style={{ ...mono9, color: "var(--gold)", fontSize: 11 }}>{formatSessionDate(note.identifier)}</span>
           {fm.session_type && (
             <span style={{
               ...mono9, padding: "2px 8px", borderRadius: 2,
@@ -99,19 +191,13 @@ function SessionRow({ note }: { note: VaultNote }) {
           </div>
         )}
       </button>
-      {open && body && (
+      {open && (
         <div style={{
-          fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.6,
-          color: "var(--text-mid)", whiteSpace: "pre-wrap", wordBreak: "break-word",
-          marginLeft: 22, marginTop: 8, padding: "10px 12px",
+          ...sectionBody, fontSize: 10,
+          marginLeft: 22, marginTop: 6, padding: "10px 12px",
           background: "rgba(0,0,0,0.2)", border: "1px solid var(--rim)",
         }}>
-          {body}
-        </div>
-      )}
-      {open && !body && (
-        <div style={{ ...mono9, color: "var(--text-dim)", marginLeft: 22, marginTop: 4 }}>
-          No body content for this session.
+          {body ? tidyMarkdown(body) : <span style={{ color: "var(--text-dim)" }}>No body content.</span>}
         </div>
       )}
     </div>
@@ -130,7 +216,7 @@ export function VaultRecentSessions() {
     >
       <summary style={{ ...cardHeader, cursor: "pointer", listStyle: "none", userSelect: "none" }}>
         <span style={{ ...cardTitle, display: "flex", alignItems: "center" }}>
-          <span style={{ ...chevron, marginLeft: 0, marginRight: 8 }}>{open ? "▾" : "▸"}</span>
+          <span style={{ ...mono9, marginRight: 8 }}>{open ? "▾" : "▸"}</span>
           Recent Sessions
         </span>
         <span style={{ ...mono9, color: "var(--text-dim)" }}>
@@ -144,7 +230,7 @@ export function VaultRecentSessions() {
           <div style={{ ...mono9, color: "var(--text-dim)" }}>No session notes in vault yet.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {notes.map((n) => <SessionRow key={n.path} note={n} />)}
+            {notes.map((n) => <RecentSessionRow key={n.path} note={n} />)}
           </div>
         )}
       </div>
@@ -152,7 +238,9 @@ export function VaultRecentSessions() {
   );
 }
 
-/* ── 4. LAYER NOTE: collapsible, closed by default ── */
+/* ──────────────────────────────────────────────────────────
+ *  LAYERS: collapsible layer anchor note
+ * ────────────────────────────────────────────────────────── */
 export function VaultLayerNote({ layer }: { layer: string | null }) {
   const { note, loading } = useVaultNote("layer", layer);
 
