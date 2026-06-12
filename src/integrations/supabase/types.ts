@@ -947,6 +947,19 @@ export type Database = {
         Args: { tickers: string[] }
         Returns: string[]
       }
+      vault_search: {
+        Args: { max_results?: number; note_type?: string; search_query: string }
+        Returns: {
+          body_sections: Json
+          frontmatter: Json
+          identifier: string
+          path: string
+          rank: number
+          snippet: string
+          title: string
+          type: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
