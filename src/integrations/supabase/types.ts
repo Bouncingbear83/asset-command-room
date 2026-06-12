@@ -948,13 +948,14 @@ export type Database = {
         Returns: string[]
       }
       vault_search: {
-        Args: { note_type?: string; query: string; result_limit?: number }
+        Args: { max_results?: number; note_type?: string; search_query: string }
         Returns: {
           body_sections: Json
           frontmatter: Json
           identifier: string
           path: string
           rank: number
+          snippet: string
           title: string
           type: string
         }[]
