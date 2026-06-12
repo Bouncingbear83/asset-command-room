@@ -321,8 +321,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
   })();
 
   const handleCardClick = () => {
-    // On mobile, compact cards tap-to-expand; otherwise no-op (dedicated buttons)
-    if (isCompact && isMobile) setExpanded((v) => !v);
+    // Toggle expansion on click (both desktop and mobile)
+    if (isCompact) setExpanded((v) => !v);
   };
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -337,7 +337,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         style={{
           padding: "8px 14px 6px",
           borderBottom: "1px solid rgba(28,28,48,0.4)",
-          cursor: isMobile ? "pointer" : "default",
+          cursor: "pointer",
           ...tintStyle,
         }}
       >
