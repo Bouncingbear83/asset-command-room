@@ -493,14 +493,19 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
             {/* Bull / Bear / Asymmetry */}
             {(() => {
               const score: any = data.score;
+              const snapQ: any = data.quartetSnapshot;
+              // Prefer Supabase snapshot quartet over sheet quartet field-by-field
               const quartet: AsymmetryQuartet = {
-                bullBase: score?.bullBase ?? null,
-                bullStretch: score?.bullStretch ?? null,
-                bearThesisWeak: score?.bearThesisWeak ?? null,
-                bearSubstrateFail: score?.bearSubstrateFail ?? null,
-                bullBearAtDate: score?.bullBearAtDate ?? null,
+                bullBase: snapQ?.bull_base ?? score?.bullBase ?? null,
+                bullStretch: snapQ?.bull_stretch ?? score?.bullStretch ?? null,
+                bearThesisWeak: snapQ?.bear_thesis_weak ?? score?.bearThesisWeak ?? null,
+                bearSubstrateFail: snapQ?.bear_substrate_fail ?? score?.bearSubstrateFail ?? null,
+                bullBearAtDate: snapQ?.bull_bear_at_date ?? score?.bullBearAtDate ?? null,
               };
-              const livePrice = data.holdings[0]?.price ?? data.watchlist?.current ?? data.pricePoints[data.pricePoints.length - 1]?.priceLocal ?? null;
+              // Live price priority: HOLDINGS (live for held) -> daily_prices latest
+              // (most authoritative time-series spot) -> WATCHLIST.current (can be stale)
+              const latestDailyPrice = data.pricePoints[data.pricePoints.length - 1]?.priceLocal ?? null;
+              const livePrice = data.holdings[0]?.price ?? latestDailyPrice ?? data.watchlist?.current ?? null;
               const live = computeLiveAsymmetry(quartet, livePrice);
               const rationale: any = data.rationale;
               const hasQuartet = quartet.bullBase !== null || quartet.bearThesisWeak !== null;
