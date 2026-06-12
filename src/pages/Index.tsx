@@ -2,23 +2,25 @@ import { useState, useEffect } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useDailyPrices } from "@/hooks/useDailyPrices";
 import CommandTab from "@/components/CommandTab";
-import MonitorTab from "@/components/MonitorTab";
-import WatchlistTab from "@/components/WatchlistTab";
-import LayersTab from "@/components/LayersTab";
-
-import ReturnsTab from "@/components/ReturnsTab";
 import HoldingsTab from "@/components/HoldingsTab";
+import WatchlistTab from "@/components/WatchlistTab";
+import JapanSleeveTab from "@/components/JapanSleeveTab";
+import JisasTab from "@/components/JisasTab";
+import ReturnsTab from "@/components/ReturnsTab";
+import LayersTab from "@/components/LayersTab";
+import MonitorTab from "@/components/MonitorTab";
 import TransactionsTab from "@/components/TransactionsTab";
 import EarningsCalendarTab from "@/components/EarningsCalendarTab";
-import JisasTab from "@/components/JisasTab";
+
 import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
-import JapanSleeveTab from "@/components/JapanSleeveTab";
+
 import ResearchTab from "@/components/ResearchTab";
 import VaultTab from "@/components/VaultTab";
+import { VaultSearch } from "@/components/VaultSearch";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
-const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Research", "Vault", "Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
+const TABS = ["Command", "Monitor", "Watchlist", "Layers", "Drivers", "Intelligence", "Research", "Vault","Returns", "Holdings", "Japan Sleeve", "Transactions", "JISAs", "Earnings Calendar"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
