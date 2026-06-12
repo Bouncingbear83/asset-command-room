@@ -195,7 +195,51 @@ function SessionEntry({ note }: { note: VaultNote }) {
   );
 }
 
+/* Enriched sections from the vault ticker note (deep dive protocol) */
+const ENRICHED_SECTIONS = [
+  "Substrate audit",
+  "Thesis",
+  "Kill conditions",
+  "Entry logic",
+  "Key findings",
+];
+
+function EnrichedSection({ title, content }: { title: string; content: string }) {
+  const [open, setOpen] = useState(false);
+  const preview = content.length > 200 ? content.slice(0, 200) + "..." : content;
+
+  return (
+    <div style={{ borderTop: "1px solid rgba(28,28,48,0.4)" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          background: "none", border: "none", width: "100%", textAlign: "left",
+          cursor: "pointer", padding: "8px 0", display: "flex", alignItems: "flex-start",
+          gap: 8, color: "inherit",
+        }}
+      >
+        <span style={{ ...mono9, color: "var(--text-dim)", marginTop: 1 }}>{open ? "▾" : "▸"}</span>
+        <div style={{ flex: 1 }}>
+          <span style={{ ...mono9, color: "var(--accent)" }}>{title.toUpperCase()}</span>
+          {!open && (
+            <div style={{ ...bodyText, fontSize: 10, color: "var(--text-dim)", marginTop: 4,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+              {tidyMarkdown(preview)}
+            </div>
+          )}
+        </div>
+      </button>
+      {open && (
+        <div style={{ ...bodyText, fontSize: 10, padding: "0 0 12px 20px" }}>
+          {tidyMarkdown(content)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
+  const { note: vaultNote, loading: vnLoading } = useVaultNote("ticker", ticker);
   const { entries: scoreHistory, loading: shLoading } = useScoreHistory(ticker);
   const { backlinks, loading: blLoading } = useVaultBacklinks("ticker", ticker);
 
@@ -209,15 +253,39 @@ export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
     [sessionNotes]
   );
 
+  // Extract enriched sections from vault note
+  const enrichedSections = useMemo(() => {
+    if (!vaultNote?.body_sections) return [];
+    return ENRICHED_SECTIONS
+      .filter((s) => vaultNote.body_sections![s])
+      .map((s) => ({ title: s, content: vaultNote.body_sections![s] }));
+  }, [vaultNote]);
+
   if (!ticker) return null;
-  if (shLoading || blLoading) return null;
-  if (scoreHistory.length === 0 && sessionsSorted.length === 0) return null;
+  if (shLoading || blLoading || vnLoading) return null;
+  const hasEnriched = enrichedSections.length > 0;
+  const hasHistory = scoreHistory.length > 0;
+  const hasSessions = sessionsSorted.length > 0;
+  if (!hasEnriched && !hasHistory && !hasSessions) return null;
 
   return (
     <div style={{ padding: "0 18px 14px" }}>
       <div style={{ borderTop: "1px solid var(--rim)", paddingTop: 12 }}>
-        {scoreHistory.length > 0 && (
-          <div style={{ marginBottom: sessionsSorted.length > 0 ? 16 : 0 }}>
+        {hasEnriched && (
+          <div style={{ marginBottom: (hasHistory || hasSessions) ? 16 : 0 }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+              <span style={{ ...mono9, color: "var(--gold)" }}>RESEARCH NOTES</span>
+              <span style={{ ...mono9, color: "var(--text-dim)" }}>{enrichedSections.length} SECTIONS</span>
+            </div>
+            <div>
+              {enrichedSections.map((s) => (
+                <EnrichedSection key={s.title} title={s.title} content={s.content} />
+              ))}
+            </div>
+          </div>
+        )}
+        {hasHistory && (
+          <div style={{ marginBottom: hasSessions ? 16 : 0 }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
               <span style={{ ...mono9, color: "var(--gold)" }}>SCORE EVOLUTION</span>
               <span style={{ ...mono9, color: "var(--text-dim)" }}>{scoreHistory.length} ENTRIES</span>
@@ -230,7 +298,7 @@ export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
             </div>
           </div>
         )}
-        {sessionsSorted.length > 0 && (
+        {hasSessions && (
           <div>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
               <span style={{ ...mono9, color: "var(--gold)" }}>SESSION DISCUSSIONS</span>
