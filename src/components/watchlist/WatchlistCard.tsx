@@ -10,6 +10,7 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { VaultWatchlistSnippet } from "@/components/vault/VaultIntegrations";
+import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { toast } from "sonner";
 import type { ReturnProfile, CompounderSubtype } from "@/types/intelligence";
 import {
@@ -306,6 +307,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
   const isMobile = useIsMobile();
   // Mobile compacts expand on tap
   const [expanded, setExpanded] = useState(false);
+  const { open: openFactSheet } = useFactSheet();
 
   const { item, zone, distanceToEntryPct, change7dPct, change30dPct, trajectory, score, daysSinceReview } = row;
   const showFull = variant === "full" || expanded;
@@ -321,7 +323,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
   })();
 
   const handleCardClick = () => {
-    // Toggle expansion on click (both desktop and mobile)
+    // Clicking anywhere on a compact row (except the ticker, which opens factsheet)
+    // toggles expand-in-place so the user can preview without leaving the page
     if (isCompact) setExpanded((v) => !v);
   };
   const stop = (e: React.MouseEvent) => e.stopPropagation();
@@ -344,16 +347,16 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         {/* Primary data row */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <button
-            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-            title={expanded ? "Collapse" : "Expand details"}
+            onClick={(e) => { e.stopPropagation(); openFactSheet(item.ticker); }}
+            title="Open fact sheet"
             style={{
               background: "none", border: "none", padding: 0, cursor: "pointer",
               fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700,
               color: "var(--gold)", minWidth: 60, textAlign: "left",
-              display: "flex", alignItems: "center", gap: 4,
+              textDecoration: "underline", textDecorationStyle: "dotted",
+              textUnderlineOffset: 3, textDecorationColor: "rgba(200,169,110,0.4)",
             }}
           >
-            <span style={{ fontSize: 10, color: "var(--text-dim)" }}>{expanded ? "▾" : "▸"}</span>
             {item.ticker}
           </button>
           <ChinaRiskChip flag={row.chinaExposureFlag} />
@@ -466,9 +469,18 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
     >
       {/* Line 1 — ticker, name, layer, status */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); openFactSheet(item.ticker); }}
+          title="Open fact sheet"
+          style={{
+            background: "none", border: "none", padding: 0, cursor: "pointer",
+            fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--gold)",
+            textDecoration: "underline", textDecorationStyle: "dotted",
+            textUnderlineOffset: 3, textDecorationColor: "rgba(200,169,110,0.4)",
+          }}
+        >
           {item.ticker}
-        </span>
+        </button>
         {score?.total_score != null && (() => {
           const sc = score.total_score;
           const c = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
