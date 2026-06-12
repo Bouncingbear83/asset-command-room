@@ -6,6 +6,7 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import { formatRatio } from "@/lib/liveAsymmetry";
+import { AsymmetryBar } from "@/components/AsymmetryBar";
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 import { toast } from "sonner";
 import "./AssetExpansion.css";
@@ -646,14 +647,7 @@ export function AssetExpansion({ asset }: Props) {
 
         const lo = q.bearSubstrateFail ?? q.bearThesisWeak;
         const hi = q.bullStretch ?? q.bullBase;
-        const range = lo !== null && hi !== null && hi > lo ? hi - lo : null;
-        const pctOf = (v: number | null) =>
-          range !== null && v !== null && lo !== null
-            ? Math.max(0, Math.min(100, ((v - lo) / range) * 100))
-            : null;
-        const priceP = pctOf(live.price);
-        const bullBaseP = pctOf(q.bullBase);
-        const bearWeakP = pctOf(q.bearThesisWeak);
+        const range = lo !== null && hi !== null && hi > lo ? lo : null;
 
         return (
           <div style={SECTION_STYLE}>
@@ -675,26 +669,12 @@ export function AssetExpansion({ asset }: Props) {
               )}
             </div>
 
-            {range !== null && priceP !== null && (
-              <div style={{ marginTop: 4, marginBottom: hasBullBear ? 14 : 4 }}>
-                <div style={{ position: "relative", height: 14 }}>
-                  <div style={{ position: "absolute", top: 6, left: 0, width: `${priceP}%`, height: 2, background: "var(--red-dim)" }} />
-                  <div style={{ position: "absolute", top: 6, left: `${priceP}%`, width: `${100 - priceP}%`, height: 2, background: "var(--green-dim)" }} />
-                  {bearWeakP !== null && (
-                    <div style={{ position: "absolute", top: 2, left: `calc(${bearWeakP}% - 1px)`, width: 2, height: 10, background: "var(--red)" }} title={`Bear (thesis weak): ${q.bearThesisWeak}`} />
-                  )}
-                  {bullBaseP !== null && (
-                    <div style={{ position: "absolute", top: 2, left: `calc(${bullBaseP}% - 1px)`, width: 2, height: 10, background: "var(--green)" }} title={`Bull base: ${q.bullBase}`} />
-                  )}
-                  <div style={{ position: "absolute", top: 0, left: `calc(${priceP}% - 4px)`, width: 8, height: 14, background: "var(--accent)", border: "2px solid var(--void)", borderRadius: 2 }} title={`Current: ${live.price}`} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                  <span>{lo}</span>
-                  <span style={{ color: "var(--accent)" }}>● {live.price}</span>
-                  <span>{hi}</span>
-                </div>
-              </div>
-            )}
+            <AsymmetryBar
+              quartet={q}
+              live={live}
+              buyZone={asset.buy_range ? { low: asset.buy_range.low, high: asset.buy_range.high } : null}
+              currency={asset.buy_range?.currency ?? null}
+            />
 
             {hasBullBear && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
