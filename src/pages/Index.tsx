@@ -16,7 +16,6 @@ import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
 
 import ResearchTab from "@/components/ResearchTab";
-import VaultTab from "@/components/VaultTab";
 import { VaultSearch } from "@/components/VaultSearch";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
