@@ -114,12 +114,31 @@ const OVERDUE_DAYS = 14;
 function normStatus(s: string | null | undefined): string {
   return String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
+// Status taxonomy v2 (2026 Doctrine). Tokens are normalised via normStatus().
+const DEPLOY = "DEPLOY";
+const WAIT_PRICE = "WAITPRICE";
+const WAIT_EVENT = "WAITEVENT";
 const PREIPO = "PREIPO";
 const RESEARCH = "RESEARCH";
-const MONITOR = "MONITOR";
-const EXITED = "EXITED";
-const BUY = "BUY";
-const ACTIVE = "ACTIVE";
+const POST_RECLASS_HOLD = "POSTRECLASSHOLD";
+const SCALING_WATCH = "SCALINGWATCH";
+const ARCHIVE = "ARCHIVE";
+
+interface StatusDef { token: string; label: string; dotColor: string; }
+const STATUS_DEFS: StatusDef[] = [
+  { token: DEPLOY,            label: "Deploy",            dotColor: "rgb(34,197,94)" },
+  { token: WAIT_PRICE,        label: "Wait · Price",      dotColor: "rgb(96,165,250)" },
+  { token: WAIT_EVENT,        label: "Wait · Event",      dotColor: "rgb(245,158,11)" },
+  { token: RESEARCH,          label: "Research",          dotColor: "rgb(192,132,252)" },
+  { token: PREIPO,            label: "Pre-IPO",           dotColor: "rgb(148,163,184)" },
+  { token: POST_RECLASS_HOLD, label: "Post-Reclass Hold", dotColor: "rgb(251,146,60)" },
+  { token: SCALING_WATCH,     label: "Scaling Watch",     dotColor: "rgb(34,211,238)" },
+  { token: ARCHIVE,           label: "Archive",           dotColor: "rgb(156,163,175)" },
+];
+const KNOWN_STATUS_TOKENS = new Set(STATUS_DEFS.map((d) => d.token));
+const DEFAULT_STATUS_FILTER = new Set(
+  STATUS_DEFS.filter((d) => d.token !== ARCHIVE).map((d) => d.token),
+);
 
 function daysSince(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
