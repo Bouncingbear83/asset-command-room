@@ -465,15 +465,21 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   }, [scores]);
 
 
-  // Layer + status filter options
+  // Layer filter options
   const layerOptions = useMemo(
     () => Array.from(new Set(liveData.map((d) => d.layer).filter(Boolean))).sort(),
     [liveData],
   );
-  const statusOptions = useMemo(
-    () => Array.from(new Set(liveData.map((d) => d.status?.trim().toUpperCase()).filter(Boolean))).sort(),
-    [liveData],
-  );
+
+  const toggleStatusFilter = (tok: string) => {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(tok)) next.delete(tok);
+      else next.add(tok);
+      return next;
+    });
+  };
+  const resetStatusFilter = () => setStatusFilter(new Set(DEFAULT_STATUS_FILTER));
 
   // ── Derive every row ──
   const derived: DerivedRow[] = useMemo(() => {
