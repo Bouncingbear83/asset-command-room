@@ -608,6 +608,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         >
           {item.ticker}
         </button>
+        <BrokerGatedBadge gated={item.brokerGated} />
         {score?.total_score != null && (() => {
           const sc = score.total_score;
           const c = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
