@@ -16,7 +16,7 @@ import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
 
 import ResearchTab from "@/components/ResearchTab";
-import { VaultSearch } from "@/components/VaultSearch";
+import VaultTab from "@/components/VaultTab";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
 const TABS = [
@@ -202,7 +202,7 @@ export default function Index() {
         )}
         {active === "Intelligence" && <IntelligenceTab />}
         {active === "Research" && <ResearchTab />}
-        {active === "Vault" && <VaultSearch />}
+        {active === "Vault" && <VaultTab />}
         {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
