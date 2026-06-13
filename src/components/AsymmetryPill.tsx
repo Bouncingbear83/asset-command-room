@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function AsymmetryPill({ asymmetry, showStretch }: Props) {
-  const { baseRatio, stretchRatio, band, quartet, quartetAgeDays, belowBear, aboveBull } = asymmetry;
+  const { baseRatio, stretchRatio, probWeightedRatio, divergence, band, quartet, quartetAgeDays, belowBear, aboveBull } = asymmetry;
 
   if (baseRatio === null) {
     return <span style={{ ...BASE, color: "var(--text-dim)", opacity: 0.4 }}>—</span>;
@@ -38,17 +38,25 @@ export function AsymmetryPill({ asymmetry, showStretch }: Props) {
     ...(BAND_STYLE[band ?? "NO_DEPLOY"]),
   };
 
+  // Thin-tail flag: divergence > 0.5 means substrate-fail risk pulls
+  // the probability-weighted ratio materially below the simple ratio.
+  const hasThinTail = divergence !== null && divergence > 0.5;
+
   const warningDot = belowBear
     ? <span style={{ color: "var(--red)", fontSize: 8 }} title="Price below bear case">●</span>
     : aboveBull
     ? <span style={{ color: "var(--green)", fontSize: 8 }} title="Price above bull base">●</span>
+    : hasThinTail
+    ? <span style={{ color: "var(--red)", fontSize: 7 }} title={`Thin-tail: pwt ${formatRatio(probWeightedRatio)} vs simple ${formatRatio(baseRatio)}`}>◆</span>
     : quartetAgeDays !== null && quartetAgeDays > 90
     ? <span style={{ color: "var(--amber)", fontSize: 7 }} title={`Quartet ${quartetAgeDays}d old`}>◦</span>
     : null;
 
   const tooltipLines = [
-    `Base ratio: ${formatRatio(baseRatio)}`,
+    `Simple ratio: ${formatRatio(baseRatio)}`,
+    probWeightedRatio !== null ? `Prob-wgt (Alt B): ${formatRatio(probWeightedRatio)}` : null,
     stretchRatio !== null ? `Stretch ratio: ${formatRatio(stretchRatio)}` : null,
+    hasThinTail ? `⚠ Divergence: ${divergence!.toFixed(1)} (thin-tail)` : (divergence !== null ? `Divergence: ${divergence.toFixed(1)}` : null),
     "",
     quartet.bullStretch !== null ? `Bull stretch: ${quartet.bullStretch}` : null,
     quartet.bullBase !== null ? `Bull base: ${quartet.bullBase}` : null,
