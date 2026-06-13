@@ -114,12 +114,31 @@ const OVERDUE_DAYS = 14;
 function normStatus(s: string | null | undefined): string {
   return String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
+// Status taxonomy v2 (2026 Doctrine). Tokens are normalised via normStatus().
+const DEPLOY = "DEPLOY";
+const WAIT_PRICE = "WAITPRICE";
+const WAIT_EVENT = "WAITEVENT";
 const PREIPO = "PREIPO";
 const RESEARCH = "RESEARCH";
-const MONITOR = "MONITOR";
-const EXITED = "EXITED";
-const BUY = "BUY";
-const ACTIVE = "ACTIVE";
+const POST_RECLASS_HOLD = "POSTRECLASSHOLD";
+const SCALING_WATCH = "SCALINGWATCH";
+const ARCHIVE = "ARCHIVE";
+
+interface StatusDef { token: string; label: string; dotColor: string; }
+const STATUS_DEFS: StatusDef[] = [
+  { token: DEPLOY,            label: "Deploy",            dotColor: "rgb(34,197,94)" },
+  { token: WAIT_PRICE,        label: "Wait · Price",      dotColor: "rgb(96,165,250)" },
+  { token: WAIT_EVENT,        label: "Wait · Event",      dotColor: "rgb(245,158,11)" },
+  { token: RESEARCH,          label: "Research",          dotColor: "rgb(192,132,252)" },
+  { token: PREIPO,            label: "Pre-IPO",           dotColor: "rgb(148,163,184)" },
+  { token: POST_RECLASS_HOLD, label: "Post-Reclass Hold", dotColor: "rgb(251,146,60)" },
+  { token: SCALING_WATCH,     label: "Scaling Watch",     dotColor: "rgb(34,211,238)" },
+  { token: ARCHIVE,           label: "Archive",           dotColor: "rgb(156,163,175)" },
+];
+const KNOWN_STATUS_TOKENS = new Set(STATUS_DEFS.map((d) => d.token));
+const DEFAULT_STATUS_FILTER = new Set(
+  STATUS_DEFS.filter((d) => d.token !== ARCHIVE).map((d) => d.token),
+);
 
 function daysSince(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
@@ -392,7 +411,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [layerFilter, setLayerFilter] = useState<string>("ALL");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(() => new Set(DEFAULT_STATUS_FILTER));
   const [profileFilter, setProfileFilter] = useState<Set<ProfileFilterKey>>(
     () => new Set(PROFILE_FILTER_KEYS),
   );
@@ -446,15 +465,21 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   }, [scores]);
 
 
-  // Layer + status filter options
+  // Layer filter options
   const layerOptions = useMemo(
     () => Array.from(new Set(liveData.map((d) => d.layer).filter(Boolean))).sort(),
     [liveData],
   );
-  const statusOptions = useMemo(
-    () => Array.from(new Set(liveData.map((d) => d.status?.trim().toUpperCase()).filter(Boolean))).sort(),
-    [liveData],
-  );
+
+  const toggleStatusFilter = (tok: string) => {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(tok)) next.delete(tok);
+      else next.add(tok);
+      return next;
+    });
+  };
+  const resetStatusFilter = () => setStatusFilter(new Set(DEFAULT_STATUS_FILTER));
 
   // ── Derive every row ──
   const derived: DerivedRow[] = useMemo(() => {
@@ -531,7 +556,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return derived.filter((r) => {
       if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
       if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
-      if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      {
+        const tok = normStatus(r.item.status);
+        // Known tokens must be in the active selection; unknown tokens always pass.
+        if (KNOWN_STATUS_TOKENS.has(tok) && !statusFilter.has(tok)) return false;
+      }
       if (driverFilter.size > 0) {
         const fg = String(r.item.factor_group ?? "").trim().toUpperCase();
         if (!driverFilter.has(fg)) return false;
@@ -608,10 +637,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const activeBuys = useMemo(
     () =>
       filtered
-        .filter((r) => {
-          const s = normStatus(r.item.status);
-          return s === BUY || s === ACTIVE;
-        })
+        .filter((r) => normStatus(r.item.status) === DEPLOY)
         .sort((a, b) => {
           const s = applySorts(a, b);
           if (s !== 0) return s;
@@ -629,7 +655,6 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
     if (sortBy !== "default") return [...rows].sort(applySorts);
-    // Default: sort IN_ZONE by live asymmetry baseRatio desc (nulls last).
     return [...rows].sort((a, b) => {
       const ra = a.liveAsymmetry?.baseRatio;
       const rb = b.liveAsymmetry?.baseRatio;
@@ -640,7 +665,6 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     });
   }, [filtered, activeBuyIds, sortBy]);
 
-  // IN_ZONE asymmetry stats for the section header
   const inZoneAsymStats = useMemo(() => {
     const ratios = inZone
       .map((r) => r.liveAsymmetry?.baseRatio)
@@ -663,11 +687,14 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     [filtered, activeBuyIds, sortBy],
   );
 
-  // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
+  // Tokens that get their own dedicated section — exclude them from overdue/waiting/uncategorised.
+  const DEDICATED_TOKENS = new Set([
+    DEPLOY, RESEARCH, PREIPO, POST_RECLASS_HOLD, SCALING_WATCH, ARCHIVE,
+  ]);
+
   const overdue = useMemo(() => {
-    const skipStatus = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
     return filtered
-      .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
+      .filter((r) => r.isOverdue && !DEDICATED_TOKENS.has(normStatus(r.item.status)))
       .sort((a, b) => {
         const s = applySorts(a, b);
         if (s !== 0) return s;
@@ -677,21 +704,19 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
-  // Waiting: priced & WAITING & not already shown above
+  // Waiting: priced & WAITING-zone & WAIT_PRICE/WAIT_EVENT & not already shown.
   const waiting = useMemo(() => {
-    const skipStatus = new Set([MONITOR, RESEARCH, PREIPO, EXITED, BUY, ACTIVE]);
     return filtered
       .filter(
         (r) =>
           r.zoneStatus === "WAITING" &&
           !overdueIds.has(r.item.ticker) &&
           !activeBuyIds.has(r.item.ticker) &&
-          !skipStatus.has(normStatus(r.item.status)),
+          !DEDICATED_TOKENS.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
         const s = applySorts(a, b);
         if (s !== 0) return s;
-        // Score desc if both have scores; otherwise gap asc
         const sa = a.score?.total_score ?? null;
         const sb = b.score?.total_score ?? null;
         if (sa != null && sb != null && sa !== sb) return sb - sa;
@@ -699,7 +724,6 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       });
   }, [filtered, overdueIds, activeBuyIds, sortBy]);
 
-  // Group waiting by layer
   const waitingByLayer = useMemo(() => {
     const groups = new Map<string, DerivedRow[]>();
     for (const r of waiting) {
@@ -710,23 +734,19 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [waiting]);
 
+  // SCALING_WATCH replaces the old MONITORING section.
   const monitoring = useMemo(
     () =>
       filtered
-        .filter((r) => normStatus(r.item.status) === MONITOR)
+        .filter((r) => normStatus(r.item.status) === SCALING_WATCH)
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
   const research = useMemo(() => {
-    // MONITORING wins: exclude any ticker already shown in MONITORING
-    const monitorTickers = new Set(
-      monitoring.map((r) => r.item.ticker.trim().toUpperCase()),
-    );
     return filtered
       .filter((r) => normStatus(r.item.status) === RESEARCH)
-      .filter((r) => !monitorTickers.has(r.item.ticker.trim().toUpperCase()))
       .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
-  }, [filtered, monitoring]);
+  }, [filtered]);
   const preIpo = useMemo(
     () =>
       filtered
@@ -734,9 +754,22 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
+  const postReclassHold = useMemo(
+    () =>
+      filtered
+        .filter((r) => normStatus(r.item.status) === POST_RECLASS_HOLD)
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
+  );
+  const archive = useMemo(
+    () =>
+      filtered
+        .filter((r) => normStatus(r.item.status) === ARCHIVE)
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
+  );
 
-  // Fallback: any filtered row not picked up by an existing bucket. Guarantees
-  // every row from the sheet is visible, even if its STATUS is unexpected.
+  // Fallback: any filtered row not picked up by an existing bucket.
   const uncategorised = useMemo(() => {
     const seen = new Set<string>([
       ...activeBuys.map((r) => r.item.ticker),
@@ -747,14 +780,15 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       ...monitoring.map((r) => r.item.ticker),
       ...research.map((r) => r.item.ticker),
       ...preIpo.map((r) => r.item.ticker),
+      ...postReclassHold.map((r) => r.item.ticker),
+      ...archive.map((r) => r.item.ticker),
     ]);
     return filtered
-      .filter((r) => !seen.has(r.item.ticker) && normStatus(r.item.status) !== EXITED)
+      .filter((r) => !seen.has(r.item.ticker))
       .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
-  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo]);
+  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, postReclassHold, archive]);
 
-  // Dev-only drift warning: if the rendered row total drifts from the filtered total
-  // (excluding intentionally-hidden EXITED), surface it in the console.
+  // Dev-only drift warning
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const renderedTickers = new Set<string>([
@@ -766,34 +800,29 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       ...monitoring.map((r) => r.item.ticker),
       ...research.map((r) => r.item.ticker),
       ...preIpo.map((r) => r.item.ticker),
+      ...postReclassHold.map((r) => r.item.ticker),
+      ...archive.map((r) => r.item.ticker),
       ...uncategorised.map((r) => r.item.ticker),
     ]);
-    const visibleSource = filtered.filter((r) => normStatus(r.item.status) !== EXITED);
-    if (renderedTickers.size !== visibleSource.length) {
-      const missing = visibleSource
+    if (renderedTickers.size !== filtered.length) {
+      const missing = filtered
         .filter((r) => !renderedTickers.has(r.item.ticker))
         .map((r) => `${r.item.ticker} (${r.item.status})`);
       // eslint-disable-next-line no-console
       console.warn(
-        `[WatchlistTab] Rendered ${renderedTickers.size} of ${visibleSource.length} rows. Missing:`,
+        `[WatchlistTab] Rendered ${renderedTickers.size} of ${filtered.length} rows. Missing:`,
         missing,
       );
     }
-  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, uncategorised]);
+  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, postReclassHold, archive, uncategorised]);
 
-  // Header counts (live, not bucketed — recomputed from `derived` so they reflect entire watchlist regardless of filters)
+  // Header counts (live, recomputed from `derived` regardless of filters)
   const counts = useMemo(() => {
     const total = derived.length;
     const inZ = derived.filter((r) => r.zoneStatus === "IN_ZONE").length;
     const appr = derived.filter((r) => r.zoneStatus === "APPROACHING").length;
-    const od = derived.filter((r) => {
-      const skip = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
-      return r.isOverdue && !skip.has(normStatus(r.item.status));
-    }).length;
-    const buys = derived.filter((r) => {
-      const s = normStatus(r.item.status);
-      return s === BUY || s === ACTIVE;
-    }).length;
+    const od = derived.filter((r) => r.isOverdue && !DEDICATED_TOKENS.has(normStatus(r.item.status))).length;
+    const buys = derived.filter((r) => normStatus(r.item.status) === DEPLOY).length;
     return { total, inZ, appr, od, buys };
   }, [derived]);
 
@@ -902,17 +931,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={selectStyle}
-            aria-label="Filter by status"
-          >
-            <option value="ALL">Status · All</option>
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          {/* Status filter moved to its own multi-select chip row below the sticky header */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
@@ -984,6 +1003,77 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
           </span>
         </div>
       )}
+
+      {/* ── Status filter chips (multi-select; ARCHIVE off by default) ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
+          padding: isMobile ? "0 14px 8px" : "0 18px 8px",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.15em",
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+            marginRight: 4,
+          }}
+        >
+          Status
+        </span>
+        <button
+          onClick={resetStatusFilter}
+          style={{
+            background: "transparent",
+            border: "1px solid var(--rim)",
+            color: "var(--text-dim)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            padding: "3px 8px",
+            borderRadius: 2,
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+          title="Reset to default (everything except Archive)"
+        >
+          Reset
+        </button>
+        {STATUS_DEFS.map((def) => {
+          const active = statusFilter.has(def.token);
+          return (
+            <button
+              key={def.token}
+              onClick={() => toggleStatusFilter(def.token)}
+              aria-pressed={active}
+              style={{
+                background: active ? `color-mix(in srgb, ${def.dotColor} 14%, transparent)` : "transparent",
+                border: `1px solid ${active ? def.dotColor : "var(--rim)"}`,
+                color: active ? def.dotColor : "var(--text-dim)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                padding: "3px 8px",
+                borderRadius: 2,
+                cursor: "pointer",
+                textTransform: "uppercase",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: def.dotColor, opacity: active ? 1 : 0.55 }} />
+              {def.label}
+            </button>
+          );
+        })}
+      </div>
+
 
       {/* ── Profile filter chips ── */}
       <div
@@ -1278,6 +1368,26 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
                 </span>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* ── 7b. POST-RECLASS HOLD ── */}
+      {postReclassHold.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Post-Reclass Hold" count={postReclassHold.length} dotColor="rgb(251,146,60)" />
+          {postReclassHold.map((r) => (
+            <WatchlistCard key={`prh-${r.item.ticker}`} row={r} variant="compact" hideActions />
+          ))}
+        </div>
+      )}
+
+      {/* ── 7c. ARCHIVE (hidden unless user enables the chip) ── */}
+      {archive.length > 0 && (
+        <div style={{ ...sectionStyle, opacity: 0.78 }}>
+          <SectionHeader label="Archive" count={archive.length} dotColor="rgb(156,163,175)" />
+          {archive.map((r) => (
+            <WatchlistCard key={`arc-${r.item.ticker}`} row={r} variant="compact" hideActions />
+          ))}
         </div>
       )}
 

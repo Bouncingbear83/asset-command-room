@@ -53,7 +53,8 @@ export type HeldStatus =
   | "RESEARCH"
   | "PRE_IPO"
   | "REJECTED"
-  | "EXITED";
+  | "EXITED"
+  | "DORMANT";
 
 export const HELD_STATUS_VALUES: HeldStatus[] = [
   "HELD",
@@ -62,6 +63,7 @@ export const HELD_STATUS_VALUES: HeldStatus[] = [
   "PRE_IPO",
   "REJECTED",
   "EXITED",
+  "DORMANT",
 ];
 
 export type DisruptionStatus = "GREEN" | "AMBER" | "RED";

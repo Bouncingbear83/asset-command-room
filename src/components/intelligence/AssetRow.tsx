@@ -61,6 +61,11 @@ const STATUS_STYLE: Record<HeldStatus, CSSProperties> = {
     border: "1px solid var(--text-dim)",
     textDecoration: "line-through",
   },
+  DORMANT: {
+    background: "rgba(156,163,175,0.10)",
+    color: "rgb(156,163,175)", // gray-400, same family as Watchlist ARCHIVE
+    border: "1px solid rgba(156,163,175,0.35)",
+  },
 };
 
 const CURRENCY_SYMBOL: Record<string, string> = {

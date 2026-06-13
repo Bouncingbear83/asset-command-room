@@ -101,7 +101,7 @@ export function IntelligenceFilters({
 }: Props) {
   // Counts always on full set so users can see distribution regardless of active filters.
   const statusCounts: Record<HeldStatus, number> = {
-    HELD: 0, WATCHLIST: 0, RESEARCH: 0, PRE_IPO: 0, REJECTED: 0, EXITED: 0,
+    HELD: 0, WATCHLIST: 0, RESEARCH: 0, PRE_IPO: 0, REJECTED: 0, EXITED: 0, DORMANT: 0,
   };
   for (const a of assets) statusCounts[a.held_status]++;
 
