@@ -8,21 +8,6 @@ import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
-const cardHeader: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "12px 14px",
-  borderBottom: "1px solid var(--rim)",
-};
-const cardTitle: React.CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: "0.18em",
-  textTransform: "uppercase",
-  color: "var(--text-mid)",
-};
 
 interface AsymRow {
   ticker: string;
@@ -30,15 +15,10 @@ interface AsymRow {
   held: boolean;
   baseRatio: number | null;
   stretchRatio: number | null;
-  band: string | null;
   price: number | null;
   priceAtLastScore: number | null;
-  ratioAtScore: number | null; // base ratio computed at score-time price
-  ratioDelta: number | null;   // baseRatio - ratioAtScore (positive = improved)
-  quartetAgeDays: number | null;
-  belowBear: boolean;
-  aboveBull: boolean;
-  quartet: ReturnType<typeof computeLiveAsymmetry>["quartet"];
+  priceDelta: number | null; // % change since score
+  ratioDelta: number | null;
   asymmetry: ReturnType<typeof computeLiveAsymmetry>;
 }
 
@@ -53,7 +33,6 @@ export default function AsymmetryCompact({ scores, holdings, watchlist }: Props)
   const { byTicker: snapshotMap } = useScoresSnapshot();
   const quartetMap = useQuartetMap(scores ?? [], holdings ?? [], watchlist ?? [], snapshotMap);
 
-  // Score lookup
   const scoreMap = useMemo(() => {
     const m = new Map<string, { score: number | null; priceAtLastScore: number | null }>();
     for (const s of scores ?? []) {
@@ -64,7 +43,6 @@ export default function AsymmetryCompact({ scores, holdings, watchlist }: Props)
   }, [scores]);
 
   const rows = useMemo(() => {
-    // Build spine from HOLDINGS + WATCHLIST
     type Spine = { ticker: string; price: number | null; held: boolean };
     const spineByTicker = new Map<string, Spine>();
 
@@ -86,215 +64,133 @@ export default function AsymmetryCompact({ scores, holdings, watchlist }: Props)
     }
 
     const out: AsymRow[] = [];
-
     for (const sp of spineByTicker.values()) {
       const t = sp.ticker.toUpperCase();
       const entry = quartetMap.get(t);
       const scoreEntry = scoreMap.get(t);
-
       const asym = entry?.asymmetry ?? computeLiveAsymmetry(
         { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
         sp.price,
       );
-
-      // Only include rows with a computable base ratio > 0
       if (asym.baseRatio === null || asym.baseRatio <= 0) continue;
 
-      // Compute ratio at score-time price for delta
-      let ratioAtScore: number | null = null;
       let ratioDelta: number | null = null;
       const pals = scoreEntry?.priceAtLastScore;
       if (pals && pals > 0 && asym.quartet.bullBase !== null && asym.quartet.bearThesisWeak !== null) {
         const scoreAsym = computeLiveAsymmetry(asym.quartet, pals);
-        ratioAtScore = scoreAsym.baseRatio;
-        if (ratioAtScore !== null && asym.baseRatio !== null) {
-          ratioDelta = asym.baseRatio - ratioAtScore;
+        if (scoreAsym.baseRatio !== null && asym.baseRatio !== null) {
+          ratioDelta = Math.round((asym.baseRatio - scoreAsym.baseRatio) * 10) / 10;
         }
       }
 
+      const livePrice = entry?.priceUsed ?? sp.price;
+      const priceDelta = livePrice !== null && pals && pals > 0
+        ? ((livePrice - pals) / pals) * 100 : null;
+
       out.push({
-        ticker: sp.ticker,
-        score: scoreEntry?.score ?? null,
-        held: sp.held,
-        baseRatio: asym.baseRatio,
-        stretchRatio: asym.stretchRatio,
-        band: asym.band,
-        price: entry?.priceUsed ?? sp.price,
-        priceAtLastScore: pals ?? null,
-        ratioAtScore,
-        ratioDelta,
-        quartetAgeDays: asym.quartetAgeDays,
-        belowBear: asym.belowBear,
-        aboveBull: asym.aboveBull,
-        quartet: asym.quartet,
-        asymmetry: asym,
+        ticker: sp.ticker, score: scoreEntry?.score ?? null, held: sp.held,
+        baseRatio: asym.baseRatio, stretchRatio: asym.stretchRatio,
+        price: livePrice, priceAtLastScore: pals ?? null,
+        priceDelta, ratioDelta, asymmetry: asym,
       });
     }
-
-    // Sort by base ratio descending, top opportunities first
     return out.sort((a, b) => (b.baseRatio ?? -1) - (a.baseRatio ?? -1)).slice(0, 8);
   }, [holdings, watchlist, scores, quartetMap, scoreMap]);
 
   if (rows.length === 0) return null;
 
-  const mp = isMobile ? "10px 12px" : "10px 16px";
+  const thStyle: React.CSSProperties = {
+    fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase",
+    color: "var(--text-dim)", padding: "8px 6px", borderBottom: "1px solid var(--rim)", textAlign: "right", fontWeight: 400,
+  };
+  const tdStyle: React.CSSProperties = {
+    fontFamily: "var(--font-mono)", fontSize: 11, padding: "8px 6px", borderBottom: "1px solid rgba(28,28,48,0.3)",
+    verticalAlign: "middle",
+  };
 
   return (
     <div style={card}>
-      <div style={cardHeader}>
-        <span style={cardTitle}>Top Asymmetry</span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>
-          {rows.length} LIVE
-        </span>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "12px 14px", borderBottom: "1px solid var(--rim)",
+      }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-mid)" }}>Top Asymmetry</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>{rows.length} LIVE</span>
       </div>
-      <div style={{ padding: mp }}>
-        {rows.map((r) => {
-          const deltaStr = r.ratioDelta !== null
-            ? `${r.ratioDelta >= 0 ? "+" : ""}${r.ratioDelta.toFixed(1)}`
-            : null;
-          const deltaColor = r.ratioDelta === null
-            ? "var(--text-dim)"
-            : r.ratioDelta > 0
-            ? "var(--green)"
-            : r.ratioDelta < -0.3
-            ? "var(--red)"
-            : "var(--amber)";
+      <div style={{ overflowX: "auto", padding: isMobile ? "0 4px" : "0 8px" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ ...thStyle, textAlign: "left", minWidth: 50 }}>Ticker</th>
+              {!isMobile && <th style={{ ...thStyle, textAlign: "center", width: 36 }}></th>}
+              <th style={{ ...thStyle, textAlign: "right", width: 30 }}>Scr</th>
+              <th style={{ ...thStyle, textAlign: "right", minWidth: 60 }}>Price</th>
+              <th style={{ ...thStyle, textAlign: "right", minWidth: 48 }}>Px Δ</th>
+              <th style={{ ...thStyle, textAlign: "center", minWidth: 48 }}>Base</th>
+              <th style={{ ...thStyle, textAlign: "center", minWidth: 48 }}>Stretch</th>
+              <th style={{ ...thStyle, textAlign: "right", minWidth: 44 }}>Δ Ratio</th>
+              {!isMobile && <th style={{ ...thStyle, textAlign: "right", minWidth: 36 }}>Band</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const deltaColor = r.ratioDelta === null ? "var(--text-dim)"
+                : r.ratioDelta > 0 ? "var(--green)" : r.ratioDelta < -0.3 ? "var(--red)" : "var(--amber)";
+              const pxColor = r.priceDelta === null ? "var(--text-dim)"
+                : r.priceDelta < 0 ? "var(--green)" : "var(--amber)";
+              const statusColor = r.held ? "var(--gold)" : "var(--text-dim)";
+              const hasPwt = r.asymmetry.divergence !== null && r.asymmetry.divergence > 0.5;
 
-          // Price change since score
-          const priceDelta = r.price !== null && r.priceAtLastScore && r.priceAtLastScore > 0
-            ? ((r.price - r.priceAtLastScore) / r.priceAtLastScore) * 100
-            : null;
-
-          const statusColor = r.held ? "var(--gold)" : "var(--text-dim)";
-
-          return (
-            <div
-              key={r.ticker}
-              style={{
-                display: "flex",
-                alignItems: isMobile ? "flex-start" : "center",
-                flexDirection: isMobile ? "column" : "row",
-                gap: isMobile ? 4 : 10,
-                padding: "8px 0",
-                borderBottom: "1px solid rgba(28,28,48,0.3)",
-              }}
-            >
-              {/* Row 1: ticker + status + score + ratio */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", minWidth: 0 }}>
-                <TickerButton
-                  ticker={r.ticker}
-                  style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 50 }}
-                >
-                  {r.ticker}
-                </TickerButton>
-                <span style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 7,
-                  letterSpacing: "0.1em",
-                  color: statusColor,
-                  border: `1px solid ${statusColor}`,
-                  padding: "0 3px",
-                  borderRadius: 1,
-                  opacity: 0.7,
-                }}>
-                  {r.held ? "HELD" : "WL"}
-                </span>
-                {r.score !== null && (
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{r.score}</span>
-                )}
-              </div>
-
-              {/* Ratio pill + delta */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: isMobile ? 0 : "auto" }}>
-                <AsymmetryPill asymmetry={r.asymmetry} />
-
-                {/* Delta arrow: ratio change since scoring */}
-                {deltaStr !== null && (
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 9,
-                      color: deltaColor,
-                      letterSpacing: "0.04em",
-                    }}
-                    title={`Ratio at score: ${formatRatio(r.ratioAtScore)} → now: ${formatRatio(r.baseRatio)}${priceDelta !== null ? ` (price ${priceDelta >= 0 ? "+" : ""}${priceDelta.toFixed(1)}%)` : ""}`}
-                  >
-                    {r.ratioDelta! >= 0 ? "▲" : "▼"} {deltaStr}
-                  </span>
-                )}
-
-                {/* Context: price move since score */}
-                {priceDelta !== null && (
-                  <span style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 9,
-                    color: priceDelta < 0 ? "var(--green)" : "var(--amber)",
-                    opacity: 0.7,
-                  }}>
-                    px {priceDelta >= 0 ? "+" : ""}{priceDelta.toFixed(1)}%
-                  </span>
-                )}
-
-                {/* Prob-weighted divergence flag */}
-                {r.asymmetry.divergence !== null && r.asymmetry.divergence > 0.5 && (
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 8,
-                      color: "var(--red)",
-                      background: "var(--red-dim)",
-                      padding: "1px 4px",
-                      borderRadius: 2,
-                      letterSpacing: "0.04em",
-                    }}
-                    title={`Simple ${formatRatio(r.baseRatio)} vs prob-wgt ${formatRatio(r.asymmetry.probWeightedRatio)}: substrate-fail scenario pulls expected downside wider`}
-                  >
-                    pwt {formatRatio(r.asymmetry.probWeightedRatio)}
-                  </span>
-                )}
-
-                {/* Band */}
-                {!isMobile && r.band && (
-                  <span style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 8,
-                    letterSpacing: "0.1em",
-                    color: "var(--text-dim)",
-                    opacity: 0.6,
-                  }}>
-                    {r.band}
-                  </span>
-                )}
-
-                {/* Quartet age warning */}
-                {r.quartetAgeDays !== null && r.quartetAgeDays > 90 && (
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--amber)" }} title={`Quartet ${r.quartetAgeDays}d old`}>
-                    {r.quartetAgeDays}d
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Link to full Scores tab */}
-        <div style={{
-          paddingTop: 10,
-          textAlign: "center",
-        }}>
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              color: "var(--gold)",
-              letterSpacing: "0.12em",
-              opacity: 0.7,
-              cursor: "default",
-            }}
-          >
-            FULL TABLE ON SCORES TAB →
-          </span>
-        </div>
+              return (
+                <tr key={r.ticker}>
+                  <td style={{ ...tdStyle, textAlign: "left" }}>
+                    <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{r.ticker}</TickerButton>
+                  </td>
+                  {!isMobile && (
+                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.1em", color: statusColor, border: `1px solid ${statusColor}`, padding: "0 3px", borderRadius: 1, opacity: 0.7 }}>
+                        {r.held ? "HELD" : "WL"}
+                      </span>
+                    </td>
+                  )}
+                  <td style={{ ...tdStyle, textAlign: "right", color: "var(--text-dim)" }}>{r.score ?? "—"}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", color: "var(--text-mid)" }}>
+                    {r.price !== null ? r.price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right", color: pxColor, fontSize: 10 }}>
+                    {r.priceDelta !== null ? `${r.priceDelta >= 0 ? "+" : ""}${r.priceDelta.toFixed(1)}%` : "—"}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "center", padding: "6px 4px" }}>
+                    <AsymmetryPill asymmetry={r.asymmetry} />
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "center", color: r.stretchRatio !== null ? "var(--text-mid)" : "var(--text-dim)", fontSize: 10 }}>
+                    {r.stretchRatio !== null ? formatRatio(r.stretchRatio) : "—"}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>
+                    <span style={{ color: deltaColor, fontSize: 10 }}>
+                      {r.ratioDelta !== null ? `${r.ratioDelta >= 0 ? "▲" : "▼"} ${r.ratioDelta >= 0 ? "+" : ""}${r.ratioDelta.toFixed(1)}` : "—"}
+                    </span>
+                    {hasPwt && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--red)", background: "var(--red-dim)", padding: "1px 3px", borderRadius: 2, marginLeft: 4 }}
+                        title={`Simple ${formatRatio(r.baseRatio)} vs pwt ${formatRatio(r.asymmetry.probWeightedRatio)}`}
+                      >pwt</span>
+                    )}
+                  </td>
+                  {!isMobile && (
+                    <td style={{ ...tdStyle, textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em", color: "var(--text-dim)", opacity: 0.6 }}>
+                      {r.asymmetry.band || "—"}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ padding: "10px 14px", textAlign: "center" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", letterSpacing: "0.12em", opacity: 0.7 }}>
+          FULL TABLE ON SCORES TAB →
+        </span>
       </div>
     </div>
   );
