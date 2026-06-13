@@ -482,6 +482,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           >
             {item.ticker}
           </button>
+          <BrokerGatedBadge gated={item.brokerGated} />
           <ChinaRiskChip flag={row.chinaExposureFlag} />
 
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
