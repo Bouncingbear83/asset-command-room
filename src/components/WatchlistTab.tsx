@@ -411,7 +411,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [layerFilter, setLayerFilter] = useState<string>("ALL");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(() => new Set(DEFAULT_STATUS_FILTER));
   const [profileFilter, setProfileFilter] = useState<Set<ProfileFilterKey>>(
     () => new Set(PROFILE_FILTER_KEYS),
   );
