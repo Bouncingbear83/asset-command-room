@@ -4,13 +4,11 @@ import { useDailyPrices } from "@/hooks/useDailyPrices";
 import CommandTab from "@/components/CommandTab";
 import HoldingsTab from "@/components/HoldingsTab";
 import WatchlistTab from "@/components/WatchlistTab";
-import JapanSleeveTab from "@/components/JapanSleeveTab";
 import JisasTab from "@/components/JisasTab";
 import ReturnsTab from "@/components/ReturnsTab";
 import LayersTab from "@/components/LayersTab";
 import MonitorTab from "@/components/MonitorTab";
 import TransactionsTab from "@/components/TransactionsTab";
-import EarningsCalendarTab from "@/components/EarningsCalendarTab";
 
 import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
@@ -20,22 +18,25 @@ import VaultTab from "@/components/VaultTab";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
 const TABS = [
-  "Command", "Holdings", "Watchlist", "Japan Sleeve", "JISAs",
-  "Monitor", "Layers", "Drivers", "Intelligence", "Research", "Vault",
-  "Returns", "Transactions", "Earnings Calendar"
+  "Command", "Holdings", "Watchlist", "JISAs",
+  "Signals", "Layers", "Drivers", "Intelligence", "Research", "Vault",
+  "Returns", "Transactions"
 ] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
-  Command: "command", Monitor: "monitor", Watchlist: "watchlist", Layers: "layers",
+  Command: "command", Signals: "signals", Watchlist: "watchlist", Layers: "layers",
   Drivers: "drivers",
   Intelligence: "intelligence", Research: "research", Vault: "vault", Returns: "returns", Holdings: "holdings",
-  "Japan Sleeve": "japan",
-  Transactions: "transactions", JISAs: "jisas", "Earnings Calendar": "earnings",
+  Transactions: "transactions", JISAs: "jisas",
 };
 const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_SLUGS).map(([t, s]) => [s, t as Tab]),
 );
+// Backward-compat: old slugs → new tabs
+SLUG_TO_TAB["monitor"] = "Signals";
+SLUG_TO_TAB["japan"] = "Holdings";
+SLUG_TO_TAB["earnings"] = "Signals";
 
 function tabFromUrl(): Tab {
   if (typeof window === "undefined") return "Command";
@@ -181,7 +182,7 @@ export default function Index() {
 
       <div className="stellar-page">
         {active === "Command" && <CommandTab />}
-        {active === "Monitor" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} />}
+        {active === "Signals" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} earningsCalendar={portfolio.earningsCalendar} />}
         {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} scores={portfolio.scores} />}
         {active === "Layers" && (
           <LayersTab
@@ -205,12 +206,10 @@ export default function Index() {
         {active === "Vault" && <VaultTab />}
         {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
-        {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
+        {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
-        {active === "Japan Sleeve" && <JapanSleeveTab bordier={portfolio.bordier} scores={portfolio.scores} watchlist={portfolio.watchlist} totalPortfolioAum={sippTotal + isaTotal} loading={portfolio.loading} error={portfolio.error} onRefresh={portfolio.refresh} />}
         {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier, ...portfolio.jisaHoldings.map((j) => ({ ticker: j.ticker, name: j.name, layer: j.layer, account: `JISA-${j.child}`, mv: j.mvGbp || 0, gl: j.glPct || 0, day: 0, aum_pct: 0, pct_below_52w_high: 0, pct_above_52w_low: 0, notes: "", action: "HOLD", price: j.priceLocal, prevClose: null, currency: j.currency, costGbp: j.costGbp, costLocal: null, shares: j.shares, add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "", alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null, deploy_target_gbp: null, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "", priceAtFirstAdd: null, firstAddDate: "", priceAtLastScore: null }))]} />}
         {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} jisaTotals={portfolio.jisaTotals} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
-        {active === "Earnings Calendar" && <EarningsCalendarTab items={portfolio.earningsCalendar} />}
       </div>
 
       <button
