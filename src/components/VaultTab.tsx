@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 /* ── types ── */
@@ -19,12 +19,33 @@ interface Backlink {
   target_id: string;
 }
 
+interface VaultSearchResult {
+  path: string;
+  type: string;
+  identifier: string;
+  title: string;
+  sections: string[];
+  frontmatter: Record<string, string>;
+  rank: number;
+  snippet: string | null;
+}
+
+interface VaultSearchResponse {
+  query: string;
+  type_filter: string | null;
+  count: number;
+  total: number;
+  results: VaultSearchResult[];
+}
+
 type NoteType = "all" | "ticker" | "session" | "rule" | "framework" | "section" | "layer" | "trend" | "spec";
 type SortField = "identifier" | "type" | "title" | "last_indexed";
+type ViewMode = "browse" | "search";
 
 const NOTE_TYPES: NoteType[] = ["all", "ticker", "session", "rule", "framework", "section", "layer", "trend", "spec"];
-
+const VAULT_SEARCH_URL = "https://bertbroad83.app.n8n.cloud/webhook/stellar-vault-search";
 const GITHUB_RAW_BASE = "https://github.com/Bouncingbear83/stellar-ops/blob/main";
+const DEEP_DIVE_BASE = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?q=Deep+dive+";
 
 /* ── shared styles ── */
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
@@ -51,6 +72,12 @@ const tdStyle: React.CSSProperties = {
 const pillBase: React.CSSProperties = {
   ...mono9, padding: "3px 10px", borderRadius: 2, display: "inline-block",
 };
+const inputStyle: React.CSSProperties = {
+  fontFamily: "var(--font-mono)", fontSize: 11,
+  background: "var(--deep)", border: "1px solid var(--rim)",
+  color: "var(--text)", padding: "8px 14px",
+  outline: "none", transition: "border-color 0.15s",
+};
 
 /* ── helpers ── */
 function typeColor(type: string): React.CSSProperties {
@@ -68,7 +95,7 @@ function typeColor(type: string): React.CSSProperties {
   return { background: c.bg, color: c.fg, border: `1px solid ${c.border}` };
 }
 
-function displayId(note: NoteMeta): string {
+function displayId(note: NoteMeta | VaultSearchResult): string {
   if (note.identifier) return note.identifier;
   if (note.title) return note.title;
   return note.path.split("/").pop()?.replace(".md", "") ?? note.path;
@@ -93,14 +120,12 @@ function BacklinksPanel({
   notes: NoteMeta[];
   onNavigate: (path: string) => void;
 }) {
-  // Incoming: other notes that link TO this note
   const incoming = useMemo(() => {
     const id = note.identifier ?? "";
     const type = note.type;
     return backlinks.filter((b) => b.target_id === id && b.target_type === type);
   }, [note, backlinks]);
 
-  // Outgoing: links FROM this note to other notes
   const outgoing = useMemo(() => {
     return backlinks.filter((b) => b.source_path === note.path);
   }, [note, backlinks]);
@@ -153,6 +178,18 @@ function BacklinksPanel({
         ↗ VIEW ON GITHUB
       </a>
 
+      {/* Deep Dive link for tickers */}
+      {note.type === "ticker" && note.identifier && (
+        <a
+          href={`${DEEP_DIVE_BASE}${note.identifier}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...mono9, color: "var(--gold)", textDecoration: "none", display: "inline-block", marginBottom: 12, marginLeft: 16 }}
+        >
+          ◈ DEEP DIVE
+        </a>
+      )}
+
       {/* Incoming backlinks */}
       <div style={sectionTitle}>
         REFERENCED BY ({incoming.length})
@@ -166,10 +203,7 @@ function BacklinksPanel({
             return (
               <div key={b.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ ...pillBase, ...typeColor(b.source_type), fontSize: 8, padding: "2px 6px" }}>{b.source_type}</span>
-                <button
-                  style={linkBtn}
-                  onClick={() => onNavigate(b.source_path)}
-                >
+                <button style={linkBtn} onClick={() => onNavigate(b.source_path)}>
                   {src ? displayId(src) : b.source_path.split("/").pop()?.replace(".md", "")}
                 </button>
               </div>
@@ -209,18 +243,193 @@ function BacklinksPanel({
   );
 }
 
+/* ── SearchResultCard ── */
+function SearchResultCard({ result }: { result: VaultSearchResult }) {
+  const [expanded, setExpanded] = useState(false);
+  const fm = result.frontmatter ?? {};
+  const deepDiveUrl = result.type === "ticker" ? `${DEEP_DIVE_BASE}${result.identifier}` : null;
+
+  return (
+    <div
+      style={{
+        ...card,
+        marginBottom: 0,
+        padding: "14px 20px",
+        transition: "border-color 0.15s",
+        cursor: "default",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--text-dim)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--rim)"; }}
+    >
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        {/* Type pill */}
+        <span style={{ ...pillBase, ...typeColor(result.type), marginTop: 2, flexShrink: 0 }}>
+          {result.type}
+        </span>
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Title row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--gold)", fontWeight: 600 }}>
+              {result.title || result.identifier || result.path.split("/").pop()?.replace(".md", "")}
+            </span>
+            {fm.score && (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>
+                {fm.score}
+              </span>
+            )}
+            {fm.tier && (
+              <span style={{ ...mono9, color: "var(--text-dim)" }}>{fm.tier}</span>
+            )}
+          </div>
+
+          {/* Path */}
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 3, opacity: 0.7 }}>
+            {result.path}
+          </div>
+
+          {/* Snippet */}
+          {result.snippet && (
+            <div
+              style={{
+                fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)",
+                marginTop: 8, lineHeight: 1.6, maxHeight: 48, overflow: "hidden",
+              }}
+              dangerouslySetInnerHTML={{
+                __html: result.snippet
+                  .replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(
+                    /\*\*([^*]+)\*\*/g,
+                    '<span style="background:rgba(200,169,110,0.15);color:var(--gold);padding:0 3px;border-radius:2px">$1</span>'
+                  ),
+              }}
+            />
+          )}
+
+          {/* Frontmatter chips */}
+          {result.type === "ticker" && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              {fm.layer && (
+                <span style={{ ...mono9, fontSize: 8, padding: "2px 8px", background: "rgba(28,28,48,0.6)", color: "var(--text-dim)", borderRadius: 2 }}>
+                  {fm.layer}
+                </span>
+              )}
+              {fm.substrate_level && (
+                <span style={{ ...mono9, fontSize: 8, padding: "2px 8px", background: "rgba(28,28,48,0.6)", color: "var(--text-dim)", borderRadius: 2 }}>
+                  {fm.substrate_level}
+                </span>
+              )}
+              {fm.return_profile && (
+                <span style={{ ...mono9, fontSize: 8, padding: "2px 8px", background: "rgba(28,28,48,0.6)", color: "var(--text-dim)", borderRadius: 2 }}>
+                  {fm.return_profile}
+                </span>
+              )}
+              {fm.status && (
+                <span style={{ ...mono9, fontSize: 8, padding: "2px 8px", background: "rgba(28,28,48,0.6)", color: "var(--text-dim)", borderRadius: 2 }}>
+                  {fm.status}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Sections toggle */}
+          {result.sections.length > 0 && (
+            <>
+              <button
+                onClick={() => setExpanded(!expanded)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                  ...mono9, fontSize: 8, color: "var(--text-dim)", marginTop: 8,
+                }}
+              >
+                {expanded ? "Hide" : "Show"} {result.sections.length} sections
+              </button>
+              {expanded && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  {result.sections.map((s) => (
+                    <span
+                      key={s}
+                      style={{
+                        ...mono9, fontSize: 8, padding: "2px 8px",
+                        background: "rgba(28,28,48,0.4)", color: "var(--text-dim)",
+                        borderRadius: 2, border: "1px solid var(--rim)",
+                      }}
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <a
+            href={githubUrl(result.path)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...mono9, fontSize: 8, padding: "4px 10px",
+              background: "rgba(28,28,48,0.6)", color: "var(--text-dim)",
+              textDecoration: "none", borderRadius: 2, border: "1px solid var(--rim)",
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--accent)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-dim)"; }}
+          >
+            ↗ GITHUB
+          </a>
+          {deepDiveUrl && (
+            <a
+              href={deepDiveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                ...mono9, fontSize: 8, padding: "4px 10px",
+                background: "rgba(200,169,110,0.06)", color: "var(--gold)",
+                textDecoration: "none", borderRadius: 2, border: "1px solid color-mix(in srgb, var(--gold) 25%, transparent)",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(200,169,110,0.12)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(200,169,110,0.06)"; }}
+            >
+              ◈ DEEP DIVE
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── VaultTab ── */
 export default function VaultTab() {
+  /* Browse state (Supabase) */
   const [notes, setNotes] = useState<NoteMeta[]>([]);
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<NoteType>("all");
-  const [search, setSearch] = useState("");
+  const [browseFilter, setBrowseFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>("identifier");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
+  /* Search state (webhook) */
+  const [viewMode, setViewMode] = useState<ViewMode>("browse");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchTypeFilter, setSearchTypeFilter] = useState("");
+  const [searchResults, setSearchResults] = useState<VaultSearchResponse | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  /* Load Supabase data */
   useEffect(() => {
     (async () => {
       try {
@@ -240,6 +449,45 @@ export default function VaultTab() {
     })();
   }, []);
 
+  /* Debounced webhook search */
+  const fireSearch = useCallback(async (query: string, type?: string) => {
+    if (!query.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      const res = await fetch(VAULT_SEARCH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query.trim(), type: type || undefined, limit: 30 }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: VaultSearchResponse = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : "Search failed");
+      setSearchResults(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewMode !== "search") return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      fireSearch(searchQuery, searchTypeFilter || undefined);
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, searchTypeFilter, viewMode, fireSearch]);
+
+  /* Browse computed */
   const typeCounts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const n of notes) m[n.type] = (m[n.type] ?? 0) + 1;
@@ -254,8 +502,8 @@ export default function VaultTab() {
   const filtered = useMemo(() => {
     let rows = notes;
     if (typeFilter !== "all") rows = rows.filter((n) => n.type === typeFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
+    if (browseFilter.trim()) {
+      const q = browseFilter.trim().toLowerCase();
       rows = rows.filter(
         (n) =>
           (n.identifier ?? "").toLowerCase().includes(q) ||
@@ -273,7 +521,7 @@ export default function VaultTab() {
       return av.localeCompare(bv) * dirMul;
     });
     return rows;
-  }, [notes, typeFilter, search, sortField, sortDir]);
+  }, [notes, typeFilter, browseFilter, sortField, sortDir]);
 
   const selectedNote = useMemo(() => notes.find((n) => n.path === selected) ?? null, [notes, selected]);
 
@@ -287,7 +535,8 @@ export default function VaultTab() {
     if (note) {
       setSelected(path);
       setTypeFilter("all");
-      setSearch("");
+      setBrowseFilter("");
+      setViewMode("browse");
     }
   }
 
@@ -304,8 +553,7 @@ export default function VaultTab() {
         onClick={() => toggleSort(field)}
         style={{
           background: "transparent", border: "none", padding: 0, cursor: "pointer",
-          ...mono9,
-          color: active ? "var(--text-mid)" : "var(--text-dim)",
+          ...mono9, color: active ? "var(--text-mid)" : "var(--text-dim)",
           textAlign: "left", width: "100%",
         }}
       >
@@ -314,6 +562,7 @@ export default function VaultTab() {
     );
   };
 
+  /* ── Render ── */
   return (
     <div style={{ padding: "24px var(--app-px, 40px)" }}>
       {/* Header */}
@@ -333,31 +582,115 @@ export default function VaultTab() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div style={{ ...card, display: "flex", flexWrap: "wrap", gap: 0 }}>
-        {NOTE_TYPES.filter((t) => t !== "all").map((t) => (
-          <button
-            key={t}
-            onClick={() => { setTypeFilter(t === typeFilter ? "all" : t); setSelected(null); }}
-            style={{
-              flex: "1 1 auto", minWidth: 90, padding: "14px 16px",
-              background: typeFilter === t ? "rgba(200,169,110,0.06)" : "transparent",
-              border: "none", borderRight: "1px solid var(--rim)",
-              cursor: "pointer", textAlign: "center",
-            }}
-          >
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, color: typeFilter === t ? "var(--gold)" : "var(--text-mid)", fontWeight: 700 }}>
-              {typeCounts[t] ?? 0}
+      {/* Search bar + mode toggle */}
+      <div style={{ ...card, padding: "16px 20px", display: "flex", gap: 12, alignItems: "center" }}>
+        {/* Mode toggle */}
+        <div style={{ display: "flex", borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
+          {(["browse", "search"] as ViewMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setViewMode(m); if (m === "search") setTimeout(() => searchInputRef.current?.focus(), 50); }}
+              style={{
+                ...mono9,
+                padding: "6px 14px",
+                border: "1px solid var(--rim)",
+                borderRight: m === "browse" ? "none" : undefined,
+                background: viewMode === m ? "rgba(200,169,110,0.08)" : "transparent",
+                color: viewMode === m ? "var(--gold)" : "var(--text-dim)",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {m === "browse" ? "BROWSE" : "SEARCH"}
+            </button>
+          ))}
+        </div>
+
+        {/* Search input */}
+        {viewMode === "search" ? (
+          <>
+            <div style={{ position: "relative", flex: 1 }}>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)", fontSize: 14, pointerEvents: "none" }}>⌕</span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Full-text search across all vault notes..."
+                style={{ ...inputStyle, width: "100%", paddingLeft: 32 }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(""); setSearchResults(null); }}
+                  style={{
+                    position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer",
+                    fontFamily: "var(--font-mono)", fontSize: 14,
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <div style={{ ...mono9, color: typeFilter === t ? "var(--gold)" : "var(--text-dim)", marginTop: 4 }}>
-              {t}
-            </div>
-          </button>
-        ))}
+            <select
+              value={searchTypeFilter}
+              onChange={(e) => setSearchTypeFilter(e.target.value)}
+              style={{
+                ...inputStyle, padding: "8px 12px", cursor: "pointer", flexShrink: 0,
+                appearance: "none", paddingRight: 24,
+                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23666'/%3E%3C/svg%3E\")",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 8px center",
+              }}
+            >
+              <option value="">All types</option>
+              {NOTE_TYPES.filter((t) => t !== "all").map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <input
+            type="text"
+            placeholder="Filter notes..."
+            value={browseFilter}
+            onChange={(e) => { setBrowseFilter(e.target.value); setSelected(null); }}
+            style={{ ...inputStyle, flex: 1 }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--gold)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--rim)"; }}
+          />
+        )}
       </div>
 
+      {/* Stats row (browse mode only) */}
+      {viewMode === "browse" && (
+        <div style={{ ...card, display: "flex", flexWrap: "wrap", gap: 0 }}>
+          {NOTE_TYPES.filter((t) => t !== "all").map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTypeFilter(t === typeFilter ? "all" : t); setSelected(null); }}
+              style={{
+                flex: "1 1 auto", minWidth: 90, padding: "14px 16px",
+                background: typeFilter === t ? "rgba(200,169,110,0.06)" : "transparent",
+                border: "none", borderRight: "1px solid var(--rim)",
+                cursor: "pointer", textAlign: "center",
+              }}
+            >
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, color: typeFilter === t ? "var(--gold)" : "var(--text-mid)", fontWeight: 700 }}>
+                {typeCounts[t] ?? 0}
+              </div>
+              <div style={{ ...mono9, color: typeFilter === t ? "var(--gold)" : "var(--text-dim)", marginTop: 4 }}>
+                {t}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Dangling links warning */}
-      {danglingLinks.length > 0 && (
+      {danglingLinks.length > 0 && viewMode === "browse" && (
         <div style={{
           ...card, padding: "12px 20px",
           borderColor: "color-mix(in srgb, var(--amber) 40%, transparent)",
@@ -374,113 +707,147 @@ export default function VaultTab() {
         </div>
       )}
 
-      {loading ? (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", padding: 20 }}>Loading vault...</div>
-      ) : error ? (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--red)", padding: 20 }}>{error}</div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 380px" : "1fr", gap: 0 }}>
-          {/* Notes table */}
-          <div style={card}>
-            <div style={cardHeader}>
-              <span style={cardTitle}>
-                {typeFilter === "all" ? "All Notes" : typeFilter.toUpperCase()}
-                <span style={{ fontWeight: 400, color: "var(--text-dim)", marginLeft: 8 }}>{filtered.length}</span>
-              </span>
-              <input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setSelected(null); }}
-                style={{
-                  fontFamily: "var(--font-mono)", fontSize: 11,
-                  background: "var(--deep)", border: "1px solid var(--rim)",
-                  color: "var(--text)", padding: "6px 12px", width: 200,
-                  outline: "none",
-                }}
-              />
+      {/* ── SEARCH RESULTS VIEW ── */}
+      {viewMode === "search" && (
+        <div>
+          {/* Status */}
+          {searchLoading && (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", padding: "12px 0", opacity: 0.7 }}>
+              Searching...
             </div>
-            <div style={{ overflowX: "auto", maxHeight: "calc(100vh - 340px)", overflowY: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead style={{ position: "sticky", top: 0, background: "var(--panel)", zIndex: 1 }}>
-                  <tr>
-                    <th style={thStyle}>{sortBtn("type", "Type")}</th>
-                    <th style={thStyle}>{sortBtn("identifier", "Identifier")}</th>
-                    <th style={{ ...thStyle, display: selected ? "none" : undefined }}>{sortBtn("title", "Title")}</th>
-                    <th style={thStyle}>Links</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((n) => {
-                    const inCount = backlinks.filter((b) => b.target_id === n.identifier && b.target_type === n.type).length;
-                    const outCount = backlinks.filter((b) => b.source_path === n.path).length;
-                    const isActive = selected === n.path;
-                    return (
-                      <tr
-                        key={n.path}
-                        onClick={() => setSelected(isActive ? null : n.path)}
-                        style={{
-                          cursor: "pointer",
-                          background: isActive ? "rgba(200,169,110,0.06)" : "transparent",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(28,28,48,0.6)"; }}
-                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
-                      >
-                        <td style={tdStyle}>
-                          <span style={{ ...pillBase, ...typeColor(n.type) }}>{n.type}</span>
-                        </td>
-                        <td style={{ ...tdStyle, color: "var(--gold)", fontWeight: 600 }}>
-                          {displayId(n)}
-                        </td>
-                        <td style={{ ...tdStyle, color: "var(--text-dim)", display: selected ? "none" : undefined }}>
-                          {n.title ?? "—"}
-                        </td>
-                        <td style={tdStyle}>
-                          <span style={{ ...mono9, color: inCount > 0 ? "var(--accent)" : "var(--text-dim)" }}>
-                            {inCount}↓
-                          </span>
-                          <span style={{ ...mono9, color: "var(--text-dim)", margin: "0 4px" }}>/</span>
-                          <span style={{ ...mono9, color: outCount > 0 ? "var(--green)" : "var(--text-dim)" }}>
-                            {outCount}↑
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          )}
+          {searchError && (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--red)", padding: "12px 0" }}>
+              {searchError}
             </div>
-          </div>
-
-          {/* Detail panel */}
-          {selectedNote && (
-            <div style={{ ...card, marginLeft: -1, borderLeft: "2px solid var(--gold)", alignSelf: "start", position: "sticky", top: 120, maxHeight: "calc(100vh - 200px)", overflowY: "auto" }}>
-              <div style={cardHeader}>
-                <span style={{ ...cardTitle, color: "var(--gold)" }}>
-                  {displayId(selectedNote)}
-                </span>
-                <button
-                  onClick={() => setSelected(null)}
-                  style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 14 }}
-                >
-                  ✕
-                </button>
+          )}
+          {searchResults && !searchLoading && (
+            <div style={{ ...mono9, color: "var(--text-dim)", padding: "8px 0 12px", display: "flex", justifyContent: "space-between" }}>
+              <span>{searchResults.count} of {searchResults.total} results{searchResults.type_filter ? ` · ${searchResults.type_filter}` : ""}</span>
+              <span>QUERY: "{searchResults.query}"</span>
+            </div>
+          )}
+          {/* Result cards */}
+          {searchResults?.results && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {searchResults.results.map((r) => (
+                <SearchResultCard key={r.path} result={r} />
+              ))}
+            </div>
+          )}
+          {/* Empty state */}
+          {!searchQuery && !searchResults && !searchLoading && (
+            <div style={{ padding: "48px 20px", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-dim)", marginBottom: 8 }}>
+                Full-text search across all vault notes
               </div>
-              <BacklinksPanel
-                note={selectedNote}
-                backlinks={backlinks}
-                notes={notes}
-                onNavigate={handleNavigate}
-              />
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", opacity: 0.6 }}>
+                Tickers, sessions, rules, frameworks, specs
+              </div>
             </div>
           )}
         </div>
       )}
 
+      {/* ── BROWSE TABLE VIEW ── */}
+      {viewMode === "browse" && (
+        <>
+          {loading ? (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", padding: 20 }}>Loading vault...</div>
+          ) : error ? (
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--red)", padding: 20 }}>{error}</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 380px" : "1fr", gap: 0 }}>
+              {/* Notes table */}
+              <div style={card}>
+                <div style={cardHeader}>
+                  <span style={cardTitle}>
+                    {typeFilter === "all" ? "All Notes" : typeFilter.toUpperCase()}
+                    <span style={{ fontWeight: 400, color: "var(--text-dim)", marginLeft: 8 }}>{filtered.length}</span>
+                  </span>
+                </div>
+                <div style={{ overflowX: "auto", maxHeight: "calc(100vh - 420px)", overflowY: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead style={{ position: "sticky", top: 0, background: "var(--panel)", zIndex: 1 }}>
+                      <tr>
+                        <th style={thStyle}>{sortBtn("type", "Type")}</th>
+                        <th style={thStyle}>{sortBtn("identifier", "Identifier")}</th>
+                        <th style={{ ...thStyle, display: selected ? "none" : undefined }}>{sortBtn("title", "Title")}</th>
+                        <th style={thStyle}>Links</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((n) => {
+                        const inCount = backlinks.filter((b) => b.target_id === n.identifier && b.target_type === n.type).length;
+                        const outCount = backlinks.filter((b) => b.source_path === n.path).length;
+                        const isActive = selected === n.path;
+                        return (
+                          <tr
+                            key={n.path}
+                            onClick={() => setSelected(isActive ? null : n.path)}
+                            style={{
+                              cursor: "pointer",
+                              background: isActive ? "rgba(200,169,110,0.06)" : "transparent",
+                              transition: "background 0.15s",
+                            }}
+                            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(28,28,48,0.6)"; }}
+                            onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                          >
+                            <td style={tdStyle}>
+                              <span style={{ ...pillBase, ...typeColor(n.type) }}>{n.type}</span>
+                            </td>
+                            <td style={{ ...tdStyle, color: "var(--gold)", fontWeight: 600 }}>
+                              {displayId(n)}
+                            </td>
+                            <td style={{ ...tdStyle, color: "var(--text-dim)", display: selected ? "none" : undefined }}>
+                              {n.title ?? "—"}
+                            </td>
+                            <td style={tdStyle}>
+                              <span style={{ ...mono9, color: inCount > 0 ? "var(--accent)" : "var(--text-dim)" }}>
+                                {inCount}↓
+                              </span>
+                              <span style={{ ...mono9, color: "var(--text-dim)", margin: "0 4px" }}>/</span>
+                              <span style={{ ...mono9, color: outCount > 0 ? "var(--green)" : "var(--text-dim)" }}>
+                                {outCount}↑
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Detail panel */}
+              {selectedNote && (
+                <div style={{ ...card, marginLeft: -1, borderLeft: "2px solid var(--gold)", alignSelf: "start", position: "sticky", top: 120, maxHeight: "calc(100vh - 200px)", overflowY: "auto" }}>
+                  <div style={cardHeader}>
+                    <span style={{ ...cardTitle, color: "var(--gold)" }}>
+                      {displayId(selectedNote)}
+                    </span>
+                    <button
+                      onClick={() => setSelected(null)}
+                      style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 14 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <BacklinksPanel
+                    note={selectedNote}
+                    backlinks={backlinks}
+                    notes={notes}
+                    onNavigate={handleNavigate}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
       <style>{`
         @media (max-width: 900px) {
-          /* Stack detail panel below on narrow screens */
           div[style*="gridTemplateColumns"] {
             grid-template-columns: 1fr !important;
           }
