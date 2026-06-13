@@ -193,9 +193,14 @@ function formatZone(zone: EntryZone | null, currency?: string, ticker?: string):
   return `${formatPrice(zone.low, currency, ticker)}–${formatPrice(zone.high, currency, ticker)}`;
 }
 
+function normStatusKey(s: string | null | undefined): string {
+  return String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function StatusBadge({ status }: { status: string }) {
-  const normalized = status.trim().toUpperCase();
-  const style = STATUS_STYLE[normalized] ?? STATUS_STYLE.WATCH;
+  const key = normStatusKey(status);
+  const style = STATUS_STYLE[key] ?? STATUS_STYLE.WAITPRICE;
+  const label = STATUS_LABEL[key] ?? (status || "—").toUpperCase();
   return (
     <span
       style={{
@@ -210,8 +215,114 @@ function StatusBadge({ status }: { status: string }) {
         border: `1px solid color-mix(in srgb, ${style.color as string} 35%, transparent)`,
       }}
     >
-      {normalized}
+      {label}
     </span>
+  );
+}
+
+/** Small 🔒 chip rendered next to the ticker when BROKER_GATED === "Y". */
+function BrokerGatedBadge({ gated }: { gated: string | undefined }) {
+  if (String(gated ?? "").trim().toUpperCase() !== "Y") return null;
+  return (
+    <span
+      title="Broker-gated — not orderable in current broker"
+      aria-label="Broker-gated"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 10,
+        lineHeight: 1,
+        padding: "2px 4px",
+        borderRadius: 2,
+        background: "rgba(156,163,175,0.12)",
+        border: "1px solid rgba(156,163,175,0.35)",
+        color: "rgb(156,163,175)",
+      }}
+    >
+      🔒
+    </span>
+  );
+}
+
+/**
+ * Inline detail panel — surfaces ARCHIVE / RESEARCH context.
+ *   ARCHIVE  → "Archived at {price}" + ARCHIVE_REASON
+ *   RESEARCH → RESEARCH_QUESTION + PROMOTION_TRIGGER
+ */
+function StatusDetailPanel({ item, formatPriceFn }: { item: LiveWatchItem; formatPriceFn: (n: number | null | undefined) => string }) {
+  const key = normStatusKey(item.status);
+  const isArchive = key === "ARCHIVE";
+  const isResearch = key === "RESEARCH";
+  if (!isArchive && !isResearch) return null;
+  const hasArchive = isArchive && (item.archiveReason || item.archivePrice != null);
+  const hasResearch = isResearch && (item.researchQuestion || item.promotionTrigger);
+  if (!hasArchive && !hasResearch) return null;
+
+  const labelStyle: CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 9,
+    letterSpacing: "0.12em",
+    color: "var(--text-dim)",
+    textTransform: "uppercase",
+    marginRight: 6,
+  };
+  const bodyStyle: CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    color: "var(--text-mid)",
+    lineHeight: 1.55,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  };
+  const accent = isArchive ? "rgb(156,163,175)" : "rgb(192,132,252)";
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        padding: "8px 12px",
+        background: `color-mix(in srgb, ${accent} 6%, transparent)`,
+        borderLeft: `2px solid ${accent}`,
+        borderRadius: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      {isArchive && (
+        <>
+          {item.archivePrice != null && (
+            <div style={bodyStyle}>
+              <span style={labelStyle}>Archived at</span>
+              <span style={{ color: accent, fontWeight: 600 }}>{formatPriceFn(item.archivePrice)}</span>
+            </div>
+          )}
+          {item.archiveReason && (
+            <div style={bodyStyle}>
+              <span style={labelStyle}>Reason</span>
+              {item.archiveReason}
+            </div>
+          )}
+        </>
+      )}
+      {isResearch && (
+        <>
+          {item.researchQuestion && (
+            <div style={bodyStyle}>
+              <span style={labelStyle}>Question</span>
+              {item.researchQuestion}
+            </div>
+          )}
+          {item.promotionTrigger && (
+            <div style={bodyStyle}>
+              <span style={labelStyle}>Promotion trigger</span>
+              {item.promotionTrigger}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
