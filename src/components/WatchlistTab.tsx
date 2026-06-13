@@ -931,17 +931,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={selectStyle}
-            aria-label="Filter by status"
-          >
-            <option value="ALL">Status · All</option>
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          {/* Status filter moved to its own multi-select chip row below the sticky header */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
