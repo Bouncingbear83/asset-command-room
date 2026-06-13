@@ -556,7 +556,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return derived.filter((r) => {
       if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
       if (layerFilter !== "ALL" && r.item.layer !== layerFilter) return false;
-      if (statusFilter !== "ALL" && r.item.status?.trim().toUpperCase() !== statusFilter) return false;
+      {
+        const tok = normStatus(r.item.status);
+        // Known tokens must be in the active selection; unknown tokens always pass.
+        if (KNOWN_STATUS_TOKENS.has(tok) && !statusFilter.has(tok)) return false;
+      }
       if (driverFilter.size > 0) {
         const fg = String(r.item.factor_group ?? "").trim().toUpperCase();
         if (!driverFilter.has(fg)) return false;
