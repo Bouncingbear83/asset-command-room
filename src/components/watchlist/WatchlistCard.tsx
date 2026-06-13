@@ -572,6 +572,9 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             <span style={{ color: "var(--accent)", fontWeight: 600 }}>Trigger:</span> {item.trigger}
           </div>
         )}
+
+        {/* ARCHIVE / RESEARCH inline detail */}
+        <StatusDetailPanel item={item} formatPriceFn={(n) => formatPrice(n, item.currency, item.ticker)} />
       </div>
     );
   }
