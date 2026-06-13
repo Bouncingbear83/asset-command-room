@@ -1004,6 +1004,77 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         </div>
       )}
 
+      {/* ── Status filter chips (multi-select; ARCHIVE off by default) ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
+          padding: isMobile ? "0 14px 8px" : "0 18px 8px",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.15em",
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+            marginRight: 4,
+          }}
+        >
+          Status
+        </span>
+        <button
+          onClick={resetStatusFilter}
+          style={{
+            background: "transparent",
+            border: "1px solid var(--rim)",
+            color: "var(--text-dim)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            padding: "3px 8px",
+            borderRadius: 2,
+            cursor: "pointer",
+            textTransform: "uppercase",
+          }}
+          title="Reset to default (everything except Archive)"
+        >
+          Reset
+        </button>
+        {STATUS_DEFS.map((def) => {
+          const active = statusFilter.has(def.token);
+          return (
+            <button
+              key={def.token}
+              onClick={() => toggleStatusFilter(def.token)}
+              aria-pressed={active}
+              style={{
+                background: active ? `color-mix(in srgb, ${def.dotColor} 14%, transparent)` : "transparent",
+                border: `1px solid ${active ? def.dotColor : "var(--rim)"}`,
+                color: active ? def.dotColor : "var(--text-dim)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                padding: "3px 8px",
+                borderRadius: 2,
+                cursor: "pointer",
+                textTransform: "uppercase",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: def.dotColor, opacity: active ? 1 : 0.55 }} />
+              {def.label}
+            </button>
+          );
+        })}
+      </div>
+
+
       {/* ── Profile filter chips ── */}
       <div
         style={{
