@@ -1,9 +1,13 @@
-import { LiveMonitor, LiveWeeklyTrigger } from "@/hooks/usePortfolioData";
+import { LiveMonitor, LiveWeeklyTrigger, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import TickerButton from "@/components/factsheet/TickerButton";
+import { triggerWebhook } from "@/lib/webhooks";
+import ClaudePromptButton from "@/components/ClaudePromptButton";
 
 interface Props {
   monitorData: LiveMonitor[];
   weeklyTriggers: LiveWeeklyTrigger[];
+  earningsCalendar?: LiveEarningsCalendarItem[];
 }
 
 const parseThreshold = (val: any): { num: number; isFloor: boolean; isCeiling: boolean } | null => {
@@ -173,7 +177,7 @@ const emptyState: React.CSSProperties = {
   padding: "14px 0 4px",
 };
 
-export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
+export default function MonitorTab({ monitorData, weeklyTriggers, earningsCalendar = [] }: Props) {
   const isMobile = useIsMobile();
   const liveCostCurves = monitorData.filter((item) => item.type.includes("cost"));
   const liveStructural = monitorData.filter((item) => item.type.includes("structural"));
@@ -299,6 +303,69 @@ export default function MonitorTab({ monitorData, weeklyTriggers }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Earnings Calendar */}
+      {earningsCalendar.length > 0 && (
+        <div style={{ ...card, gridColumn: "1 / -1" }}>
+          <div style={cardHeader}>
+            <span style={cardTitle}>Earnings Calendar</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", letterSpacing: "0.08em" }}>
+              {earningsCalendar.length} holdings
+            </span>
+          </div>
+          <div style={{ padding: isMobile ? "0 12px 16px" : "0 20px 16px", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              <thead>
+                <tr>
+                  {["Ticker", "Next Earnings", "Window", "Fiscal", "Status", ""].map((h) => (
+                    <th key={h} style={{ fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", padding: "8px 12px", borderBottom: "1px solid var(--rim)", textAlign: "left", fontWeight: 400, whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...earningsCalendar]
+                  .sort((a, b) => {
+                    const at = new Date(a.nextEarningsDate).getTime();
+                    const bt = new Date(b.nextEarningsDate).getTime();
+                    return (isNaN(at) ? Infinity : at) - (isNaN(bt) ? Infinity : bt);
+                  })
+                  .map((item) => {
+                    const d = new Date(item.nextEarningsDate);
+                    const now = new Date(); now.setHours(0,0,0,0);
+                    const target = new Date(d); target.setHours(0,0,0,0);
+                    const days = isNaN(d.getTime()) ? Infinity : Math.round((target.getTime() - now.getTime()) / 86400000);
+                    const urgColor = days <= 2 ? "var(--red)" : days <= 7 ? "var(--amber)" : "var(--text-dim)";
+                    const urgBg = days <= 2 ? "var(--red-dim)" : days <= 7 ? "var(--amber-dim)" : "rgba(28,28,48,0.5)";
+                    const dateStr = isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                    return (
+                      <tr key={`${item.ticker}-${item.nextEarningsDate}`} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
+                        <td style={{ padding: "10px 12px" }}><TickerButton ticker={item.ticker} style={{ color: "var(--gold)", fontWeight: 700 }}>{item.ticker}</TickerButton></td>
+                        <td style={{ padding: "10px 12px", color: "var(--text)" }}>{dateStr}</td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <span style={{ color: urgColor, background: urgBg, padding: "2px 8px", borderRadius: 2, fontSize: 9, letterSpacing: "0.1em", border: `1px solid color-mix(in srgb, ${urgColor} 30%, transparent)` }}>
+                            {days === Infinity ? "TBD" : days < 0 ? "PAST" : `${days}D`}
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-dim)" }}>{item.fiscalPeriod || "—"}</td>
+                        <td style={{ padding: "10px 12px" }}>
+                          <span style={{ padding: "2px 8px", borderRadius: 2, fontSize: 9, letterSpacing: "0.1em", background: item.confirmed ? "var(--green-dim)" : "rgba(28,28,48,0.5)", color: item.confirmed ? "var(--green)" : "var(--text-dim)", border: `1px solid ${item.confirmed ? "rgba(90,191,160,0.3)" : "var(--rim)"}` }}>
+                            {item.confirmed ? "CONFIRMED" : "TENTATIVE"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px 8px" }}>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}`)} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" }}>📋 Prep</button>
+                            <ClaudePromptButton templateKey="earnings_post" context={{ ticker: item.ticker, fiscal_period: item.fiscalPeriod || "—", earnings_date: item.nextEarningsDate || "—" }} style={{ border: "1px solid var(--accent)", color: "var(--accent)", padding: "3px 8px", fontSize: 9 }}>🔬 Post</ClaudePromptButton>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
