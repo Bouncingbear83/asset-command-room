@@ -82,18 +82,30 @@ interface Props {
   tint?: "in-zone" | "approaching" | "overdue" | "none";
 }
 
+// Status taxonomy v2 (Stellar Doctrine 2026):
+//   DEPLOY · WAIT_PRICE · WAIT_EVENT · RESEARCH · PRE_IPO ·
+//   POST_RECLASS_HOLD · SCALING_WATCH · ARCHIVE
+// Keys are NORMALISED (uppercase, alphanumeric only) — see normStatus() in WatchlistTab.
 const STATUS_STYLE: Record<string, CSSProperties> = {
-  "BUY T1": { background: "var(--green-dim)", color: "var(--green)" },
-  "BUY T2": { background: "var(--green-dim)", color: "var(--green)" },
-  "BUY NOW": { background: "var(--green-dim)", color: "var(--green)" },
-  ACTIVE_MONITORING: { background: "var(--amber-dim)", color: "var(--amber)" },
-  MONITOR: { background: "var(--accent-dim)", color: "var(--accent)" },
-  WAIT: { background: "rgba(80,80,120,0.15)", color: "var(--text-dim)" },
-  WATCH: { background: "rgba(80,80,120,0.15)", color: "var(--text-dim)" },
-  RESEARCH: { background: "rgba(80,80,160,0.15)", color: "rgb(140,140,220)" },
-  "PRE-IPO": { background: "rgba(130,80,180,0.15)", color: "rgb(170,120,220)" },
-  EXITED: { background: "rgba(60,60,80,0.15)", color: "var(--text-dim)" },
-  REVIEW_FLAGGED: { background: "rgba(239, 159, 39, 0.12)", color: "#EF9F27" },
+  DEPLOY:           { background: "rgba(34,197,94,0.14)",  color: "rgb(34,197,94)" },   // green-500
+  WAITPRICE:        { background: "rgba(59,130,246,0.14)", color: "rgb(96,165,250)" },  // blue-500
+  WAITEVENT:        { background: "rgba(245,158,11,0.14)", color: "rgb(245,158,11)" },  // amber-500
+  RESEARCH:         { background: "rgba(168,85,247,0.14)", color: "rgb(192,132,252)" }, // purple-500
+  PREIPO:           { background: "rgba(148,163,184,0.14)",color: "rgb(148,163,184)" }, // slate-400
+  POSTRECLASSHOLD:  { background: "rgba(251,146,60,0.14)", color: "rgb(251,146,60)" },  // orange-400
+  SCALINGWATCH:     { background: "rgba(6,182,212,0.14)",  color: "rgb(34,211,238)" },  // cyan-500
+  ARCHIVE:          { background: "rgba(156,163,175,0.10)",color: "rgb(156,163,175)" }, // gray-400
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  DEPLOY: "DEPLOY",
+  WAITPRICE: "WAIT · PRICE",
+  WAITEVENT: "WAIT · EVENT",
+  RESEARCH: "RESEARCH",
+  PREIPO: "PRE-IPO",
+  POSTRECLASSHOLD: "POST-RECLASS HOLD",
+  SCALINGWATCH: "SCALING WATCH",
+  ARCHIVE: "ARCHIVE",
 };
 
 const TINT_STYLE: Record<NonNullable<Props["tint"]>, CSSProperties> = {
