@@ -627,10 +627,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const activeBuys = useMemo(
     () =>
       filtered
-        .filter((r) => {
-          const s = normStatus(r.item.status);
-          return s === BUY || s === ACTIVE;
-        })
+        .filter((r) => normStatus(r.item.status) === DEPLOY)
         .sort((a, b) => {
           const s = applySorts(a, b);
           if (s !== 0) return s;
@@ -648,7 +645,6 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       (r) => r.zoneStatus === "IN_ZONE" && !activeBuyIds.has(r.item.ticker),
     );
     if (sortBy !== "default") return [...rows].sort(applySorts);
-    // Default: sort IN_ZONE by live asymmetry baseRatio desc (nulls last).
     return [...rows].sort((a, b) => {
       const ra = a.liveAsymmetry?.baseRatio;
       const rb = b.liveAsymmetry?.baseRatio;
@@ -659,7 +655,6 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     });
   }, [filtered, activeBuyIds, sortBy]);
 
-  // IN_ZONE asymmetry stats for the section header
   const inZoneAsymStats = useMemo(() => {
     const ratios = inZone
       .map((r) => r.liveAsymmetry?.baseRatio)
@@ -682,11 +677,14 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     [filtered, activeBuyIds, sortBy],
   );
 
-  // Overdue: independent of zone, but exclude EXITED / PRE-IPO / RESEARCH / MONITOR / Active Buys
+  // Tokens that get their own dedicated section — exclude them from overdue/waiting/uncategorised.
+  const DEDICATED_TOKENS = new Set([
+    DEPLOY, RESEARCH, PREIPO, POST_RECLASS_HOLD, SCALING_WATCH, ARCHIVE,
+  ]);
+
   const overdue = useMemo(() => {
-    const skipStatus = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
     return filtered
-      .filter((r) => r.isOverdue && !skipStatus.has(normStatus(r.item.status)))
+      .filter((r) => r.isOverdue && !DEDICATED_TOKENS.has(normStatus(r.item.status)))
       .sort((a, b) => {
         const s = applySorts(a, b);
         if (s !== 0) return s;
@@ -696,21 +694,19 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
-  // Waiting: priced & WAITING & not already shown above
+  // Waiting: priced & WAITING-zone & WAIT_PRICE/WAIT_EVENT & not already shown.
   const waiting = useMemo(() => {
-    const skipStatus = new Set([MONITOR, RESEARCH, PREIPO, EXITED, BUY, ACTIVE]);
     return filtered
       .filter(
         (r) =>
           r.zoneStatus === "WAITING" &&
           !overdueIds.has(r.item.ticker) &&
           !activeBuyIds.has(r.item.ticker) &&
-          !skipStatus.has(normStatus(r.item.status)),
+          !DEDICATED_TOKENS.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
         const s = applySorts(a, b);
         if (s !== 0) return s;
-        // Score desc if both have scores; otherwise gap asc
         const sa = a.score?.total_score ?? null;
         const sb = b.score?.total_score ?? null;
         if (sa != null && sb != null && sa !== sb) return sb - sa;
@@ -718,7 +714,6 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       });
   }, [filtered, overdueIds, activeBuyIds, sortBy]);
 
-  // Group waiting by layer
   const waitingByLayer = useMemo(() => {
     const groups = new Map<string, DerivedRow[]>();
     for (const r of waiting) {
@@ -729,23 +724,19 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [waiting]);
 
+  // SCALING_WATCH replaces the old MONITORING section.
   const monitoring = useMemo(
     () =>
       filtered
-        .filter((r) => normStatus(r.item.status) === MONITOR)
+        .filter((r) => normStatus(r.item.status) === SCALING_WATCH)
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
   const research = useMemo(() => {
-    // MONITORING wins: exclude any ticker already shown in MONITORING
-    const monitorTickers = new Set(
-      monitoring.map((r) => r.item.ticker.trim().toUpperCase()),
-    );
     return filtered
       .filter((r) => normStatus(r.item.status) === RESEARCH)
-      .filter((r) => !monitorTickers.has(r.item.ticker.trim().toUpperCase()))
       .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
-  }, [filtered, monitoring]);
+  }, [filtered]);
   const preIpo = useMemo(
     () =>
       filtered
@@ -753,9 +744,22 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
     [filtered],
   );
+  const postReclassHold = useMemo(
+    () =>
+      filtered
+        .filter((r) => normStatus(r.item.status) === POST_RECLASS_HOLD)
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
+  );
+  const archive = useMemo(
+    () =>
+      filtered
+        .filter((r) => normStatus(r.item.status) === ARCHIVE)
+        .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker)),
+    [filtered],
+  );
 
-  // Fallback: any filtered row not picked up by an existing bucket. Guarantees
-  // every row from the sheet is visible, even if its STATUS is unexpected.
+  // Fallback: any filtered row not picked up by an existing bucket.
   const uncategorised = useMemo(() => {
     const seen = new Set<string>([
       ...activeBuys.map((r) => r.item.ticker),
@@ -766,14 +770,15 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       ...monitoring.map((r) => r.item.ticker),
       ...research.map((r) => r.item.ticker),
       ...preIpo.map((r) => r.item.ticker),
+      ...postReclassHold.map((r) => r.item.ticker),
+      ...archive.map((r) => r.item.ticker),
     ]);
     return filtered
-      .filter((r) => !seen.has(r.item.ticker) && normStatus(r.item.status) !== EXITED)
+      .filter((r) => !seen.has(r.item.ticker))
       .sort((a, b) => a.item.ticker.localeCompare(b.item.ticker));
-  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo]);
+  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, postReclassHold, archive]);
 
-  // Dev-only drift warning: if the rendered row total drifts from the filtered total
-  // (excluding intentionally-hidden EXITED), surface it in the console.
+  // Dev-only drift warning
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const renderedTickers = new Set<string>([
@@ -785,34 +790,29 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       ...monitoring.map((r) => r.item.ticker),
       ...research.map((r) => r.item.ticker),
       ...preIpo.map((r) => r.item.ticker),
+      ...postReclassHold.map((r) => r.item.ticker),
+      ...archive.map((r) => r.item.ticker),
       ...uncategorised.map((r) => r.item.ticker),
     ]);
-    const visibleSource = filtered.filter((r) => normStatus(r.item.status) !== EXITED);
-    if (renderedTickers.size !== visibleSource.length) {
-      const missing = visibleSource
+    if (renderedTickers.size !== filtered.length) {
+      const missing = filtered
         .filter((r) => !renderedTickers.has(r.item.ticker))
         .map((r) => `${r.item.ticker} (${r.item.status})`);
       // eslint-disable-next-line no-console
       console.warn(
-        `[WatchlistTab] Rendered ${renderedTickers.size} of ${visibleSource.length} rows. Missing:`,
+        `[WatchlistTab] Rendered ${renderedTickers.size} of ${filtered.length} rows. Missing:`,
         missing,
       );
     }
-  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, uncategorised]);
+  }, [filtered, activeBuys, inZone, approaching, overdue, waiting, monitoring, research, preIpo, postReclassHold, archive, uncategorised]);
 
-  // Header counts (live, not bucketed — recomputed from `derived` so they reflect entire watchlist regardless of filters)
+  // Header counts (live, recomputed from `derived` regardless of filters)
   const counts = useMemo(() => {
     const total = derived.length;
     const inZ = derived.filter((r) => r.zoneStatus === "IN_ZONE").length;
     const appr = derived.filter((r) => r.zoneStatus === "APPROACHING").length;
-    const od = derived.filter((r) => {
-      const skip = new Set([EXITED, PREIPO, RESEARCH, MONITOR, BUY, ACTIVE]);
-      return r.isOverdue && !skip.has(normStatus(r.item.status));
-    }).length;
-    const buys = derived.filter((r) => {
-      const s = normStatus(r.item.status);
-      return s === BUY || s === ACTIVE;
-    }).length;
+    const od = derived.filter((r) => r.isOverdue && !DEDICATED_TOKENS.has(normStatus(r.item.status))).length;
+    const buys = derived.filter((r) => normStatus(r.item.status) === DEPLOY).length;
     return { total, inZ, appr, od, buys };
   }, [derived]);
 
