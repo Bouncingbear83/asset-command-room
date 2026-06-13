@@ -1371,6 +1371,26 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         </div>
       )}
 
+      {/* ── 7b. POST-RECLASS HOLD ── */}
+      {postReclassHold.length > 0 && (
+        <div style={sectionStyle}>
+          <SectionHeader label="Post-Reclass Hold" count={postReclassHold.length} dotColor="rgb(251,146,60)" />
+          {postReclassHold.map((r) => (
+            <WatchlistCard key={`prh-${r.item.ticker}`} row={r} variant="compact" hideActions />
+          ))}
+        </div>
+      )}
+
+      {/* ── 7c. ARCHIVE (hidden unless user enables the chip) ── */}
+      {archive.length > 0 && (
+        <div style={{ ...sectionStyle, opacity: 0.78 }}>
+          <SectionHeader label="Archive" count={archive.length} dotColor="rgb(156,163,175)" />
+          {archive.map((r) => (
+            <WatchlistCard key={`arc-${r.item.ticker}`} row={r} variant="compact" hideActions />
+          ))}
+        </div>
+      )}
+
       {/* ── 8. UNCATEGORISED (fallback — any row not picked up above) ── */}
       {uncategorised.length > 0 && (
         <div style={sectionStyle}>
