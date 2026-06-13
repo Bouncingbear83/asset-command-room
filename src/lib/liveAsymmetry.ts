@@ -29,6 +29,10 @@ export interface AsymmetryQuartet {
 export interface LiveAsymmetryResult {
   baseRatio: number | null;
   stretchRatio: number | null;
+  /** Alt B probability-weighted ratio (§3.4.4). Null when quartet incomplete. */
+  probWeightedRatio: number | null;
+  /** baseRatio - probWeightedRatio. Positive = thin-tail problem (substrate-fail pulls harder). */
+  divergence: number | null;
   price: number | null;
   band: "FULL" | "HIGH" | "PARTIAL" | "NO_DEPLOY" | null;
   belowBear: boolean;
@@ -40,6 +44,8 @@ export interface LiveAsymmetryResult {
 const EMPTY: LiveAsymmetryResult = {
   baseRatio: null,
   stretchRatio: null,
+  probWeightedRatio: null,
+  divergence: null,
   price: null,
   band: null,
   belowBear: false,
@@ -99,9 +105,33 @@ export function computeLiveAsymmetry(
     }
   }
 
+  // Alt B probability-weighted ratio (§3.4.4)
+  // Requires full quartet: all four targets populated.
+  // Conditional weights: bull scenario 71.4% base + 28.6% stretch;
+  // bear scenario 83.3% thesis-weak + 16.7% substrate-fail.
+  let probWeightedRatio: number | null = null;
+  let divergence: number | null = null;
+
+  if (bullBase !== null && bullStretch !== null && bearThesisWeak !== null && bearSubstrateFail !== null) {
+    const eGain = 0.714 * (bullBase - currentPrice) + 0.286 * (bullStretch - currentPrice);
+    const eLoss = 0.833 * (currentPrice - bearThesisWeak) + 0.167 * (currentPrice - bearSubstrateFail);
+    if (eLoss > 0 && eGain > 0) {
+      probWeightedRatio = Math.round((eGain / eLoss) * 10) / 10;
+    } else if (eLoss <= 0 && eGain > 0) {
+      probWeightedRatio = 99;
+    } else if (eGain <= 0) {
+      probWeightedRatio = 0;
+    }
+    if (baseRatio !== null && probWeightedRatio !== null) {
+      divergence = Math.round((baseRatio - probWeightedRatio) * 10) / 10;
+    }
+  }
+
   return {
     baseRatio,
     stretchRatio,
+    probWeightedRatio,
+    divergence,
     price: currentPrice,
     band,
     belowBear,
