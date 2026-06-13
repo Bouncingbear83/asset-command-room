@@ -451,6 +451,12 @@ function parseWatchlist(rows: Record<string, any>[]) {
         priceAtFirstAdd: parseNum(findCol(row, "price_at_first_add", "PRICE_AT_FIRST_ADD", "Price_At_First_Add", "price at first add")),
         firstAddDate: parseSheetDate(findCol(row, "first_add_date", "FIRST_ADD_DATE", "First_Add_Date", "first add date")),
         priceAtLastScore: parseNum(findCol(row, "price_at_last_score", "PRICE_AT_LAST_SCORE", "Price_At_Last_Score", "price at last score")),
+        // ── New columns AA:AE (taxonomy v2) ──
+        brokerGated: String(findCol(row, "broker_gated", "BROKER_GATED", "Broker_Gated", "broker gated") ?? "").trim().toUpperCase(),
+        archiveReason: String(findCol(row, "archive_reason", "ARCHIVE_REASON", "Archive_Reason", "archive reason") ?? "").trim(),
+        researchQuestion: String(findCol(row, "research_question", "RESEARCH_QUESTION", "Research_Question", "research question") ?? "").trim(),
+        promotionTrigger: String(findCol(row, "promotion_trigger", "PROMOTION_TRIGGER", "Promotion_Trigger", "promotion trigger") ?? "").trim(),
+        archivePrice: parseNum(findCol(row, "archive_price", "ARCHIVE_PRICE", "Archive_Price", "archive price")),
       };
     })
     .filter((item) => item.name.trim() !== "" || item.ticker.trim() !== "");
