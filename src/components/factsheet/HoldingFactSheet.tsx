@@ -565,6 +565,41 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                       Quartet set {live.quartetAgeDays}d ago{live.quartetAgeDays > 90 && " ⚠ stale"}
                     </div>
                   )}
+
+                  {/* Probability-weighted ratio breakdown (§3.4.4 Alt B) */}
+                  {live.probWeightedRatio !== null && (
+                    <div style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      background: live.divergence !== null && live.divergence > 0.5 ? "var(--red-dim)" : "rgba(80,80,120,0.06)",
+                      border: `1px solid ${live.divergence !== null && live.divergence > 0.5 ? "rgba(200,90,90,0.2)" : "var(--rim)"}`,
+                      borderRadius: 2,
+                    }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6 }}>
+                        PROB-WEIGHTED RATIO (§3.4.4 ALT B)
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontFamily: "var(--font-mono)", fontSize: 10 }}>
+                        <div>
+                          <div style={{ color: "var(--text-dim)", fontSize: 8, marginBottom: 2 }}>Simple ratio</div>
+                          <div style={{ color: "var(--gold)", fontSize: 13, fontWeight: 700 }}>{formatRatio(live.baseRatio)}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: "var(--text-dim)", fontSize: 8, marginBottom: 2 }}>Prob-weighted</div>
+                          <div style={{ color: live.divergence !== null && live.divergence > 0.5 ? "var(--red)" : "var(--gold)", fontSize: 13, fontWeight: 700 }}>{formatRatio(live.probWeightedRatio)}</div>
+                        </div>
+                      </div>
+                      {live.divergence !== null && (
+                        <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: live.divergence > 0.5 ? "var(--red)" : "var(--text-dim)" }}>
+                          Divergence: {live.divergence.toFixed(1)}
+                          {live.divergence > 0.5 && " ⚠ Substrate-fail scenario pulls expected downside wider than base bear alone"}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                        E(gain|bull) = 0.714 × (base−spot) + 0.286 × (stretch−spot)
+                        {"\n"}E(loss|bear) = 0.833 × (spot−thesis) + 0.167 × (spot−substrate)
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
