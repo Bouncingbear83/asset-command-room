@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 interface Props {
   sipp: LiveHolding[];
   isa: LiveHolding[];
+  bordier?: LiveHolding[];
   performance: LivePerformance[];
   cashSipp?: number;
   cashIsa?: number;
@@ -189,7 +190,7 @@ function toPolyline(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
-export default function ReturnsTab({ sipp, isa, performance, cashSipp = 0, cashIsa = 0 }: Props) {
+export default function ReturnsTab({ sipp, isa, bordier = [], performance, cashSipp = 0, cashIsa = 0 }: Props) {
   const isMobile = useIsMobile();
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
@@ -198,7 +199,7 @@ export default function ReturnsTab({ sipp, isa, performance, cashSipp = 0, cashI
     sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
   const isaData =
     isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
-  const all = [...sippData, ...isaData];
+  const all = [...sippData, ...isaData, ...bordier];
 
   const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0) + cashSipp;
   const isaTotal = isaData.reduce((s, h) => s + (h.mv || 0), 0) + cashIsa;
