@@ -760,6 +760,10 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
         {!hideActions && <ActionButtons item={item} stop={stop} />}
       </div>
 
+      {/* ARCHIVE / RESEARCH inline detail */}
+      <StatusDetailPanel item={item} formatPriceFn={(n) => formatPrice(n, item.currency, item.ticker)} />
+
+
       {isCompact && isMobile && (
         <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}>
           <ChevronDown size={12} style={{ color: "var(--text-dim)" }} />
