@@ -413,6 +413,54 @@ export type Database = {
         }
         Relationships: []
       }
+      layer_review_schedule: {
+        Row: {
+          action_items: Json | null
+          completed_date: string | null
+          created_at: string | null
+          cycle: string
+          id: string
+          layer: string
+          open_trends: number | null
+          prompt_template: string | null
+          review_vault_path: string | null
+          scheduled_date: string
+          session_vault_path: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_items?: Json | null
+          completed_date?: string | null
+          created_at?: string | null
+          cycle: string
+          id?: string
+          layer: string
+          open_trends?: number | null
+          prompt_template?: string | null
+          review_vault_path?: string | null
+          scheduled_date: string
+          session_vault_path?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_items?: Json | null
+          completed_date?: string | null
+          created_at?: string | null
+          cycle?: string
+          id?: string
+          layer?: string
+          open_trends?: number | null
+          prompt_template?: string | null
+          review_vault_path?: string | null
+          scheduled_date?: string
+          session_vault_path?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       layer_weights_snapshot: {
         Row: {
           created_at: string
