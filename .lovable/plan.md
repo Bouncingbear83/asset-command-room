@@ -1,50 +1,39 @@
-## Status of the one-line fix
-`src/hooks/usePortfolioData.ts` line 199 already reads:
+## Why it's not visible
 
-```ts
-next[cols[index] || `col_${index}`] = cell?.v ?? cell?.f ?? null;
-```
+Two problems:
 
-So the SCORES quartet rescue is in place. What needs to happen now is **confirming** SOI.PA / STVN / TER / TMO / TXG / VNP.TO / WAF.DE actually carry quartet values through to the UI, **and** dealing with the side effect on the Command tab's WATCHLIST movers stripe (which now reports "Watchlist empty"). Both stem from the same gviz quirk and are best handled together.
+1. **Not rendered.** `src/components/CommandTab.tsx` no longer imports or renders `<LayerReviewCalendar />` (likely lost in a later edit). `CapitalQueue` is still on line 188, but the calendar block that was supposed to sit beneath it isn't there.
+2. **Not readable by the client.** `layer_review_schedule` has only one RLS policy — `FOR ALL TO authenticated` — and the app uses the anon key behind `PasswordGate` (no Supabase auth session). So even once the component is mounted, `select` returns zero rows.
 
-## Why a broad `cell?.f` fallback can over-reach
-`cell.f` is the *formatted display string* gviz returns for every cell, including dates rendered as `"Date(2026,3,7)"` and currency cells like `"$153.00"`. For SCORES quartet columns this is exactly what we want (rescues the safeNum text values 100/165). For other sheets it can:
+## Changes
 
-- Inject formatted strings into otherwise-null cells, flipping `hasContent` and `populatedCount` decisions inside the `fetchSheet` row filter.
-- Convert a numeric `current` price on WATCHLIST into a `"$153.00"` string, which `parseNum` then can't read.
-
-That is the most likely reason the Command-tab WATCHLIST movers list now sees `watchlist.length === 0` or all-null prices.
-
-## Plan
-
-1. **Narrow the fallback** so only the SCORES quartet columns use `cell.f`, every other column keeps the pre-fix `cell?.v ?? null` behaviour:
-
-   ```ts
-   const QUARTET_COLS = new Set([
-     "bull_base","bull_stretch","bear_thesis_weak","bear_substrate_fail","bull_bear_at_date",
-   ]);
-   row.c?.forEach((cell, i) => {
-     const col = cols[i] || `col_${i}`;
-     const allowFallback = QUARTET_COLS.has(col.toLowerCase());
-     next[col] = cell?.v ?? (allowFallback ? cell?.f ?? null : null);
-   });
+1. **Migration** — add anon read policy (keep the existing authenticated-write policy as-is):
+   ```sql
+   CREATE POLICY "Public can read layer reviews"
+     ON public.layer_review_schedule
+     FOR SELECT TO anon, authenticated
+     USING (true);
+   GRANT SELECT ON public.layer_review_schedule TO anon;
    ```
-
-2. **Add a `.catch(() => [])`** to the WATCHLIST fetch (line 1047) so a transient gviz failure can never wipe the watchlist again:
-
-   ```ts
-   fetchSheet({ gid: GIDS.watchlist, range: "A1:Z5000" }).catch((e) => {
-     console.error("[watchlist fetch] failed:", e);
-     return [];
-   }),
+   Writes (`markComplete`, action-item toggles) currently go through the anon client too, so also add:
+   ```sql
+   CREATE POLICY "Public can update layer reviews"
+     ON public.layer_review_schedule
+     FOR UPDATE TO anon, authenticated
+     USING (true) WITH CHECK (true);
+   GRANT UPDATE ON public.layer_review_schedule TO anon;
    ```
+   (Matches the access pattern of the other dashboard tables in this project.)
 
-3. **Verify** after reload:
-   - Console: `[watchlist parseWatchlist] in=… out=…` shows non-zero `out`.
-   - Command tab → Today's Movers → WATCHLIST stripe renders ticker rows again.
-   - SCORES tab: TXG / SOI.PA / STVN / TER / TMO / VNP.TO / WAF.DE all show their quartet values (BULL_BASE, BEAR_THESIS_WEAK, etc.) — the original regression that prompted the line-199 fix stays fixed.
+2. **`src/components/CommandTab.tsx`** — re-add:
+   ```tsx
+   import LayerReviewCalendar from "@/components/LayerReviewCalendar";
+   ```
+   and render `<LayerReviewCalendar />` directly after the `<CapitalQueue ... />` block (~line 188).
 
-## Files touched
-- `src/hooks/usePortfolioData.ts` only.
+No changes to `LayerReviewCalendar.tsx` or `useLayerReviews.ts` — they already exist and are correct.
 
-No component edits required; Command tab and Holdings/Scores re-render automatically once parsing is corrected.
+## Verification
+
+- Reload Command tab → calendar card renders below Capital Queue with the 7 Q3-2026 rows.
+- Confirm no console "permission denied" or empty-array on the `layer_review_schedule` query.
