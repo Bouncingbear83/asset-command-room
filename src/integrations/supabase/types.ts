@@ -947,6 +947,15 @@ export type Database = {
         Args: { tickers: string[] }
         Returns: string[]
       }
+      vault_list_by_type: {
+        Args: { p_type: string }
+        Returns: {
+          identifier: string
+          path: string
+          sections: string[]
+          title: string
+        }[]
+      }
       vault_search: {
         Args: { max_results?: number; note_type?: string; search_query: string }
         Returns: {
