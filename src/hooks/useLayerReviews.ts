@@ -1,64 +1,74 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export interface LayerReview {
-  id: string;
-  layer: string;
-  cycle: string;
-  scheduled_date: string;
-  status: "SCHEDULED" | "IN_PROGRESS" | "COMPLETE" | "SKIPPED";
-  completed_date: string | null;
-  session_vault_path: string | null;
-  review_vault_path: string | null;
-  open_trends: number;
-  action_items: ActionItem[];
-  prompt_template: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type LayerReviewStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETE" | "SKIPPED";
 
 export interface ActionItem {
   text: string;
   done: boolean;
 }
 
-export interface TrendCount {
+export interface LayerReview {
+  id: string;
   layer: string;
-  count: number;
+  cycle: string;
+  scheduled_date: string;
+  status: LayerReviewStatus;
+  completed_date: string | null;
+  session_vault_path: string | null;
+  review_vault_path: string | null;
+  open_trends: number | null;
+  action_items: ActionItem[];
+  prompt_template: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export function useLayerReviews(cycle = "Q3-2026") {
+export interface UseLayerReviewsResult {
+  reviews: LayerReview[];
+  trendCountsByLayer: Record<string, number>;
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+  markComplete: (id: string) => Promise<void>;
+  updateActionItems: (id: string, items: ActionItem[]) => Promise<void>;
+}
+
+function normalizeActionItems(raw: unknown): ActionItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is { text?: unknown; done?: unknown } => typeof x === "object" && x !== null)
+    .map((x) => ({
+      text: typeof x.text === "string" ? x.text : "",
+      done: Boolean(x.done),
+    }));
+}
+
+export function useLayerReviews(cycle: string): UseLayerReviewsResult {
   const [reviews, setReviews] = useState<LayerReview[]>([]);
-  const [trendCounts, setTrendCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const [trendCountsByLayer, setTrendCountsByLayer] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      // Fetch schedule
-      const { data: scheduleData, error: scheduleErr } = await supabase
+      const { data, error: qErr } = await supabase
         .from("layer_review_schedule")
         .select("*")
         .eq("cycle", cycle)
         .order("scheduled_date", { ascending: true });
 
-      if (scheduleErr) throw scheduleErr;
+      if (qErr) throw qErr;
 
-      const parsed: LayerReview[] = (scheduleData || []).map((row: any) => ({
-        ...row,
-        action_items: Array.isArray(row.action_items)
-          ? row.action_items
-          : typeof row.action_items === "string"
-            ? JSON.parse(row.action_items)
-            : [],
-      }));
+      const rows = (data || []).map((r: any) => ({
+        ...r,
+        action_items: normalizeActionItems(r.action_items),
+      })) as LayerReview[];
+      setReviews(rows);
 
-      setReviews(parsed);
-
-      // Fetch open trend counts from vault_notes_meta
+      // Fetch trend counts from vault_notes_meta where type=trend, status=OPEN
       const { data: trendData, error: trendErr } = await supabase
         .from("vault_notes_meta")
         .select("frontmatter")
@@ -66,16 +76,19 @@ export function useLayerReviews(cycle = "Q3-2026") {
 
       if (!trendErr && trendData) {
         const counts: Record<string, number> = {};
-        for (const row of trendData) {
-          const fm = typeof row.frontmatter === "string" ? JSON.parse(row.frontmatter) : row.frontmatter;
-          if (fm?.status === "OPEN" && fm?.layer) {
-            counts[fm.layer] = (counts[fm.layer] || 0) + 1;
+        for (const row of trendData as any[]) {
+          const fm = row.frontmatter || {};
+          const status = (fm.status || "").toString().toUpperCase();
+          if (status !== "OPEN") continue;
+          const layer = fm.layer || fm.Layer;
+          if (typeof layer === "string" && layer.trim()) {
+            counts[layer] = (counts[layer] || 0) + 1;
           }
         }
-        setTrendCounts(counts);
+        setTrendCountsByLayer(counts);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch reviews");
+    } catch (e: any) {
+      setError(e?.message || "Failed to load layer reviews");
     } finally {
       setLoading(false);
     }
@@ -85,36 +98,30 @@ export function useLayerReviews(cycle = "Q3-2026") {
     fetchReviews();
   }, [fetchReviews]);
 
-  const markDone = useCallback(
-    async (reviewId: string) => {
-      const today = new Date().toISOString().split("T")[0];
-      const { error: updateErr } = await supabase
+  const markComplete = useCallback(
+    async (id: string) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { error: uErr } = await supabase
         .from("layer_review_schedule")
-        .update({ status: "COMPLETE", completed_date: today })
-        .eq("id", reviewId);
-
-      if (!updateErr) fetchReviews();
+        .update({ status: "COMPLETE", completed_date: today } as any)
+        .eq("id", id);
+      if (uErr) throw uErr;
+      await fetchReviews();
     },
-    [fetchReviews],
+    [fetchReviews]
   );
 
-  const toggleActionItem = useCallback(
-    async (reviewId: string, itemIndex: number) => {
-      const review = reviews.find((r) => r.id === reviewId);
-      if (!review) return;
-
-      const updated = [...review.action_items];
-      updated[itemIndex] = { ...updated[itemIndex], done: !updated[itemIndex].done };
-
-      const { error: updateErr } = await supabase
+  const updateActionItems = useCallback(
+    async (id: string, items: ActionItem[]) => {
+      const { error: uErr } = await supabase
         .from("layer_review_schedule")
-        .update({ action_items: updated })
-        .eq("id", reviewId);
-
-      if (!updateErr) fetchReviews();
+        .update({ action_items: items as any })
+        .eq("id", id);
+      if (uErr) throw uErr;
+      setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, action_items: items } : r)));
     },
-    [reviews, fetchReviews],
+    []
   );
 
-  return { reviews, trendCounts, loading, error, markDone, toggleActionItem, refresh: fetchReviews };
+  return { reviews, trendCountsByLayer, loading, error, refetch: fetchReviews, markComplete, updateActionItems };
 }
