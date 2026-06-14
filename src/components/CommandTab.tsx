@@ -202,6 +202,9 @@ export default function CommandTab() {
       {/* ── CARD 5: NARRATIVE SIGNALS ── */}
       <NarrativeSignalsCard />
 
+      {/* ── LAYER REVIEW CALENDAR ── */}
+      <LayerReviewCalendar />
+
       {/* ── CARD 6: RISK CONTROLS (collapsible) ── */}
       <details style={card}>
         <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>

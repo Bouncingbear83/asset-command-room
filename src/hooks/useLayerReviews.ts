@@ -108,7 +108,7 @@ export function useLayerReviews(cycle = "Q3-2026") {
 
       const { error: updateErr } = await supabase
         .from("layer_review_schedule")
-        .update({ action_items: updated })
+        .update({ action_items: updated as unknown as import("@/integrations/supabase/types").Json })
         .eq("id", reviewId);
 
       if (!updateErr) fetchReviews();
