@@ -193,6 +193,11 @@ export default function CommandTab() {
         macroState={macroState}
       />
 
+      {/* ── LAYER REVIEW CALENDAR ── */}
+      <LayerReviewCalendar />
+
+
+
       {/* ── CARD 4: TOP ASYMMETRY ── */}
       <AsymmetryCompact
         scores={scores}
