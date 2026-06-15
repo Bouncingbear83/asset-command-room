@@ -1,26 +1,33 @@
-## Problem
+## Root cause
 
-The Movers card on the Command tab surfaces holdings prices fine but drops watchlist rows. Root cause in `src/components/MoversCard.tsx` (watchlist branch, ~line 132): the code requires either `daily_prices` (≥2 points) or `watchlist_price_history` (≥2 points) to derive `last`/`prev`. If neither exists, it does `return;` and the row never enters the list — even though the WL sheet itself carries `w.current` (the live price the user can see on the WL tab of the Google Sheet).
+The earlier fix made WL rows visible, but every one shows `+0.00%`. Database check on `watchlist_price_history`:
 
-So any watchlist ticker without backing history in Supabase is invisible in Movers, regardless of what the sheet shows.
+- Latest snapshot for ATI is `2026-06-13` at `198.48`, with `2026-06-12` also `198.48`.
+- Today is `2026-06-15`, and the sheet's live `current` for ATI is `196.56`.
+
+The MoversCard's WL branch derives `last`/`prev` from historical snapshots only (`pd.points[-1]` vs `pd.points[-2]`, or `traj.spark30d` equivalents). Because the ingest snapshots once per day and weekend/holiday snapshots repeat the previous close, the last two history values are identical for almost every WL ticker — so 1D change is mechanically 0.
+
+The live price (`w.current` from the WL sheet, which is what the user sees on the spreadsheet) is never used as the comparator.
 
 ## Fix
 
-Make sheet `current` the fallback source of truth for watchlist rows in `MoversCard.tsx`:
+In `src/components/command/MoversCard.tsx`, change the WL change calculation to mirror how holdings work: the sheet is the source of truth for "now", history is only the anchor for "then".
 
-1. **Stop dropping rows without history.** Replace the early `return;` when `last`/`prev` are missing with a fallback path that still emits the row when `w.current` is a positive number.
-2. **Change %**:
-   - If we have `pd`/`traj` data, compute change as today (1D/1W/1M logic unchanged).
-   - If not, set `change = null` and render `—` in the change column instead of `+0.00%`. Rows with null change are excluded from the winners/losers sort buckets and shown in a new compact "No Δ data" group at the bottom of the filtered list (only when WL/ALL scope is active).
-3. **Sparkline**: keep current behaviour — render only when `sparkPoints` exists; otherwise render the empty `<span />` slot already in the grid.
-4. **Price**: use `w.current` (already the preferred source in the existing code) when present; only fall back to `last` if `w.current` is missing.
+For each watchlist row with `w.current > 0`:
+
+- **`last`** = `w.current` (live sheet price) whenever available; fall back to most recent history point otherwise.
+- **`prev`** for `1D` = most recent history close (from `pd.points` or `traj.spark30d`, whichever exists).
+- **`prev`** for `1W` = price from `pd.points[-6]` if available, else `traj.price7dAgo`.
+- **`prev`** for `1M` = price from `pd.points[-22]` if available, else `traj.price30dAgo`.
+- `change = (last - prev) / prev * 100` when `prev > 0`; otherwise `null`.
+
+If `w.current` is missing and no history exists, drop the row (existing behaviour). The "No Δ data" section stays for rows where neither history nor a usable prev anchor exists.
+
+`sparkPoints`, `sparkColor`, and the `noData` bucket logic remain unchanged.
 
 ### File touched
-- `src/components/MoversCard.tsx` only (presentation logic). No hook or data-fetch changes; no schema changes.
-
-### Types
-Widen the local `MoverRow.change` to `number | null` and guard the two spots that read it (row render + winners/losers split). `upCount`/`downCount` ignore null entries.
+- `src/components/command/MoversCard.tsx` — WL branch inside the `rows` `useMemo`. No hook/schema changes.
 
 ### Out of scope
-- Backfilling `watchlist_price_history` for missing tickers — separate ingestion concern.
-- Any change to HOLDINGS behaviour.
+- Holdings branch (already correct: uses `h.day` from the sheet for 1D).
+- Ingestion cadence or weekend duplication in `watchlist_price_history`.
