@@ -226,8 +226,8 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{priceStr}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change >= 0 ? "var(--green)" : "var(--red)", minWidth: 60, textAlign: "right" }}>
-                {m.change >= 0 ? "+" : ""}{m.change.toFixed(2)}%
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", minWidth: 60, textAlign: "right" }}>
+                {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
               </span>
               {hasSpark && <Sparkline points={m.sparkPoints!} color={m.sparkColor} width={80} height={18} />}
             </div>
