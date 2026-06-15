@@ -671,6 +671,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_reviews: {
+        Row: {
+          cadence: string
+          created_at: string
+          id: string
+          last_completed: string | null
+          next_due: string
+          notes: string | null
+          review_type: string
+          status: string
+          ticker: string | null
+          title: string
+          updated_at: string
+          vault_path: string | null
+        }
+        Insert: {
+          cadence?: string
+          created_at?: string
+          id?: string
+          last_completed?: string | null
+          next_due: string
+          notes?: string | null
+          review_type: string
+          status?: string
+          ticker?: string | null
+          title: string
+          updated_at?: string
+          vault_path?: string | null
+        }
+        Update: {
+          cadence?: string
+          created_at?: string
+          id?: string
+          last_completed?: string | null
+          next_due?: string
+          notes?: string | null
+          review_type?: string
+          status?: string
+          ticker?: string | null
+          title?: string
+          updated_at?: string
+          vault_path?: string | null
+        }
+        Relationships: []
+      }
       score_rationales: {
         Row: {
           action: string
