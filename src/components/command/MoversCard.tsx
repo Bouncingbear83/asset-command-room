@@ -240,8 +240,8 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
             </span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{priceStr}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
-              {m.change >= 0 ? "+" : ""}{m.change.toFixed(2)}%
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
+              {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
             </span>
             {hasSpark ? <Sparkline points={m.sparkPoints!} color={m.sparkColor} width={90} height={22} /> : <span />}
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
