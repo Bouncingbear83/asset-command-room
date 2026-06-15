@@ -12,7 +12,7 @@ type Scope = "ALL" | "HELD" | "WL";
 interface MoverRow {
   ticker: string;
   price: number;
-  change: number;
+  change: number | null;
   mv: number;
   currency: string;
   isWatchlist: boolean;
@@ -132,19 +132,27 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         last = traj.spark30d[traj.spark30d.length - 1].close;
         prev = traj.spark30d[traj.spark30d.length - 2].close;
       }
-      if (last == null || prev == null || !prev) return;
 
-      let change = ((last - prev) / prev) * 100;
-      if (period === "1W") {
-        if (pd && pd.points.length >= 5) {
-          const p5 = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
-          if (p5) change = ((last - p5) / p5) * 100;
-        } else if (traj?.price7dAgo) { change = ((last - traj.price7dAgo) / traj.price7dAgo) * 100; }
-      } else if (period === "1M") {
-        if (pd && pd.points.length >= 20) {
-          const p21 = pd.points[Math.max(0, pd.points.length - 22)]?.priceLocal;
-          if (p21) change = ((last - p21) / p21) * 100;
-        } else if (traj?.price30dAgo) { change = ((last - traj.price30dAgo) / traj.price30dAgo) * 100; }
+      const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
+      const hasHistory = last != null && prev != null && !!prev;
+
+      // If no history AND no sheet price, drop the row
+      if (!hasHistory && sheetPrice == null) return;
+
+      let change: number | null = null;
+      if (hasHistory) {
+        change = ((last! - prev!) / prev!) * 100;
+        if (period === "1W") {
+          if (pd && pd.points.length >= 5) {
+            const p5 = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
+            if (p5) change = ((last! - p5) / p5) * 100;
+          } else if (traj?.price7dAgo) { change = ((last! - traj.price7dAgo) / traj.price7dAgo) * 100; }
+        } else if (period === "1M") {
+          if (pd && pd.points.length >= 20) {
+            const p21 = pd.points[Math.max(0, pd.points.length - 22)]?.priceLocal;
+            if (p21) change = ((last! - p21) / p21) * 100;
+          } else if (traj?.price30dAgo) { change = ((last! - traj.price30dAgo) / traj.price30dAgo) * 100; }
+        }
       }
 
       const flags: string[] = [];
@@ -157,10 +165,12 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         : null;
 
       out.push({
-        ticker: w.ticker, price: typeof w.current === "number" ? w.current : last, change,
+        ticker: w.ticker,
+        price: sheetPrice ?? last!,
+        change,
         mv: 0, currency: w.currency || "USD",
         isWatchlist: true, isBordier: false, flags, sparkPoints,
-        sparkColor: pd?.sparklineColor ?? (change >= 0 ? "green" : "red"),
+        sparkColor: pd?.sparklineColor ?? (change == null ? "neutral" : change >= 0 ? "green" : "red"),
         entry: w.entry,
       });
     });
@@ -176,12 +186,13 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     return list;
   }, [rows, scope]);
 
-  // Split into winners/losers, each sorted by absolute change desc
-  const winners = useMemo(() => filtered.filter((r) => r.change > 0).sort((a, b) => b.change - a.change), [filtered]);
-  const losers = useMemo(() => filtered.filter((r) => r.change <= 0).sort((a, b) => a.change - b.change), [filtered]);
+  // Split into winners/losers/no-data, each sorted by absolute change desc
+  const winners = useMemo(() => filtered.filter((r) => r.change != null && r.change > 0).sort((a, b) => (b.change as number) - (a.change as number)), [filtered]);
+  const losers = useMemo(() => filtered.filter((r) => r.change != null && r.change <= 0).sort((a, b) => (a.change as number) - (b.change as number)), [filtered]);
+  const noData = useMemo(() => filtered.filter((r) => r.change == null), [filtered]);
 
-  const upCount = rows.filter((r) => r.change > 0).length;
-  const downCount = rows.filter((r) => r.change <= 0).length;
+  const upCount = rows.filter((r) => r.change != null && r.change > 0).length;
+  const downCount = rows.filter((r) => r.change != null && r.change <= 0).length;
 
   const segBase: React.CSSProperties = {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em",
@@ -215,8 +226,8 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{priceStr}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change >= 0 ? "var(--green)" : "var(--red)", minWidth: 60, textAlign: "right" }}>
-                {m.change >= 0 ? "+" : ""}{m.change.toFixed(2)}%
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", minWidth: 60, textAlign: "right" }}>
+                {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
               </span>
               {hasSpark && <Sparkline points={m.sparkPoints!} color={m.sparkColor} width={80} height={18} />}
             </div>
@@ -229,8 +240,8 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
             </span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{priceStr}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
-              {m.change >= 0 ? "+" : ""}{m.change.toFixed(2)}%
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
+              {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
             </span>
             {hasSpark ? <Sparkline points={m.sparkPoints!} color={m.sparkColor} width={90} height={22} /> : <span />}
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -301,6 +312,12 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
               <>
                 {sectionLabel("Losers", losers.length, "var(--red)")}
                 {losers.map(renderRow)}
+              </>
+            )}
+            {noData.length > 0 && (
+              <>
+                {sectionLabel("No Δ data", noData.length, "var(--text-dim)")}
+                {noData.map(renderRow)}
               </>
             )}
           </>
