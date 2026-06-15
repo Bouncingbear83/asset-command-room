@@ -124,35 +124,39 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       const pd = priceData?.get(normaliseTicker(w.ticker));
       const traj = wlHistory[key];
 
-      let last: number | null = null, prev: number | null = null;
-      if (pd && pd.points.length >= 2) {
-        last = pd.points[pd.points.length - 1].priceLocal;
-        prev = pd.points[pd.points.length - 2].priceLocal;
-      } else if (traj && traj.spark30d.length >= 2) {
-        last = traj.spark30d[traj.spark30d.length - 1].close;
-        prev = traj.spark30d[traj.spark30d.length - 2].close;
+      const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
+
+      // Latest history close (use as 1D anchor; also as "last" fallback)
+      const histLast: number | null =
+        pd && pd.points.length >= 1 ? pd.points[pd.points.length - 1].priceLocal :
+        traj && traj.spark30d.length >= 1 ? traj.spark30d[traj.spark30d.length - 1].close :
+        null;
+
+      // "Now": prefer live sheet price, fall back to last history
+      const last: number | null = sheetPrice ?? histLast;
+
+      // "Then" anchor depending on period
+      let prev: number | null = null;
+      if (period === "1D") {
+        prev = histLast;
+      } else if (period === "1W") {
+        if (pd && pd.points.length >= 6) prev = pd.points[pd.points.length - 6].priceLocal;
+        else if (traj?.price7dAgo) prev = traj.price7dAgo;
+        else prev = histLast;
+      } else if (period === "1M") {
+        if (pd && pd.points.length >= 22) prev = pd.points[pd.points.length - 22].priceLocal;
+        else if (traj?.price30dAgo) prev = traj.price30dAgo;
+        else prev = histLast;
       }
 
-      const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
-      const hasHistory = last != null && prev != null && !!prev;
-
-      // If no history AND no sheet price, drop the row
-      if (!hasHistory && sheetPrice == null) return;
+      // Drop entirely if no price at all
+      if (last == null) return;
 
       let change: number | null = null;
-      if (hasHistory) {
-        change = ((last! - prev!) / prev!) * 100;
-        if (period === "1W") {
-          if (pd && pd.points.length >= 5) {
-            const p5 = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
-            if (p5) change = ((last! - p5) / p5) * 100;
-          } else if (traj?.price7dAgo) { change = ((last! - traj.price7dAgo) / traj.price7dAgo) * 100; }
-        } else if (period === "1M") {
-          if (pd && pd.points.length >= 20) {
-            const p21 = pd.points[Math.max(0, pd.points.length - 22)]?.priceLocal;
-            if (p21) change = ((last! - p21) / p21) * 100;
-          } else if (traj?.price30dAgo) { change = ((last! - traj.price30dAgo) / traj.price30dAgo) * 100; }
-        }
+      if (prev != null && prev > 0 && last !== prev) {
+        change = ((last - prev) / prev) * 100;
+      } else if (prev != null && prev > 0 && last === prev) {
+        change = 0;
       }
 
       const flags: string[] = [];
@@ -166,7 +170,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
 
       out.push({
         ticker: w.ticker,
-        price: sheetPrice ?? last!,
+        price: last,
         change,
         mv: 0, currency: w.currency || "USD",
         isWatchlist: true, isBordier: false, flags, sparkPoints,
