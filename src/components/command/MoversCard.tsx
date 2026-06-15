@@ -186,12 +186,13 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     return list;
   }, [rows, scope]);
 
-  // Split into winners/losers, each sorted by absolute change desc
-  const winners = useMemo(() => filtered.filter((r) => r.change > 0).sort((a, b) => b.change - a.change), [filtered]);
-  const losers = useMemo(() => filtered.filter((r) => r.change <= 0).sort((a, b) => a.change - b.change), [filtered]);
+  // Split into winners/losers/no-data, each sorted by absolute change desc
+  const winners = useMemo(() => filtered.filter((r) => r.change != null && r.change > 0).sort((a, b) => (b.change as number) - (a.change as number)), [filtered]);
+  const losers = useMemo(() => filtered.filter((r) => r.change != null && r.change <= 0).sort((a, b) => (a.change as number) - (b.change as number)), [filtered]);
+  const noData = useMemo(() => filtered.filter((r) => r.change == null), [filtered]);
 
-  const upCount = rows.filter((r) => r.change > 0).length;
-  const downCount = rows.filter((r) => r.change <= 0).length;
+  const upCount = rows.filter((r) => r.change != null && r.change > 0).length;
+  const downCount = rows.filter((r) => r.change != null && r.change <= 0).length;
 
   const segBase: React.CSSProperties = {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em",
