@@ -9,6 +9,7 @@ import AsymmetryCompact from "@/components/command/AsymmetryCompact";
 import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
+import ScheduledReviewsCard from "@/components/ScheduledReviewsCard";
 
 const SIGNAL_KEYS = ["VIX", "SP500_YTD_PCT", "GOLD_USD", "PAUSE_ACTIVE", "EARNINGS_BLACKOUT"] as const;
 const SIGNAL_LABELS: Record<(typeof SIGNAL_KEYS)[number], string> = {
