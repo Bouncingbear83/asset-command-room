@@ -132,19 +132,27 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         last = traj.spark30d[traj.spark30d.length - 1].close;
         prev = traj.spark30d[traj.spark30d.length - 2].close;
       }
-      if (last == null || prev == null || !prev) return;
 
-      let change = ((last - prev) / prev) * 100;
-      if (period === "1W") {
-        if (pd && pd.points.length >= 5) {
-          const p5 = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
-          if (p5) change = ((last - p5) / p5) * 100;
-        } else if (traj?.price7dAgo) { change = ((last - traj.price7dAgo) / traj.price7dAgo) * 100; }
-      } else if (period === "1M") {
-        if (pd && pd.points.length >= 20) {
-          const p21 = pd.points[Math.max(0, pd.points.length - 22)]?.priceLocal;
-          if (p21) change = ((last - p21) / p21) * 100;
-        } else if (traj?.price30dAgo) { change = ((last - traj.price30dAgo) / traj.price30dAgo) * 100; }
+      const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
+      const hasHistory = last != null && prev != null && !!prev;
+
+      // If no history AND no sheet price, drop the row
+      if (!hasHistory && sheetPrice == null) return;
+
+      let change: number | null = null;
+      if (hasHistory) {
+        change = ((last! - prev!) / prev!) * 100;
+        if (period === "1W") {
+          if (pd && pd.points.length >= 5) {
+            const p5 = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
+            if (p5) change = ((last! - p5) / p5) * 100;
+          } else if (traj?.price7dAgo) { change = ((last! - traj.price7dAgo) / traj.price7dAgo) * 100; }
+        } else if (period === "1M") {
+          if (pd && pd.points.length >= 20) {
+            const p21 = pd.points[Math.max(0, pd.points.length - 22)]?.priceLocal;
+            if (p21) change = ((last! - p21) / p21) * 100;
+          } else if (traj?.price30dAgo) { change = ((last! - traj.price30dAgo) / traj.price30dAgo) * 100; }
+        }
       }
 
       const flags: string[] = [];
@@ -157,10 +165,12 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         : null;
 
       out.push({
-        ticker: w.ticker, price: typeof w.current === "number" ? w.current : last, change,
+        ticker: w.ticker,
+        price: sheetPrice ?? last!,
+        change,
         mv: 0, currency: w.currency || "USD",
         isWatchlist: true, isBordier: false, flags, sparkPoints,
-        sparkColor: pd?.sparklineColor ?? (change >= 0 ? "green" : "red"),
+        sparkColor: pd?.sparklineColor ?? (change == null ? "neutral" : change >= 0 ? "green" : "red"),
         entry: w.entry,
       });
     });
