@@ -207,6 +207,9 @@ export default function CommandTab() {
       {/* ── LAYER REVIEW CALENDAR ── */}
       <LayerReviewCalendar />
 
+      {/* ── SCHEDULED REVIEWS ── */}
+      <ScheduledReviewsCard />
+
       {/* ── CARD 6: RISK CONTROLS (collapsible) ── */}
       <details style={card}>
         <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
