@@ -314,6 +314,12 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
                 {losers.map(renderRow)}
               </>
             )}
+            {noData.length > 0 && (
+              <>
+                {sectionLabel("No Δ data", noData.length, "var(--text-dim)")}
+                {noData.map(renderRow)}
+              </>
+            )}
           </>
         )}
       </div>
