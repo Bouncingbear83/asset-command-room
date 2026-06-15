@@ -12,7 +12,7 @@ type Scope = "ALL" | "HELD" | "WL";
 interface MoverRow {
   ticker: string;
   price: number;
-  change: number;
+  change: number | null;
   mv: number;
   currency: string;
   isWatchlist: boolean;
