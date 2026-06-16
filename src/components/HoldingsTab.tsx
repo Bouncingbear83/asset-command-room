@@ -6,6 +6,7 @@ import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";
+import { useLivePrices } from "@/hooks/useLivePrices";
 import { Sparkline } from "@/components/Sparkline";
 import ReviewQueue, { parseReviewFlag as parseFlag } from "@/components/ReviewQueue";
 import TickerButton from "@/components/factsheet/TickerButton";
@@ -259,7 +260,14 @@ function UnifiedView({
   // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST
   const quartetMap = useQuartetMap(scores ?? [], allHoldings, watchlist);
 
-  // Case-insensitive score lookup (for chinaExposureFlag only)
+  // Live Yahoo prices for holdings (same edge function + alias map as Watchlist)
+  const holdingsTickers = useMemo(
+    () => Array.from(new Set(allHoldings.map(h => normaliseTicker(h.ticker)).filter(Boolean))),
+    [allHoldings],
+  );
+  const { prices: livePrices } = useLivePrices(holdingsTickers);
+
+  // Case-insensitive score lookup
   const scoreByTicker = useMemo(() => {
     const m = new Map<string, LiveScore>();
     for (const s of scores ?? []) {
@@ -427,6 +435,8 @@ function UnifiedView({
                 const hasReturns = r && r.totalCost > 0;
                 const summary = getSummary(h.ticker);
                 const flag = parseFlag(h.ticker, h.trigger_review_date, h.trigger_review_note);
+                const lpMobile = livePrices[normaliseTicker(h.ticker)];
+                const displayDayMobile = lpMobile?.changePercent ?? h.day;
                 return (
                   <div key={rowKey} style={{ borderBottom: "1px solid var(--rim)" }}>
                     <button
@@ -492,8 +502,8 @@ function UnifiedView({
                         <span style={{ fontSize: 11, color: h.gl >= 0 ? "var(--green)" : "var(--red)" }}>
                           {h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"} G/L
                         </span>
-                        <span style={{ fontSize: 11, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)" }}>
-                          {h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"} day
+                        <span style={{ fontSize: 11, color: displayDayMobile > 0 ? "var(--green)" : displayDayMobile < 0 ? "var(--red)" : "var(--text-dim)" }}>
+                          {displayDayMobile != null ? `${displayDayMobile >= 0 ? "+" : ""}${displayDayMobile.toFixed(2)}%` : "—"} day
                         </span>
                         {h.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={h.liveAsymmetry} />}
                       </div>
@@ -606,6 +616,9 @@ function UnifiedView({
                   const isOpen = expanded.has(rowKey);
                   const r = h.returns;
                   const hasReturns = r && r.totalCost > 0;
+                  const lp = livePrices[normaliseTicker(h.ticker)];
+                  const displayPrice = lp?.price ?? h.price;
+                  const displayDay = lp?.changePercent ?? h.day;
                   return (
                     <>
                       <tr key={rowKey} onClick={() => toggle(rowKey)} style={{ borderBottom: isOpen ? "none" : "1px solid rgba(28,28,48,0.3)", cursor: "pointer" }}>
@@ -663,10 +676,10 @@ function UnifiedView({
                         )}
                         <td style={{ padding: cellPad, color: "var(--text)", textAlign: "right", whiteSpace: "nowrap" }}>{h.mv ? `£${h.mv.toLocaleString("en-GB", { maximumFractionDigits: 0 })}` : "—"}</td>
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
-                        <td style={{ padding: cellPad, color: h.day > 0 ? "var(--green)" : h.day < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{h.day != null ? `${h.day >= 0 ? "+" : ""}${h.day.toFixed(2)}%` : "—"}</td>
+                        <td style={{ padding: cellPad, color: displayDay > 0 ? "var(--green)" : displayDay < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{displayDay != null ? `${displayDay >= 0 ? "+" : ""}${displayDay.toFixed(2)}%` : "—"}</td>
                         <td style={{ padding: cellPad, textAlign: "right" }}>{h.liveAsymmetry ? <AsymmetryPill asymmetry={h.liveAsymmetry} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}</td>
-                        <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{h.price != null ? `${h.price.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
-
+                        <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{displayPrice != null ? `${displayPrice.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
+                       
                         {!isMobile && (() => {
                           const pd = priceData?.get(normaliseTicker(h.ticker));
                           return <td style={{ padding: cellPad }}>{pd && pd.points.length >= 5 ? <Sparkline points={pd.points} color={pd.sparklineColor} /> : <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>—</span>}</td>;
