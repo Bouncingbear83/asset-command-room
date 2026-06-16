@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
+import { useLivePrices } from "@/hooks/useLivePrices";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -62,6 +63,16 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
   );
   const { byTicker: wlHistory } = useWatchlistHistory(watchlistTickerList);
 
+  // Live Yahoo prices for both holdings and watchlist
+  const allTickerList = useMemo(
+    () => Array.from(new Set([
+      ...holdings.map((h) => normaliseTicker(h.ticker)),
+      ...watchlistTickerList,
+    ].filter(Boolean))),
+    [holdings, watchlistTickerList],
+  );
+  const { prices: livePrices } = useLivePrices(allTickerList);
+
   const earningsTickers = useMemo(() => {
     const set = new Set<string>();
     earnings.forEach((e) => { const d = daysUntil(e.nextEarningsDate); if (d >= 0 && d <= 1) set.add(e.ticker.toUpperCase()); });
@@ -84,12 +95,14 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         if (idx >= 0) out.splice(idx, 1);
       }
       seen.add(key);
-      if (h.prevClose != null && h.price === h.prevClose) return;
+      const lp = livePrices[normaliseTicker(h.ticker)];
+      const displayPrice = lp?.price ?? h.price;
+      if (lp == null && h.prevClose != null && h.price === h.prevClose) return;
 
       const isBordier = String(h.account || "").toUpperCase().replace(/[^A-Z]/g, "").startsWith("BORDIER");
       const pd = priceData?.get(normaliseTicker(h.ticker));
 
-      let change = h.day ?? 0;
+      let change = lp?.changePercent ?? h.day ?? 0;
       if (period === "1W" && pd && pd.points.length >= 5) {
         const prev = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
         const latest = pd.points[pd.points.length - 1]?.priceLocal;
@@ -108,7 +121,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       if (earningsTickers.has(key)) flags.push("ERN");
 
       out.push({
-        ticker: h.ticker, price: h.price, change, mv: h.mv || 0, currency: h.currency,
+        ticker: h.ticker, price: displayPrice, change, mv: h.mv || 0, currency: h.currency,
         isWatchlist: false, isBordier, flags,
         sparkPoints: pd && pd.points.length >= 5 ? pd.points : null,
         sparkColor: pd?.sparklineColor ?? (change >= 0 ? "green" : "red"),
@@ -125,6 +138,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       const traj = wlHistory[key];
 
       const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
+      const lp = livePrices[key];
 
       // Latest history close (use as 1D anchor; also as "last" fallback)
       const histLast: number | null =
@@ -133,7 +147,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         null;
 
       // "Now": prefer live sheet price, fall back to last history
-      const last: number | null = sheetPrice ?? histLast;
+      const last: number | null = lp?.price ?? sheetPrice ?? histLast;
 
       // "Then" anchor depending on period
       let prev: number | null = null;
@@ -153,7 +167,9 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       if (last == null) return;
 
       let change: number | null = null;
-      if (prev != null && prev > 0 && last !== prev) {
+      if (period === "1D" && lp?.changePercent != null) {
+        change = lp.changePercent;
+      } else if (prev != null && prev > 0 && last !== prev) {
         change = ((last - prev) / prev) * 100;
       } else if (prev != null && prev > 0 && last === prev) {
         change = 0;
@@ -180,7 +196,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     });
 
     return out;
-  }, [holdings, watchlist, priceData, wlHistory, earningsTickers, period, ZONE_THRESHOLD]);
+  }, [holdings, watchlist, priceData, wlHistory, livePrices, earningsTickers, period, ZONE_THRESHOLD]);
 
   // Apply scope filter
   const filtered = useMemo(() => {
