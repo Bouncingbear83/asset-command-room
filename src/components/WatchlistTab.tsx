@@ -496,8 +496,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
       // Prefer live Yahoo quote, then Supabase daily close, then sheet CURRENT PRICE
       const liveQuote = livePrices[ticker];
-      const currentPrice = liveQuote?.price ?? trajectory?.currentClose ?? item.current ?? null;
-
+      const currentPrice = item.current ?? trajectory?.currentClose ?? null;
       let zoneStatus: ZoneStatus;
       if (currentPrice == null) zoneStatus = "PRE_IPO";
       else if (!zone) zoneStatus = "WAITING";
