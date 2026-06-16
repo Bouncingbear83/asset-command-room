@@ -46,7 +46,9 @@ export interface DerivedRow {
   /** Live asymmetry computed from the quartet + current price. */
   liveAsymmetry: LiveAsymmetryResult;
   /** Raw China exposure flag from SCORES (HIGH/MEDIUM/LOW/N/A/blank). */
-  chinaExposureFlag: string;
+chinaExposureFlag: string;
+  /** Live-resolved price: Yahoo → trajectory → sheet, set by WatchlistTab derivation. */
+  currentPrice: number | null;
 }
 
 
@@ -493,14 +495,14 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <StackBadge value={item.stack_layer} />
           <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-            Cur <span style={{ color: "var(--text)" }}>{formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}</span>
+            Cur <span style={{ color: "var(--text)" }}>{formatPrice(row.currentPrice, item.currency, item.ticker)}</span>
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
             Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
           </span>
           {(() => {
             if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
-              const cp = trajectory?.currentClose ?? item.current ?? null;
+              const cp = row.currentPrice;
               if (cp != null) {
                 const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
                 return (
@@ -686,7 +688,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ color: "var(--text-dim)" }}>Current:</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
-              {formatPrice(trajectory?.currentClose ?? item.current ?? null, item.currency, item.ticker)}
+              {formatPrice(row.currentPrice, item.currency, item.ticker)}
             </span>
             <TrajectoryArrow pct={change7dPct} />
             <span style={{ color: "var(--text-dim)", fontSize: 9 }}>7d</span>
@@ -699,7 +701,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           </div>
           {(() => {
             // IN_ZONE → "Position: X% through zone" (lower = closer to bottom = better)
-            const cp = trajectory?.currentClose ?? item.current ?? null;
+            const cp = row.currentPrice;
             if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low && cp != null) {
               const through = ((cp - zone.low) / (zone.high - zone.low)) * 100;
               return (
