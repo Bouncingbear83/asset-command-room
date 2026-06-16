@@ -6,6 +6,7 @@ import { parseEntryTarget } from "@/lib/parseEntryTarget";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
 import { useWatchlistScores } from "@/hooks/useWatchlistScores";
+import { useLivePrices } from "@/hooks/useLivePrices";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import WatchlistDebugTable from "./WatchlistDebugTable";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
@@ -437,6 +438,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
   const { byTicker: traj, loading: trajLoading } = useWatchlistHistory(allTickers);
   const { byTicker: scoresByTicker } = useWatchlistScores(allTickers);
+  const { prices: livePrices, loading: livePricesLoading } = useLivePrices(allTickers);
 
   // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
   const profileByTicker = useMemo(() => {
@@ -492,8 +494,9 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
 
       const zone = parseEntryTarget(item.entry, item.triggerPriceNumeric);
 
-      // Prefer Supabase live close, fall back to sheet's CURRENT PRICE
-      const currentPrice = trajectory?.currentClose ?? item.current ?? null;
+      // Prefer live Yahoo quote, then Supabase daily close, then sheet CURRENT PRICE
+      const liveQuote = livePrices[ticker];
+      const currentPrice = liveQuote?.price ?? trajectory?.currentClose ?? item.current ?? null;
 
       let zoneStatus: ZoneStatus;
       if (currentPrice == null) zoneStatus = "PRE_IPO";
@@ -546,7 +549,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
       };
     });
-  }, [liveData, traj, scoresByTicker, profileByTicker, scoreByTicker]);
+  }, [liveData, traj, livePrices, scoresByTicker, profileByTicker, scoreByTicker]);
 
 
   // Apply search + filter chips
