@@ -938,6 +938,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ticker_aliases: {
+        Row: {
+          created_at: string
+          exchange: string | null
+          skip: boolean
+          ticker: string
+          updated_at: string
+          yahoo_symbol: string | null
+        }
+        Insert: {
+          created_at?: string
+          exchange?: string | null
+          skip?: boolean
+          ticker: string
+          updated_at?: string
+          yahoo_symbol?: string | null
+        }
+        Update: {
+          created_at?: string
+          exchange?: string | null
+          skip?: boolean
+          ticker?: string
+          updated_at?: string
+          yahoo_symbol?: string | null
+        }
+        Relationships: []
+      }
       vault_backlinks: {
         Row: {
           id: number
