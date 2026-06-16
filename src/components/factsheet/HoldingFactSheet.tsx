@@ -178,8 +178,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
 
   // Price strip
   const firstHolding: LiveHolding | null = data.holdings[0] || null;
-  const livePrice = firstHolding?.price ?? null;
-  const latestEod = data.pricePoints.length > 0 ? data.pricePoints[data.pricePoints.length - 1] : null;
+  const livePrice = firstHolding?.price ?? data.watchlist?.current ?? null;  const latestEod = data.pricePoints.length > 0 ? data.pricePoints[data.pricePoints.length - 1] : null;
   const prevEod = data.pricePoints.length > 1 ? data.pricePoints[data.pricePoints.length - 2] : null;
   const eodPrice = latestEod?.priceLocal ?? null;
   const eodDate = latestEod?.date || null;
