@@ -547,6 +547,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         compounder_subtype: profileEntry?.subtype ?? null,
         liveAsymmetry,
         chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
+        currentPrice,
       };
     });
   }, [liveData, traj, livePrices, scoresByTicker, profileByTicker, scoreByTicker]);
