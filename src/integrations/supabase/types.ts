@@ -1067,6 +1067,7 @@ export type Database = {
         Args: { tickers: string[] }
         Returns: string[]
       }
+      upsert_watchlist_prices: { Args: { prices: Json }; Returns: number }
       vault_list_by_type: {
         Args: { p_type: string }
         Returns: {
