@@ -113,24 +113,22 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { error, count } = await supabase
-    .from("watchlist_price_history")
-    .upsert(normalised, {
-      onConflict: "ticker,snapshot_date",
-      ignoreDuplicates: true,
-      count: "exact",
-    });
+  const { data: rowCount, error } = await supabase.rpc("upsert_watchlist_prices", {
+    prices: normalised,
+  });
 
   if (error) {
-    console.error("upsert error:", JSON.stringify(error));
+    console.error("upsert_watchlist_prices error:", JSON.stringify(error));
     return new Response(
       JSON.stringify({ error: error.message, errors: [error.message] }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  const inserted = count ?? 0;
-  const skipped = normalised.length - inserted;
+  const inserted = typeof rowCount === "number" ? rowCount : normalised.length;
+  const skipped = Math.max(0, normalised.length - inserted);
+
+
 
   return new Response(
     JSON.stringify({ inserted, skipped, errors: [] }),
