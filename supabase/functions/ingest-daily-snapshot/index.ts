@@ -10,40 +10,102 @@ const corsHeaders = {
 // will land automatically as long as the column exists in Postgres.
 const EXPECTED_FIELDS: Record<string, readonly string[]> = {
   dailyPrices: [
-    "ticker", "snapshot_date", "price_local", "currency", "price_gbp",
-    "prev_close_local", "day_change_pct", "high_52w", "low_52w", "ma60", "source",
+    "ticker",
+    "snapshot_date",
+    "price_local",
+    "currency",
+    "price_gbp",
+    "prev_close_local",
+    "day_change_pct",
+    "high_52w",
+    "low_52w",
+    "ma60",
+    "source",
   ],
   fxRates: ["pair", "snapshot_date", "rate", "source"],
   holdingsSnapshot: [
-    "ticker", "account", "snapshot_date", "layer", "shares", "price_local",
-    "currency", "mv_gbp", "aum_pct", "cost_gbp", "gl_pct", "action",
-    "deploy_target_gbp", "alert_status", "factor_primary", "factor_group",
-    "stack_layer", "substrate_level", "source",
+    "ticker",
+    "account",
+    "snapshot_date",
+    "layer",
+    "shares",
+    "price_local",
+    "currency",
+    "mv_gbp",
+    "aum_pct",
+    "cost_gbp",
+    "gl_pct",
+    "action",
+    "deploy_target_gbp",
+    "alert_status",
+    "factor_primary",
+    "factor_group",
+    "stack_layer",
+    "substrate_level",
+    "source",
   ],
   jisaSnapshot: [
-    "child", "ticker", "snapshot_date", "type", "layer", "shares",
-    "price_local", "currency", "mv_gbp", "weight_pct", "cost_gbp", "gl_pct",
-    "target_pct", "source",
+    "child",
+    "ticker",
+    "snapshot_date",
+    "type",
+    "layer",
+    "shares",
+    "price_local",
+    "currency",
+    "mv_gbp",
+    "weight_pct",
+    "cost_gbp",
+    "gl_pct",
+    "target_pct",
+    "source",
   ],
-  layerWeights: [
-    "layer", "snapshot_date", "current_pct", "target_pct", "gap_pct",
-    "priority", "mv_gbp", "source",
-  ],
-  factorGroupWeights: [
-    "factor_group", "snapshot_date", "current_pct", "mv_gbp", "priority", "source",
-  ],
+  layerWeights: ["layer", "snapshot_date", "current_pct", "target_pct", "gap_pct", "priority", "mv_gbp", "source"],
+  factorGroupWeights: ["factor_group", "snapshot_date", "current_pct", "mv_gbp", "priority", "source"],
   scoresSnapshot: [
-    "ticker", "snapshot_date", "layer", "score", "substrate", "demand", "moat",
-    "valuation", "mgmt", "disruption", "tier", "action", "buy_low", "buy_high",
-    "return_profile", "compounder_subtype", "substrate_level", "stack_layer", "source",
+    "ticker",
+    "snapshot_date",
+    "layer",
+    "score",
+    "substrate",
+    "demand",
+    "moat",
+    "valuation",
+    "mgmt",
+    "disruption",
+    "tier",
+    "action",
+    "buy_low",
+    "buy_high",
+    "return_profile",
+    "compounder_subtype",
+    "substrate_level",
+    "stack_layer",
+    "source",
   ],
   disruptionSnapshot: [
-    "ticker", "snapshot_date", "disruption_score", "sub_avail", "economics",
-    "govt_support", "demand_vuln", "time_viability", "status", "source",
+    "ticker",
+    "snapshot_date",
+    "disruption_score",
+    "sub_avail",
+    "economics",
+    "govt_support",
+    "demand_vuln",
+    "time_viability",
+    "status",
+    "source",
   ],
   macroSnapshot: [
-    "snapshot_date", "vix", "sp500_ytd_pct", "uranium_spot_usd",
-    "copper_spot_usd_lb", "gold_usd", "brent_usd", "gbpusd", "pause_active", "source",
+    "snapshot_date",
+    "vix",
+    "sp500_ytd_pct",
+    "uranium_spot_usd",
+    "copper_spot_usd_lb",
+    "gold_usd",
+    "brent_usd",
+    "gbpusd",
+    "pause_active",
+    "source",
   ],
 };
 
@@ -57,6 +119,7 @@ const TABLE_CONFIG = [
   { key: "scoresSnapshot", table: "scores_snapshot", conflict: "ticker,snapshot_date" },
   { key: "disruptionSnapshot", table: "disruption_snapshot", conflict: "ticker,snapshot_date" },
   { key: "macroSnapshot", table: "macro_snapshot", conflict: "snapshot_date" },
+  { key: "watchlistPrices", table: "watchlist_price_history", conflict: "ticker,snapshot_date" },
 ] as const;
 
 /**
@@ -149,10 +212,7 @@ Deno.serve(async (req) => {
   }
 
   // Create service role client
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const results: Record<string, { rows: number; count: number; status: string; error?: string }> = {};
 
@@ -169,9 +229,7 @@ Deno.serve(async (req) => {
 
     // Pure passthrough upsert — no whitelist, no type stripping. Any column
     // present on the row that also exists on the table will be written.
-    const { error } = await supabase
-      .from(table)
-      .upsert(rows, { onConflict: conflict, ignoreDuplicates: false });
+    const { error } = await supabase.from(table).upsert(rows, { onConflict: conflict, ignoreDuplicates: false });
 
     if (error) {
       console.error(`${table} error:`, JSON.stringify(error));
