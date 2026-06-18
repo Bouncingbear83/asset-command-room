@@ -13,6 +13,7 @@ interface PriceChartProps {
   loading?: boolean;
   height?: number;
   milestones?: PriceMilestone[];
+  buyZone?: { low: number | null; high: number | null } | null;
 }
 
 const MILESTONE_STYLE: Record<PriceMilestone["kind"], { color: string; glyph: string; dash: string }> = {
@@ -85,7 +86,7 @@ function buildXLabels(data: DailyPricePoint[], range: RangeKey, toPct: (i: numbe
   return labels.map(l => ({ ...l, pct: Math.min(l.pct, 95) }));
 }
 
-export function PriceChart({ points, loading, height = 140, milestones }: PriceChartProps) {
+export function PriceChart({ points, loading, height = 140, milestones, buyZone }: PriceChartProps) {
   const [range, setRange] = useState<RangeKey>("1Y");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -167,12 +168,15 @@ export function PriceChart({ points, loading, height = 140, milestones }: PriceC
 
   const ma20Points: string[] = [];
   const ma50Points: string[] = [];
+  const ma200Points: string[] = [];
   for (let i = 0; i < prices.length; i++) {
     const m20 = computeMA(prices, 20, i);
     const m50 = computeMA(prices, 50, i);
+    const m200 = computeMA(prices, 200, i);
     const x = toPctX(i);
     if (m20 != null) ma20Points.push(`${ma20Points.length === 0 ? "M" : "L"}${x.toFixed(2)},${toPctY(m20, minP, range_).toFixed(2)}`);
     if (m50 != null) ma50Points.push(`${ma50Points.length === 0 ? "M" : "L"}${x.toFixed(2)},${toPctY(m50, minP, range_).toFixed(2)}`);
+    if (m200 != null) ma200Points.push(`${ma200Points.length === 0 ? "M" : "L"}${x.toFixed(2)},${toPctY(m200, minP, range_).toFixed(2)}`);
   }
 
   const trendColor = prices[prices.length - 1] >= prices[0] ? "var(--green)" : "var(--red)";
@@ -236,6 +240,8 @@ export function PriceChart({ points, loading, height = 140, milestones }: PriceC
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>{data[0].date} → {data[data.length - 1].date}</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "#7bb8ff" }}>— MA20</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--gold)" }}>-- MA50</span>
+        {ma200Points.length > 1 && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--amber)" }}>·· MA200</span>}
+        {buyZone && buyZone.low != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "rgba(90,191,160,0.7)" }}>▮ Buy zone</span>}
         {resolvedMilestones.length > 0 && (
           <span style={{ display: "inline-flex", gap: 8, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>
             {(["added","scored","alert","earnings"] as const).filter(k => resolvedMilestones.some(r => r.kinds.includes(k))).map(k => (
@@ -282,6 +288,20 @@ export function PriceChart({ points, loading, height = 140, milestones }: PriceC
               />
             );
           })}
+          {/* Buy zone band */}
+          {buyZone && buyZone.low != null && buyZone.high != null && buyZone.low >= minP && buyZone.high <= maxP + range_ * 0.1 && (
+            <rect
+              x={padLeft}
+              y={toPctY(buyZone.high, minP, range_)}
+              width={chartW}
+              height={toPctY(buyZone.low, minP, range_) - toPctY(buyZone.high, minP, range_)}
+              fill="rgba(90,191,160,0.08)"
+              stroke="rgba(90,191,160,0.25)"
+              strokeWidth="0.15"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+          {ma200Points.length > 1 && <path d={ma200Points.join(" ")} fill="none" stroke="var(--amber)" strokeWidth="0.5" strokeDasharray="2,1.5" opacity="0.5" vectorEffect="non-scaling-stroke" />}
           {ma50Points.length > 1 && <path d={ma50Points.join(" ")} fill="none" stroke="var(--gold)" strokeWidth="0.5" strokeDasharray="1,0.8" opacity="0.6" vectorEffect="non-scaling-stroke" />}
           {ma20Points.length > 1 && <path d={ma20Points.join(" ")} fill="none" stroke="#7bb8ff" strokeWidth="0.5" opacity="0.7" vectorEffect="non-scaling-stroke" />}
           <path d={pricePath} fill="none" stroke={trendColor} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
