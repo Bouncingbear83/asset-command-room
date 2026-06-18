@@ -165,7 +165,7 @@ function SectionSkeleton({ rows = 2 }: { rows?: number }) {
 
 export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose }: Props) {
   const data = useFactSheetData(ticker, portfolio, priceData);
-  const [chartRange, setChartRange] = useState<30 | 90 | 180>(90);
+  const [chartRange, setChartRange] = useState<30 | 90 | 180 | 365>(90);
 
   const banners = useMemo(() => computeBanners(data), [data]);
 
@@ -384,10 +384,10 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={sectionTitle}>Price History</span>
                 <div style={{ display: "flex", gap: 4 }}>
-                  {[30, 90, 180].map((d) => (
+                  {([30, 90, 180, 365] as const).map((d) => (
                     <button
                       key={d}
-                      onClick={() => setChartRange(d as 30 | 90 | 180)}
+                      onClick={() => setChartRange(d)}
                       style={{
                         fontFamily: "var(--font-mono)", fontSize: 10, padding: "3px 8px",
                         background: chartRange === d ? "rgba(201,168,76,0.15)" : "transparent",
@@ -395,7 +395,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                         color: chartRange === d ? "var(--gold)" : "var(--text-dim)",
                         cursor: "pointer", borderRadius: 2,
                       }}
-                    >{d}D</button>
+                    >{d === 365 ? "1Y" : `${d}D`}</button>
                   ))}
                 </div>
               </div>
@@ -403,7 +403,12 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 ? <SectionSkeleton rows={4} />
                 : data.pricePoints.length === 0
                   ? <span style={monoLabel}>{data.errors.prices || "No price history available"}</span>
-                  : <PriceChart points={chartPoints} height={160} milestones={milestones} />
+                  : <PriceChart
+                      points={chartPoints}
+                      height={160}
+                      milestones={milestones}
+                      buyZone={data.score ? { low: (data.score as any).buyLow ?? null, high: (data.score as any).buyHigh ?? null } : null}
+                    />
               }
             </div>
 
