@@ -140,10 +140,12 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
       const lp = livePrices[key];
 
-      // Latest history close (use as 1D anchor; also as "last" fallback)
+      // Latest history close: for WL items prefer watchlist_price_history (traj)
+      // over daily_prices (pd), since pd may contain stale entries from when
+      // the ticker was formerly held or scored.
       const histLast: number | null =
-        pd && pd.points.length >= 1 ? pd.points[pd.points.length - 1].priceLocal :
         traj && traj.spark30d.length >= 1 ? traj.spark30d[traj.spark30d.length - 1].close :
+        pd && pd.points.length >= 1 ? pd.points[pd.points.length - 1].priceLocal :
         null;
 
       // "Now": prefer live sheet price, fall back to last history
@@ -152,14 +154,15 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       // "Then" anchor depending on period
       let prev: number | null = null;
       if (period === "1D") {
-        prev = histLast;
+        // Best 1D anchor: Yahoo previousClose > WL history last > daily_prices last
+        prev = lp?.previousClose ?? histLast;
       } else if (period === "1W") {
-        if (pd && pd.points.length >= 6) prev = pd.points[pd.points.length - 6].priceLocal;
-        else if (traj?.price7dAgo) prev = traj.price7dAgo;
+        if (traj?.price7dAgo) prev = traj.price7dAgo;
+        else if (pd && pd.points.length >= 6) prev = pd.points[pd.points.length - 6].priceLocal;
         else prev = histLast;
       } else if (period === "1M") {
-        if (pd && pd.points.length >= 22) prev = pd.points[pd.points.length - 22].priceLocal;
-        else if (traj?.price30dAgo) prev = traj.price30dAgo;
+        if (traj?.price30dAgo) prev = traj.price30dAgo;
+        else if (pd && pd.points.length >= 22) prev = pd.points[pd.points.length - 22].priceLocal;
         else prev = histLast;
       }
 
@@ -169,6 +172,9 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       let change: number | null = null;
       if (period === "1D" && lp?.changePercent != null) {
         change = lp.changePercent;
+      } else if (period === "1D" && lp?.previousClose != null && lp.previousClose > 0 && last != null) {
+        // Fallback: compute from Yahoo previousClose when changePercent is absent
+        change = ((last - lp.previousClose) / lp.previousClose) * 100;
       } else if (prev != null && prev > 0 && last !== prev) {
         change = ((last - prev) / prev) * 100;
       } else if (prev != null && prev > 0 && last === prev) {
