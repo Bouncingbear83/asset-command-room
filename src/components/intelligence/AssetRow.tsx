@@ -575,7 +575,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         </div>
 
         {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
-        <div style={{ flex: COL.bars.flex, minWidth: COL.bars.minWidth, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+        <div style={{ flex: COL.bars.flex, minWidth: COL.bars.minWidth, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
           <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
           <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
           <MiniBar value={asset.sub_scores.moat}             max={18} trend={asset.trend.moat} />
