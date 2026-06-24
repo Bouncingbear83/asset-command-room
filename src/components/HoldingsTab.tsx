@@ -576,7 +576,8 @@ function UnifiedView({
       <div style={{ padding: "10px 14px 0" }}>
         <MobileSortSelect maxWidth={899} options={mobileSortOptions} field={sortKey} dir={sortDir} onChange={handleMobileSortChange} />
       </div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, tableLayout: "auto" }}>
+      <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: 11, tableLayout: "auto", minWidth: 1100 }}>
         <thead>
           <tr>
             {visibleCols.map((col) => (
@@ -750,6 +751,7 @@ function UnifiedView({
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   );
 }
