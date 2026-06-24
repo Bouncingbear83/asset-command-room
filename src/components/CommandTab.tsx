@@ -5,7 +5,7 @@ import CommandHeader from "@/components/command/CommandHeader";
 import MoversCard from "@/components/command/MoversCard";
 import ActionInbox from "@/components/ActionInbox";
 import CapitalQueue from "@/components/command/CapitalQueue";
-import OpportunityRank from "@/components/command/OpportunityRank";
+import OpportunityRank from "@/components/OpportunityRank";
 import OpportunityScatter from "@/components/command/OpportunityScatter";
 import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
