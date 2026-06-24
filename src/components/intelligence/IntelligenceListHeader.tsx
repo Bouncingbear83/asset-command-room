@@ -74,10 +74,10 @@ export function IntelligenceListHeader({ sortField, sortDir, onSortChange }: Pro
       <div style={{ width: COL.stack, flexShrink: 0, textAlign: "center" }}>{sortBtn("Stack", "stack", "left")}</div>
       <div style={{ width: COL.score, flexShrink: 0 }}>{sortBtn("Score", "score")}</div>
 
-      {/* 6D bar labels — non-sortable, mirrors AssetRow grid */}
-      <div style={{ flex: COL.bars.flex, minWidth: COL.bars.minWidth, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-        {SUB_LABELS.map((l) => (
-          <span key={l} style={{ ...labelBase, cursor: "default", textAlign: "right" }}>{l}</span>
+      {/* 6D bar labels — sortable, mirrors AssetRow grid */}
+      <div style={{ flex: COL.bars.flex, minWidth: COL.bars.minWidth, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+        {(["sub", "dem", "moat", "val", "mgmt", "disr"] as const).map((field, i) => (
+          <div key={field}>{sortBtn(SUB_LABELS[i], field, "right")}</div>
         ))}
       </div>
 
