@@ -8,6 +8,7 @@ import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
 import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { AsymmetryBar } from "@/components/AsymmetryBar";
+import { computeIrrBb, formatIrr, formatYears, type IrrBbBand } from "@/lib/computeIrrBb";
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 
 interface Props {
@@ -494,6 +495,152 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
 
             {/* Vault thesis content */}
             <VaultTickerThesis ticker={ticker} />
+
+            {/* ── Return Profile: IRR-BB ── */}
+            {(() => {
+              const score: any = data.score;
+              const snapQ: any = data.quartetSnapshot;
+              const bullBase = snapQ?.bull_base ?? score?.bullBase ?? null;
+              const latestDailyPrice = data.pricePoints[data.pricePoints.length - 1]?.priceLocal ?? null;
+              const livePrice = data.holdings[0]?.price ?? latestDailyPrice ?? data.watchlist?.current ?? null;
+              const bbTargetDate = snapQ?.bb_target_date ?? (score as any)?.bbTargetDate ?? null;
+              const divYield = snapQ?.div_yield ?? (score as any)?.divYield ?? null;
+              const priceAtLastScore = score?.priceAtLastScore ?? null;
+              const isHeld = data.holdings.length > 0;
+              const ccy = score?.currency ?? (data.watchlist as any)?.currency ?? null;
+
+              if (bullBase === null || !bbTargetDate) return null;
+
+              const irr = computeIrrBb(bullBase, livePrice, bbTargetDate, divYield, priceAtLastScore, isHeld);
+              if (irr.irrBb === null) return null;
+
+              const irrPct = irr.irrBb * 100;
+              // Gauge: 0% to 40% range, clamp display
+              const gaugeMax = 40;
+              const markerPct = Math.max(0, Math.min(100, (irrPct / gaugeMax) * 100));
+              const thresh15 = (15 / gaugeMax) * 100;
+              const thresh20 = (20 / gaugeMax) * 100;
+
+              const bandColor: Record<string, string> = {
+                DEPLOY: "var(--green)",
+                ACTIONABLE: "var(--amber)",
+                HOLD_ONLY: "var(--red)",
+                DORMANT: "var(--text-dim)",
+              };
+              const bandBg: Record<string, string> = {
+                DEPLOY: "var(--green-dim)",
+                ACTIONABLE: "rgba(200,146,90,0.12)",
+                HOLD_ONLY: "var(--red-dim)",
+                DORMANT: "transparent",
+              };
+              const bc = bandColor[irr.band ?? "DORMANT"];
+              const bg = bandBg[irr.band ?? "DORMANT"];
+
+              return (
+                <div style={sectionStyle}>
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+                    <div style={sectionTitle}>Return Profile</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 700, color: bc }}>
+                        {formatIrr(irr.irrBb)} pa
+                      </span>
+                      <span style={{
+                        fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em",
+                        padding: "2px 8px", borderRadius: 2, color: bc, background: bg,
+                        border: `1px solid ${bc}`, opacity: 0.8,
+                      }}>
+                        {irr.band}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Price deviation warning */}
+                  {irr.priceDevFlag && (
+                    <div style={{
+                      fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--red)",
+                      background: "var(--red-dim)", border: "1px solid rgba(200,90,90,0.2)",
+                      padding: "6px 10px", borderRadius: 2, marginBottom: 10,
+                    }}>
+                      ⚠ Price has moved &gt;20% since last score. Rescore consideration recommended.
+                    </div>
+                  )}
+
+                  {/* Horizontal gauge */}
+                  <div style={{ position: "relative", height: 10, background: "rgba(255,255,255,0.04)", borderRadius: 2, marginBottom: 6, overflow: "visible" }}>
+                    {/* DORMANT zone: 0-15% */}
+                    <div style={{ position: "absolute", left: 0, width: `${thresh15}%`, height: "100%", background: "rgba(200,90,90,0.08)", borderRadius: "2px 0 0 2px" }} />
+                    {/* ACTIONABLE zone: 15-20% */}
+                    <div style={{ position: "absolute", left: `${thresh15}%`, width: `${thresh20 - thresh15}%`, height: "100%", background: "rgba(200,146,90,0.10)" }} />
+                    {/* DEPLOY zone: 20%+ */}
+                    <div style={{ position: "absolute", left: `${thresh20}%`, right: 0, height: "100%", background: "rgba(90,191,160,0.08)", borderRadius: "0 2px 2px 0" }} />
+
+                    {/* 15% threshold line */}
+                    <div style={{ position: "absolute", left: `${thresh15}%`, top: -2, width: 1, height: 14, background: "var(--text-dim)", opacity: 0.4 }} />
+                    {/* 20% threshold line */}
+                    <div style={{ position: "absolute", left: `${thresh20}%`, top: -2, width: 1, height: 14, background: "var(--text-dim)", opacity: 0.4 }} />
+
+                    {/* Current marker */}
+                    <div style={{
+                      position: "absolute", left: `${markerPct}%`, top: -3, transform: "translateX(-50%)",
+                      width: 3, height: 16, background: bc, borderRadius: 1,
+                      boxShadow: `0 0 4px ${bc}`,
+                    }} />
+                  </div>
+
+                  {/* Gauge labels */}
+                  <div style={{ position: "relative", height: 14, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", marginBottom: 12 }}>
+                    <span style={{ position: "absolute", left: 0 }}>0%</span>
+                    <span style={{ position: "absolute", left: `${thresh15}%`, transform: "translateX(-50%)" }}>15%</span>
+                    <span style={{ position: "absolute", left: `${thresh20}%`, transform: "translateX(-50%)" }}>20%</span>
+                    <span style={{ position: "absolute", right: 0 }}>{gaugeMax}%</span>
+                  </div>
+
+                  {/* Key metrics grid */}
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px",
+                    fontFamily: "var(--font-mono)", fontSize: 10,
+                  }}>
+                    <div>
+                      <div style={{ ...monoLabel, fontSize: 8, marginBottom: 2 }}>Bull base</div>
+                      <div style={{ color: "var(--green)", fontWeight: 600 }}>
+                        {ccy ? `${ccy} ` : ""}{bullBase?.toLocaleString() ?? "---"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ ...monoLabel, fontSize: 8, marginBottom: 2 }}>Live price</div>
+                      <div style={{ color: irr.aboveBull ? "var(--red)" : "var(--text)", fontWeight: 600 }}>
+                        {ccy ? `${ccy} ` : ""}{livePrice?.toLocaleString() ?? "---"}
+                        {irr.aboveBull && <span style={{ fontSize: 8, color: "var(--red)", marginLeft: 4 }}>above BB</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ ...monoLabel, fontSize: 8, marginBottom: 2 }}>Target date</div>
+                      <div style={{ color: "var(--text-mid)" }}>{bbTargetDate}</div>
+                    </div>
+                    <div>
+                      <div style={{ ...monoLabel, fontSize: 8, marginBottom: 2 }}>Years remaining</div>
+                      <div style={{ color: irr.nearTerm ? "var(--amber)" : "var(--text-mid)" }}>
+                        {formatYears(irr.yearsRemaining)}
+                        {irr.nearTerm && <span style={{ fontSize: 8, color: "var(--amber)", marginLeft: 4 }}>near-term</span>}
+                      </div>
+                    </div>
+                    {divYield != null && divYield > 0 && (
+                      <>
+                        <div>
+                          <div style={{ ...monoLabel, fontSize: 8, marginBottom: 2 }}>Div yield</div>
+                          <div style={{ color: "var(--text-mid)" }}>{(divYield * 100).toFixed(1)}%</div>
+                        </div>
+                        <div>
+                          <div style={{ ...monoLabel, fontSize: 8, marginBottom: 2 }}>Price return</div>
+                          <div style={{ color: "var(--text-mid)" }}>{formatIrr(irr.irrBb - divYield)} + {(divYield * 100).toFixed(1)}% div</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Bull / Bear / Asymmetry */}
             {(() => {
