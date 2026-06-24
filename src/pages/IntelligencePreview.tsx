@@ -123,6 +123,7 @@ const FIXTURES: Array<Omit<AssetIntelligence, "liveAsymmetry">> = [
     buy_distance: { status: "ABOVE", pct_from_zone: ((142.3 - 130) / 130) * 100 },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
     price_anchors: EMPTY_PRICE_ANCHORS,
+    irrBbResult: null,
   },
   {
     ticker: "KLAC",
@@ -177,6 +178,7 @@ const FIXTURES: Array<Omit<AssetIntelligence, "liveAsymmetry">> = [
     buy_distance: { status: "IN_ZONE", pct_from_zone: 0 },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
     price_anchors: EMPTY_PRICE_ANCHORS,
+    irrBbResult: null,
   },
   {
     ticker: "APD",
@@ -232,6 +234,7 @@ const FIXTURES: Array<Omit<AssetIntelligence, "liveAsymmetry">> = [
     buy_distance: { status: "NO_RANGE", pct_from_zone: null },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
     price_anchors: EMPTY_PRICE_ANCHORS,
+    irrBbResult: null,
   },
   {
     ticker: "ASTS",
@@ -275,6 +278,7 @@ const FIXTURES: Array<Omit<AssetIntelligence, "liveAsymmetry">> = [
     buy_distance: { status: "ABOVE", pct_from_zone: ((31.5 - 28) / 28) * 100 },
     framing: { bull_case: "", bear_case: "", asymmetry: { raw: "", pairs: [], max: null, spot: null }, stage2_subclass: null, china_exposure_flag: null },
     price_anchors: EMPTY_PRICE_ANCHORS,
+    irrBbResult: null,
   },
 ];
 
