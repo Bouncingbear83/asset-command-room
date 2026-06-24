@@ -10,6 +10,8 @@ import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/
 import { AsymmetryBar } from "@/components/AsymmetryBar";
 import { computeIrrBb, formatIrr, formatYears, type IrrBbBand } from "@/lib/computeIrrBb";
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
+import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
+import type { ReturnProfile } from "@/types/intelligence";
 
 interface Props {
   ticker: string | null;
@@ -313,6 +315,12 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 {data.score?.action && <span style={{ ...monoLabel, color: "var(--accent)" }}>· {data.score.action}</span>}
                 {isHeld && <span style={{ ...monoLabel, color: "var(--green)" }}>· HELD</span>}
                 {isWatchlist && <span style={{ ...monoLabel, color: "var(--accent)" }}>· WATCHLIST</span>}
+                {(() => {
+                  const rp = (data.score as any)?.returnProfile as string | undefined;
+                  if (!rp || !PROFILE_LABEL[rp as ReturnProfile]) return null;
+                  const chipStyle = profileChipStyle(rp as ReturnProfile);
+                  return <span style={{ ...chipStyle, fontSize: 8 }}>{PROFILE_LABEL[rp as ReturnProfile]}</span>;
+                })()}
                   </div>
                 </div>
                 <button
