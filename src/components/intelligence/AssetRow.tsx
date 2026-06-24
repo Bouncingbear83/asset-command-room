@@ -7,6 +7,7 @@ import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL, SUBTYPE_LABEL } from
 import { LBandPill } from "./LBandPill";
 import { StackBadge } from "@/components/holdings/DriverChip";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { IrrBbPill } from "@/components/IrrBbPill";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import "./AssetRow.css";
 
@@ -608,8 +609,9 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         <div style={{ width: COL.asymmetry, minWidth: COL.asymmetry, maxWidth: COL.asymmetry, flexShrink: 0, display: "flex", justifyContent: "center" }}>
           <AsymmetryPill asymmetry={asset.liveAsymmetry} />
         </div>
-
-        {/* Status chip */}
+        <div style={{ width: COL.irrBb, minWidth: COL.irrBb, maxWidth: COL.irrBb, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+          {asset.irrBbResult ? <IrrBbPill result={asset.irrBbResult} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4, fontFamily: "var(--font-mono)", fontSize: 10 }}>—</span>}
+        </div>
         <div style={{ width: COL.status, minWidth: COL.status, maxWidth: COL.status, flexShrink: 0 }}>
           <StatusChip status={asset.held_status} />
         </div>
