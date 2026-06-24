@@ -638,6 +638,8 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           );
         })()}
         <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
+        {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
+        {row.irrBbResult && <IrrBbPill result={row.irrBbResult} />}
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {item.name}
         </span>
