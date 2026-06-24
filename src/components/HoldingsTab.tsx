@@ -41,6 +41,8 @@ import { IrrBbPill } from "@/components/IrrBbPill";
 import { PriceDevChip } from "@/components/PriceDevChip";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
+import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
+import type { ReturnProfile } from "@/types/intelligence";
 
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
@@ -298,6 +300,7 @@ function UnifiedView({
         returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
         liveAsymmetry: entry?.asymmetry ?? computeLiveAsymmetry({ bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null }, null),
         chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
+        returnProfile: String((matched as any)?.returnProfile ?? ""),
         irrBbResult: irrEntry?.result,
       };
     });
@@ -492,6 +495,12 @@ function UnifiedView({
                           </span>
                         )}
                         <ChinaRiskChip flag={h.chinaExposureFlag} />
+                        {(() => {
+                          const rp = (h as any).returnProfile as string;
+                          if (!rp || !PROFILE_LABEL[rp as ReturnProfile]) return null;
+                          const s = profileChipStyle(rp as ReturnProfile);
+                          return <span style={{ ...s, fontSize: 8, padding: "1px 4px" }}>{PROFILE_LABEL[rp as ReturnProfile]}</span>;
+                        })()}
 
                         <span style={{
                           marginLeft: "auto",
@@ -674,6 +683,12 @@ function UnifiedView({
                               return <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 8, cursor: "help" }}>{emoji}</span>;
                             })()}
                             <ChinaRiskChip flag={h.chinaExposureFlag} />
+                            {(() => {
+                              const rp = (h as any).returnProfile as string;
+                              if (!rp || !PROFILE_LABEL[rp as ReturnProfile]) return null;
+                              const s = profileChipStyle(rp as ReturnProfile);
+                              return <span style={{ ...s, fontSize: 7, padding: "0 3px", lineHeight: 1.3 }}>{PROFILE_LABEL[rp as ReturnProfile]}</span>;
+                            })()}
                           </div>
                         </td>
 
