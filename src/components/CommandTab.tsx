@@ -5,7 +5,8 @@ import CommandHeader from "@/components/command/CommandHeader";
 import MoversCard from "@/components/command/MoversCard";
 import ActionInbox from "@/components/ActionInbox";
 import CapitalQueue from "@/components/command/CapitalQueue";
-import OpportunityRank from "@/components/OpportunityRank";
+import OpportunityRank from "@/components/command/OpportunityRank";
+import OpportunityScatter from "@/components/command/OpportunityScatter";
 import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
@@ -184,7 +185,14 @@ export default function CommandTab() {
       {/* ── CARD 3: CAPITAL QUEUE ── */}
       <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} />
 
-      {/* ── CARD 4: OPPORTUNITY RANK ── */}
+      {/* ── CARD 4: OPPORTUNITY MAP (scatter, desktop only) ── */}
+      <OpportunityScatter
+        scores={scores}
+        holdings={holdings}
+        watchlist={watchlist}
+      />
+
+      {/* ── CARD 5: OPPORTUNITY RANK ── */}
       <OpportunityRank scores={scores} holdings={holdings} watchlist={watchlist} />
 
       {/* ── CARD 5: NARRATIVE SIGNALS ── */}
