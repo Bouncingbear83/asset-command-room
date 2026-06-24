@@ -11,6 +11,8 @@ import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./
 import WatchlistDebugTable from "./WatchlistDebugTable";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
 import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { useIrrBb } from "@/hooks/useIrrBb";
+import type { LiveHolding } from "@/hooks/usePortfolioData";
 
 import {
   RETURN_PROFILE_VALUES,
@@ -29,6 +31,8 @@ interface Props {
   macroState: LiveMacroState;
   /** SCORES sheet rows — used to attach RETURN_PROFILE / COMPOUNDER_SUBTYPE to watchlist rows. */
   scores?: LiveScore[];
+  /** All holdings — used by useIrrBb for live prices and held status. */
+  holdings?: LiveHolding[];
 }
 
 // ── Profile filter keys (compounder split into Stellar / Generic, matches Intelligence tab) ──
@@ -408,8 +412,7 @@ function SkeletonRow() {
 
 // ── Page ──
 
-export default function WatchlistTab({ liveData, macroState, scores = [] }: Props) {
-  const isMobile = useIsMobile();
+export default function WatchlistTab({ liveData, macroState, scores = [], holdings = [] }: Props) {  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [layerFilter, setLayerFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(() => new Set(DEFAULT_STATUS_FILTER));
@@ -418,7 +421,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   );
   const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
   const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
-  type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile" | "asymmetry";
+  type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile" | "asymmetry" | "irrBb";  
   const [sortBy, setSortBy] = useState<SortKey>("default");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
   const [preIpoExpanded, setPreIpoExpanded] = useState(false);
@@ -439,6 +442,8 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
   const { byTicker: traj, loading: trajLoading } = useWatchlistHistory(allTickers);
   const { byTicker: scoresByTicker } = useWatchlistScores(allTickers);
   const { prices: livePrices, loading: livePricesLoading } = useLivePrices(allTickers);
+    // IRR-BB for all scored names
+  const { byTicker: irrBbMap } = useIrrBb(scores ?? [], holdings, liveData);
 
   // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
   const profileByTicker = useMemo(() => {
@@ -531,6 +536,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
       } : { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
       const liveAsymmetry = computeLiveAsymmetry(quartet, currentPrice);
 
+     const irrEntry = irrBbMap.get(ticker);
       return {
         item,
         zone,
@@ -546,10 +552,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         compounder_subtype: profileEntry?.subtype ?? null,
         liveAsymmetry,
         chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
+        irrBbResult: irrEntry?.result,
         currentPrice,
       };
     });
-  }, [liveData, traj, livePrices, scoresByTicker, profileByTicker, scoreByTicker]);
+  }, [liveData, traj, livePrices, scoresByTicker, profileByTicker, scoreByTicker, irrBbMap]);
 
 
   // Apply search + filter chips
@@ -630,6 +637,11 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
         const ra = a.liveAsymmetry?.baseRatio ?? -1;
         const rb = b.liveAsymmetry?.baseRatio ?? -1;
         return rb - ra;
+      }
+      case "irrBb": {
+        const ia = a.irrBbResult?.irrBb ?? -1;
+        const ib = b.irrBbResult?.irrBb ?? -1;
+        return ib - ia;
       }
       default:
         return 0;
@@ -955,7 +967,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
             <option value="stack">Sort · Stack</option>
             <option value="profile">Sort · Profile</option>
             <option value="asymmetry">Sort · Asymmetry (high→low)</option>
-
+            <option value="irrBb">Sort · IRR-BB (high→low)</option>
           </select>
         </div>
       </div>
@@ -986,7 +998,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [] }: Prop
               textTransform: "uppercase",
             }}
           >
-            Sorted by {sortBy === "trend7d" ? "7d trend" : sortBy === "trend30d" ? "30d trend" : sortBy}
+            Sorted by {sortBy === "trend7d" ? "7d trend" : sortBy === "trend30d" ? "30d trend" : sortBy === "irrBb" ? "IRR-BB" : sortBy}
             <button
               onClick={() => setSortBy("default")}
               aria-label="Reset sort"
