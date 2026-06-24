@@ -8,6 +8,8 @@ export interface QuartetSnapshotRow {
   bear_thesis_weak: number | null;
   bear_substrate_fail: number | null;
   bull_bear_at_date: string | null;
+  bb_target_date: string | null;
+  div_yield: number | null;
   snapshot_date: string;
 }
 
@@ -20,16 +22,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 let cacheRef: { ts: number; data: Map<string, QuartetSnapshotRow> } | null = null;
 
 /**
- * Latest quartet per ticker from scores_snapshot (Supabase mirror of SCORES
- * sheet AK-AO, populated by Daily Snapshot workflow).
+ * Latest quartet + IRR-BB fields per ticker from scores_snapshot.
+ * Supabase mirror of SCORES sheet AK-AS, populated by Daily Snapshot.
  *
- * Preferred over reading the live sheet because:
- * - PostgREST handles type coercion (leading-apostrophe issues, etc)
- * - Single source of truth across all components
- * - Survives sheet edit/reload races
- *
- * Spot price is intentionally NOT fetched here; ratios are calculated at
- * render time using live price from HOLDINGS/WATCHLIST/daily_prices.
+ * Spot price is intentionally NOT fetched here; IRR-BB and ratios are
+ * calculated at render time using live price from HOLDINGS/WATCHLIST.
  */
 export function useScoresSnapshot(): State {
   const [state, setState] = useState<State>({ byTicker: new Map(), loading: true });
@@ -45,10 +42,9 @@ export function useScoresSnapshot(): State {
 
     (async () => {
       try {
-        // Get all snapshots; we'll dedupe to latest per ticker client-side
         const { data, error } = await supabase
           .from("scores_snapshot")
-          .select("ticker, snapshot_date, bull_base, bull_stretch, bear_thesis_weak, bear_substrate_fail, bull_bear_at_date")
+          .select("ticker, snapshot_date, bull_base, bull_stretch, bear_thesis_weak, bear_substrate_fail, bull_bear_at_date, bb_target_date, div_yield")
           .order("snapshot_date", { ascending: false })
           .limit(5000);
 
