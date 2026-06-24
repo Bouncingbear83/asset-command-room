@@ -37,6 +37,9 @@ import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/D
 import { computeLiveAsymmetry, type LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { IrrBbPill } from "@/components/IrrBbPill";
+import { PriceDevChip } from "@/components/PriceDevChip";
+import { useIrrBb } from "@/hooks/useIrrBb";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 
 
@@ -137,6 +140,7 @@ type HoldingWithReturns = LiveHolding & {
   returns?: HoldingReturns;
   liveAsymmetry?: LiveAsymmetryResult;
   chinaExposureFlag?: string;
+  irrBbResult?: import("@/lib/computeIrrBb").IrrBbResult;
 };
 
 
@@ -151,9 +155,9 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
       case "driver": av = (a as any).factor_group ?? ""; bv = (b as any).factor_group ?? ""; break;
       case "stack": av = stackLayerOrder((a as any).stack_layer); bv = stackLayerOrder((b as any).stack_layer); break;
       case "asymmetry": av = a.liveAsymmetry?.baseRatio ?? -1; bv = b.liveAsymmetry?.baseRatio ?? -1; break;
+      case "irrBb": av = a.irrBbResult?.irrBb ?? -1; bv = b.irrBbResult?.irrBb ?? -1; break;
 
       default: av = a[key as keyof typeof a] ?? ""; bv = b[key as keyof typeof b] ?? "";
-    }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
     return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
   });
@@ -195,6 +199,7 @@ const UNIFIED_COLUMNS: { label: string; key: SortKey; align?: "right"; hideMobil
   { label: "G/L %", key: "gl", align: "right", sortable: true },
   { label: "Day %", key: "day", align: "right", sortable: true },
   { label: "Asym", key: "asymmetry", align: "right", sortable: true },
+  { label: "IRR-BB", key: "irrBb", align: "right", hideMobile: true, sortable: true },
   { label: "Price", key: "price", align: "right", sortable: false },
 ];
 
@@ -257,8 +262,11 @@ function UnifiedView({
   // already loads rationales eagerly, so per-row fetches are no longer needed.
   const { getSummary, getResearchFreshness } = useResearchSummary();
 
-  // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST
+ // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST
   const quartetMap = useQuartetMap(scores ?? [], allHoldings, watchlist);
+
+  // IRR-BB for all scored names
+  const { byTicker: irrBbMap } = useIrrBb(scores ?? [], allHoldings, watchlist);
 
   // Live Yahoo prices for holdings (same edge function + alias map as Watchlist)
   const holdingsTickers = useMemo(
@@ -282,14 +290,16 @@ function UnifiedView({
       const ticker = String(h.ticker ?? "").trim().toUpperCase();
       const matched = scoreByTicker.get(ticker);
       const entry = quartetMap.get(ticker);
+      const irrEntry = irrBbMap.get(ticker);
       return {
         ...h,
         returns: transactions.length > 0 ? calcHoldingReturns(h.ticker, h.account, h.mv || 0, transactions) : undefined,
         liveAsymmetry: entry?.asymmetry ?? computeLiveAsymmetry({ bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null }, null),
         chinaExposureFlag: String((matched as any)?.chinaExposureFlag ?? ""),
+        irrBbResult: irrEntry?.result,
       };
     });
-  }, [allHoldings, transactions, scoreByTicker, quartetMap]);
+  }, [allHoldings, transactions, scoreByTicker, quartetMap, irrBbMap]);
 
 
   const toggle = (key: string) => {
@@ -378,6 +388,8 @@ function UnifiedView({
     { field: "mv",  dir: "asc",  label: "MV ↑" },
     { field: "annReturn", dir: "desc", label: "Ann. Ret ↓" },
     { field: "annReturn", dir: "asc",  label: "Ann. Ret ↑" },
+    { field: "irrBb", dir: "desc", label: "IRR-BB ↓" },
+    { field: "irrBb", dir: "asc",  label: "IRR-BB ↑" },
     { field: "ticker", dir: "asc",  label: "A → Z" },
     { field: "ticker", dir: "desc", label: "Z → A" },
   ];
@@ -506,6 +518,7 @@ function UnifiedView({
                           {displayDayMobile != null ? `${displayDayMobile >= 0 ? "+" : ""}${displayDayMobile.toFixed(2)}%` : "—"} day
                         </span>
                         {h.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={h.liveAsymmetry} />}
+                        {h.irrBbResult && <IrrBbPill result={h.irrBbResult} />}
                       </div>
 
 
@@ -678,6 +691,14 @@ function UnifiedView({
                         <td style={{ padding: cellPad, color: h.gl >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{h.gl != null ? `${h.gl >= 0 ? "+" : ""}${h.gl.toFixed(1)}%` : "—"}</td>
                         <td style={{ padding: cellPad, color: displayDay > 0 ? "var(--green)" : displayDay < 0 ? "var(--red)" : "var(--text-dim)", textAlign: "right" }}>{displayDay != null ? `${displayDay >= 0 ? "+" : ""}${displayDay.toFixed(2)}%` : "—"}</td>
                         <td style={{ padding: cellPad, textAlign: "right" }}>{h.liveAsymmetry ? <AsymmetryPill asymmetry={h.liveAsymmetry} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}</td>
+                        {!isMobile && (
+                          <td style={{ padding: cellPad, textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              {h.irrBbResult ? <IrrBbPill result={h.irrBbResult} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}
+                              {h.irrBbResult?.priceDevFlag && <PriceDevChip flag />}
+                            </div>
+                          </td>
+                        )}
                         <td style={{ padding: cellPad, color: "var(--text-mid)", textAlign: "right" }}>{displayPrice != null ? `${displayPrice.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—"}</td>
                        
                         {!isMobile && (() => {
