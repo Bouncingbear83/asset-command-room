@@ -842,6 +842,7 @@ export type Database = {
       scores_snapshot: {
         Row: {
           action: string | null
+          bb_target_date: string | null
           bear_substrate_fail: number | null
           bear_thesis_weak: number | null
           bull_base: number | null
@@ -853,6 +854,7 @@ export type Database = {
           created_at: string
           demand: number
           disruption: number
+          div_yield: number | null
           id: number
           layer: string
           mgmt: number
@@ -874,6 +876,7 @@ export type Database = {
         }
         Insert: {
           action?: string | null
+          bb_target_date?: string | null
           bear_substrate_fail?: number | null
           bear_thesis_weak?: number | null
           bull_base?: number | null
@@ -885,6 +888,7 @@ export type Database = {
           created_at?: string
           demand: number
           disruption: number
+          div_yield?: number | null
           id?: never
           layer: string
           mgmt: number
@@ -906,6 +910,7 @@ export type Database = {
         }
         Update: {
           action?: string | null
+          bb_target_date?: string | null
           bear_substrate_fail?: number | null
           bear_thesis_weak?: number | null
           bull_base?: number | null
@@ -917,6 +922,7 @@ export type Database = {
           created_at?: string
           demand?: number
           disruption?: number
+          div_yield?: number | null
           id?: never
           layer?: string
           mgmt?: number
