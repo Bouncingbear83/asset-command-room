@@ -90,17 +90,8 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const {
-    holdings,
-    watchlist,
-    layers,
-    scores,
-    riskControls,
-    macroState,
-    narrativeData,
-    earningsCalendar,
-    cashTotal,
-  } = usePortfolioData();
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashTotal } =
+    usePortfolioData();
   const isMobile = useIsMobile();
 
   const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: isMobile ? "10px 12px" : "12px 14px" };
@@ -108,19 +99,26 @@ export default function CommandTab() {
   const cashGbp = cashTotal || 0;
 
   // Narrative derived data
-  const priorityNarratives = [narrativeData.week_priority_1, narrativeData.week_priority_2, narrativeData.week_priority_3]
+  const priorityNarratives = [
+    narrativeData.week_priority_1,
+    narrativeData.week_priority_2,
+    narrativeData.week_priority_3,
+  ]
     .map((item) => item?.trim() ?? "")
     .filter(Boolean);
   const weeklyWatch = [narrativeData.week_watch_1, narrativeData.week_watch_2, narrativeData.week_watch_3]
     .map((item) => item?.trim() ?? "")
     .filter(Boolean);
   const hasNarrative = Boolean(
-    narrativeData.macro_regime || narrativeData.posture_rationale || priorityNarratives.length || narrativeData.key_risk_this_week || narrativeData.layer_narrative,
+    narrativeData.macro_regime ||
+    narrativeData.posture_rationale ||
+    priorityNarratives.length ||
+    narrativeData.key_risk_this_week ||
+    narrativeData.layer_narrative,
   );
 
   // Macro signals
-  const macroSignals = SIGNAL_KEYS
-    .map((key) => ({ key, row: macroState[key] }))
+  const macroSignals = SIGNAL_KEYS.map((key) => ({ key, row: macroState[key] }))
     .filter((entry) => Boolean(entry.row))
     .map(({ key, row }) => ({
       name: SIGNAL_LABELS[key],
@@ -130,7 +128,9 @@ export default function CommandTab() {
         row?.thresholdAmber ? `Amber ${row.thresholdAmber}` : "",
         row?.thresholdRed ? `Red ${row.thresholdRed}` : "",
         row?.note || "",
-      ].filter(Boolean).join(" · "),
+      ]
+        .filter(Boolean)
+        .join(" · "),
     }));
   const macroStatusCounts = macroSignals.reduce(
     (acc, s) => {
@@ -166,7 +166,6 @@ export default function CommandTab() {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 0, alignItems: "start" }}>
-
       {/* ── HEADER BAR ── */}
       <CommandHeader
         layers={layers}
@@ -177,29 +176,16 @@ export default function CommandTab() {
       />
 
       {/* ── CARD 1: MOVERS ── */}
-      <MoversCard
-        holdings={holdings}
-        watchlist={watchlist}
-        earnings={earningsCalendar}
-      />
+      <MoversCard holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
 
       {/* ── CARD 2: ACTION INBOX ── */}
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
 
       {/* ── CARD 3: CAPITAL QUEUE ── */}
-      <CapitalQueue
-        holdings={holdings}
-        watchlist={watchlist}
-        layers={layers}
-        macroState={macroState}
-      />
+      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} />
 
       {/* ── CARD 4: OPPORTUNITY RANK ── */}
-      <OpportunityRank
-        scores={scores}
-        holdings={holdings}
-        watchlist={watchlist}
-      />
+      <OpportunityRank scores={scores} holdings={holdings} watchlist={watchlist} />
 
       {/* ── CARD 5: NARRATIVE SIGNALS ── */}
       <NarrativeSignalsCard />
@@ -215,15 +201,23 @@ export default function CommandTab() {
         <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
           <span style={cardTitle}>Risk Controls</span>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {riskStatusCounts.SAFE > 0 && <span style={ragChipStyle("var(--green)")}>{riskStatusCounts.SAFE} SAFE</span>}
-            {riskStatusCounts.WATCH > 0 && <span style={ragChipStyle("var(--amber)")}>{riskStatusCounts.WATCH} WATCH</span>}
-            {riskStatusCounts.BREACH > 0 && <span style={ragChipStyle("var(--red)")}>{riskStatusCounts.BREACH} BREACH</span>}
+            {riskStatusCounts.SAFE > 0 && (
+              <span style={ragChipStyle("var(--green)")}>{riskStatusCounts.SAFE} SAFE</span>
+            )}
+            {riskStatusCounts.WATCH > 0 && (
+              <span style={ragChipStyle("var(--amber)")}>{riskStatusCounts.WATCH} WATCH</span>
+            )}
+            {riskStatusCounts.BREACH > 0 && (
+              <span style={ragChipStyle("var(--red)")}>{riskStatusCounts.BREACH} BREACH</span>
+            )}
             {riskControls.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
           </div>
         </summary>
         <div style={{ padding: isMobile ? "0 12px 12px" : "0 20px 12px" }}>
           {riskControls.length === 0 ? (
-            <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Risk controls unavailable</div>
+            <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+              Risk controls unavailable
+            </div>
           ) : (
             riskControls.map((r) => {
               let currentNum = parseFloat(String(r.current).replace(/[^0-9.\-]/g, ""));
@@ -232,7 +226,7 @@ export default function CommandTab() {
               const thresholdRaw = r.threshold;
               const redMatch = thresholdRaw.match(/RED\s+([\d.]+)/i);
               const amberMatch = thresholdRaw.match(/AMBER\s+([\d.]+)/i);
-              let limit = redMatch ? parseFloat(redMatch[1]) : (amberMatch ? parseFloat(amberMatch[1]) : 100);
+              let limit = redMatch ? parseFloat(redMatch[1]) : amberMatch ? parseFloat(amberMatch[1]) : 100;
               let amberLimit = amberMatch ? parseFloat(amberMatch[1]) : null;
               if (limit <= 1) limit = limit * 100;
               if (amberLimit != null && amberLimit <= 1) amberLimit = amberLimit * 100;
@@ -247,18 +241,69 @@ export default function CommandTab() {
                 if (currentNum > limit) barColor = "var(--red)";
                 else if (currentNum > limit - 1) barColor = "var(--amber)";
               }
-              const label = r.key === "SGLD_AUM_PCT" ? "SGLD" : r.key === "TOP5_CONCENTRATION" ? "Top-5" : r.key === "HEDGE_FLOOR_PCT" ? "Hedge" : r.key === "BIO_TWIN_RISK_PCT" ? "BioTwin" : r.label;
+              const label =
+                r.key === "SGLD_AUM_PCT"
+                  ? "SGLD"
+                  : r.key === "TOP5_CONCENTRATION"
+                    ? "Top-5"
+                    : r.key === "HEDGE_FLOOR_PCT"
+                      ? "Hedge"
+                      : r.key === "BIO_TWIN_RISK_PCT"
+                        ? "BioTwin"
+                        : r.label;
               return (
                 <div key={r.key} style={{ padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text)", minWidth: 60 }}>{label}</span>
+                  <div
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--text)",
+                        minWidth: 60,
+                      }}
+                    >
+                      {label}
+                    </span>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: barColor }}>
-                      {isNaN(currentNum) ? r.current : `${currentNum.toFixed(1)}%`} / {limit.toFixed(1)}% {isFloor ? "floor" : "cap"}
+                      {isNaN(currentNum) ? r.current : `${currentNum.toFixed(1)}%`} / {limit.toFixed(1)}%{" "}
+                      {isFloor ? "floor" : "cap"}
                     </span>
                   </div>
-                  <div style={{ position: "relative", height: 8, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "visible" }}>
-                    <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, background: barColor, borderRadius: 2, transition: "width 0.4s ease" }} />
-                    <div style={{ position: "absolute", top: -2, left: `${thresholdPct}%`, width: 1, height: 12, background: "var(--text-dim)", opacity: 0.6 }} />
+                  <div
+                    style={{
+                      position: "relative",
+                      height: 8,
+                      background: "rgba(255,255,255,0.06)",
+                      borderRadius: 2,
+                      overflow: "visible",
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        height: "100%",
+                        width: `${fillPct}%`,
+                        background: barColor,
+                        borderRadius: 2,
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: -2,
+                        left: `${thresholdPct}%`,
+                        width: 1,
+                        height: 12,
+                        background: "var(--text-dim)",
+                        opacity: 0.6,
+                      }}
+                    />
                   </div>
                 </div>
               );
@@ -268,7 +313,9 @@ export default function CommandTab() {
       </details>
 
       {/* ── CARD 7: NARRATIVE + WEEKLY WATCH (merged, collapsible) ── */}
-      <details style={{ ...card, borderLeft: "3px solid transparent" }} open={!isMobile}
+      <details
+        style={{ ...card, borderLeft: "3px solid transparent" }}
+        open={!isMobile}
         onToggle={(e) => {
           const el = e.currentTarget;
           el.style.borderLeftColor = el.open ? "var(--gold)" : "transparent";
@@ -278,21 +325,57 @@ export default function CommandTab() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             <span style={cardTitle}>Narrative</span>
             {narrativeData.macro_regime && (
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{narrativeData.macro_regime}</span>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 9,
+                  color: "var(--text-dim)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {narrativeData.macro_regime}
+              </span>
             )}
           </div>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em", flexShrink: 0 }}>▸ {formatDate(narrativeData.last_updated)}</span>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "var(--text-dim)",
+              letterSpacing: "0.12em",
+              flexShrink: 0,
+            }}
+          >
+            ▸ {formatDate(narrativeData.last_updated)}
+          </span>
         </summary>
         <div style={{ padding: isMobile ? 16 : 32 }}>
           {hasNarrative ? (
             <div style={{ display: "grid", gap: 18 }}>
               {priorityNarratives.length > 0 && (
                 <div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Weekly Priorities</div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--text-dim)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Weekly Priorities
+                  </div>
                   <div style={{ display: "grid", gap: 8 }}>
                     {priorityNarratives.map((item, index) => (
                       <div key={`${item}-${index}`} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", marginTop: 2 }}>{String(index + 1).padStart(2, "0")}</span>
+                        <span
+                          style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--gold)", marginTop: 2 }}
+                        >
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
                         <span style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{item}</span>
                       </div>
                     ))}
@@ -300,31 +383,114 @@ export default function CommandTab() {
                 </div>
               )}
               <div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: isMobile ? 15 : 18, fontWeight: 300, color: "var(--text)", lineHeight: 1.3, marginBottom: 4 }}>{narrativeData.macro_regime || "Macro regime pending"}</div>
-                {narrativeData.posture_rationale && <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>{narrativeData.posture_rationale}</div>}
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: isMobile ? 15 : 18,
+                    fontWeight: 300,
+                    color: "var(--text)",
+                    lineHeight: 1.3,
+                    marginBottom: 4,
+                  }}
+                >
+                  {narrativeData.macro_regime || "Macro regime pending"}
+                </div>
+                {narrativeData.posture_rationale && (
+                  <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>
+                    {narrativeData.posture_rationale}
+                  </div>
+                )}
               </div>
               <div style={{ display: "grid", gap: 14 }}>
                 <div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Key Risk</div>
-                  <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{narrativeData.key_risk_this_week || "No key risk supplied."}</div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--text-dim)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Key Risk
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>
+                    {narrativeData.key_risk_this_week || "No key risk supplied."}
+                  </div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Layer Narrative</div>
-                  <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>{narrativeData.layer_narrative || "No layer commentary supplied."}</div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--text-dim)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Layer Narrative
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-mid)", lineHeight: 1.6 }}>
+                    {narrativeData.layer_narrative || "No layer commentary supplied."}
+                  </div>
                 </div>
               </div>
               {/* Weekly Watch (merged in) */}
               {weeklyWatch.length > 0 && (
                 <div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Weekly Watch</div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 9,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--text-dim)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Weekly Watch
+                  </div>
                   {weeklyWatch.map((item, index) => {
                     const tickerMatch = item.match(/^([A-Z]{2,6})\b/);
                     return (
-                      <div key={`watch-${index}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: index < weeklyWatch.length - 1 ? "1px solid rgba(28,28,48,0.3)" : "none" }}>
-                        {tickerMatch && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", minWidth: 44 }}>{tickerMatch[1]}</span>}
+                      <div
+                        key={`watch-${index}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "6px 0",
+                          borderBottom: index < weeklyWatch.length - 1 ? "1px solid rgba(28,28,48,0.3)" : "none",
+                        }}
+                      >
+                        {tickerMatch && (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-mono)",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "var(--text)",
+                              minWidth: 44,
+                            }}
+                          >
+                            {tickerMatch[1]}
+                          </span>
+                        )}
                         <span style={statusChip("MONITOR")}>MONITOR</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>
-                          {tickerMatch ? item.slice(tickerMatch[0].length).replace(/^[\s:–—-]+/, '') : item}
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 10,
+                            color: "var(--text-dim)",
+                            flex: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: isMobile ? "normal" : "nowrap",
+                          }}
+                        >
+                          {tickerMatch ? item.slice(tickerMatch[0].length).replace(/^[\s:–—-]+/, "") : item}
                         </span>
                       </div>
                     );
@@ -333,7 +499,9 @@ export default function CommandTab() {
               )}
             </div>
           ) : (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>Awaiting first n8n run</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-dim)" }}>
+              Awaiting first n8n run
+            </div>
           )}
         </div>
       </details>
@@ -343,8 +511,12 @@ export default function CommandTab() {
         <summary style={{ ...cardHeader, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
           <span style={cardTitle}>Macro Signals</span>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {macroStatusCounts.GREEN > 0 && <span style={ragChipStyle("var(--green)")}>{macroStatusCounts.GREEN} GREEN</span>}
-            {macroStatusCounts.AMBER > 0 && <span style={ragChipStyle("var(--amber)")}>{macroStatusCounts.AMBER} AMBER</span>}
+            {macroStatusCounts.GREEN > 0 && (
+              <span style={ragChipStyle("var(--green)")}>{macroStatusCounts.GREEN} GREEN</span>
+            )}
+            {macroStatusCounts.AMBER > 0 && (
+              <span style={ragChipStyle("var(--amber)")}>{macroStatusCounts.AMBER} AMBER</span>
+            )}
             {macroStatusCounts.RED > 0 && <span style={ragChipStyle("var(--red)")}>{macroStatusCounts.RED} RED</span>}
             {macroSignals.length === 0 && <span style={ragChipStyle("var(--text-dim)")}>—</span>}
           </div>
@@ -353,22 +525,26 @@ export default function CommandTab() {
           {macroSignals.map((signal) => (
             <div key={signal.name} style={divRow}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{signal.name}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{signal.detail || "No note"}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>
+                  {signal.name}
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
+                  {signal.detail || "No note"}
+                </div>
               </div>
               <span style={statusChip(signal.status)}>{signal.status}</span>
             </div>
           ))}
-          {macroSignals.length === 0 && <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Macro signals unavailable</div>}
+          {macroSignals.length === 0 && (
+            <div style={{ padding: "16px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+              Macro signals unavailable
+            </div>
+          )}
         </div>
       </details>
 
       {/* ── CARD 9: TOOLS (collapsible) ── */}
-      <ToolsCard
-        holdings={holdings}
-        watchlist={watchlist}
-        layers={layers}
-      />
+      <ToolsCard holdings={holdings} watchlist={watchlist} layers={layers} />
     </div>
   );
 }
