@@ -196,6 +196,7 @@ export interface BuyDistance {
 
 import type { ParsedAsymmetry } from "@/lib/asymmetry";
 import type { LiveAsymmetryResult } from "@/lib/liveAsymmetry";
+import type { IrrBbResult } from "@/lib/computeIrrBb";
 
 export type ChinaExposureFlag = "LOW" | "MEDIUM" | "HIGH" | "N/A";
 
@@ -306,4 +307,6 @@ export interface AssetIntelligence {
   liveAsymmetry: LiveAsymmetryResult;
   // v2.13 — local-ccy price anchors from score_rationales
   price_anchors: AssetPriceAnchors;
+  /** IRR-BB result computed from bull_base + bb_target_date + live price. */
+  irrBbResult: import("@/lib/computeIrrBb").IrrBbResult | null;
 }
