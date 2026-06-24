@@ -42,6 +42,7 @@ import {
 } from "@/types/intelligence";
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
 import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { computeIrrBb } from "@/lib/computeIrrBb";
 
 function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
   const s = String(raw ?? "").trim().toUpperCase();
@@ -561,6 +562,18 @@ function buildOne(
   };
   const liveAsymmetry = computeLiveAsymmetry(quartet, current_price);
 
+  // IRR-BB from bull_base + bb_target_date + live price
+  const bbTargetDate = snap?.bb_target_date ?? (s as any).bbTargetDate ?? null;
+  const divYield = snap?.div_yield ?? (s as any).divYield ?? null;
+  const irrBbResult = computeIrrBb(
+    quartet.bullBase,
+    current_price,
+    bbTargetDate,
+    divYield,
+    (s as any).priceAtLastScore ?? null,
+    held_status === "HELD",
+  );
+
   return {
     ticker,
     name: String(s.name ?? ""),
@@ -601,6 +614,7 @@ function buildOne(
     framing,
     liveAsymmetry,
     price_anchors,
+    irrBbResult: irrBbResult.irrBb !== null ? irrBbResult : null,
   };
 }
 
