@@ -158,9 +158,11 @@ function sortHoldings(data: HoldingWithReturns[], key: SortKey, dir: SortDir): H
       case "irrBb": av = a.irrBbResult?.irrBb ?? -1; bv = b.irrBbResult?.irrBb ?? -1; break;
 
       default: av = a[key as keyof typeof a] ?? ""; bv = b[key as keyof typeof b] ?? "";
+    }
     if (typeof av === "number" && typeof bv === "number") return dir === "asc" ? av - bv : bv - av;
     return dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
   });
+
 }
 
 // Holdings expansion bodies (TriggerRows / DisruptionPanel / ScoreCard /
