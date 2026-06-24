@@ -21,8 +21,9 @@ export type HoldingsSortField =
   | "action"
   | "driver"
   | "stack"
-  | "asymmetry";
+  | "asymmetry"
   | "irrBb";
+
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
