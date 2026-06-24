@@ -541,6 +541,9 @@ function parseScores(rows: Record<string, any>[]) {
       // Modifiers (AP-AQ)
       preReclassModifier: parseNum(findCol(row, "PRE_RECLASS_MODIFIER", "pre_reclass_modifier", "Pre_Reclass_Modifier")),
       s3TransitionModifier: parseNum(findCol(row, "S3_TRANSITION_MODIFIER", "s3_transition_modifier", "S3_Transition_Modifier")),
+      // IRR-BB fields (AR-AS) [v3.12]
+      bbTargetDate: parseSheetDate(findCol(row, "BB_TARGET_DATE", "bb_target_date", "Bb_Target_Date")),
+      divYield: parseNum(findCol(row, "DIV_YIELD", "div_yield", "Div_Yield")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
     }));
 
@@ -1065,7 +1068,7 @@ export function usePortfolioData(): PortfolioData {
           return [];
         }),
         fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
-        fetchSheet({ gid: GIDS.scores, range: "A1:AQ" }).catch(() => []),
+        fetchSheet({ gid: GIDS.scores, range: "A1:AW" }).catch(() => []),
         fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
         fetchSheet({ gid: GIDS.monitor }).catch(() => []),
         fetchSheet({ gid: GIDS.disruption }).catch(() => []),
