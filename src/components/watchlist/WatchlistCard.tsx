@@ -22,6 +22,8 @@ import {
 import { DriverChip, StackBadge } from "@/components/holdings/DriverChip";
 import type { LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
+import { IrrBbPill } from "@/components/IrrBbPill";
+import type { IrrBbResult } from "@/lib/computeIrrBb";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
@@ -47,6 +49,8 @@ export interface DerivedRow {
   liveAsymmetry: LiveAsymmetryResult;
   /** Raw China exposure flag from SCORES (HIGH/MEDIUM/LOW/N/A/blank). */
 chinaExposureFlag: string;
+  /** IRR-BB result from useIrrBb. */
+  irrBbResult?: IrrBbResult;
   /** Live-resolved price: Yahoo → trajectory → sheet, set by WatchlistTab derivation. */
   currentPrice: number | null;
 }
@@ -522,6 +526,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             return null;
           })()}
           {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
+          {row.irrBbResult && <IrrBbPill result={row.irrBbResult} />}
           <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
 
           {daysSinceReview != null && (
