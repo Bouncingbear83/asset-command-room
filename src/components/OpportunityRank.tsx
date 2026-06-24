@@ -10,6 +10,8 @@ import { IrrBbPill } from "@/components/IrrBbPill";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { normaliseTicker } from "@/lib/tickerAlias";
+import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
+import type { ReturnProfile } from "@/types/intelligence";
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
 
@@ -48,6 +50,17 @@ export default function OpportunityRank({ scores, holdings, watchlist }: Props) 
     }
     return m;
   }, [holdings, watchlist]);
+
+  // Build profile lookup from scores
+  const profileByTicker = useMemo(() => {
+    const m = new Map<string, ReturnProfile>();
+    for (const s of scores) {
+      const t = normaliseTicker(s.ticker);
+      const rp = (s as any).returnProfile as string;
+      if (t && rp && PROFILE_LABEL[rp as ReturnProfile]) m.set(t, rp as ReturnProfile);
+    }
+    return m;
+  }, [scores]);
 
   // Split ranked into those with IRR-BB and those without
   const { withIrr, withoutIrr } = useMemo(() => {
@@ -115,13 +128,21 @@ export default function OpportunityRank({ scores, holdings, watchlist }: Props) 
         </td>
         {!isMobile && (
           <td style={{ ...tdStyle, textAlign: "center" }}>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.08em",
-              color: statusColor, border: `1px solid ${statusColor}`,
-              padding: "0 3px", borderRadius: 1, opacity: 0.7,
-            }}>
-              {entry.held ? "HELD" : "WL"}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+              <span style={{
+                fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.08em",
+                color: statusColor, border: `1px solid ${statusColor}`,
+                padding: "0 3px", borderRadius: 1, opacity: 0.7,
+              }}>
+                {entry.held ? "HELD" : "WL"}
+              </span>
+              {(() => {
+                const rp = profileByTicker.get(t);
+                if (!rp) return null;
+                const s = profileChipStyle(rp);
+                return <span style={{ ...s, fontSize: 7, padding: "0 3px", lineHeight: 1.3 }}>{PROFILE_LABEL[rp]}</span>;
+              })()}
+            </div>
           </td>
         )}
         <td style={{ ...tdStyle, textAlign: "right", color: "var(--text-dim)" }}>
