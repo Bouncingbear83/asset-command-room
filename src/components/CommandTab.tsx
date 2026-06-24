@@ -5,7 +5,7 @@ import CommandHeader from "@/components/command/CommandHeader";
 import MoversCard from "@/components/command/MoversCard";
 import ActionInbox from "@/components/ActionInbox";
 import CapitalQueue from "@/components/command/CapitalQueue";
-import AsymmetryCompact from "@/components/command/AsymmetryCompact";
+import OpportunityRank from "@/components/command/OpportunityRank";
 import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
@@ -194,8 +194,8 @@ export default function CommandTab() {
         macroState={macroState}
       />
 
-      {/* ── CARD 4: TOP ASYMMETRY ── */}
-      <AsymmetryCompact
+      {/* ── CARD 4: OPPORTUNITY RANK ── */}
+      <OpportunityRank
         scores={scores}
         holdings={holdings}
         watchlist={watchlist}
