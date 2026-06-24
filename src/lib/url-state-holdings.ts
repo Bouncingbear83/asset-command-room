@@ -22,7 +22,7 @@ export type HoldingsSortField =
   | "driver"
   | "stack"
   | "asymmetry";
-
+  | "irrBb";
 
 export type HoldingsGroupBy = "none" | "layer" | "account" | "tier";
 
@@ -61,8 +61,7 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
 
 const SORT_FIELDS: HoldingsSortField[] = [
   "ticker", "name", "layer", "account", "mv", "gl", "day", "price",
-  "cost", "truePL", "annReturn", "action", "driver", "stack", "asymmetry",
-
+  "cost", "truePL", "annReturn", "action", "driver", "stack", "asymmetry", "irrBb",
 ];
 const GROUP_BYS: HoldingsGroupBy[] = ["none", "layer", "account", "tier"];
 
@@ -76,6 +75,8 @@ const SORT_FIELD_ALIASES: Record<string, HoldingsSortField> = {
   price_local: "price",
   factor_group: "driver",
   stack_layer: "stack",
+  irr_bb: "irrBb",
+  irr: "irrBb",
 };
 
 export function normalizeAccount(raw: string): HoldingsAccount | null {
