@@ -98,6 +98,36 @@ function compareAssets(a: AssetIntelligence, b: AssetIntelligence, field: SortFi
       const bv = b.irrBbResult?.irrBb ?? -1;
       return sign * (av - bv);
     }
+    case "sub": {
+      const av = a.sub_scores.substrate ?? 0;
+      const bv = b.sub_scores.substrate ?? 0;
+      return sign * (av - bv);
+    }
+    case "dem": {
+      const av = a.sub_scores.demand ?? 0;
+      const bv = b.sub_scores.demand ?? 0;
+      return sign * (av - bv);
+    }
+    case "moat": {
+      const av = a.sub_scores.moat ?? 0;
+      const bv = b.sub_scores.moat ?? 0;
+      return sign * (av - bv);
+    }
+    case "val": {
+      const av = a.sub_scores.valuation ?? 0;
+      const bv = b.sub_scores.valuation ?? 0;
+      return sign * (av - bv);
+    }
+    case "mgmt": {
+      const av = a.sub_scores.mgmt ?? 0;
+      const bv = b.sub_scores.mgmt ?? 0;
+      return sign * (av - bv);
+    }
+    case "disr": {
+      const av = a.sub_scores.disruption_score ?? 0;
+      const bv = b.sub_scores.disruption_score ?? 0;
+      return sign * (av - bv);
+    }
   }
 }
 
@@ -493,7 +523,7 @@ export default function IntelligenceTab() {
         </div>
       )}
 
-      <div style={{ border: "1px solid var(--rim)", background: "rgba(0,0,0,0.2)", margin: "0 16px 16px" }}>
+      <div style={{ border: "1px solid var(--rim)", background: "rgba(0,0,0,0.2)", margin: "0 16px 16px", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         <IntelligenceListHeader
           sortField={state.sortField}
           sortDir={state.sortDir}
