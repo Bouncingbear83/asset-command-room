@@ -7,20 +7,20 @@
  */
 
 export const COL = {
-  ticker: 96,
-  layer: 100,            // widest label is "SOVEREIGNTY"
-  stack: 110,            // "PROCESS_TOOLING"
-  score: 64,
-  bars: { flex: 1, minWidth: 420 }, // 6 bars in equal grid
-  lband: 56,
-  disruption: 84,        // "GREEN 100" fits
-  buyRange: 92,          // "IN ZONE" / "+287%" / "£1400–1500"
-  asymmetry: 72,         // "5.2:1" fits
-  irrBb: 72,             // "24.5%" fits
-  status: 104,           // "WATCHLIST" fits
+  ticker: 84,
+  layer: 88,            // widest label is "SOVEREIGNTY"
+  stack: 96,            // "PROCESS_TOOLING"
+  score: 56,
+  bars: { flex: 1, minWidth: 300 }, // 6 bars in equal grid — compressed
+  lband: 48,
+  disruption: 72,        // "GREEN 100" fits
+  buyRange: 80,          // "IN ZONE" / "+287%" / "£1400–1500"
+  asymmetry: 60,         // "5.2:1" fits
+  irrBb: 60,             // "24.5%" fits
+  status: 88,            // "WATCHLIST" fits
   chevron: 20,
-  rowGap: 12,
-  rowPadX: 12,
+  rowGap: 8,
+  rowPadX: 10,
 } as const;
 
 export const SUB_LABELS = ["SUB", "DEM", "MOAT", "VAL", "MGMT", "DISR"] as const;
