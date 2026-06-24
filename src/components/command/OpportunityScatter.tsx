@@ -144,6 +144,14 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>("all");
   const [zoom, setZoom] = useState<ZoomPreset>("full");
+  const [hiddenProfiles, setHiddenProfiles] = useState<Set<string>>(new Set());
+  const toggleProfile = useCallback((key: string) => {
+    setHiddenProfiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
   const { byTicker: irrMap } = useIrrBb(scores, holdings, watchlist);
   const { byTicker: snapshotMap } = useScoresSnapshot();
   const quartetMap = useQuartetMap(scores ?? [], holdings ?? [], watchlist ?? [], snapshotMap);
@@ -255,9 +263,11 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   }, [irrMap, quartetMap, totalAum, aumByTicker, profileMap]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return dots;
-    return dots.filter((d) => filter === "held" ? d.held : !d.held);
-  }, [dots, filter]);
+    let out = dots;
+    if (filter !== "all") out = out.filter((d) => filter === "held" ? d.held : !d.held);
+    if (hiddenProfiles.size > 0) out = out.filter((d) => !hiddenProfiles.has(d.profileKey));
+    return out;
+  }, [dots, filter, hiddenProfiles]);
 
   const handleClick = useCallback((data: any) => {
     if (data?.ticker) openFactSheet(data.ticker);
@@ -451,11 +461,11 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         display: "flex", gap: 10, justifyContent: "center", padding: "4px 14px 10px",
         flexWrap: "wrap",
       }}>
-        <LegendDot shape="circle" fill={PROFILE_COLORS.STELLAR_COMPOUNDER.fill} stroke={PROFILE_COLORS.STELLAR_COMPOUNDER.stroke} label="Stellar" />
-        <LegendDot shape="circle" fill="transparent" stroke={PROFILE_COLORS.GENERIC_COMPOUNDER.stroke} label="Generic" />
-        <LegendDot shape="diamond" fill={PROFILE_COLORS.RECLASSIFICATION.fill} stroke={PROFILE_COLORS.RECLASSIFICATION.stroke} label="Reclass" />
-        <LegendDot shape="square" fill={PROFILE_COLORS.CYCLE.fill} stroke={PROFILE_COLORS.CYCLE.stroke} label="Cycle" />
-        <LegendDot shape="triangle" fill={PROFILE_COLORS.PRE_PRODUCTION.fill} stroke={PROFILE_COLORS.PRE_PRODUCTION.stroke} label="Pre-Prod" />
+        <LegendDot shape="circle" fill={PROFILE_COLORS.STELLAR_COMPOUNDER.fill} stroke={PROFILE_COLORS.STELLAR_COMPOUNDER.stroke} label="Stellar" active={!hiddenProfiles.has("STELLAR_COMPOUNDER")} onClick={() => toggleProfile("STELLAR_COMPOUNDER")} />
+        <LegendDot shape="circle" fill="transparent" stroke={PROFILE_COLORS.GENERIC_COMPOUNDER.stroke} label="Generic" active={!hiddenProfiles.has("GENERIC_COMPOUNDER")} onClick={() => toggleProfile("GENERIC_COMPOUNDER")} />
+        <LegendDot shape="diamond" fill={PROFILE_COLORS.RECLASSIFICATION.fill} stroke={PROFILE_COLORS.RECLASSIFICATION.stroke} label="Reclass" active={!hiddenProfiles.has("RECLASSIFICATION")} onClick={() => toggleProfile("RECLASSIFICATION")} />
+        <LegendDot shape="square" fill={PROFILE_COLORS.CYCLE.fill} stroke={PROFILE_COLORS.CYCLE.stroke} label="Cycle" active={!hiddenProfiles.has("CYCLE")} onClick={() => toggleProfile("CYCLE")} />
+        <LegendDot shape="triangle" fill={PROFILE_COLORS.PRE_PRODUCTION.fill} stroke={PROFILE_COLORS.PRE_PRODUCTION.stroke} label="Pre-Prod" active={!hiddenProfiles.has("PRE_PRODUCTION")} onClick={() => toggleProfile("PRE_PRODUCTION")} />
 
         <div style={{ width: 1, height: 14, background: "var(--rim)", alignSelf: "center" }} />
 
@@ -473,29 +483,43 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
 }
 
 // ── Legend helper ──
-function LegendDot({ shape, fill, stroke, label }: { shape: ProfileShape; fill: string; stroke: string; label: string }) {
+function LegendDot({ shape, fill, stroke, label, active = true, onClick }: { shape: ProfileShape; fill: string; stroke: string; label: string; active?: boolean; onClick?: () => void }) {
   const sz = 9;
   const cx = sz / 2, cy = sz / 2;
+  const opacity = active ? 0.8 : 0.15;
+  const sw = active ? 1 : 0.6;
+  const sFill = active ? fill : "transparent";
+  const sStroke = active ? stroke : "rgba(255,255,255,0.2)";
   let el: JSX.Element;
   switch (shape) {
     case "diamond": {
       const s = 4;
-      el = <path d={`M${cx},${cy - s} L${cx + s},${cy} L${cx},${cy + s} L${cx - s},${cy} Z`} fill={fill} fillOpacity={0.8} stroke={stroke} strokeWidth={1} />;
+      el = <path d={`M${cx},${cy - s} L${cx + s},${cy} L${cx},${cy + s} L${cx - s},${cy} Z`} fill={sFill} fillOpacity={opacity} stroke={sStroke} strokeWidth={sw} />;
       break;
     }
     case "square":
-      el = <rect x={1} y={1} width={sz - 2} height={sz - 2} fill={fill} fillOpacity={0.8} stroke={stroke} strokeWidth={1} rx={1} />;
+      el = <rect x={1} y={1} width={sz - 2} height={sz - 2} fill={sFill} fillOpacity={opacity} stroke={sStroke} strokeWidth={sw} rx={1} />;
       break;
     case "triangle": {
       const s = 4;
-      el = <path d={`M${cx},${cy - s} L${cx + s},${cy + s * 0.7} L${cx - s},${cy + s * 0.7} Z`} fill={fill} fillOpacity={0.8} stroke={stroke} strokeWidth={1} />;
+      el = <path d={`M${cx},${cy - s} L${cx + s},${cy + s * 0.7} L${cx - s},${cy + s * 0.7} Z`} fill={sFill} fillOpacity={opacity} stroke={sStroke} strokeWidth={sw} />;
       break;
     }
     default:
-      el = <circle cx={cx} cy={cy} r={3.5} fill={fill} fillOpacity={fill === "transparent" ? 0 : 0.8} stroke={stroke} strokeWidth={fill === "transparent" ? 2 : 1} />;
+      el = <circle cx={cx} cy={cy} r={3.5} fill={sFill} fillOpacity={sFill === "transparent" ? 0 : opacity} stroke={sStroke} strokeWidth={sFill === "transparent" ? 2 : sw} />;
   }
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.06em" }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 4,
+        fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.06em",
+        color: active ? "var(--text-dim)" : "rgba(255,255,255,0.2)",
+        cursor: onClick ? "pointer" : "default",
+        userSelect: "none",
+        transition: "opacity 0.15s",
+      }}
+    >
       <svg width={sz} height={sz}>{el}</svg>
       {label}
     </div>
