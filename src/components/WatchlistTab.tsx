@@ -1214,7 +1214,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Active Buys" count={activeBuys.length} dotColor="var(--green)" />
           {activeBuys.map((r) => (
-            <WatchlistCard key={`buy-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
+            <WatchlistCard key={`buy-${r.item.ticker}`} row={r} variant="compact" tint="in-zone" />
           ))}
         </div>
       )}
@@ -1233,7 +1233,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
             }
           />
           {inZone.map((r) => (
-            <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="full" tint="in-zone" />
+            <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="compact" tint="in-zone" />
           ))}
         </div>
       ) : (
@@ -1245,7 +1245,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Approaching (within 10%)" count={approaching.length} dotColor="var(--amber)" />
           {approaching.map((r) => (
-            <WatchlistCard key={`appr-${r.item.ticker}`} row={r} variant="full" tint="approaching" />
+            <WatchlistCard key={`appr-${r.item.ticker}`} row={r} variant="compact" tint="approaching" />
           ))}
         </div>
       )}
