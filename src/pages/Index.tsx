@@ -183,7 +183,7 @@ export default function Index() {
       <div className="stellar-page">
         {active === "Command" && <CommandTab />}
         {active === "Signals" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} earningsCalendar={portfolio.earningsCalendar} />}
-        {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} scores={portfolio.scores} />}
+        {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} scores={portfolio.scores} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}        
         {active === "Layers" && (
           <LayersTab
             liveData={portfolio.layers}
