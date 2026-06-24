@@ -93,6 +93,11 @@ function compareAssets(a: AssetIntelligence, b: AssetIntelligence, field: SortFi
       const bv = b.liveAsymmetry?.baseRatio ?? -1;
       return sign * (av - bv);
     }
+    case "irrBb": {
+      const av = a.irrBbResult?.irrBb ?? -1;
+      const bv = b.irrBbResult?.irrBb ?? -1;
+      return sign * (av - bv);
+    }
   }
 }
 
