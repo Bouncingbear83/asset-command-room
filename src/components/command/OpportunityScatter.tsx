@@ -10,6 +10,7 @@ import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 import { computeLiveAsymmetry } from "@/lib/liveAsymmetry";
 import { formatIrr } from "@/lib/computeIrrBb";
 import { formatRatio } from "@/lib/liveAsymmetry";
+
 import { normaliseTicker } from "@/lib/tickerAlias";
 import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -96,6 +97,11 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
       const isNumeric = IS_NUMERIC_TICKER.test(entry.ticker);
       const label = isNumeric && entry.name ? entry.name : entry.ticker;
 
+      // Held: size by AUM weight. WL: size by score (conviction proxy).
+      const weight = entry.held
+        ? Math.max(aumPct, 1.5)
+        : Math.max(((entry.score ?? 50) - 40) / 10, 0.8); // score 50→1, 70→3, 90→5
+
       out.push({
         ticker: entry.ticker,
         name: entry.name,
@@ -104,7 +110,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         irrBb: Math.round(irrPct * 10) / 10,
         asymmetry: Math.round(asymClamped * 10) / 10,
         held: entry.held,
-        weight: entry.held ? Math.max(aumPct, 1) : 0.5,
+        weight,
         score: entry.score,
         color: LAYER_COLORS[entry.layer] || "#8A8A9A",
       });
@@ -255,10 +261,10 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
                 <Cell
                   key={d.ticker}
                   fill={d.color}
-                  fillOpacity={d.held ? 0.7 : 0.4}
+                  fillOpacity={d.held ? 0.7 : 0.55}
                   stroke={d.color}
-                  strokeWidth={d.held ? 1.5 : 0.5}
-                  strokeDasharray={d.held ? "none" : "2 2"}
+                  strokeWidth={d.held ? 1.5 : 1}
+                  strokeDasharray="none"
                 />
               ))}
             </Scatter>
