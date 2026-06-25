@@ -737,6 +737,8 @@ export type Database = {
           mgmt_score: number
           moat_rationale: string
           moat_score: number
+          mos_rationale: string | null
+          mos_score: number | null
           mv_gbp_at_scoring: number | null
           pre_reclass_modifier: number | null
           price_at_first_add: number | null
@@ -754,8 +756,6 @@ export type Database = {
           ticker: string
           tier: string | null
           total_score: number
-          valuation_rationale: string
-          valuation_score: number
         }
         Insert: {
           action: string
@@ -777,6 +777,8 @@ export type Database = {
           mgmt_score: number
           moat_rationale: string
           moat_score: number
+          mos_rationale?: string | null
+          mos_score?: number | null
           mv_gbp_at_scoring?: number | null
           pre_reclass_modifier?: number | null
           price_at_first_add?: number | null
@@ -794,8 +796,6 @@ export type Database = {
           ticker: string
           tier?: string | null
           total_score: number
-          valuation_rationale: string
-          valuation_score: number
         }
         Update: {
           action?: string
@@ -817,6 +817,8 @@ export type Database = {
           mgmt_score?: number
           moat_rationale?: string
           moat_score?: number
+          mos_rationale?: string | null
+          mos_score?: number | null
           mv_gbp_at_scoring?: number | null
           pre_reclass_modifier?: number | null
           price_at_first_add?: number | null
@@ -834,8 +836,6 @@ export type Database = {
           ticker?: string
           tier?: string | null
           total_score?: number
-          valuation_rationale?: string
-          valuation_score?: number
         }
         Relationships: []
       }
@@ -857,6 +857,7 @@ export type Database = {
           div_yield: number | null
           id: number
           layer: string
+          margin_of_safety: number
           mgmt: number
           moat: number
           reject_reason: string | null
@@ -872,7 +873,6 @@ export type Database = {
           substrate_stage: string | null
           ticker: string
           tier: string | null
-          valuation: number
         }
         Insert: {
           action?: string | null
@@ -891,6 +891,7 @@ export type Database = {
           div_yield?: number | null
           id?: never
           layer: string
+          margin_of_safety: number
           mgmt: number
           moat: number
           reject_reason?: string | null
@@ -906,7 +907,6 @@ export type Database = {
           substrate_stage?: string | null
           ticker: string
           tier?: string | null
-          valuation: number
         }
         Update: {
           action?: string | null
@@ -925,6 +925,7 @@ export type Database = {
           div_yield?: number | null
           id?: never
           layer?: string
+          margin_of_safety?: number
           mgmt?: number
           moat?: number
           reject_reason?: string | null
@@ -940,7 +941,6 @@ export type Database = {
           substrate_stage?: string | null
           ticker?: string
           tier?: string | null
-          valuation?: number
         }
         Relationships: []
       }
