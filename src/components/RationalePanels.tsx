@@ -8,7 +8,7 @@ const DIMENSIONS: { key: string; label: string; max: number; scoreKey: keyof Sco
   { key: "substrate", label: "Substrate", max: 25, scoreKey: "substrate_score", rationaleKey: "substrate_rationale" },
   { key: "demand", label: "Demand", max: 22, scoreKey: "demand_score", rationaleKey: "demand_rationale" },
   { key: "moat", label: "Moat", max: 18, scoreKey: "moat_score", rationaleKey: "moat_rationale" },
-  { key: "valuation", label: "Valuation", max: 13, scoreKey: "valuation_score", rationaleKey: "valuation_rationale" },
+  { key: "valuation", label: "Margin of Safety", max: 13, scoreKey: "mos_score", rationaleKey: "mos_rationale" },
   { key: "mgmt", label: "Management", max: 7, scoreKey: "mgmt_score", rationaleKey: "mgmt_rationale" },
   { key: "disruption", label: "Disruption", max: 15, scoreKey: "disruption_score", rationaleKey: "disruption_rationale" },
 ];

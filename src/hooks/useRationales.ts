@@ -15,8 +15,8 @@ export interface ScoreRationale {
   demand_rationale: string;
   moat_score: number;
   moat_rationale: string;
-  valuation_score: number;
-  valuation_rationale: string;
+  mos_score: number;
+  mos_rationale: string;
   mgmt_score: number;
   mgmt_rationale: string;
   disruption_score: number;
