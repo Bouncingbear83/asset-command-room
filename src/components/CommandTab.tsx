@@ -7,6 +7,7 @@ import ActionInbox from "@/components/ActionInbox";
 import CapitalQueue from "@/components/command/CapitalQueue";
 import OpportunityRank from "@/components/OpportunityRank";
 import OpportunityScatter from "@/components/command/OpportunityScatter";
+import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
@@ -187,6 +188,11 @@ export default function CommandTab() {
 
       {/* ── CARD 4: OPPORTUNITY MAP (scatter, desktop only) ── */}
       <OpportunityScatter
+        scores={scores}
+        holdings={holdings}
+        watchlist={watchlist}
+      />
+      <OpportunityQuadrants
         scores={scores}
         holdings={holdings}
         watchlist={watchlist}
