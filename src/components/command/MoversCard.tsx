@@ -6,12 +6,16 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { shortName } from "@/components/shared/TickerLabel";
 
 type Period = "1D" | "1W" | "1M";
 type Scope = "ALL" | "HELD" | "WL";
 
+const IS_NUMERIC = /^\d{3,5}\.[A-Z]{1,2}$/;
+
 interface MoverRow {
   ticker: string;
+  name: string;
   price: number;
   change: number | null;
   mv: number;
@@ -121,7 +125,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       if (earningsTickers.has(key)) flags.push("ERN");
 
       out.push({
-        ticker: h.ticker, price: displayPrice, change, mv: h.mv || 0, currency: h.currency,
+        ticker: h.ticker, name: h.name || "", price: displayPrice, change, mv: h.mv || 0, currency: h.currency,
         isWatchlist: false, isBordier, flags,
         sparkPoints: pd && pd.points.length >= 5 ? pd.points : null,
         sparkColor: pd?.sparklineColor ?? (change >= 0 ? "green" : "red"),
@@ -192,6 +196,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
 
       out.push({
         ticker: w.ticker,
+        name: w.name || "",
         price: last,
         change,
         mv: 0, currency: w.currency || "USD",
@@ -234,6 +239,17 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     const priceStr = `${sym}${m.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
     const hasSpark = !!m.sparkPoints;
 
+    const tickerDisplay = (
+      <>
+        {m.ticker}
+        {IS_NUMERIC.test(m.ticker) && m.name ? (
+          <span style={{ fontWeight: 400, fontSize: "0.85em", color: "var(--text-dim)", marginLeft: 4 }}>
+            ({shortName(m.name)})
+          </span>
+        ) : null}
+      </>
+    );
+
     return (
       <div key={m.ticker} style={{
         display: "grid",
@@ -246,7 +262,9 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         {isMobile ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{m.ticker}</TickerButton>
+              <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                {tickerDisplay}
+              </TickerButton>
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg }}>{s.label}</span> : null; })}
             </div>
@@ -260,7 +278,9 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
           </>
         ) : (
           <>
-            <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{m.ticker}</TickerButton>
+            <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+              {tickerDisplay}
+            </TickerButton>
             <span>
               {m.isWatchlist ? <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span> : null}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
