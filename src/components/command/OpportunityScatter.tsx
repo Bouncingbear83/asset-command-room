@@ -29,6 +29,33 @@ const PROFILE_COLORS: Record<string, { fill: string; stroke: string }> = {
   UNKNOWN:             { fill: "#8A8A9A",                            stroke: "#8A8A9A" },
 };
 
+// ── Score band colours ──
+const SCORE_COLORS: Record<string, { fill: string; stroke: string }> = {
+  S90: { fill: "#5abfa0", stroke: "#5abfa0" },   // 90+: bright green
+  S75: { fill: "#7da4d8", stroke: "#7da4d8" },   // 75-89: teal-blue
+  S60: { fill: "#d4a06a", stroke: "#d4a06a" },   // 60-74: amber
+  SUB: { fill: "#6b6b7b", stroke: "#6b6b7b" },   // <60: muted
+};
+
+function scoreBand(score: number | null): string {
+  if (score === null) return "SUB";
+  if (score >= 90) return "S90";
+  if (score >= 75) return "S75";
+  if (score >= 60) return "S60";
+  return "SUB";
+}
+
+// ── Layer colours (matches AssetRow palette) ──
+const LAYER_COLORS: Record<string, { fill: string; stroke: string }> = {
+  Compute:     { fill: "#6e8ec8", stroke: "#6e8ec8" },
+  Energy:      { fill: "#c8925a", stroke: "#c8925a" },
+  Materials:   { fill: "#c8a86e", stroke: "#c8a86e" },
+  Biological:  { fill: "#5abfa0", stroke: "#5abfa0" },
+  Sovereignty: { fill: "#9b59b6", stroke: "#9b59b6" },
+  Robotics:    { fill: "#3498db", stroke: "#3498db" },
+  Hedge:       { fill: "#c85a5a", stroke: "#c85a5a" },
+};
+
 // ── Shape by profile: circle=compounder, diamond=reclass, square=cycle, triangle=other ──
 type ProfileShape = "circle" | "diamond" | "square" | "triangle";
 const PROFILE_SHAPE: Record<string, ProfileShape> = {
@@ -42,15 +69,17 @@ const PROFILE_SHAPE: Record<string, ProfileShape> = {
   UNKNOWN: "circle",
 };
 
-// ── Zoom presets ──
+// ── Zoom presets (now drive slider values) ──
 type ZoomPreset = "full" | "deploy" | "dense";
-const ZOOM_DOMAINS: Record<ZoomPreset, { x: [number, number]; y: [number, number] }> = {
-  full:   { x: [0, 9],   y: [0, 45] },
-  deploy: { x: [1, 7],   y: [14, 45] },
+const ZOOM_DEFAULTS: Record<ZoomPreset, { x: [number, number]; y: [number, number] }> = {
+  full:   { x: [0, 10],  y: [0, 50] },
+  deploy: { x: [1, 7],   y: [14, 50] },
   dense:  { x: [0.5, 5], y: [8, 35] },
 };
 
 type Filter = "all" | "held" | "wl";
+type SizeMode = "holding" | "score" | "uniform";
+type ColourMode = "profile" | "score" | "layer";
 
 interface Dot {
   ticker: string;
@@ -62,10 +91,11 @@ interface Dot {
   irrBb: number;
   asymmetry: number;
   held: boolean;
-  weight: number;
+  aumWeight: number;
   score: number | null;
-  fillColor: string;
-  strokeColor: string;
+  // These are the "profile" default colours; the render function resolves the active colour mode
+  profileFill: string;
+  profileStroke: string;
   shape: ProfileShape;
 }
 
@@ -75,12 +105,43 @@ interface Props {
   watchlist: LiveWatchItem[];
 }
 
+// ── Resolve fill/stroke based on colour mode ──
+function resolveColour(d: Dot, mode: ColourMode): { fill: string; stroke: string } {
+  if (mode === "score") {
+    const c = SCORE_COLORS[scoreBand(d.score)] ?? SCORE_COLORS.SUB;
+    return c;
+  }
+  if (mode === "layer") {
+    const c = LAYER_COLORS[d.layer] ?? { fill: "#8A8A9A", stroke: "#8A8A9A" };
+    return c;
+  }
+  return { fill: d.profileFill, stroke: d.profileStroke };
+}
+
+// ── Resolve dot radius based on size mode ──
+function resolveRadius(d: Dot, mode: SizeMode): number {
+  switch (mode) {
+    case "holding":
+      return d.held
+        ? Math.max(5, Math.min(14, 3 + Math.max(d.aumWeight, 1.5) * 1.2))
+        : Math.max(4, Math.min(8, 4));
+    case "score": {
+      const s = d.score ?? 50;
+      return Math.max(4, Math.min(14, 2 + (s - 30) * 0.17));
+    }
+    case "uniform":
+      return 6;
+  }
+}
+
 // ── Custom dot renderer (shape per profile) ──
 function DotShape(props: any) {
-  const { cx, cy, payload } = props;
+  const { cx, cy, payload, sizeMode, colourMode } = props;
   if (!cx || !cy || !payload) return null;
   const d = payload as Dot;
-  const r = Math.max(4, Math.min(12, 3 + d.weight * 1.2));
+  const r = resolveRadius(d, sizeMode ?? "holding");
+  const { fill: fillColor, stroke: strokeColor } = resolveColour(d, colourMode ?? "profile");
+  const isHollow = colourMode === "profile" && d.profileFill === "transparent";
   const baseOpacity = d.held ? 0.8 : 0.55;
   const sw = d.held ? 1.5 : 1;
 
@@ -90,9 +151,9 @@ function DotShape(props: any) {
       return (
         <path
           d={`M${cx},${cy - s} L${cx + s},${cy} L${cx},${cy + s} L${cx - s},${cy} Z`}
-          fill={d.fillColor}
+          fill={fillColor}
           fillOpacity={baseOpacity}
-          stroke={d.strokeColor}
+          stroke={strokeColor}
           strokeWidth={sw}
           style={{ cursor: "pointer" }}
         />
@@ -103,9 +164,9 @@ function DotShape(props: any) {
       return (
         <rect
           x={cx - half} y={cy - half} width={half * 2} height={half * 2}
-          fill={d.fillColor}
+          fill={fillColor}
           fillOpacity={baseOpacity}
-          stroke={d.strokeColor}
+          stroke={strokeColor}
           strokeWidth={sw}
           rx={1}
           style={{ cursor: "pointer" }}
@@ -117,9 +178,9 @@ function DotShape(props: any) {
       return (
         <path
           d={`M${cx},${cy - s} L${cx + s},${cy + s * 0.7} L${cx - s},${cy + s * 0.7} Z`}
-          fill={d.fillColor}
+          fill={fillColor}
           fillOpacity={baseOpacity}
-          stroke={d.strokeColor}
+          stroke={strokeColor}
           strokeWidth={sw}
           style={{ cursor: "pointer" }}
         />
@@ -129,10 +190,10 @@ function DotShape(props: any) {
       return (
         <circle
           cx={cx} cy={cy} r={r}
-          fill={d.fillColor}
-          fillOpacity={d.fillColor === "transparent" ? 0 : baseOpacity}
-          stroke={d.strokeColor}
-          strokeWidth={d.fillColor === "transparent" ? 2 : sw}
+          fill={isHollow ? "transparent" : fillColor}
+          fillOpacity={isHollow ? 0 : baseOpacity}
+          stroke={strokeColor}
+          strokeWidth={isHollow ? 2 : sw}
           style={{ cursor: "pointer" }}
         />
       );
@@ -140,11 +201,102 @@ function DotShape(props: any) {
   }
 }
 
+// ── Range Slider Component ──
+function RangeSlider({
+  min, max, value, onChange, step = 1, label, formatter,
+}: {
+  min: number; max: number; value: [number, number]; onChange: (v: [number, number]) => void;
+  step?: number; label: string; formatter?: (v: number) => string;
+}) {
+  const fmt = formatter ?? ((v: number) => String(v));
+  const range = max - min;
+
+  // Positions as percentages
+  const loPos = ((value[0] - min) / range) * 100;
+  const hiPos = ((value[1] - min) / range) * 100;
+
+  return (
+    <div style={{ flex: 1, minWidth: 100 }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)",
+        letterSpacing: "0.08em", marginBottom: 4,
+      }}>
+        <span style={{ textTransform: "uppercase" }}>{label}</span>
+        <span style={{ color: "var(--text-mid)", fontSize: 9 }}>
+          {fmt(value[0])} – {fmt(value[1])}
+        </span>
+      </div>
+      <div style={{ position: "relative", height: 16 }}>
+        {/* Track */}
+        <div style={{
+          position: "absolute", top: 6, left: 0, right: 0, height: 3,
+          background: "rgba(255,255,255,0.06)", borderRadius: 2,
+        }} />
+        {/* Active range */}
+        <div style={{
+          position: "absolute", top: 6, height: 3, borderRadius: 2,
+          left: `${loPos}%`, width: `${hiPos - loPos}%`,
+          background: "rgba(90,191,160,0.35)",
+        }} />
+        {/* Low thumb */}
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={value[0]}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (v < value[1]) onChange([v, value[1]]);
+          }}
+          style={{
+            position: "absolute", top: 0, left: 0, width: "100%",
+            height: 16, opacity: 0, cursor: "pointer", zIndex: 2,
+            pointerEvents: "auto",
+          }}
+        />
+        {/* High thumb */}
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={value[1]}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (v > value[0]) onChange([value[0], v]);
+          }}
+          style={{
+            position: "absolute", top: 0, left: 0, width: "100%",
+            height: 16, opacity: 0, cursor: "pointer", zIndex: 3,
+            pointerEvents: "auto",
+          }}
+        />
+        {/* Visual thumbs */}
+        <div style={{
+          position: "absolute", top: 2, width: 10, height: 10, borderRadius: "50%",
+          background: "var(--green, #5abfa0)", border: "1.5px solid rgba(255,255,255,0.6)",
+          left: `calc(${loPos}% - 5px)`, pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", top: 2, width: 10, height: 10, borderRadius: "50%",
+          background: "var(--green, #5abfa0)", border: "1.5px solid rgba(255,255,255,0.6)",
+          left: `calc(${hiPos}% - 5px)`, pointerEvents: "none",
+        }} />
+      </div>
+    </div>
+  );
+}
+
+
 export default function OpportunityScatter({ scores, holdings, watchlist }: Props) {
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>("all");
-  const [zoom, setZoom] = useState<ZoomPreset>("full");
   const [hiddenProfiles, setHiddenProfiles] = useState<Set<string>>(new Set());
+  const [sizeMode, setSizeMode] = useState<SizeMode>("holding");
+  const [colourMode, setColourMode] = useState<ColourMode>("profile");
+
+  // Range slider state
+  const [irrRange, setIrrRange] = useState<[number, number]>([0, 50]);
+  const [asymRange, setAsymRange] = useState<[number, number]>([0, 10]);
+
   const toggleProfile = useCallback((key: string) => {
     setHiddenProfiles((prev) => {
       const next = new Set(prev);
@@ -238,10 +390,6 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
       const colors = PROFILE_COLORS[profileKey] ?? PROFILE_COLORS.UNKNOWN;
       const shape = PROFILE_SHAPE[profileKey] ?? "circle";
 
-      const weight = entry.held
-        ? Math.max(aumPct, 1.5)
-        : Math.max(((entry.score ?? 50) - 40) / 10, 0.8);
-
       out.push({
         ticker: entry.ticker,
         name: entry.name,
@@ -252,10 +400,10 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         irrBb: Math.round(irrPct * 10) / 10,
         asymmetry: Math.round(asymClamped * 10) / 10,
         held: entry.held,
-        weight,
+        aumWeight: aumPct,
         score: entry.score,
-        fillColor: colors.fill,
-        strokeColor: colors.stroke,
+        profileFill: colors.fill,
+        profileStroke: colors.stroke,
         shape,
       });
     }
@@ -273,10 +421,17 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
     if (data?.ticker) openFactSheet(data.ticker);
   }, [openFactSheet]);
 
+  // Preset helper: applies slider values
+  const applyPreset = useCallback((p: ZoomPreset) => {
+    const d = ZOOM_DEFAULTS[p];
+    setAsymRange(d.x);
+    setIrrRange(d.y);
+  }, []);
+
   if (isMobile) return null;
   if (dots.length < 3) return null;
 
-  const domain = ZOOM_DOMAINS[zoom];
+  const domain = { x: asymRange, y: irrRange };
 
   const fbtn = (f: Filter, lbl: string) => (
     <button
@@ -293,15 +448,35 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
     </button>
   );
 
-  const zbtn = (z: ZoomPreset, lbl: string) => (
+  const presetBtn = (p: ZoomPreset, lbl: string) => {
+    const d = ZOOM_DEFAULTS[p];
+    const isActive = asymRange[0] === d.x[0] && asymRange[1] === d.x[1]
+      && irrRange[0] === d.y[0] && irrRange[1] === d.y[1];
+    return (
+      <button
+        onClick={() => applyPreset(p)}
+        style={{
+          fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em",
+          padding: "2px 6px", border: `0.5px solid ${isActive ? "var(--green, #5abfa0)" : "var(--rim)"}`,
+          borderRadius: 2, cursor: "pointer", textTransform: "uppercase",
+          background: isActive ? "rgba(90,191,160,0.08)" : "transparent",
+          color: isActive ? "var(--green, #5abfa0)" : "var(--text-dim)",
+        }}
+      >
+        {lbl}
+      </button>
+    );
+  };
+
+  const segBtn = <T extends string>(value: T, current: T, set: (v: T) => void, lbl: string) => (
     <button
-      onClick={() => setZoom(z)}
+      onClick={() => set(value)}
       style={{
-        fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.08em",
-        padding: "2px 6px", border: `0.5px solid ${zoom === z ? "var(--green, #5abfa0)" : "var(--rim)"}`,
-        borderRadius: 2, cursor: "pointer", textTransform: "uppercase",
-        background: zoom === z ? "rgba(90,191,160,0.08)" : "transparent",
-        color: zoom === z ? "var(--green, #5abfa0)" : "var(--text-dim)",
+        fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.06em",
+        padding: "2px 6px", border: "none", cursor: "pointer", textTransform: "uppercase",
+        background: current === value ? "rgba(255,255,255,0.08)" : "transparent",
+        color: current === value ? "var(--text)" : "var(--text-dim)",
+        borderBottom: current === value ? "1px solid var(--text-mid)" : "1px solid transparent",
       }}
     >
       {lbl}
@@ -310,6 +485,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
 
   return (
     <div style={card}>
+      {/* Header row: title + filter */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "12px 14px", borderBottom: "1px solid var(--rim)",
@@ -327,12 +503,63 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         </div>
       </div>
 
+      {/* Controls row: presets + toggles + sliders */}
       <div style={{
-        display: "flex", gap: 4, padding: "6px 14px 0", justifyContent: "flex-end",
+        display: "flex", alignItems: "flex-start", gap: 12, padding: "8px 14px",
+        flexWrap: "wrap", borderBottom: "1px solid rgba(255,255,255,0.03)",
       }}>
-        {zbtn("full", "Full")}
-        {zbtn("deploy", "Deploy")}
-        {zbtn("dense", "Dense")}
+        {/* Left: presets */}
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {presetBtn("full", "Full")}
+          {presetBtn("deploy", "Deploy")}
+          {presetBtn("dense", "Dense")}
+        </div>
+
+        {/* Separator */}
+        <div style={{ width: 1, height: 28, background: "var(--rim)", alignSelf: "center" }} />
+
+        {/* Size toggle */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
+          }}>Size</span>
+          <div style={{ display: "flex", gap: 0 }}>
+            {segBtn("holding" as SizeMode, sizeMode, setSizeMode, "Holding")}
+            {segBtn("score" as SizeMode, sizeMode, setSizeMode, "Score")}
+            {segBtn("uniform" as SizeMode, sizeMode, setSizeMode, "Flat")}
+          </div>
+        </div>
+
+        {/* Colour toggle */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
+          }}>Colour</span>
+          <div style={{ display: "flex", gap: 0 }}>
+            {segBtn("profile" as ColourMode, colourMode, setColourMode, "Profile")}
+            {segBtn("score" as ColourMode, colourMode, setColourMode, "Score")}
+            {segBtn("layer" as ColourMode, colourMode, setColourMode, "Layer")}
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div style={{ width: 1, height: 28, background: "var(--rim)", alignSelf: "center" }} />
+
+        {/* Range sliders */}
+        <div style={{ display: "flex", gap: 16, flex: 1, minWidth: 200 }}>
+          <RangeSlider
+            min={0} max={50} step={1}
+            value={irrRange} onChange={setIrrRange}
+            label="IRR-BB" formatter={(v) => `${v}%`}
+          />
+          <RangeSlider
+            min={0} max={10} step={0.5}
+            value={asymRange} onChange={setAsymRange}
+            label="Asymmetry" formatter={(v) => `${v}:1`}
+          />
+        </div>
       </div>
 
       <div style={{ padding: "4px 6px 0" }}>
@@ -370,7 +597,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
                 style: { fontFamily: "var(--font-mono)", fontSize: 9, fill: "rgba(255,255,255,0.3)", letterSpacing: "0.08em" },
               }}
             />
-            <ZAxis dataKey="weight" range={[30, 300]} />
+            <ZAxis dataKey="aumWeight" range={[30, 300]} />
 
             {/* Deploy threshold: 20% IRR-BB */}
             <ReferenceLine
@@ -411,6 +638,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
               content={({ payload }) => {
                 if (!payload?.[0]) return null;
                 const d = payload[0].payload as Dot;
+                const { fill, stroke } = resolveColour(d, colourMode);
                 return (
                   <div style={{
                     background: "var(--panel)", border: "1px solid var(--rim)",
@@ -426,9 +654,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
                     <div style={{
                       display: "inline-block", fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase",
                       padding: "1px 5px", borderRadius: 2, marginBottom: 4,
-                      color: d.strokeColor,
-                      border: `1px solid ${d.strokeColor}`,
-                      background: d.fillColor === "transparent" ? "transparent" : `${d.fillColor}22`,
+                      color: stroke,
+                      border: `1px solid ${stroke}`,
+                      background: fill === "transparent" ? "transparent" : `${fill}22`,
                     }}>
                       {d.profileLabel}
                     </div>
@@ -436,7 +664,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
                     <div>Asymmetry: <span style={{ color: "var(--gold)" }}>{d.asymmetry.toFixed(1)}:1</span></div>
                     <div>Score: {d.score ?? "\u2014"} \u00b7 {d.layer}</div>
                     <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 2 }}>
-                      {d.held ? `${d.weight.toFixed(1)}% AUM` : "Watchlist"}
+                      {d.held ? `${d.aumWeight.toFixed(1)}% AUM` : "Watchlist"}
                     </div>
                   </div>
                 );
@@ -446,7 +674,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             <Scatter
               data={filtered}
               onClick={handleClick}
-              shape={<DotShape />}
+              shape={(props: any) => (
+                <DotShape {...props} sizeMode={sizeMode} colourMode={colourMode} />
+              )}
             >
               {filtered.map((d) => (
                 <Cell key={d.ticker} />
@@ -456,22 +686,42 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
+      {/* Legend: adapts to colour mode */}
       <div style={{
         display: "flex", gap: 10, justifyContent: "center", padding: "4px 14px 10px",
         flexWrap: "wrap",
       }}>
-        <LegendDot shape="circle" fill={PROFILE_COLORS.STELLAR_COMPOUNDER.fill} stroke={PROFILE_COLORS.STELLAR_COMPOUNDER.stroke} label="Stellar" active={!hiddenProfiles.has("STELLAR_COMPOUNDER")} onClick={() => toggleProfile("STELLAR_COMPOUNDER")} />
-        <LegendDot shape="circle" fill="transparent" stroke={PROFILE_COLORS.GENERIC_COMPOUNDER.stroke} label="Generic" active={!hiddenProfiles.has("GENERIC_COMPOUNDER")} onClick={() => toggleProfile("GENERIC_COMPOUNDER")} />
-        <LegendDot shape="diamond" fill={PROFILE_COLORS.RECLASSIFICATION.fill} stroke={PROFILE_COLORS.RECLASSIFICATION.stroke} label="Reclass" active={!hiddenProfiles.has("RECLASSIFICATION")} onClick={() => toggleProfile("RECLASSIFICATION")} />
-        <LegendDot shape="square" fill={PROFILE_COLORS.CYCLE.fill} stroke={PROFILE_COLORS.CYCLE.stroke} label="Cycle" active={!hiddenProfiles.has("CYCLE")} onClick={() => toggleProfile("CYCLE")} />
-        <LegendDot shape="triangle" fill={PROFILE_COLORS.PRE_PRODUCTION.fill} stroke={PROFILE_COLORS.PRE_PRODUCTION.stroke} label="Pre-Prod" active={!hiddenProfiles.has("PRE_PRODUCTION")} onClick={() => toggleProfile("PRE_PRODUCTION")} />
+        {colourMode === "profile" && (
+          <>
+            <LegendDot shape="circle" fill={PROFILE_COLORS.STELLAR_COMPOUNDER.fill} stroke={PROFILE_COLORS.STELLAR_COMPOUNDER.stroke} label="Stellar" active={!hiddenProfiles.has("STELLAR_COMPOUNDER")} onClick={() => toggleProfile("STELLAR_COMPOUNDER")} />
+            <LegendDot shape="circle" fill="transparent" stroke={PROFILE_COLORS.GENERIC_COMPOUNDER.stroke} label="Generic" active={!hiddenProfiles.has("GENERIC_COMPOUNDER")} onClick={() => toggleProfile("GENERIC_COMPOUNDER")} />
+            <LegendDot shape="diamond" fill={PROFILE_COLORS.RECLASSIFICATION.fill} stroke={PROFILE_COLORS.RECLASSIFICATION.stroke} label="Reclass" active={!hiddenProfiles.has("RECLASSIFICATION")} onClick={() => toggleProfile("RECLASSIFICATION")} />
+            <LegendDot shape="square" fill={PROFILE_COLORS.CYCLE.fill} stroke={PROFILE_COLORS.CYCLE.stroke} label="Cycle" active={!hiddenProfiles.has("CYCLE")} onClick={() => toggleProfile("CYCLE")} />
+            <LegendDot shape="triangle" fill={PROFILE_COLORS.PRE_PRODUCTION.fill} stroke={PROFILE_COLORS.PRE_PRODUCTION.stroke} label="Pre-Prod" active={!hiddenProfiles.has("PRE_PRODUCTION")} onClick={() => toggleProfile("PRE_PRODUCTION")} />
+          </>
+        )}
+        {colourMode === "score" && (
+          <>
+            <LegendSquare color={SCORE_COLORS.S90.fill} label="90+" />
+            <LegendSquare color={SCORE_COLORS.S75.fill} label="75–89" />
+            <LegendSquare color={SCORE_COLORS.S60.fill} label="60–74" />
+            <LegendSquare color={SCORE_COLORS.SUB.fill} label="<60" />
+          </>
+        )}
+        {colourMode === "layer" && (
+          <>
+            {Object.entries(LAYER_COLORS).map(([name, c]) => (
+              <LegendSquare key={name} color={c.fill} label={name} />
+            ))}
+          </>
+        )}
 
         <div style={{ width: 1, height: 14, background: "var(--rim)", alignSelf: "center" }} />
 
+        {/* Size mode indicator */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>
           <svg width="10" height="10"><circle cx="5" cy="5" r="4.5" fill="none" stroke="var(--text-dim)" strokeWidth="1.5" /></svg>
-          Held
+          {sizeMode === "holding" ? "Held" : sizeMode === "score" ? "Score" : "Flat"}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>
           <svg width="10" height="10"><circle cx="5" cy="5" r="3.5" fill="none" stroke="var(--text-dim)" strokeWidth="0.8" strokeDasharray="2 1" /></svg>
@@ -482,7 +732,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   );
 }
 
-// ── Legend helper ──
+// ── Legend helper: shaped dot (for Profile mode) ──
 function LegendDot({ shape, fill, stroke, label, active = true, onClick }: { shape: ProfileShape; fill: string; stroke: string; label: string; active?: boolean; onClick?: () => void }) {
   const sz = 9;
   const cx = sz / 2, cy = sz / 2;
@@ -521,6 +771,23 @@ function LegendDot({ shape, fill, stroke, label, active = true, onClick }: { sha
       }}
     >
       <svg width={sz} height={sz}>{el}</svg>
+      {label}
+    </div>
+  );
+}
+
+// ── Legend helper: coloured square (for Score/Layer mode) ──
+function LegendSquare({ color, label }: { color: string; label: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 4,
+      fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.06em",
+      color: "var(--text-dim)",
+    }}>
+      <div style={{
+        width: 8, height: 8, borderRadius: 1,
+        background: color, opacity: 0.75,
+      }} />
       {label}
     </div>
   );
