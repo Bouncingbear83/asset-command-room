@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-request-id",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-request-id",
 };
 
 // ============================================================
@@ -46,8 +45,8 @@ const SCORE_RATIONALES_WHITELIST = new Set<string>([
   "ticker",
   "tier",
   "total_score",
-  "valuation_rationale",
-  "valuation_score",
+  "mos_rationale",
+  "mos_score",
 ]); // 34 cols
 
 const DISRUPTION_RATIONALES_WHITELIST = new Set<string>([
@@ -123,17 +122,9 @@ async function processTable(
 
   if (pairs.length > 0) {
     const orFilter = pairs
-      .map(
-        (p) =>
-          `and(ticker.eq.${p.ticker},scored_at.eq.${
-            new Date(p.scored_at as string).toISOString()
-          })`,
-      )
+      .map((p) => `and(ticker.eq.${p.ticker},scored_at.eq.${new Date(p.scored_at as string).toISOString()})`)
       .join(",");
-    const { data: existing, error: selErr } = await supabase
-      .from(table)
-      .select("ticker, scored_at")
-      .or(orFilter);
+    const { data: existing, error: selErr } = await supabase.from(table).select("ticker, scored_at").or(orFilter);
     if (selErr) {
       console.error(`${table} pre-check error:`, selErr.message);
     } else if (existing) {
@@ -141,9 +132,7 @@ async function processTable(
     }
   }
 
-  const { error } = await supabase
-    .from(table)
-    .upsert(writableRows, { onConflict: "ticker,scored_at" });
+  const { error } = await supabase.from(table).upsert(writableRows, { onConflict: "ticker,scored_at" });
 
   if (error) {
     console.error(`${table} upsert error:`, JSON.stringify(error));
@@ -158,9 +147,7 @@ async function processTable(
 
   const columns_written = unionSorted(allKept);
   const columns_dropped_unknown = unionSorted(allDropped);
-  const bytes_written = new TextEncoder().encode(
-    JSON.stringify(writableRows),
-  ).length;
+  const bytes_written = new TextEncoder().encode(JSON.stringify(writableRows)).length;
 
   return {
     rows_written: writableRows.length,
@@ -197,23 +184,17 @@ Deno.serve(async (req) => {
     const ingestSecret = Deno.env.get("INGEST_SECRET");
 
     if (!ingestSecret) {
-      return new Response(
-        JSON.stringify({ error: "INGEST_SECRET not configured", request_id }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "INGEST_SECRET not configured", request_id }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!token || token !== ingestSecret) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", request_id }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized", request_id }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const body = await req.json();
@@ -221,12 +202,8 @@ Deno.serve(async (req) => {
       request_id = body.request_id;
     }
 
-    const scoreRows: AnyRow[] = Array.isArray(body.score_rationales)
-      ? body.score_rationales
-      : [];
-    const disruptionRows: AnyRow[] = Array.isArray(body.disruption_rationales)
-      ? body.disruption_rationales
-      : [];
+    const scoreRows: AnyRow[] = Array.isArray(body.score_rationales) ? body.score_rationales : [];
+    const disruptionRows: AnyRow[] = Array.isArray(body.disruption_rationales) ? body.disruption_rationales : [];
 
     if (scoreRows.length === 0 && disruptionRows.length === 0) {
       return new Response(
@@ -243,10 +220,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const results: Record<string, unknown> = {};
 
@@ -268,9 +242,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const hasErrors = Object.values(results).some(
-      (r: any) => r && r.error,
-    );
+    const hasErrors = Object.values(results).some((r: any) => r && r.error);
 
     return new Response(
       JSON.stringify({
@@ -286,12 +258,9 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("ingest-rationales error:", err);
-    return new Response(
-      JSON.stringify({ error: (err as Error).message, request_id }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ error: (err as Error).message, request_id }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
