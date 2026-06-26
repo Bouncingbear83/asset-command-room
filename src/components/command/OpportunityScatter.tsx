@@ -562,9 +562,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
           }}>Size</span>
           <div style={{ display: "flex", gap: 0 }}>
-            {segBtn("holding" as SizeMode, sizeMode, setSizeMode, "Holding")}
-            {segBtn("score" as SizeMode, sizeMode, setSizeMode, "Score")}
-            {segBtn("uniform" as SizeMode, sizeMode, setSizeMode, "Flat")}
+            {segBtn("holding" as SizeMode, sizeMode, (v) => setSizeMode(v), "Holding")}
+            {segBtn("score" as SizeMode, sizeMode, (v) => setSizeMode(v), "Score")}
+            {segBtn("uniform" as SizeMode, sizeMode, (v) => setSizeMode(v), "Flat")}
           </div>
         </div>
 
@@ -575,9 +575,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
           }}>Colour</span>
           <div style={{ display: "flex", gap: 0 }}>
-            {segBtn("profile" as ColourMode, colourMode, setColourMode, "Profile")}
-            {segBtn("score" as ColourMode, colourMode, setColourMode, "Score")}
-            {segBtn("layer" as ColourMode, colourMode, setColourMode, "Layer")}
+            {segBtn("profile" as ColourMode, colourMode, (v) => setColourMode(v), "Profile")}
+            {segBtn("score" as ColourMode, colourMode, (v) => setColourMode(v), "Score")}
+            {segBtn("layer" as ColourMode, colourMode, (v) => setColourMode(v), "Layer")}
           </div>
         </div>
 
