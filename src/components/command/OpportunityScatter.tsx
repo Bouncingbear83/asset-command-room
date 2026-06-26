@@ -730,9 +730,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
               textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
             }}>Arrows</span>
             <div style={{ display: "flex", gap: 0 }}>
-              {segBtn("all" as "all", arrowFilter, setArrowFilter, "All")}
-              {segBtn("improved" as "improved", arrowFilter, setArrowFilter, "\u2191 Better")}
-              {segBtn("deteriorated" as "deteriorated", arrowFilter, setArrowFilter, "\u2193 Worse")}
+              {segBtn("all" as const, arrowFilter, (v) => setArrowFilter(v), "All")}
+              {segBtn("improved" as const, arrowFilter, (v) => setArrowFilter(v), "\u2191 Better")}
+              {segBtn("deteriorated" as const, arrowFilter, (v) => setArrowFilter(v), "\u2193 Worse")}
             </div>
           </div>
         )}
