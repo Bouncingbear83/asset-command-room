@@ -575,9 +575,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
           }}>Colour</span>
           <div style={{ display: "flex", gap: 0 }}>
-            {segBtn("profile" as ColourMode, colourMode, setColourMode, "Profile")}
-            {segBtn("score" as ColourMode, colourMode, setColourMode, "Score")}
-            {segBtn("layer" as ColourMode, colourMode, setColourMode, "Layer")}
+            {segBtn("profile" as ColourMode, colourMode, (v) => setColourMode(v), "Profile")}
+            {segBtn("score" as ColourMode, colourMode, (v) => setColourMode(v), "Score")}
+            {segBtn("layer" as ColourMode, colourMode, (v) => setColourMode(v), "Layer")}
           </div>
         </div>
 
