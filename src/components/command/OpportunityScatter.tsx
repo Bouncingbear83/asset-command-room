@@ -718,8 +718,8 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
           }}>Price</span>
           <div style={{ display: "flex", gap: 0 }}>
-            {segBtn("live" as PriceMode, priceMode, setPriceMode, "Live")}
-            {segBtn("entry" as PriceMode, priceMode, setPriceMode, "@ Entry")}
+            {segBtn("live" as PriceMode, priceMode, (v) => setPriceMode(v), "Live")}
+            {segBtn("entry" as PriceMode, priceMode, (v) => setPriceMode(v), "@ Entry")}
           </div>
         </div>
 
