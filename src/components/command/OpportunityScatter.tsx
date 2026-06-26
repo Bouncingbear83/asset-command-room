@@ -311,7 +311,7 @@ function RangeSlider({
 
 // ── Arrow overlay for @ Entry mode ──
 function ArrowLayer(props: any) {
-  const { xAxisMap, yAxisMap, arrows } = props;
+  const { xAxisMap, yAxisMap, arrows, arrowFilter } = props;
   if (!arrows || arrows.length === 0) return null;
   const xAxis = xAxisMap && Object.values(xAxisMap)[0] as any;
   const yAxis = yAxisMap && Object.values(yAxisMap)[0] as any;
@@ -319,38 +319,35 @@ function ArrowLayer(props: any) {
   const xScale = xAxis.scale;
   const yScale = yAxis.scale;
 
+  const visible = arrowFilter === "improved"
+    ? arrows.filter((a: any) => a.improved)
+    : arrowFilter === "deteriorated"
+    ? arrows.filter((a: any) => !a.improved)
+    : arrows;
+
   return (
     <g>
       <defs>
-        <marker
-          id="arrowhead-entry"
-          markerWidth="6" markerHeight="4"
-          refX="5" refY="2" orient="auto"
-        >
-          <path d="M0,0 L6,2 L0,4 Z" fill="rgba(90,191,160,0.5)" />
+        <marker id="arrowhead-green" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+          <path d="M0,0 L6,2 L0,4 Z" fill="rgba(90,191,160,0.6)" />
+        </marker>
+        <marker id="arrowhead-red" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+          <path d="M0,0 L6,2 L0,4 Z" fill="rgba(200,90,90,0.6)" />
         </marker>
       </defs>
-      {arrows.map((a: any) => {
+      {visible.map((a: any) => {
         const x1 = xScale(a.liveX);
         const y1 = yScale(a.liveY);
         const x2 = xScale(a.entryX);
         const y2 = yScale(a.entryY);
         if (x1 == null || y1 == null || x2 == null || y2 == null) return null;
+        const color = a.improved ? "rgba(90,191,160,0.35)" : "rgba(200,90,90,0.35)";
+        const ghostColor = a.improved ? "rgba(90,191,160,0.15)" : "rgba(200,90,90,0.15)";
+        const marker = a.improved ? "url(#arrowhead-green)" : "url(#arrowhead-red)";
         return (
           <g key={a.ticker}>
-            {/* Ghost dot at live position */}
-            <circle
-              cx={x1} cy={y1} r={4}
-              fill="none" stroke="rgba(255,255,255,0.15)"
-              strokeWidth={1} strokeDasharray="2 2"
-            />
-            {/* Arrow from live → entry */}
-            <line
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke="rgba(90,191,160,0.3)"
-              strokeWidth={1.5}
-              markerEnd="url(#arrowhead-entry)"
-            />
+            <circle cx={x1} cy={y1} r={4} fill="none" stroke={ghostColor} strokeWidth={1} strokeDasharray="2 2" />
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={1.5} markerEnd={marker} />
           </g>
         );
       })}
@@ -367,6 +364,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   const [sizeMode, setSizeMode] = useState<SizeMode>("holding");
   const [colourMode, setColourMode] = useState<ColourMode>("profile");
   const [priceMode, setPriceMode] = useState<PriceMode>("live");
+  const [arrowFilter, setArrowFilter] = useState<"all" | "improved" | "deteriorated">("all");
 
   // Range slider state
   const [irrRange, setIrrRange] = useState<[number, number]>([0, 50]);
@@ -582,6 +580,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         liveY: d.irrBb,
         entryX: d.entryAsymmetry!,
         entryY: d.entryIrrBb!,
+        improved: d.entryIrrBb! >= d.irrBb,
       }));
   }, [dots, priceMode, filter, hiddenProfiles, hiddenLayers, hiddenScoreBands]);
 
@@ -724,6 +723,20 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
           </div>
         </div>
 
+        {priceMode === "entry" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.1em",
+              textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
+            }}>Arrows</span>
+            <div style={{ display: "flex", gap: 0 }}>
+              {segBtn("all" as "all", arrowFilter, setArrowFilter, "All")}
+              {segBtn("improved" as "improved", arrowFilter, setArrowFilter, "\u2191 Better")}
+              {segBtn("deteriorated" as "deteriorated", arrowFilter, setArrowFilter, "\u2193 Worse")}
+            </div>
+          </div>
+        )}
+
         {/* Separator */}
         <div style={{ width: 1, height: 28, background: "var(--rim)", alignSelf: "center" }} />
 
@@ -814,7 +827,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             />
 
             {priceMode === "entry" && arrows.length > 0 && (
-              <Customized component={(props: any) => <ArrowLayer {...props} arrows={arrows} />} />
+              <Customized component={(props: any) => <ArrowLayer {...props} arrows={arrows} arrowFilter={arrowFilter} />} />
             )}
 
             <Tooltip
