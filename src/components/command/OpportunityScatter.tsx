@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, Cell, ZAxis,
@@ -127,7 +127,13 @@ function resolveRadius(d: Dot, mode: SizeMode): number {
         : Math.max(4, Math.min(8, 4));
     case "score": {
       const s = d.score ?? 50;
-      return Math.max(4, Math.min(14, 2 + (s - 30) * 0.17));
+      // Stepped: <60=4, 60s=7, 70s=10, 80s=13, 90+=16
+      if (s >= 90) return 16;
+      if (s >= 80) return 13;
+      if (s >= 75) return 11;
+      if (s >= 70) return 9;
+      if (s >= 60) return 7;
+      return 4;
     }
     case "uniform":
       return 6;
@@ -210,10 +216,42 @@ function RangeSlider({
 }) {
   const fmt = formatter ?? ((v: number) => String(v));
   const range = max - min;
-
-  // Positions as percentages
   const loPos = ((value[0] - min) / range) * 100;
   const hiPos = ((value[1] - min) / range) * 100;
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef<"lo" | "hi" | null>(null);
+
+  const posToValue = useCallback((clientX: number): number => {
+    const el = trackRef.current;
+    if (!el) return min;
+    const rect = el.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const raw = min + pct * range;
+    return Math.round(raw / step) * step;
+  }, [min, range, step]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    const v = posToValue(e.clientX);
+    const distLo = Math.abs(v - value[0]);
+    const distHi = Math.abs(v - value[1]);
+    dragging.current = distLo <= distHi ? "lo" : "hi";
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [posToValue, value]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const v = posToValue(e.clientX);
+    if (dragging.current === "lo") {
+      if (v < value[1]) onChange([v, value[1]]);
+    } else {
+      if (v > value[0]) onChange([value[0], v]);
+    }
+  }, [posToValue, value, onChange]);
+
+  const handlePointerUp = useCallback(() => {
+    dragging.current = null;
+  }, []);
 
   return (
     <div style={{ flex: 1, minWidth: 100 }}>
@@ -227,58 +265,39 @@ function RangeSlider({
           {fmt(value[0])} – {fmt(value[1])}
         </span>
       </div>
-      <div style={{ position: "relative", height: 16 }}>
-        {/* Track */}
+      <div
+        ref={trackRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{
+          position: "relative", height: 20, cursor: "pointer",
+          touchAction: "none",
+        }}
+      >
+        {/* Track bg */}
         <div style={{
-          position: "absolute", top: 6, left: 0, right: 0, height: 3,
+          position: "absolute", top: 8, left: 0, right: 0, height: 3,
           background: "rgba(255,255,255,0.06)", borderRadius: 2,
         }} />
         {/* Active range */}
         <div style={{
-          position: "absolute", top: 6, height: 3, borderRadius: 2,
+          position: "absolute", top: 8, height: 3, borderRadius: 2,
           left: `${loPos}%`, width: `${hiPos - loPos}%`,
           background: "rgba(90,191,160,0.35)",
         }} />
         {/* Low thumb */}
-        <input
-          type="range"
-          min={min} max={max} step={step}
-          value={value[0]}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            if (v < value[1]) onChange([v, value[1]]);
-          }}
-          style={{
-            position: "absolute", top: 0, left: 0, width: "100%",
-            height: 16, opacity: 0, cursor: "pointer", zIndex: 2,
-            pointerEvents: "auto",
-          }}
-        />
-        {/* High thumb */}
-        <input
-          type="range"
-          min={min} max={max} step={step}
-          value={value[1]}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            if (v > value[0]) onChange([value[0], v]);
-          }}
-          style={{
-            position: "absolute", top: 0, left: 0, width: "100%",
-            height: 16, opacity: 0, cursor: "pointer", zIndex: 3,
-            pointerEvents: "auto",
-          }}
-        />
-        {/* Visual thumbs */}
         <div style={{
-          position: "absolute", top: 2, width: 10, height: 10, borderRadius: "50%",
+          position: "absolute", top: 4, width: 12, height: 12, borderRadius: "50%",
           background: "var(--green, #5abfa0)", border: "1.5px solid rgba(255,255,255,0.6)",
-          left: `calc(${loPos}% - 5px)`, pointerEvents: "none",
+          left: `calc(${loPos}% - 6px)`, pointerEvents: "none",
         }} />
+        {/* High thumb */}
         <div style={{
-          position: "absolute", top: 2, width: 10, height: 10, borderRadius: "50%",
+          position: "absolute", top: 4, width: 12, height: 12, borderRadius: "50%",
           background: "var(--green, #5abfa0)", border: "1.5px solid rgba(255,255,255,0.6)",
-          left: `calc(${hiPos}% - 5px)`, pointerEvents: "none",
+          left: `calc(${hiPos}% - 6px)`, pointerEvents: "none",
         }} />
       </div>
     </div>
@@ -290,6 +309,8 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>("all");
   const [hiddenProfiles, setHiddenProfiles] = useState<Set<string>>(new Set());
+  const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set());
+  const [hiddenScoreBands, setHiddenScoreBands] = useState<Set<string>>(new Set());
   const [sizeMode, setSizeMode] = useState<SizeMode>("holding");
   const [colourMode, setColourMode] = useState<ColourMode>("profile");
 
@@ -299,6 +320,20 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
 
   const toggleProfile = useCallback((key: string) => {
     setHiddenProfiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+  const toggleLayer = useCallback((key: string) => {
+    setHiddenLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+  const toggleScoreBand = useCallback((key: string) => {
+    setHiddenScoreBands((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
@@ -414,8 +449,10 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
     let out = dots;
     if (filter !== "all") out = out.filter((d) => filter === "held" ? d.held : !d.held);
     if (hiddenProfiles.size > 0) out = out.filter((d) => !hiddenProfiles.has(d.profileKey));
+    if (hiddenLayers.size > 0) out = out.filter((d) => !hiddenLayers.has(d.layer));
+    if (hiddenScoreBands.size > 0) out = out.filter((d) => !hiddenScoreBands.has(scoreBand(d.score)));
     return out;
-  }, [dots, filter, hiddenProfiles]);
+  }, [dots, filter, hiddenProfiles, hiddenLayers, hiddenScoreBands]);
 
   const handleClick = useCallback((data: any) => {
     if (data?.ticker) openFactSheet(data.ticker);
@@ -700,18 +737,18 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
             <LegendDot shape="triangle" fill={PROFILE_COLORS.PRE_PRODUCTION.fill} stroke={PROFILE_COLORS.PRE_PRODUCTION.stroke} label="Pre-Prod" active={!hiddenProfiles.has("PRE_PRODUCTION")} onClick={() => toggleProfile("PRE_PRODUCTION")} />
           </>
         )}
-        {colourMode === "score" && (
+       {colourMode === "score" && (
           <>
-            <LegendSquare color={SCORE_COLORS.S90.fill} label="90+" />
-            <LegendSquare color={SCORE_COLORS.S75.fill} label="75–89" />
-            <LegendSquare color={SCORE_COLORS.S60.fill} label="60–74" />
-            <LegendSquare color={SCORE_COLORS.SUB.fill} label="<60" />
+            <LegendSquare color={SCORE_COLORS.S90.fill} label="90+" active={!hiddenScoreBands.has("S90")} onClick={() => toggleScoreBand("S90")} />
+            <LegendSquare color={SCORE_COLORS.S75.fill} label="75–89" active={!hiddenScoreBands.has("S75")} onClick={() => toggleScoreBand("S75")} />
+            <LegendSquare color={SCORE_COLORS.S60.fill} label="60–74" active={!hiddenScoreBands.has("S60")} onClick={() => toggleScoreBand("S60")} />
+            <LegendSquare color={SCORE_COLORS.SUB.fill} label="<60" active={!hiddenScoreBands.has("SUB")} onClick={() => toggleScoreBand("SUB")} />
           </>
         )}
         {colourMode === "layer" && (
           <>
             {Object.entries(LAYER_COLORS).map(([name, c]) => (
-              <LegendSquare key={name} color={c.fill} label={name} />
+              <LegendSquare key={name} color={c.fill} label={name} active={!hiddenLayers.has(name)} onClick={() => toggleLayer(name)} />
             ))}
           </>
         )}
@@ -777,16 +814,24 @@ function LegendDot({ shape, fill, stroke, label, active = true, onClick }: { sha
 }
 
 // ── Legend helper: coloured square (for Score/Layer mode) ──
-function LegendSquare({ color, label }: { color: string; label: string }) {
+function LegendSquare({ color, label, active = true, onClick }: { color: string; label: string; active?: boolean; onClick?: () => void }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 4,
-      fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.06em",
-      color: "var(--text-dim)",
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 4,
+        fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.06em",
+        color: active ? "var(--text-dim)" : "rgba(255,255,255,0.2)",
+        cursor: onClick ? "pointer" : "default",
+        userSelect: "none",
+        transition: "opacity 0.15s",
+      }}
+    >
       <div style={{
         width: 8, height: 8, borderRadius: 1,
-        background: color, opacity: 0.75,
+        background: color,
+        opacity: active ? 0.75 : 0.15,
+        transition: "opacity 0.15s",
       }} />
       {label}
     </div>
