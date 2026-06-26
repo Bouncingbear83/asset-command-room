@@ -252,13 +252,18 @@ const renderRow = (m: MoverRow) => {
         {isMobile ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
                 {m.ticker}
               </TickerButton>
-              {isJpn && (
+              {IS_NUMERIC.test(m.ticker) && m.name && (
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
                   {shortName(m.name)}
                 </span>
+              )}
+              {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
+              {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
+            </div>
               )}
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg }}>{s.label}</span> : null; })}
