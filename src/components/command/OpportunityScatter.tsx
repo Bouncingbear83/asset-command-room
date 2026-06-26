@@ -1,13 +1,14 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  ReferenceLine, Cell, ZAxis,
+  ReferenceLine, Cell, ZAxis, Customized,
 } from "recharts";
 import { LiveHolding, LiveWatchItem, LiveScore } from "@/hooks/usePortfolioData";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 import { computeLiveAsymmetry } from "@/lib/liveAsymmetry";
+import { computeIrrBb } from "@/lib/computeIrrBb";
 import { PROFILE_PALETTE } from "@/components/intelligence/profileChips";
 
 import { normaliseTicker } from "@/lib/tickerAlias";
@@ -80,6 +81,7 @@ const ZOOM_DEFAULTS: Record<ZoomPreset, { x: [number, number]; y: [number, numbe
 type Filter = "all" | "held" | "wl";
 type SizeMode = "holding" | "score" | "uniform";
 type ColourMode = "profile" | "score" | "layer";
+type PriceMode = "live" | "entry";
 
 interface Dot {
   ticker: string;
@@ -97,6 +99,9 @@ interface Dot {
   profileFill: string;
   profileStroke: string;
   shape: ProfileShape;
+  // Entry-state fields (WL only; null for held or missing buy_high)
+  entryIrrBb: number | null;
+  entryAsymmetry: number | null;
 }
 
 interface Props {
@@ -304,6 +309,54 @@ function RangeSlider({
   );
 }
 
+// ── Arrow overlay for @ Entry mode ──
+function ArrowLayer(props: any) {
+  const { xAxisMap, yAxisMap, arrows } = props;
+  if (!arrows || arrows.length === 0) return null;
+  const xAxis = xAxisMap && Object.values(xAxisMap)[0] as any;
+  const yAxis = yAxisMap && Object.values(yAxisMap)[0] as any;
+  if (!xAxis?.scale || !yAxis?.scale) return null;
+  const xScale = xAxis.scale;
+  const yScale = yAxis.scale;
+
+  return (
+    <g>
+      <defs>
+        <marker
+          id="arrowhead-entry"
+          markerWidth="6" markerHeight="4"
+          refX="5" refY="2" orient="auto"
+        >
+          <path d="M0,0 L6,2 L0,4 Z" fill="rgba(90,191,160,0.5)" />
+        </marker>
+      </defs>
+      {arrows.map((a: any) => {
+        const x1 = xScale(a.liveX);
+        const y1 = yScale(a.liveY);
+        const x2 = xScale(a.entryX);
+        const y2 = yScale(a.entryY);
+        if (x1 == null || y1 == null || x2 == null || y2 == null) return null;
+        return (
+          <g key={a.ticker}>
+            {/* Ghost dot at live position */}
+            <circle
+              cx={x1} cy={y1} r={4}
+              fill="none" stroke="rgba(255,255,255,0.15)"
+              strokeWidth={1} strokeDasharray="2 2"
+            />
+            {/* Arrow from live → entry */}
+            <line
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke="rgba(90,191,160,0.3)"
+              strokeWidth={1.5}
+              markerEnd="url(#arrowhead-entry)"
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
 
 export default function OpportunityScatter({ scores, holdings, watchlist }: Props) {
   const isMobile = useIsMobile();
@@ -313,6 +366,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   const [hiddenScoreBands, setHiddenScoreBands] = useState<Set<string>>(new Set());
   const [sizeMode, setSizeMode] = useState<SizeMode>("holding");
   const [colourMode, setColourMode] = useState<ColourMode>("profile");
+  const [priceMode, setPriceMode] = useState<PriceMode>("live");
 
   // Range slider state
   const [irrRange, setIrrRange] = useState<[number, number]>([0, 50]);
@@ -342,6 +396,17 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
   const { byTicker: irrMap } = useIrrBb(scores, holdings, watchlist);
   const { byTicker: snapshotMap } = useScoresSnapshot();
   const quartetMap = useQuartetMap(scores ?? [], holdings ?? [], watchlist ?? [], snapshotMap);
+
+  // Build buyHigh + IRR inputs lookup from scores
+  const scoreInputMap = useMemo(() => {
+    const m = new Map<string, { buyHigh: number | null }>();
+    for (const s of scores) {
+      const t = normaliseTicker(s.ticker);
+      if (!t) continue;
+      m.set(t, { buyHigh: (s as any).buyHigh ?? null });
+    }
+    return m;
+  }, [scores]);
 
   // Build profile lookup from scores
   const profileMap = useMemo(() => {
@@ -425,6 +490,34 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
       const colors = PROFILE_COLORS[profileKey] ?? PROFILE_COLORS.UNKNOWN;
       const shape = PROFILE_SHAPE[profileKey] ?? "circle";
 
+      // Compute entry-state for WL dots with buy_high
+      let entryIrrBb: number | null = null;
+      let entryAsymmetry: number | null = null;
+      if (!entry.held) {
+        const buyHigh = scoreInputMap.get(t)?.buyHigh ?? null;
+        if (buyHigh !== null && buyHigh > 0) {
+          const qEntry2 = quartetMap.get(t);
+          const quartet = qEntry2?.quartet ?? { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
+          // IRR-BB at entry price
+          const entryResult = computeIrrBb(
+            entry.result.bullBase,
+            buyHigh,
+            entry.result.bbTargetDate,
+            entry.result.divYield,
+            null,
+            false,
+          );
+          if (entryResult.irrBb !== null) {
+            entryIrrBb = Math.round(Math.min(entryResult.irrBb * 100, 50) * 10) / 10;
+          }
+          // Asymmetry at entry price
+          const entryAsym = computeLiveAsymmetry(quartet, buyHigh);
+          if (entryAsym.baseRatio !== null && entryAsym.baseRatio > 0) {
+            entryAsymmetry = Math.round(Math.min(entryAsym.baseRatio, 10) * 10) / 10;
+          }
+        }
+      }
+
       out.push({
         ticker: entry.ticker,
         name: entry.name,
@@ -440,10 +533,12 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
         profileFill: colors.fill,
         profileStroke: colors.stroke,
         shape,
+        entryIrrBb,
+        entryAsymmetry,
       });
     }
     return out;
-  }, [irrMap, quartetMap, totalAum, aumByTicker, profileMap]);
+  }, [irrMap, quartetMap, totalAum, aumByTicker, profileMap, scoreInputMap]);
 
   const filtered = useMemo(() => {
     let out = dots;
@@ -451,8 +546,44 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
     if (hiddenProfiles.size > 0) out = out.filter((d) => !hiddenProfiles.has(d.profileKey));
     if (hiddenLayers.size > 0) out = out.filter((d) => !hiddenLayers.has(d.layer));
     if (hiddenScoreBands.size > 0) out = out.filter((d) => !hiddenScoreBands.has(scoreBand(d.score)));
+    // In entry mode, swap WL dot positions to entry-state values
+    if (priceMode === "entry") {
+      out = out.map((d) => {
+        if (d.held || d.entryIrrBb === null || d.entryAsymmetry === null) return d;
+        return { ...d, irrBb: d.entryIrrBb!, asymmetry: d.entryAsymmetry! };
+      });
+    }
     return out;
-  }, [dots, filter, hiddenProfiles, hiddenLayers, hiddenScoreBands]);
+  }, [dots, filter, hiddenProfiles, hiddenLayers, hiddenScoreBands, priceMode]);
+
+  // Build arrow data: WL dots that have entry-state displacement
+  const arrows = useMemo(() => {
+    if (priceMode !== "entry") return [];
+    return dots
+      .filter((d) => {
+        if (d.held) return false;
+        if (d.entryIrrBb === null || d.entryAsymmetry === null) return false;
+        // Only show arrows with meaningful displacement (>2pp IRR or >0.3 asym)
+        const dIrr = Math.abs(d.entryIrrBb - d.irrBb);
+        const dAsym = Math.abs(d.entryAsymmetry - d.asymmetry);
+        return dIrr > 2 || dAsym > 0.3;
+      })
+      .filter((d) => {
+        // Also apply visibility filters
+        if (filter === "held") return false;
+        if (hiddenProfiles.size > 0 && hiddenProfiles.has(d.profileKey)) return false;
+        if (hiddenLayers.size > 0 && hiddenLayers.has(d.layer)) return false;
+        if (hiddenScoreBands.size > 0 && hiddenScoreBands.has(scoreBand(d.score))) return false;
+        return true;
+      })
+      .map((d) => ({
+        ticker: d.ticker,
+        liveX: d.asymmetry,
+        liveY: d.irrBb,
+        entryX: d.entryAsymmetry!,
+        entryY: d.entryIrrBb!,
+      }));
+  }, [dots, priceMode, filter, hiddenProfiles, hiddenLayers, hiddenScoreBands]);
 
   const handleClick = useCallback((data: any) => {
     if (data?.ticker) openFactSheet(data.ticker);
@@ -581,6 +712,18 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
           </div>
         </div>
 
+        {/* Price mode toggle */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: 7, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 1,
+          }}>Price</span>
+          <div style={{ display: "flex", gap: 0 }}>
+            {segBtn("live" as PriceMode, priceMode, setPriceMode, "Live")}
+            {segBtn("entry" as PriceMode, priceMode, setPriceMode, "@ Entry")}
+          </div>
+        </div>
+
         {/* Separator */}
         <div style={{ width: 1, height: 28, background: "var(--rim)", alignSelf: "center" }} />
 
@@ -670,6 +813,10 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
               }}
             />
 
+            {priceMode === "entry" && arrows.length > 0 && (
+              <Customized component={(props: any) => <ArrowLayer {...props} arrows={arrows} />} />
+            )}
+
             <Tooltip
               cursor={false}
               content={({ payload }) => {
@@ -697,8 +844,20 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
                     }}>
                       {d.profileLabel}
                     </div>
-                    <div>IRR-BB: <span style={{ color: "var(--green)" }}>{d.irrBb.toFixed(1)}%</span></div>
-                    <div>Asymmetry: <span style={{ color: "var(--gold)" }}>{d.asymmetry.toFixed(1)}:1</span></div>
+                    <div>IRR-BB: <span style={{ color: "var(--green)" }}>{d.irrBb.toFixed(1)}%</span>
+                      {priceMode === "entry" && !d.held && d.entryIrrBb !== null && d.entryIrrBb !== d.irrBb && (
+                        <span style={{ fontSize: 8, color: "var(--text-dim)", marginLeft: 4 }}>
+                          (live: {dots.find((x) => x.ticker === d.ticker)?.irrBb.toFixed(1)}%)
+                        </span>
+                      )}
+                    </div>
+                    <div>Asymmetry: <span style={{ color: "var(--gold)" }}>{d.asymmetry.toFixed(1)}:1</span>
+                      {priceMode === "entry" && !d.held && d.entryAsymmetry !== null && d.entryAsymmetry !== d.asymmetry && (
+                        <span style={{ fontSize: 8, color: "var(--text-dim)", marginLeft: 4 }}>
+                          (live: {dots.find((x) => x.ticker === d.ticker)?.asymmetry.toFixed(1)}:1)
+                        </span>
+                      )}
+                    </div>
                     <div>Score: {d.score ?? "\u2014"} \u00b7 {d.layer}</div>
                     <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 2 }}>
                       {d.held ? `${d.aumWeight.toFixed(1)}% AUM` : "Watchlist"}
