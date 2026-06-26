@@ -234,26 +234,16 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     background: "rgba(201,168,76,0.15)", color: "var(--gold)", borderColor: "rgba(201,168,76,0.4)",
   };
 
-  const renderRow = (m: MoverRow) => {
+const renderRow = (m: MoverRow) => {
     const sym = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : m.currency === "JPY" ? "¥" : "$";
     const priceStr = `${sym}${m.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
     const hasSpark = !!m.sparkPoints;
-
-    const tickerDisplay = (
-      <>
-        {m.ticker}
-        {IS_NUMERIC.test(m.ticker) && m.name ? (
-          <span style={{ fontWeight: 400, fontSize: "0.85em", color: "var(--text-dim)", marginLeft: 4 }}>
-            ({shortName(m.name)})
-          </span>
-        ) : null}
-      </>
-    );
+    const isJpn = IS_NUMERIC.test(m.ticker) && m.name;
 
     return (
       <div key={m.ticker} style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "minmax(50px, auto) 1fr" : "54px 14px 80px 76px 100px 1fr",
+        gridTemplateColumns: isMobile ? "minmax(50px, auto) 1fr" : "minmax(100px, auto) 80px 76px 100px 1fr",
         alignItems: "center",
         gap: isMobile ? 6 : 0,
         padding: isMobile ? "8px 0" : "5px 0",
@@ -263,8 +253,13 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
-                {tickerDisplay}
+                {m.ticker}
               </TickerButton>
+              {isJpn && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                  {shortName(m.name)}
+                </span>
+              )}
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg }}>{s.label}</span> : null; })}
             </div>
@@ -278,13 +273,18 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
           </>
         ) : (
           <>
-            <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
-              {tickerDisplay}
-            </TickerButton>
-            <span>
-              {m.isWatchlist ? <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span> : null}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                {m.ticker}
+              </TickerButton>
+              {isJpn && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                  {shortName(m.name)}
+                </span>
+              )}
+              {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
-            </span>
+            </div>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{priceStr}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
               {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
