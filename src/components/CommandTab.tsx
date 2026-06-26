@@ -166,6 +166,12 @@ export default function CommandTab() {
     gap: 16,
   };
 
+  // Exclude ARCHIVE and DORMANT watchlist tickers from Movers and Opportunity Map.
+  const activeWatchlist = watchlist.filter((w) => {
+    const s = String(w.status || "").toUpperCase();
+    return s !== "ARCHIVE" && s !== "DORMANT";
+  });
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 0, alignItems: "start" }}>
       {/* ── HEADER BAR ── */}
@@ -178,7 +184,7 @@ export default function CommandTab() {
       />
 
       {/* ── CARD 1: MOVERS ── */}
-      <MoversCard holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
+      <MoversCard holdings={holdings} watchlist={activeWatchlist} earnings={earningsCalendar} />
 
       {/* ── CARD 2: ACTION INBOX ── */}
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
@@ -190,12 +196,12 @@ export default function CommandTab() {
       <OpportunityScatter
         scores={scores}
         holdings={holdings}
-        watchlist={watchlist}
+        watchlist={activeWatchlist}
       />
       <OpportunityQuadrants
         scores={scores}
         holdings={holdings}
-        watchlist={watchlist}
+        watchlist={activeWatchlist}
       />
 
       {/* ── CARD 5: OPPORTUNITY RANK ── */}
