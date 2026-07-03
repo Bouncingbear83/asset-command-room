@@ -436,7 +436,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                     ["Substrate", data.score?.substrate, data.rationale?.substrate_score, data.rationale?.substrate_rationale],
                     ["Demand", data.score?.demand, data.rationale?.demand_score, data.rationale?.demand_rationale],
                     ["Moat", data.score?.moat, data.rationale?.moat_score, data.rationale?.moat_rationale],
-                    ["Valuation", data.score?.valuation, data.rationale?.mos_score, data.rationale?.mos_rationale],
+                    ["Margin of Safety", data.score?.valuation, data.rationale?.mos_score, data.rationale?.mos_rationale],
                     ["Mgmt", data.score?.mgmt, data.rationale?.mgmt_score, data.rationale?.mgmt_rationale],
                     ["Disruption", data.score?.disruption, data.rationale?.disruption_score, data.rationale?.disruption_rationale],
                   ] as const).map(([label, sheetVal, dbVal, rat]) => {
