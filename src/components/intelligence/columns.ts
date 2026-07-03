@@ -23,4 +23,4 @@ export const COL = {
   rowPadX: 10,
 } as const;
 
-export const SUB_LABELS = ["SUB", "DEM", "MOAT", "VAL", "MGMT", "DISR"] as const;
+export const SUB_LABELS = ["SUB", "DEM", "MOAT", "MoS", "MGMT", "DISR"] as const;
