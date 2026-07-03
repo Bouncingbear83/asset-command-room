@@ -5,12 +5,12 @@ import type { ScoreRationale, DisruptionRationale } from "@/hooks/useRationales"
 // ── Dimension config ──
 
 const DIMENSIONS: { key: string; label: string; max: number; scoreKey: keyof ScoreRationale; rationaleKey: keyof ScoreRationale }[] = [
-  { key: "substrate", label: "Substrate", max: 25, scoreKey: "substrate_score", rationaleKey: "substrate_rationale" },
+  { key: "substrate", label: "Substrate", max: 27, scoreKey: "substrate_score", rationaleKey: "substrate_rationale" },
   { key: "demand", label: "Demand", max: 22, scoreKey: "demand_score", rationaleKey: "demand_rationale" },
   { key: "moat", label: "Moat", max: 18, scoreKey: "moat_score", rationaleKey: "moat_rationale" },
-  { key: "valuation", label: "Margin of Safety", max: 13, scoreKey: "mos_score", rationaleKey: "mos_rationale" },
+  { key: "valuation", label: "Margin of Safety", max: 10, scoreKey: "mos_score", rationaleKey: "mos_rationale" },
   { key: "mgmt", label: "Management", max: 7, scoreKey: "mgmt_score", rationaleKey: "mgmt_rationale" },
-  { key: "disruption", label: "Disruption", max: 15, scoreKey: "disruption_score", rationaleKey: "disruption_rationale" },
+  { key: "disruption", label: "Disruption", max: 16, scoreKey: "disruption_score", rationaleKey: "disruption_rationale" },
 ];
 
 const DISRUPTION_COMPONENTS: { key: string; label: string; max: number; scoreKey: keyof DisruptionRationale; rationaleKey: keyof DisruptionRationale }[] = [
