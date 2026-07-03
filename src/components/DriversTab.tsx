@@ -7,8 +7,20 @@ interface Props {
   holdings: LiveHolding[];
 }
 
-const WARN_PCT = 35;
-const BREACH_PCT = 40;
+// Rule #13: per-group caps. AI_INFRA is tighter (OB v3.13).
+const DEFAULT_WARN_PCT = 35;
+const DEFAULT_BREACH_PCT = 40;
+const AI_INFRA_WARN_PCT = 30;
+const AI_INFRA_BREACH_PCT = 35;
+
+function capsForGroup(group: string): { warn: number; breach: number } {
+  return group === "AI_INFRA"
+    ? { warn: AI_INFRA_WARN_PCT, breach: AI_INFRA_BREACH_PCT }
+    : { warn: DEFAULT_WARN_PCT, breach: DEFAULT_BREACH_PCT };
+}
+
+const WARN_PCT = DEFAULT_WARN_PCT; // retained for non-group-specific UI text
+const BREACH_PCT = DEFAULT_BREACH_PCT;
 const TIGHTEN_DELTA_PP = 5; // pp by which a driver drawdown must exceed portfolio drawdown to flag
 const TIGHTEN_MIN_LATEST_PCT = 30; // only flag drivers sitting near the cap
 
@@ -45,11 +57,12 @@ const monoSm: React.CSSProperties = {
   color: "var(--text-dim)",
 };
 
-function priorityFor(pct: number, raw: string | null): "OK" | "WARN" | "BREACH" {
+function priorityFor(pct: number, raw: string | null, group?: string): "OK" | "WARN" | "BREACH" {
   const u = String(raw ?? "").trim().toUpperCase();
   if (u === "BREACH" || u === "WARN" || u === "OK") return u as any;
-  if (pct >= BREACH_PCT) return "BREACH";
-  if (pct >= WARN_PCT) return "WARN";
+  const caps = group ? capsForGroup(group) : { warn: DEFAULT_WARN_PCT, breach: DEFAULT_BREACH_PCT };
+  if (pct >= caps.breach) return "BREACH";
+  if (pct >= caps.warn) return "WARN";
   return "OK";
 }
 
@@ -91,7 +104,7 @@ export default function DriversTab({ holdings }: Props) {
     sortedGroups.forEach((g) => {
       const row = rowsByGroup.get(g);
       if (!row) return;
-      const p = priorityFor(row.current_pct, row.priority);
+      const p = priorityFor(row.current_pct, row.priority, g);
       if (p === "BREACH") b++;
       else if (p === "WARN") w++;
       else o++;
@@ -231,7 +244,7 @@ export default function DriversTab({ holdings }: Props) {
         <div style={cardHeader}>
           <div style={cardTitle}>Driver Concentration</div>
           <div style={{ ...monoSm, marginTop: 4 }}>
-            Rule #13 · Cap 40% · Warn 35% · As of {latestDate ?? "—"}
+            Rule #13 · Cap 40%/35% · AI_INFRA tighter 35%/30% · As of {latestDate ?? "—"}
           </div>
         </div>
         <div style={cardBody}>
@@ -300,9 +313,10 @@ export default function DriversTab({ holdings }: Props) {
           {sortedGroups.map((g) => {
             const row = rowsByGroup.get(g);
             const pct = row?.current_pct ?? 0;
-            const p = priorityFor(pct, row?.priority ?? null);
+            const p = priorityFor(pct, row?.priority ?? null, g);
             const color = FACTOR_GROUP_COLORS[g] ?? "#8a8a9a";
-            const headroom = Math.max(0, BREACH_PCT - pct);
+            const caps = capsForGroup(g);
+            const headroom = Math.max(0, caps.breach - pct);
             return (
               <div
                 key={g}
@@ -332,7 +346,7 @@ export default function DriversTab({ holdings }: Props) {
                   {pct.toFixed(2)}%
                 </div>
                 <div style={{ ...monoSm, marginTop: 4 }}>
-                  {headroom.toFixed(2)}pp to cap {priorityIcon(p)}
+                  {headroom.toFixed(2)}pp to {caps.breach}% cap {priorityIcon(p)}
                 </div>
               </div>
             );
@@ -426,7 +440,7 @@ function DriverBars({
       {groups.map((g) => {
         const row = rowsByGroup.get(g);
         const pct = row?.current_pct ?? 0;
-        const p = priorityFor(pct, row?.priority ?? null);
+        const p = priorityFor(pct, row?.priority ?? null, g);
         const color = FACTOR_GROUP_COLORS[g] ?? "#8a8a9a";
         const widthPct = Math.max(0, Math.min(100, (pct / maxPct) * 100));
         return (
