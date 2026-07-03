@@ -10,6 +10,29 @@ import { shortName } from "@/components/shared/TickerLabel";
 
 type Period = "1D" | "1W" | "1M";
 type Scope = "ALL" | "HELD" | "WL";
+type Region = "ALL" | "AMER" | "EUR" | "ASIA";
+
+function deriveRegion(ticker: string, currency: string): "AMER" | "EUR" | "ASIA" {
+  const t = ticker.toUpperCase();
+  const dot = t.lastIndexOf(".");
+  const suffix = dot >= 0 ? t.slice(dot) : "";
+
+  // Ticker suffix is the primary signal
+  if ([".L", ".AS", ".OL", ".ST", ".PA", ".DE", ".MI", ".SW", ".BR", ".HE", ".CO", ".IR", ".VI", ".MC", ".LS"].includes(suffix)) return "EUR";
+  if ([".T", ".TW", ".AX", ".HK", ".KS", ".KQ", ".SI", ".BK", ".NS", ".BO"].includes(suffix)) return "ASIA";
+  if ([".TO", ".V", ".MX", ".SA"].includes(suffix)) return "AMER";
+
+  // Japanese numeric tickers (e.g. 6268.T already caught, but bare numerics too)
+  if (/^\d{3,5}$/.test(t)) return "ASIA";
+
+  // Currency fallback
+  const c = currency.toUpperCase();
+  if (["GBP", "GBX", "EUR", "SEK", "NOK", "DKK", "CHF", "ISK", "PLN", "CZK", "HUF"].includes(c)) return "EUR";
+  if (["JPY", "AUD", "NZD", "HKD", "SGD", "TWD", "KRW", "INR", "THB", "MYR", "IDR", "PHP", "CNY", "CNH"].includes(c)) return "ASIA";
+
+  // Default: no suffix + USD/CAD = Americas
+  return "AMER";
+}
 
 const IS_NUMERIC = /^\d{3,5}\.[A-Z]{1,2}$/;
 
@@ -59,6 +82,7 @@ interface Props {
 export default function MoversCard({ holdings, watchlist, earnings }: Props) {
   const [period, setPeriod] = useState<Period>("1D");
   const [scope, setScope] = useState<Scope>("ALL");
+  const [region, setRegion] = useState<Region>("ALL");
   const isMobile = useIsMobile();
   const { priceData } = useDailyPrices();
   const watchlistTickerList = useMemo(
@@ -209,21 +233,22 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     return out;
   }, [holdings, watchlist, priceData, wlHistory, livePrices, earningsTickers, period, ZONE_THRESHOLD]);
 
-  // Apply scope filter
+  // Apply scope + region filters
   const filtered = useMemo(() => {
     let list = rows;
     if (scope === "HELD") list = list.filter((r) => !r.isWatchlist);
     if (scope === "WL") list = list.filter((r) => r.isWatchlist);
+    if (region !== "ALL") list = list.filter((r) => deriveRegion(r.ticker, r.currency) === region);
     return list;
-  }, [rows, scope]);
+  }, [rows, scope, region]);
 
   // Split into winners/losers/no-data, each sorted by absolute change desc
   const winners = useMemo(() => filtered.filter((r) => r.change != null && r.change > 0).sort((a, b) => (b.change as number) - (a.change as number)), [filtered]);
   const losers = useMemo(() => filtered.filter((r) => r.change != null && r.change <= 0).sort((a, b) => (a.change as number) - (b.change as number)), [filtered]);
   const noData = useMemo(() => filtered.filter((r) => r.change == null), [filtered]);
 
-  const upCount = rows.filter((r) => r.change != null && r.change > 0).length;
-  const downCount = rows.filter((r) => r.change != null && r.change <= 0).length;
+  const upCount = filtered.filter((r) => r.change != null && r.change > 0).length;
+  const downCount = filtered.filter((r) => r.change != null && r.change <= 0).length;
 
   const segBase: React.CSSProperties = {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em",
@@ -243,7 +268,7 @@ const renderRow = (m: MoverRow) => {
     return (
       <div key={m.ticker} style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "minmax(50px, auto) 1fr" : "minmax(100px, auto) 80px 76px 100px 1fr",
+        gridTemplateColumns: isMobile ? "minmax(50px, auto) 1fr" : "minmax(100px, 220px) 80px 76px 100px 1fr",
         alignItems: "center",
         gap: isMobile ? 6 : 0,
         padding: isMobile ? "8px 0" : "5px 0",
@@ -273,17 +298,17 @@ const renderRow = (m: MoverRow) => {
           </>
         ) : (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", minWidth: 0 }}>
+              <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", flexShrink: 0 }}>
                 {m.ticker}
               </TickerButton>
               {isJpn && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>
                   {shortName(m.name)}
                 </span>
               )}
-              {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
-              {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
+              {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1, flexShrink: 0 }}>WL</span>}
+              {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2, flexShrink: 0 }}>{s.label}</span> : null; })}
             </div>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{priceStr}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
@@ -332,7 +357,8 @@ const renderRow = (m: MoverRow) => {
         padding: "12px 14px", borderBottom: "1px solid var(--rim)", flexWrap: "wrap", gap: 8,
       }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-mid)" }}>Movers</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
+          {segGroup(["ALL", "AMER", "EUR", "ASIA"] as const, region, setRegion)}
           {segGroup(["ALL", "HELD", "WL"] as const, scope, setScope)}
           {segGroup(["1D", "1W", "1M"] as const, period, setPeriod)}
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em" }}>
