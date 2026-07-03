@@ -474,12 +474,12 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
         )}
 
         <div className="asset-row-mobile-bars">
-          <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
+          <MiniBar value={asset.sub_scores.substrate}        max={27} trend={asset.trend.substrate} />
           <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
           <MiniBar value={asset.sub_scores.moat}             max={18} trend={asset.trend.moat} />
-          <MiniBar value={asset.sub_scores.valuation}        max={13} trend={asset.trend.valuation} />
+          <MiniBar value={asset.sub_scores.valuation}        max={10} trend={asset.trend.valuation} />
           <MiniBar value={asset.sub_scores.mgmt}             max={7}  trend={asset.trend.mgmt} />
-          <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
+          <MiniBar value={asset.sub_scores.disruption_score} max={16} trend={asset.trend.disruption} />
         </div>
 
         <div className="asset-row-mobile-line4" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -574,14 +574,14 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           </div>
         </div>
 
-        {/* 6D bars (order = SUB / DEM / MOAT / VAL / MGMT / DISR; labels live in the list header) */}
+        {/* 6D bars (order = SUB / DEM / MOAT / MoS / MGMT / DISR; v3.13 weights) */}
         <div style={{ flex: COL.bars.flex, minWidth: COL.bars.minWidth, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
-          <MiniBar value={asset.sub_scores.substrate}        max={25} trend={asset.trend.substrate} />
+          <MiniBar value={asset.sub_scores.substrate}        max={27} trend={asset.trend.substrate} />
           <MiniBar value={asset.sub_scores.demand}           max={22} trend={asset.trend.demand} />
           <MiniBar value={asset.sub_scores.moat}             max={18} trend={asset.trend.moat} />
-          <MiniBar value={asset.sub_scores.valuation}        max={13} trend={asset.trend.valuation} />
+          <MiniBar value={asset.sub_scores.valuation}        max={10} trend={asset.trend.valuation} />
           <MiniBar value={asset.sub_scores.mgmt}             max={7}  trend={asset.trend.mgmt} />
-          <MiniBar value={asset.sub_scores.disruption_score} max={15} trend={asset.trend.disruption} />
+          <MiniBar value={asset.sub_scores.disruption_score} max={16} trend={asset.trend.disruption} />
         </div>
 
         {/* L-band (v2.5) */}
