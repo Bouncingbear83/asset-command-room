@@ -8,7 +8,8 @@ import CapitalQueue from "@/components/command/CapitalQueue";
 import OpportunityRank from "@/components/OpportunityRank";
 import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
-import NarrativeSignalsCard from "@/components/NarrativeSignalsCard";
+import NarrativeWatchCard from "@/components/NarrativeWatchCard";
+import GmExposureChip from "@/components/command/GmExposureChip";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
 import ScheduledReviewsCard from "@/components/ScheduledReviewsCard";
@@ -183,6 +184,11 @@ export default function CommandTab() {
         isMobile={isMobile}
       />
 
+      {/* ── G(m) MICRO-CAP EXPOSURE ── */}
+      <div style={{ padding: "0 var(--app-px, 40px)" }}>
+        <GmExposureChip scores={scores} holdings={holdings} watchlist={watchlist} />
+      </div>
+
       {/* ── CARD 1: MOVERS ── */}
       <MoversCard holdings={holdings} watchlist={activeWatchlist} earnings={earningsCalendar} />
 
@@ -207,8 +213,8 @@ export default function CommandTab() {
       {/* ── CARD 5: OPPORTUNITY RANK ── */}
       <OpportunityRank scores={scores} holdings={holdings} watchlist={watchlist} />
 
-      {/* ── CARD 5: NARRATIVE SIGNALS ── */}
-      <NarrativeSignalsCard />
+      {/* ── CARD 5: NARRATIVE WATCH ── */}
+      <NarrativeWatchCard />
 
       {/* ── LAYER REVIEW CALENDAR ── */}
       <LayerReviewCalendar />
