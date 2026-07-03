@@ -284,7 +284,7 @@ function buildInbox(
           ? `Held in ${fmt(h.layer)} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.`
           : `Not currently a holding — earnings only matters if it informs a watchlist trigger.`,
         action: h
-          ? `Pre-earnings: write down what would change the 6D thesis (substrate, demand, moat, valuation). Post-earnings: produce a research commit if scores change.`
+          ? `Pre-earnings: write down what would change the 6D thesis (substrate, demand, moat, margin of safety). Post-earnings: produce a research commit if scores change.`
           : `Optional read — only worth time if a related watchlist name keys off this print.`,
       },
     });
