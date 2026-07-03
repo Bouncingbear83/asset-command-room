@@ -149,6 +149,8 @@ function resolveColumnLabel(label: string) {
   if (labelLower.includes("factor group") || labelLower.includes("factor_group")) return "factor_group";
   if (labelLower.includes("stack layer") || labelLower.includes("stack_layer")) return "stack_layer";
   if (labelLower.includes("substrate level") || labelLower.includes("substrate_level")) return "substrate_level";
+  // v3.13: sheet column renamed from VALUATION to MARGIN_OF_SAFETY
+  if (labelLower.includes("margin of safety") || labelLower.includes("margin_of_safety") || labelLower === "mos") return "valuation";
   if (labelLower.includes("price at first add") || labelLower.includes("price_at_first_add")) return "price_at_first_add";
   if (labelLower.includes("first add date") || labelLower.includes("first_add_date")) return "first_add_date";
   if (labelLower.includes("price at last score") || labelLower.includes("price_at_last_score")) return "price_at_last_score";
