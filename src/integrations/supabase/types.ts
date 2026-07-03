@@ -611,6 +611,45 @@ export type Database = {
         }
         Relationships: []
       }
+      narrative_watch: {
+        Row: {
+          active: boolean
+          authored_session: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          layer: string | null
+          source_path: string
+          ticker: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          authored_session?: string | null
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          layer?: string | null
+          source_path: string
+          ticker?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          authored_session?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          layer?: string | null
+          source_path?: string
+          ticker?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       research_reports: {
         Row: {
           created_at: string | null
