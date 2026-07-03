@@ -24,7 +24,7 @@ export const LAYER_VALUES: Layer[] = [
   "Hedge",
 ];
 
-// ── Return Profile (Stellar Doctrine v2.4) ─────────────────────────────────
+// ── Return Profile (Stellar Doctrine v3.13) ────────────────────────────────
 
 export type ReturnProfile =
   | "COMPOUNDER"
@@ -73,12 +73,12 @@ export type Tier = "Core" | "Anchor" | "Satellite" | "Spec" | "Residual";
 export type AssetAccount = "SIPP" | "ISA" | "SIPP+ISA";
 
 export interface AssetSubScores {
-  substrate: number; // /25
+  substrate: number; // /27 (v3.13)
   demand: number; // /22
   moat: number; // /18
-  valuation: number; // /13
+  valuation: number; // /10 — Margin of Safety (v3.13; field key retained for sheet/Supabase compat)
   mgmt: number; // /7
-  disruption_score: number; // /15  — 6D disruption sub-score (NOT the /100 deep-dive score)
+  disruption_score: number; // /16 (v3.13) — 6D disruption sub-score (NOT the /100 deep-dive score)
 }
 
 export interface AssetBuyRange {
