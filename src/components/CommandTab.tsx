@@ -10,6 +10,7 @@ import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import NarrativeWatchCard from "@/components/NarrativeWatchCard";
 import GmExposureChip from "@/components/command/GmExposureChip";
+import BenchmarkStrip from "@/components/command/BenchmarkStrip";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
 import ScheduledReviewsCard from "@/components/ScheduledReviewsCard";
@@ -184,13 +185,16 @@ export default function CommandTab() {
         isMobile={isMobile}
       />
 
-      {/* ── G(m) MICRO-CAP EXPOSURE ── */}
-      <div style={{ padding: "0 var(--app-px, 40px)" }}>
-        <GmExposureChip scores={scores} holdings={holdings} watchlist={watchlist} />
-      </div>
+      {/* ── BENCHMARK CONTEXT ── */}
+      <BenchmarkStrip />
 
       {/* ── CARD 1: MOVERS ── */}
       <MoversCard holdings={holdings} watchlist={activeWatchlist} earnings={earningsCalendar} />
+
+      {/* ── G(m) MICRO-CAP EXPOSURE ── */}
+      <div style={{ padding: "0 var(--app-px, 40px)", marginBottom: 4 }}>
+        <GmExposureChip scores={scores} holdings={holdings} watchlist={watchlist} />
+      </div>
 
       {/* ── CARD 2: ACTION INBOX ── */}
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
