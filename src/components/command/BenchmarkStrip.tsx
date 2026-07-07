@@ -1,6 +1,12 @@
 /**
  * BenchmarkStrip — compact market context bar showing daily % moves
  * for three reference indices: NASDAQ, FTSE 100, Nikkei 225.
+ *
+ * Sits between CommandHeader and MoversCard so the operator can see
+ * at a glance whether portfolio movers are beta or alpha.
+ *
+ * Data: calls the same `live-prices` edge function used by useLivePrices,
+ * but with its own fetch/cache cycle to avoid polluting the portfolio cache.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -17,7 +23,7 @@ type BenchmarkMap = Record<string, BenchmarkData>;
 
 const BENCHMARKS = [
   { yahoo: "^IXIC", label: "NDX", fullLabel: "NASDAQ" },
-  { yahoo: "^FTSE", label: "FTSE", fullLabel: "FTSE 100" },
+  { yahoo: "^STOXX50E", label: "SX5E", fullLabel: "Euro Stoxx 50" },
   { yahoo: "^N225", label: "NKY", fullLabel: "Nikkei 225" },
 ] as const;
 
