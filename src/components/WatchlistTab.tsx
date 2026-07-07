@@ -13,6 +13,7 @@ import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePromp
 import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
+import { buildFrameworkIndex, type FrameworkTag } from "@/utils/frameworkDetection";
 
 import {
   RETURN_PROFILE_VALUES,
@@ -421,6 +422,8 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
   );
   const [driverFilter, setDriverFilter] = useState<Set<string>>(() => new Set());
   const [stackFilter, setStackFilter] = useState<Set<string>>(() => new Set());
+  const [frameworkFilter, setFrameworkFilter] = useState<Set<FrameworkTag>>(() => new Set());
+  const frameworkIndex = useMemo(() => buildFrameworkIndex(scores, liveData), [scores, liveData]);
   type SortKey = "default" | "score" | "gap" | "trend7d" | "trend30d" | "driver" | "stack" | "profile" | "asymmetry" | "irrBb";  
   const [sortBy, setSortBy] = useState<SortKey>("default");
   const [waitingExpanded, setWaitingExpanded] = useState(false);
@@ -579,6 +582,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         const sl = String(r.item.stack_layer ?? "").trim().toUpperCase();
         if (!stackFilter.has(sl)) return false;
       }
+      if (frameworkFilter.size > 0) {
+        const entry = frameworkIndex.get(r.item.ticker.trim().toUpperCase());
+        if (!entry || !frameworkFilter.has(entry.framework)) return false;
+      }
       // Profile filter — only restrict rows that HAVE a profile. Rows without profile
       // (REJECTED/EXITED, or any unscored row) always pass so the filter only narrows
       // the universe of profile-tagged signals it's intended to control.
@@ -588,7 +595,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
       }
       return true;
     });
-  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected, driverFilter, stackFilter]);
+  }, [derived, search, layerFilter, statusFilter, profileFilter, allProfilesSelected, driverFilter, stackFilter, frameworkFilter, frameworkIndex]);
 
   const toggleProfile = (k: ProfileFilterKey) => {
     setProfileFilter((prev) => {
@@ -1189,6 +1196,24 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         onReset={() => setStackFilter(new Set())}
         isMobile={isMobile}
       />
+
+      {/* ── Framework filter chips (G(m), G, H, F) ── */}
+      <ChipFilterRow
+        label="Framework"
+        values={["G(m)", "G", "H", "F"] as const}
+        selected={frameworkFilter}
+        onToggle={(v) =>
+          setFrameworkFilter((prev) => {
+            const next = new Set(prev);
+            if (next.has(v as FrameworkTag)) next.delete(v as FrameworkTag);
+            else next.add(v as FrameworkTag);
+            return next;
+          })
+        }
+        onReset={() => setFrameworkFilter(new Set())}
+        isMobile={isMobile}
+      />
+
 
       {pauseActive && (
         <div
