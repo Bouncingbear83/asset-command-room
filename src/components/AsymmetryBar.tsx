@@ -57,12 +57,18 @@ export function AsymmetryBar({
   const [hover, setHover] = useState<string | null>(null);
 
   const lo = quartet.bearSubstrateFail ?? quartet.bearThesisWeak;
-  const hi = quartet.bullStretch ?? quartet.bullBase;
-  const range = lo !== null && hi !== null && hi > lo ? hi - lo : null;
-  if (range === null || lo === null) return null;
+const hi = quartet.bullStretch ?? quartet.bullBase;
+const rawRange = lo !== null && hi !== null && hi > lo ? hi - lo : null;
+if (rawRange === null || lo === null) return null;
 
-  const pctOf = (v: number | null): number | null =>
-    v !== null ? Math.max(0, Math.min(100, ((v - lo) / range) * 100)) : null;
+const PAD = 0.06;
+const padded = rawRange * PAD;
+const loAdj = lo - padded;
+const hiAdj = hi! + padded;
+const range = hiAdj - loAdj;
+
+const pctOf = (v: number | null): number | null =>
+  v !== null ? Math.max(0, Math.min(100, ((v - loAdj) / range) * 100)) : null;
 
   const spot = live.price;
   const spotP = pctOf(spot);
