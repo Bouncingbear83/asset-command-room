@@ -487,19 +487,34 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
             </div>
 
             {/* Thesis */}
-            {(data.score?.fullThesis || data.rationale?.thesis_summary) && (
-              <div style={sectionStyle}>
-                <div style={sectionTitle}>Thesis</div>
-                <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, lineHeight: 1.55, color: "var(--text-mid)", whiteSpace: "pre-wrap" }}>
-                  {data.score?.fullThesis || data.rationale?.thesis_summary}
-                </div>
-                {data.score?.changeNote && (
-                  <div style={{ marginTop: 8, padding: "6px 8px", background: "rgba(140,140,170,0.06)", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
-                    Change note: {data.score.changeNote}
+            {(() => {
+              const rawThesis = data.score?.fullThesis || "";
+              const isPointer = /^see vault:/i.test(rawThesis.trim());
+              const thesisText = isPointer
+                ? (data.rationale?.thesis_summary || null)
+                : (rawThesis || data.rationale?.thesis_summary || null);
+              if (!thesisText) return null;
+              return (
+                <div style={sectionStyle}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <div style={sectionTitle}>Thesis</div>
+                    {isPointer && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>
+                        VIA VAULT
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                  <div style={{ fontFamily: "var(--font-ui)", fontSize: 12, lineHeight: 1.55, color: "var(--text-mid)", whiteSpace: "pre-wrap" }}>
+                    {thesisText}
+                  </div>
+                  {data.score?.changeNote && (
+                    <div style={{ marginTop: 8, padding: "6px 8px", background: "rgba(140,140,170,0.06)", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+                      Change note: {data.score.changeNote}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Vault thesis content */}
             <VaultTickerThesis ticker={ticker} />
@@ -671,17 +686,29 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               const hasQuartet = quartet.bullBase !== null || quartet.bearThesisWeak !== null;
               if (!rationale?.bull_case && !rationale?.bear_case && !hasQuartet) return null;
 
-              // Parse trigger price from watchlist trigger text (best-effort)
-              const triggerText = (data.watchlist as any)?.trigger as string | undefined;
+              // Trigger price: context-dependent source.
+              // HELD: use HOLDINGS trigger_price_add. WL: parse from trigger condition text.
+              const held = data.holdings[0];
               let triggerPrice: number | null = null;
-              if (triggerText) {
-                // Look for patterns like "<=EUR 7.00" "EUR 7.50" "$155" "200p"
-                const m = triggerText.match(/<?=?\s*(?:EUR|USD|GBP|JPY|CHF|NOK|CAD|AUD|\$|£|€|¥)?\s*([0-9]{1,6}(?:[.,][0-9]{1,4})?)\s*[p]?/i);
-                if (m) {
-                  const n = parseFloat(m[1].replace(",", "."));
-                  if (Number.isFinite(n)) triggerPrice = n;
+              let triggerLabel: string | null = null;
+              if (held) {
+                const addPx = parseFloat(String(held.trigger_price_add ?? ""));
+                if (Number.isFinite(addPx)) {
+                  triggerPrice = addPx;
+                  triggerLabel = held.add_trigger ? `ADD: ${held.add_trigger}`.slice(0, 60) : "ADD trigger";
+                }
+              } else {
+                const triggerText = (data.watchlist as any)?.trigger as string | undefined;
+                if (triggerText) {
+                  const m = triggerText.match(/<?=?\s*(?:EUR|USD|GBP|JPY|CHF|NOK|CAD|AUD|\$|£|€|¥)?\s*([0-9]{1,6}(?:[.,][0-9]{1,4})?)\s*[p]?/i);
+                  if (m) {
+                    const n = parseFloat(m[1].replace(",", "."));
+                    if (Number.isFinite(n)) triggerPrice = n;
+                  }
+                  triggerLabel = triggerText.slice(0, 60);
                 }
               }
+              const buyZone = score ? { low: (score as any).buyLow ?? null, high: (score as any).buyHigh ?? null } : null;
 
               return (
                 <div style={sectionStyle}>
@@ -698,9 +725,9 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                   <AsymmetryBar
                     quartet={quartet}
                     live={live}
-                    buyZone={score ? { low: (score as any).buyLow ?? null, high: (score as any).buyHigh ?? null } : null}
+                    buyZone={buyZone}
                     triggerPrice={triggerPrice}
-                    triggerLabel={triggerText ? triggerText.slice(0, 60) : null}
+                    triggerLabel={triggerLabel}
                     currency={(score as any)?.currency ?? (data.watchlist as any)?.currency ?? null}
                   />
 
