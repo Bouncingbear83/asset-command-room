@@ -547,6 +547,7 @@ function parseScores(rows: Record<string, any>[]) {
       bbTargetDate: parseSheetDate(findCol(row, "BB_TARGET_DATE", "bb_target_date", "Bb_Target_Date")),
       divYield: parseNum(findCol(row, "DIV_YIELD", "div_yield", "Div_Yield")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
+      framework: String(findCol(row, "FRAMEWORK", "framework", "Framework") ?? ""),
     }));
 
 }
