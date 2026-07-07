@@ -1046,6 +1046,7 @@ export type Database = {
           identifier: string | null
           last_indexed: string
           path: string
+          ticker: string | null
           title: string | null
           type: string
         }
@@ -1057,6 +1058,7 @@ export type Database = {
           identifier?: string | null
           last_indexed?: string
           path: string
+          ticker?: string | null
           title?: string | null
           type: string
         }
@@ -1068,6 +1070,7 @@ export type Database = {
           identifier?: string | null
           last_indexed?: string
           path?: string
+          ticker?: string | null
           title?: string | null
           type?: string
         }
