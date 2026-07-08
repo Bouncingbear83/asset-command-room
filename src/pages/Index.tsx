@@ -9,6 +9,7 @@ import ReturnsTab from "@/components/ReturnsTab";
 import LayersTab from "@/components/LayersTab";
 import MonitorTab from "@/components/MonitorTab";
 import TransactionsTab from "@/components/TransactionsTab";
+import ActionsTab from "@/components/actions/ActionsTab";
 
 import IntelligenceTab from "@/pages/IntelligenceTab";
 import DriversTab from "@/components/DriversTab";
@@ -20,7 +21,7 @@ import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 const TABS = [
   "Command", "Holdings", "Watchlist", "JISAs",
   "Signals", "Layers", "Drivers", "Intelligence", "Research", "Vault",
-  "Returns", "Transactions"
+  "Returns", "Actions", "Transactions"
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -28,7 +29,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   Command: "command", Signals: "signals", Watchlist: "watchlist", Layers: "layers",
   Drivers: "drivers",
   Intelligence: "intelligence", Research: "research", Vault: "vault", Returns: "returns", Holdings: "holdings",
-  Transactions: "transactions", JISAs: "jisas",
+  Transactions: "transactions", JISAs: "jisas", Actions: "actions",
 };
 const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_SLUGS).map(([t, s]) => [s, t as Tab]),
