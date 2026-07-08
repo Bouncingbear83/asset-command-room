@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_tracker: {
+        Row: {
+          action_type: string
+          context: string | null
+          created_at: string
+          dedupe_key: string | null
+          due_date: string
+          id: string
+          priority: string
+          resolution_note: string | null
+          resolved_at: string | null
+          source: string | null
+          source_session: string | null
+          status: string
+          summary: string
+          ticker: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_type: string
+          context?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          due_date: string
+          id?: string
+          priority?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          source?: string | null
+          source_session?: string | null
+          status?: string
+          summary: string
+          ticker?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          context?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          due_date?: string
+          id?: string
+          priority?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          source?: string | null
+          source_session?: string | null
+          status?: string
+          summary?: string
+          ticker?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       alerts_log: {
         Row: {
           alert_type: string
