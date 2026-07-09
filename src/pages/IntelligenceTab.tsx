@@ -25,6 +25,8 @@ import {
 import type { AssetIntelligence, HeldStatus, Layer, Tier } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
 import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, stackLayerOrder } from "@/components/holdings/DriverChip";
+import ActionBadge from "@/components/actions/ActionBadge";
+import { useActionCounts } from "@/components/actions/useActionCounts";
 
 // ── Sorting / filtering / grouping pipeline ────────────────────────────────
 
@@ -201,6 +203,10 @@ export default function IntelligenceTab() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
+  const { counts: actionTrackerCounts } = useActionCounts();
+  const handleActionNav = (ticker: string) => {
+    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+  };
 
   // Mount: derive initial state from URL. Then keep state mirror so updates feel snappy.
   const [state, setState] = useState<IntelligenceUiState>(() => stateFromParams(searchParams));
@@ -580,6 +586,8 @@ export default function IntelligenceTab() {
                   asset={asset}
                   expanded={openSet.has(asset.ticker)}
                   onToggle={() => toggleRow(asset.ticker)}
+                  actionCount={actionTrackerCounts[(asset.ticker || "").toUpperCase()] || 0}
+                  onActionClick={handleActionNav}
                 />
               ))}
             </div>
