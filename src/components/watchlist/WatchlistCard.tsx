@@ -226,6 +226,53 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/** Clock indicator when a watchlist row has a trigger_review_date within 14 days. Links to Actions tab. */
+function TriggerReviewClock({ ticker, reviewDate }: { ticker: string; reviewDate?: string | null }) {
+  if (!reviewDate) return null;
+  const iso = String(reviewDate).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const due = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (days > 14) return null;
+  const color = days < 0 ? "var(--red)" : days <= 3 ? "var(--amber)" : "var(--gold)";
+  const label = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? "today" : `${days}d`;
+  const key = `${ticker.toUpperCase()}|REVIEW_DUE|${iso}`;
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", "actions");
+    const url = `${window.location.pathname}?${params.toString()}#action=${encodeURIComponent(key)}`;
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  };
+  return (
+    <button
+      onClick={handleClick}
+      title={`Trigger review due ${iso} (${label}) — open in Actions`}
+      style={{
+        background: "none",
+        border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+        color,
+        cursor: "pointer",
+        padding: "1px 5px",
+        borderRadius: 2,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.08em",
+      }}
+    >
+      <Clock size={10} />
+      {label}
+    </button>
+  );
+}
+
 /** Small 🔒 chip rendered next to the ticker when BROKER_GATED === "Y". */
 function BrokerGatedBadge({ gated }: { gated: string | undefined }) {
   if (String(gated ?? "").trim().toUpperCase() !== "Y") return null;
