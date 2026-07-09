@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import type { ActionItem as Item } from "./useActionTracker";
 
 interface Props {
@@ -7,6 +7,8 @@ interface Props {
   onResolve: (item: Item, status: "CONFIRMED" | "DISMISSED", note: string) => Promise<void>;
   onReopen: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
+  onUpdateNote?: (item: Item, note: string) => Promise<void>;
+  focused?: boolean;
 }
 
 const TYPE_COLORS: Record<string, string> = {
