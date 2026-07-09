@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem } from "@/hooks/usePortfolioData";
 import { WatchlistSparkline } from "./WatchlistSparkline";
