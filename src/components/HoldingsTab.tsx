@@ -88,19 +88,6 @@ const HOLD_STATUS_STYLE: Record<Exclude<HoldStatusKind, "CLEAR">, { bg: string; 
   EXIT:      { bg: "var(--red-dim)",    fg: "var(--red)",    border: "rgba(200,90,90,0.4)",   label: "✕ EXIT" },
 };
 
-const { counts: actionCounts } = useActionCounts();
-const handleActionNav = (ticker: string) => {
-  // Adjust to match your routing pattern
-  window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
-};
-
-// 4. In each holding row, add the badge after the ticker or name
-<ActionBadge
-  count={actionCounts[(holding.ticker || "").toUpperCase()] || 0}
-  ticker={holding.ticker}
-  onClick={handleActionNav}
-/>
-
 function deriveHoldStatus(raw: string | null | undefined): HoldStatusKind {
   const u = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   if (!u || u === "HOLD" || u === "CLEAR") return "CLEAR";
@@ -280,6 +267,12 @@ function UnifiedView({
   // to the shared <AssetExpansion>. The expansion's hook (useAssetIntelligence)
   // already loads rationales eagerly, so per-row fetches are no longer needed.
   const { getSummary, getResearchFreshness } = useResearchSummary();
+
+  // Action tracker badge counts
+  const { counts: actionTrackerCounts } = useActionCounts();
+  const handleActionNav = (ticker: string) => {
+    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+  };
 
  // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST
   const quartetMap = useQuartetMap(scores ?? [], allHoldings, watchlist);
@@ -510,6 +503,11 @@ function UnifiedView({
                           </span>
                         )}
                         <ChinaRiskChip flag={h.chinaExposureFlag} />
+                        <ActionBadge
+                              count={actionTrackerCounts[(h.ticker || "").toUpperCase()] || 0}
+                              ticker={h.ticker}
+                              onClick={handleActionNav}
+                            />
                         {(() => {
                           const rp = (h as any).returnProfile as string;
                           if (!rp || !PROFILE_LABEL[rp as ReturnProfile]) return null;
@@ -698,6 +696,11 @@ function UnifiedView({
                               return <span title={`${flag.prefix}: ${flag.reason}`} style={{ fontSize: 8, cursor: "help" }}>{emoji}</span>;
                             })()}
                             <ChinaRiskChip flag={h.chinaExposureFlag} />
+                            <ActionBadge
+                          count={actionTrackerCounts[(h.ticker || "").toUpperCase()] || 0}
+                          ticker={h.ticker}
+                          onClick={handleActionNav}
+                        />
                             {(() => {
                               const rp = (h as any).returnProfile as string;
                               if (!rp || !PROFILE_LABEL[rp as ReturnProfile]) return null;
