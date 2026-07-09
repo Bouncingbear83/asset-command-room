@@ -21,24 +21,33 @@ interface Group {
 
 export default function ActionsTab() {
   const { watchlist, holdings, earningsCalendar } = usePortfolioData();
-  const { items, loading, resolve, reopen, addManual, remove, updateNote } = useActionTracker({
+  const { items, loading, resolve, snooze, reopen, addManual, remove, updateNote } = useActionTracker({
     watchlist,
     holdings,
     earnings: earningsCalendar,
   });
+
   const [filter, setFilter] = useState<FilterMode>("OPEN");
+  const [tickerFilter, setTickerFilter] = useState<string>("");
+  const [layerFilter, setLayerFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
   const [showAdd, setShowAdd] = useState(false);
   const [focusKey, setFocusKey] = useState<string | null>(null);
 
+  // Read URL params for deep-linking (?ticker=SGL.DE&type=EARNINGS_GATE)
   useEffect(() => {
-    const readHash = () => {
-      const h = window.location.hash;
-      const m = h.match(/action=([^&]+)/);
-      setFocusKey(m ? decodeURIComponent(m[1]) : null);
-    };
-    readHash();
-    window.addEventListener("hashchange", readHash);
-    return () => window.removeEventListener("hashchange", readHash);
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
+
+    const t = params.get("ticker") || hashParams.get("ticker") || "";
+    const l = params.get("layer") || hashParams.get("layer") || "";
+    const tp = params.get("type") || hashParams.get("type") || "";
+    const fk = params.get("action") || hashParams.get("action") || "";
+
+    if (t) setTickerFilter(t.toUpperCase());
+    if (l) setLayerFilter(l);
+    if (tp) setTypeFilter(tp);
+    if (fk) setFocusKey(fk);
   }, []);
 
   // If focus is on a resolved item, ensure filter includes it
@@ -50,23 +59,57 @@ export default function ActionsTab() {
     }
   }, [focusKey, items, filter]);
 
+  // Distinct values for filter dropdowns
   const tickerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of items) if (it.ticker) set.add(it.ticker.toUpperCase());
+    return Array.from(set).sort();
+  }, [items]);
+
+  const layerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of items) if (it.layer) set.add(it.layer);
+    // Also pull from holdings/watchlist for broader coverage
+    for (const h of holdings) if (h.layer) set.add(h.layer);
+    for (const w of watchlist) if (w.layer) set.add(w.layer);
+    return Array.from(set).sort();
+  }, [items, holdings, watchlist]);
+
+  const typeOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of items) set.add(it.action_type);
+    return Array.from(set).sort();
+  }, [items]);
+
+  // All ticker options for the add modal
+  const allTickers = useMemo(() => {
     const set = new Set<string>();
     for (const h of holdings) if (h.ticker) set.add(h.ticker.toUpperCase());
     for (const w of watchlist) if (w.ticker) set.add(w.ticker.toUpperCase());
     return Array.from(set).sort();
   }, [holdings, watchlist]);
 
+  const openCount = useMemo(() => items.filter((i) => i.status === "OPEN").length, [items]);
+
   const groups: Group[] = useMemo(() => {
     const visible = items.filter((i) => {
-      if (filter === "OPEN") return i.status === "OPEN";
-      if (filter === "RESOLVED") return i.status === "CONFIRMED" || i.status === "DISMISSED";
+      // Status filter
+      if (filter === "OPEN" && i.status !== "OPEN") return false;
+      if (filter === "RESOLVED" && i.status !== "CONFIRMED" && i.status !== "DISMISSED") return false;
+      // Ticker filter
+      if (tickerFilter && (i.ticker || "").toUpperCase() !== tickerFilter.toUpperCase()) return false;
+      // Layer filter
+      if (layerFilter && (i.layer || "") !== layerFilter) return false;
+      // Type filter
+      if (typeFilter && i.action_type !== typeFilter) return false;
       return true;
     });
+
     const overdue: ActionItem[] = [];
     const week: ActionItem[] = [];
     const month: ActionItem[] = [];
     const later: ActionItem[] = [];
+
     for (const it of visible) {
       const diff = daysUntil(it.due_date);
       const isOpen = it.status === "OPEN";
@@ -75,6 +118,7 @@ export default function ActionsTab() {
       else if (diff <= 30) month.push(it);
       else later.push(it);
     }
+
     const sortFn = (a: ActionItem, b: ActionItem) => {
       const ra = a.status === "OPEN" ? 0 : 1;
       const rb = b.status === "OPEN" ? 0 : 1;
@@ -82,13 +126,16 @@ export default function ActionsTab() {
       return a.due_date.localeCompare(b.due_date);
     };
     [overdue, week, month, later].forEach((g) => g.sort(sortFn));
+
     return [
       { label: "Overdue", items: overdue, accent: "var(--red)" },
-      { label: "This Week", items: week },
+      { label: "This Week", items: week, accent: "var(--amber)" },
       { label: "This Month", items: month },
       { label: "Later", items: later },
     ].filter((g) => g.items.length > 0);
-  }, [items, filter]);
+  }, [items, filter, tickerFilter, layerFilter, typeFilter]);
+
+  const hasAnyFilter = tickerFilter || layerFilter || typeFilter;
 
   const chipStyle = (active: boolean): CSSProperties => ({
     fontFamily: "var(--font-mono)",
@@ -103,14 +150,97 @@ export default function ActionsTab() {
     textTransform: "uppercase",
   });
 
+  const selectStyle: CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    letterSpacing: "0.1em",
+    padding: "5px 8px",
+    background: "var(--void)",
+    border: "1px solid var(--rim)",
+    color: "var(--text)",
+    borderRadius: 2,
+    cursor: "pointer",
+    minWidth: 90,
+    maxWidth: 140,
+  };
+
   return (
     <div style={{ padding: "16px var(--app-px, 40px) 40px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 6 }}>
+      {/* ── Top bar: status chips + filters + add ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        {/* Left: status chips */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <button style={chipStyle(filter === "ALL")} onClick={() => setFilter("ALL")}>ALL</button>
-          <button style={chipStyle(filter === "OPEN")} onClick={() => setFilter("OPEN")}>OPEN</button>
+          <button style={chipStyle(filter === "OPEN")} onClick={() => setFilter("OPEN")}>
+            OPEN{openCount > 0 ? ` (${openCount})` : ""}
+          </button>
           <button style={chipStyle(filter === "RESOLVED")} onClick={() => setFilter("RESOLVED")}>RESOLVED</button>
         </div>
+
+        {/* Centre: dimension filters */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <select
+            style={selectStyle}
+            value={tickerFilter}
+            onChange={(e) => setTickerFilter(e.target.value)}
+          >
+            <option value="">All tickers</option>
+            {tickerOptions.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+
+          <select
+            style={selectStyle}
+            value={layerFilter}
+            onChange={(e) => setLayerFilter(e.target.value)}
+          >
+            <option value="">All layers</option>
+            {layerOptions.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+
+          <select
+            style={selectStyle}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="">All types</option>
+            {typeOptions.map((t) => (
+              <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+
+          {hasAnyFilter && (
+            <button
+              onClick={() => { setTickerFilter(""); setLayerFilter(""); setTypeFilter(""); }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--red)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                cursor: "pointer",
+                padding: "4px 6px",
+              }}
+            >
+              CLEAR ×
+            </button>
+          )}
+        </div>
+
+        {/* Right: add button */}
         <button
           onClick={() => setShowAdd(true)}
           style={{
@@ -130,19 +260,39 @@ export default function ActionsTab() {
       </div>
 
       {loading && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>Loading…</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
+          Loading…
+        </div>
       )}
 
       {!loading && groups.length === 0 && (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", padding: 20, textAlign: "center", border: "1px solid var(--rim)" }}>
-          No actions {filter === "OPEN" ? "open" : filter.toLowerCase()}.
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--text-dim)",
+            padding: 20,
+            textAlign: "center",
+            border: "1px solid var(--rim)",
+          }}
+        >
+          {hasAnyFilter
+            ? `No actions matching filters.`
+            : `No actions ${filter === "OPEN" ? "open" : filter.toLowerCase()}.`}
         </div>
       )}
 
       {groups.map((g) => {
-        const openCount = g.items.filter((i) => i.status === "OPEN").length;
+        const openInGroup = g.items.filter((i) => i.status === "OPEN").length;
         return (
-          <div key={g.label} style={{ marginBottom: 20, borderLeft: g.accent ? `2px solid ${g.accent}` : "none", paddingLeft: g.accent ? 10 : 0 }}>
+          <div
+            key={g.label}
+            style={{
+              marginBottom: 20,
+              borderLeft: g.accent ? `2px solid ${g.accent}` : "none",
+              paddingLeft: g.accent ? 10 : 0,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -157,14 +307,17 @@ export default function ActionsTab() {
               }}
             >
               <span>{g.label}</span>
-              <span>{openCount} OPEN · {g.items.length} TOTAL</span>
+              <span>
+                {openInGroup} OPEN · {g.items.length} TOTAL
+              </span>
             </div>
             <div style={{ border: "1px solid var(--rim)", background: "var(--panel)" }}>
               {g.items.map((it) => (
-               <ActionItemRow
+                <ActionItemRow
                   key={it.id}
                   item={it}
                   onResolve={resolve}
+                  onSnooze={snooze}
                   onReopen={reopen}
                   onDelete={remove}
                   onUpdateNote={updateNote}
@@ -178,7 +331,7 @@ export default function ActionsTab() {
 
       {showAdd && (
         <ActionAddModal
-          tickerOptions={tickerOptions}
+          tickerOptions={allTickers}
           onClose={() => setShowAdd(false)}
           onSubmit={addManual}
         />
