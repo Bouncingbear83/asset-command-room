@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
+import type {
+  LiveHolding,
+  LiveWatchItem,
+  LiveEarningsCalendarItem,
+  LiveScore,
+} from "@/hooks/usePortfolioData";
+
+// ── Types ──
 
 export type ActionType =
   | "EARNINGS_GATE"
@@ -13,7 +20,13 @@ export type ActionType =
 
 export type ActionStatus = "OPEN" | "CONFIRMED" | "DISMISSED" | "EXPIRED";
 export type ActionPriority = "HIGH" | "MEDIUM" | "LOW";
-export type ActionSource = "WATCHLIST" | "HOLDINGS" | "EARNINGS" | "SESSION" | "MANUAL";
+export type ActionSource =
+  | "WATCHLIST"
+  | "HOLDINGS"
+  | "EARNINGS"
+  | "SCORES"
+  | "SESSION"
+  | "MANUAL";
 
 export interface ActionItem {
   id: string;
@@ -32,17 +45,22 @@ export interface ActionItem {
   priority: ActionPriority;
   dedupe_key: string | null;
   persisted: boolean;
+  /**
+   * True for auto-generated staleness reviews.
+   * False for event-driven items (sessions, manual, earnings, explicit triggers).
+   * Used by the tab to separate routine from signal.
+   */
+  is_routine: boolean;
 }
 
 interface Args {
   watchlist: LiveWatchItem[];
   holdings: LiveHolding[];
   earnings: LiveEarningsCalendarItem[];
-  /** Set of held tickers for priority boosting earnings */
-  heldTickers?: Set<string>;
+  scores?: LiveScore[];
 }
 
-// ── helpers ──
+// ── Helpers ──
 
 function toDateISO(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -58,33 +76,75 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function daysFrom(dateStr: string, ref = new Date()): number {
-  const d = new Date(dateStr);
-  ref.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - ref.getTime()) / 86400000);
+function daysBetween(a: string, b: string): number {
+  return Math.round(
+    (new Date(b).getTime() - new Date(a).getTime()) / 86400000,
+  );
 }
 
-function makeKey(prefix: string, ticker: string | null, discriminant: string): string {
+function makeKey(
+  prefix: string,
+  ticker: string | null,
+  discriminant: string,
+): string {
   return `${prefix}:${(ticker ?? "").toUpperCase()}:${discriminant}`;
 }
 
 /**
- * Returns true if a trigger review note is substantive enough to auto-generate an action.
- * Filters out: empty, "OK", single words, pure status labels.
+ * True if a trigger review note has enough substance to be an explicit
+ * event-driven action (not a routine review).
  */
 function isSubstantiveNote(note: string | null | undefined): boolean {
   if (!note) return false;
   const s = note.trim();
   if (!s) return false;
-  // Reject single tokens like "OK", "WAIT", "HOLD", "PENDING", "-"
   if (/^[A-Z_-]{1,12}$/i.test(s)) return false;
-  // Must have at least 2 words to be meaningful
   return s.split(/\s+/).length >= 2;
 }
 
-// ── main hook ──
+// ── Review cadence by status ──
 
-export function useActionTracker({ watchlist, holdings, earnings, heldTickers }: Args) {
+/**
+ * Normalise status tokens from both SCORES.held_status and WATCHLIST.status
+ * to a common key for cadence lookup.
+ */
+function normStatus(s: string | null | undefined): string {
+  return String(s ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+/** Days between routine reviews, by normalised status. null = never auto-review. */
+const CADENCE: Record<string, number | null> = {
+  // SCORES held_status values
+  HELD: 30,
+  WATCHLIST: 45,
+  RESEARCH: 60,
+  PREIPO: 90,
+  DORMANT: 90,
+  // WATCHLIST status values (normalised)
+  DEPLOY: 14, // active buy: check frequently
+  WAITPRICE: 45,
+  WAITEVENT: null, // event-driven only: no auto-review
+  SCALINGWATCH: 45,
+  POSTRECLASSHOLD: 60,
+  ARCHIVE: null, // never
+  EXITED: null,
+  REJECTED: null,
+};
+
+function getCadence(status: string): number | null {
+  return CADENCE[normStatus(status)] ?? 45; // default 45d for unknown
+}
+
+// ── Main hook ──
+
+export function useActionTracker({
+  watchlist,
+  holdings,
+  earnings,
+  scores = [],
+}: Args) {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,21 +165,124 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
     fetchRows();
   }, [fetchRows]);
 
-  // Build held-ticker set for priority boosting
+  // Held ticker set for priority boosting
   const held = useMemo(() => {
-    if (heldTickers) return heldTickers;
     const s = new Set<string>();
     for (const h of holdings) if (h.ticker) s.add(h.ticker.toUpperCase());
     return s;
-  }, [holdings, heldTickers]);
+  }, [holdings]);
+
+  // Score lookup by ticker (case-insensitive)
+  const scoreMap = useMemo(() => {
+    const m = new Map<
+      string,
+      { scoreDate: string | null; score: number | null; heldStatus: string; name: string; layer: string }
+    >();
+    for (const s of scores) {
+      const t = String(s.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
+      m.set(t, {
+        scoreDate: toDateISO(s.scoreDate),
+        score: s.score,
+        heldStatus: s.heldStatus || "",
+        name: s.name || "",
+        layer: s.layer || "",
+      });
+    }
+    return m;
+  }, [scores]);
+
+  // Watchlist lookup by ticker
+  const watchMap = useMemo(() => {
+    const m = new Map<string, LiveWatchItem>();
+    for (const w of watchlist) {
+      const t = (w.ticker || "").toUpperCase();
+      if (t) m.set(t, w);
+    }
+    return m;
+  }, [watchlist]);
 
   // ── Sheet-derived items (SELECTIVE) ──
   const sheetItems: ActionItem[] = useMemo(() => {
     const out: ActionItem[] = [];
-    const today = new Date();
-    const todayStr = todayISO();
+    const today = todayISO();
 
-    // ── 1. Watchlist trigger reviews: ONLY with substantive notes ──
+    // ═══════════════════════════════════════════════════════════
+    // 1. ROUTINE REVIEWS: computed from score_date staleness
+    // ═══════════════════════════════════════════════════════════
+    //
+    // For every scored ticker, check if it's overdue for a review
+    // based on its status and the cadence table above.
+
+    const seenRoutine = new Set<string>();
+
+    for (const [ticker, sc] of scoreMap.entries()) {
+      // Determine status: prefer SCORES.heldStatus, fall back to WATCHLIST.status
+      const wl = watchMap.get(ticker);
+      const status = sc.heldStatus || wl?.status || "";
+      const cadence = getCadence(status);
+
+      // null cadence = never auto-review (ARCHIVE, EXITED, WAIT_EVENT, etc.)
+      if (cadence === null) continue;
+
+      // Need a freshness date to compute staleness
+      const lastReview =
+        sc.scoreDate ||
+        toDateISO(wl?.lastChecked) ||
+        toDateISO(wl?.firstAddDate) ||
+        null;
+
+      if (!lastReview) continue;
+
+      const daysSince = daysBetween(lastReview, today);
+      if (daysSince < cadence) continue; // not yet stale
+
+      // Compute when the review became due
+      const dueDate = new Date(lastReview);
+      dueDate.setDate(dueDate.getDate() + cadence);
+      const dueDateStr = dueDate.toISOString().slice(0, 10);
+
+      // Dedup key by ticker + month (one routine review per ticker per month)
+      const monthKey = today.slice(0, 7);
+      const key = makeKey("ROUTINE", ticker, monthKey);
+
+      const isHeld = held.has(ticker);
+      const isVeryStale = daysSince > cadence * 2;
+      const priority: ActionPriority = isHeld && isVeryStale ? "HIGH" : isHeld ? "MEDIUM" : "LOW";
+
+      const scoreStr = sc.score != null ? `Score ${sc.score}/100. ` : "";
+      const statusLabel = normStatus(status).replace(/([A-Z])/g, " $1").trim();
+
+      out.push({
+        id: `sheet:${key}`,
+        ticker,
+        name: sc.name || wl?.name || null,
+        layer: sc.layer || wl?.layer || null,
+        action_type: "REVIEW_DUE",
+        due_date: dueDateStr,
+        summary: `Routine review: last scored ${daysSince}d ago`,
+        context: `${scoreStr}${cadence}d cadence for ${statusLabel} names. Last review: ${lastReview}.`,
+        source: "SCORES",
+        source_ref: null,
+        status: "OPEN",
+        resolution_note: null,
+        resolved_at: null,
+        priority,
+        dedupe_key: key,
+        persisted: false,
+        is_routine: true,
+      });
+
+      seenRoutine.add(ticker);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. EXPLICIT TRIGGER DATES with substantive notes
+    // ═══════════════════════════════════════════════════════════
+    //
+    // These are event-driven: someone wrote a specific note about
+    // what to check on a specific date. NOT routine.
+
     for (const w of watchlist) {
       const due = toDateISO(w.triggerReviewDate);
       if (!due) continue;
@@ -134,34 +297,44 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
         action_type: "REVIEW_DUE",
         due_date: due,
         summary: w.triggerReviewNote!.slice(0, 120),
-        context: [w.trigger, w.rationale].filter(Boolean).join(" — ") || null,
+        context:
+          [w.trigger, w.rationale].filter(Boolean).join(" — ") || null,
         source: "WATCHLIST",
         source_ref: null,
         status: "OPEN",
         resolution_note: null,
         resolved_at: null,
-        priority: held.has((w.ticker || "").toUpperCase()) ? "HIGH" : "MEDIUM",
+        priority: held.has((w.ticker || "").toUpperCase())
+          ? "HIGH"
+          : "MEDIUM",
         dedupe_key: key,
         persisted: false,
+        is_routine: false,
       });
     }
 
-    // ── 2. Holdings with review flags ──
+    // ═══════════════════════════════════════════════════════════
+    // 3. HOLDINGS with review flags (non-routine)
+    // ═══════════════════════════════════════════════════════════
+
     for (const h of holdings) {
       const alertStatus = (h.alert_status || "").toUpperCase();
-      // Only generate for non-clear, non-empty alert statuses
-      if (!alertStatus || alertStatus === "CLEAR" || alertStatus === "OK") continue;
+      if (!alertStatus || alertStatus === "CLEAR" || alertStatus === "OK")
+        continue;
 
-      const monthKey = todayStr.slice(0, 7); // yyyy-mm for monthly dedup
+      const monthKey = today.slice(0, 7);
       const key = makeKey("HOLD_ALERT", h.ticker, monthKey);
-      const priceStr = h.price ? ` Price: ${h.currency} ${h.price.toFixed(2)}.` : "";
+      const priceStr = h.price
+        ? ` Price: ${h.currency} ${h.price.toFixed(2)}.`
+        : "";
+
       out.push({
         id: `sheet:${key}`,
         ticker: h.ticker || null,
         name: h.name || null,
         layer: h.layer || null,
         action_type: "REVIEW_DUE",
-        due_date: todayStr,
+        due_date: today,
         summary: `Alert: ${alertStatus}${h.trigger_review_note ? ` — ${h.trigger_review_note.slice(0, 80)}` : ""}`,
         context: `Flagged by monitoring.${priceStr} Check thesis assumptions.`,
         source: "HOLDINGS",
@@ -172,40 +345,17 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
         priority: "HIGH",
         dedupe_key: key,
         persisted: false,
+        is_routine: false,
       });
     }
 
-    // ── 3. Holdings with substantive trigger review notes ──
-    for (const h of holdings) {
-      const due = toDateISO(h.trigger_review_date);
-      if (!due) continue;
-      if (!isSubstantiveNote(h.trigger_review_note)) continue;
+    // ═══════════════════════════════════════════════════════════
+    // 4. EARNINGS within 60 days (non-routine)
+    // ═══════════════════════════════════════════════════════════
 
-      const key = makeKey("HOLD_TRIGGER", h.ticker, due);
-      out.push({
-        id: `sheet:${key}`,
-        ticker: h.ticker || null,
-        name: h.name || null,
-        layer: h.layer || null,
-        action_type: "REVIEW_DUE",
-        due_date: due,
-        summary: h.trigger_review_note!.slice(0, 120),
-        context: [h.add_trigger, h.exit_trigger].filter(Boolean).join(" · ") || null,
-        source: "HOLDINGS",
-        source_ref: null,
-        status: "OPEN",
-        resolution_note: null,
-        resolved_at: null,
-        priority: "HIGH",
-        dedupe_key: key,
-        persisted: false,
-      });
-    }
-
-    // ── 4. Earnings within 60 days (or last 7 days for just-reported) ──
-    const cutoffPast = new Date(today);
+    const cutoffPast = new Date();
     cutoffPast.setDate(cutoffPast.getDate() - 7);
-    const cutoffFuture = new Date(today);
+    const cutoffFuture = new Date();
     cutoffFuture.setDate(cutoffFuture.getDate() + 60);
 
     for (const e of earnings) {
@@ -216,6 +366,7 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
 
       const key = makeKey("EARNINGS", e.ticker, due);
       const isHeld = held.has((e.ticker || "").toUpperCase());
+
       out.push({
         id: `sheet:${key}`,
         ticker: e.ticker || null,
@@ -235,11 +386,12 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
         priority: isHeld ? "HIGH" : "MEDIUM",
         dedupe_key: key,
         persisted: false,
+        is_routine: false,
       });
     }
 
     return out;
-  }, [watchlist, holdings, earnings, held]);
+  }, [watchlist, holdings, earnings, held, scoreMap, watchMap]);
 
   // ── Merge sheet + Supabase ──
   const items: ActionItem[] = useMemo(() => {
@@ -268,17 +420,19 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
       priority: r.priority,
       dedupe_key: r.dedupe_key,
       persisted: true,
+      // Supabase items from SESSION/MANUAL are never routine
+      is_routine: false,
     }));
 
     for (const s of supaItems) {
       if (s.dedupe_key && byKey.has(s.dedupe_key)) {
-        // Supabase row wins for resolved state; merge name/layer from sheet
         const sheet = byKey.get(s.dedupe_key)!;
         byKey.set(s.dedupe_key, {
           ...sheet,
           ...s,
           name: s.name || sheet.name,
           layer: s.layer || sheet.layer,
+          is_routine: sheet.is_routine, // preserve routine flag from sheet
           persisted: true,
         });
       } else {
@@ -292,7 +446,11 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
   // ── CRUD ──
 
   const resolve = useCallback(
-    async (item: ActionItem, resolutionStatus: "CONFIRMED" | "DISMISSED", note: string) => {
+    async (
+      item: ActionItem,
+      resolutionStatus: "CONFIRMED" | "DISMISSED",
+      note: string,
+    ) => {
       if (item.persisted) {
         await (supabase as any)
           .from("action_tracker")
@@ -303,7 +461,6 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
           })
           .eq("id", item.id);
       } else {
-        // Persist sheet-derived item to Supabase on resolution
         await (supabase as any).from("action_tracker").insert({
           ticker: item.ticker,
           action_type: item.action_type,
@@ -335,7 +492,6 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
           .update({ due_date: newDueStr })
           .eq("id", item.id);
       } else {
-        // Persist with snoozed date
         await (supabase as any).from("action_tracker").insert({
           ticker: item.ticker,
           action_type: item.action_type,
@@ -413,5 +569,16 @@ export function useActionTracker({ watchlist, holdings, earnings, heldTickers }:
     [fetchRows],
   );
 
-  return { items, loading, error, resolve, snooze, reopen, addManual, remove, updateNote, refresh: fetchRows };
+  return {
+    items,
+    loading,
+    error,
+    resolve,
+    snooze,
+    reopen,
+    addManual,
+    remove,
+    updateNote,
+    refresh: fetchRows,
+  };
 }
