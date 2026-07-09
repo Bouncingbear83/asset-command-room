@@ -22,10 +22,13 @@ export type Database = {
           dedupe_key: string | null
           due_date: string
           id: string
+          layer: string | null
+          name: string | null
           priority: string
           resolution_note: string | null
           resolved_at: string | null
           source: string | null
+          source_ref: string | null
           source_session: string | null
           status: string
           summary: string
@@ -39,10 +42,13 @@ export type Database = {
           dedupe_key?: string | null
           due_date: string
           id?: string
+          layer?: string | null
+          name?: string | null
           priority?: string
           resolution_note?: string | null
           resolved_at?: string | null
           source?: string | null
+          source_ref?: string | null
           source_session?: string | null
           status?: string
           summary: string
@@ -56,10 +62,13 @@ export type Database = {
           dedupe_key?: string | null
           due_date?: string
           id?: string
+          layer?: string | null
+          name?: string | null
           priority?: string
           resolution_note?: string | null
           resolved_at?: string | null
           source?: string | null
+          source_ref?: string | null
           source_session?: string | null
           status?: string
           summary?: string
