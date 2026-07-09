@@ -171,10 +171,83 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
               {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />} WHY
             </button>
           )}
-          {resolved && item.resolution_note && (
-            <span style={{ color: "var(--text-mid)" }}>· {item.resolution_note}</span>
+          {resolved && !editingNote && (
+            <span style={{ color: "var(--text-mid)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              {item.resolution_note ? `· ${item.resolution_note}` : "· (no note)"}
+              {item.persisted && onUpdateNote && (
+                <button
+                  type="button"
+                  title="Edit note"
+                  onClick={() => {
+                    setNoteDraft(item.resolution_note || "");
+                    setEditingNote(true);
+                  }}
+                  style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", padding: 0, display: "inline-flex" }}
+                >
+                  <Pencil size={10} />
+                </button>
+              )}
+            </span>
           )}
         </div>
+        {resolved && editingNote && (
+          <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Resolution note"
+              value={noteDraft}
+              autoFocus
+              onChange={(e) => setNoteDraft(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 180,
+                background: "var(--void)",
+                border: "1px solid var(--rim)",
+                color: "var(--text)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                padding: "4px 8px",
+              }}
+            />
+            <button
+              disabled={busy}
+              onClick={async () => {
+                if (!onUpdateNote) return;
+                setBusy(true);
+                await onUpdateNote(item, noteDraft);
+                setBusy(false);
+                setEditingNote(false);
+              }}
+              style={{
+                background: "var(--green-dim)",
+                border: "1px solid rgba(90,191,160,0.4)",
+                color: "var(--green)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                padding: "4px 10px",
+                cursor: "pointer",
+              }}
+            >
+              SAVE
+            </button>
+            <button
+              onClick={() => setEditingNote(false)}
+              style={{
+                background: "transparent",
+                border: "1px solid var(--rim)",
+                color: "var(--text-dim)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                padding: "4px 10px",
+                cursor: "pointer",
+              }}
+            >
+              CANCEL
+            </button>
+          </div>
+        )}
         {expanded && item.context && (
           <div
             style={{
