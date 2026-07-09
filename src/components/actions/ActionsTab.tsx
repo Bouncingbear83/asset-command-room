@@ -161,7 +161,15 @@ export default function ActionsTab() {
             </div>
             <div style={{ border: "1px solid var(--rim)", background: "var(--panel)" }}>
               {g.items.map((it) => (
-                <ActionItemRow key={it.id} item={it} onResolve={resolve} onReopen={reopen} onDelete={remove} />
+               <ActionItemRow
+                  key={it.id}
+                  item={it}
+                  onResolve={resolve}
+                  onReopen={reopen}
+                  onDelete={remove}
+                  onUpdateNote={updateNote}
+                  focused={!!focusKey && (it.dedupe_key === focusKey || it.id === focusKey)}
+                />
               ))}
             </div>
           </div>
