@@ -38,11 +38,21 @@ function dueBadgeStyle(due: string): { color: string; label: string } {
   return { color: "var(--green)", label };
 }
 
-export default function ActionItemRow({ item, onResolve, onReopen, onDelete }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onUpdateNote, focused }: Props) {
+  const [expanded, setExpanded] = useState(!!focused);
   const [resolving, setResolving] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (focused && rowRef.current) {
+      setExpanded(true);
+      rowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [focused]);
 
   const resolved = item.status === "CONFIRMED" || item.status === "DISMISSED";
   const badge = dueBadgeStyle(item.due_date);
