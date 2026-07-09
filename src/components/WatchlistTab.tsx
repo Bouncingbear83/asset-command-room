@@ -14,6 +14,8 @@ import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry
 import { useIrrBb } from "@/hooks/useIrrBb";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
 import { buildFrameworkIndex, type FrameworkTag } from "@/utils/frameworkDetection";
+import ActionBadge from "@/components/actions/ActionBadge";
+import { useActionCounts } from "@/components/actions/useActionCounts";
 
 import {
   RETURN_PROFILE_VALUES,
@@ -447,6 +449,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
   const { prices: livePrices, loading: livePricesLoading } = useLivePrices(allTickers);
     // IRR-BB for all scored names
   const { byTicker: irrBbMap } = useIrrBb(scores ?? [], holdings, liveData);
+  const { counts: actionTrackerCounts } = useActionCounts();
+  const handleActionNav = (ticker: string) => {
+    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+  };
 
   // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
   const profileByTicker = useMemo(() => {
