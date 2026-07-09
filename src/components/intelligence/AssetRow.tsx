@@ -10,11 +10,14 @@ import { AsymmetryPill } from "@/components/AsymmetryPill";
 import { IrrBbPill } from "@/components/IrrBbPill";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import "./AssetRow.css";
+import ActionBadge from "@/components/actions/ActionBadge";
 
 interface Props {
   asset: AssetIntelligence;
   expanded: boolean;
   onToggle: () => void;
+  actionCount?: number;
+  onActionClick?: (ticker: string) => void;
 }
 
 // ── Visual tokens ───────────────────────────────────────────────────────────
@@ -417,8 +420,7 @@ function ProfileChips({ asset, compact = false }: { asset: AssetIntelligence; co
 
 // ── Main row ────────────────────────────────────────────────────────────────
 
-export function AssetRow({ asset, expanded, onToggle }: Props) {
-  const handleKey = (e: KeyboardEvent<HTMLDivElement>) => {
+export function AssetRow({ asset, expanded, onToggle, actionCount, onActionClick }: Props) {  const handleKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
       onToggle();
@@ -449,6 +451,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
       >
         <div className="asset-row-mobile-line1">
           <span className="asset-row-mobile-ticker">{asset.ticker}</span>
+          <ActionBadge count={actionCount ?? 0} ticker={asset.ticker} onClick={onActionClick} />
           <StatusChipInline status={asset.held_status} />
           <span className="asset-row-mobile-score" style={{ color: scoreColor(asset.score) }}>
             {Math.round(asset.score)}
@@ -526,6 +529,7 @@ export function AssetRow({ asset, expanded, onToggle }: Props) {
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 4 }}>
             {asset.ticker}
             {asset.framing?.china_exposure_flag && <ChinaRiskChip flag={asset.framing.china_exposure_flag} />}
+            <ActionBadge count={actionCount ?? 0} ticker={asset.ticker} onClick={onActionClick} />
           </span>
           <span style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
             {asset.name}
