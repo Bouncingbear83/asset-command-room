@@ -43,6 +43,8 @@ import { useIrrBb } from "@/hooks/useIrrBb";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
 import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
 import type { ReturnProfile } from "@/types/intelligence";
+import ActionBadge from "@/components/actions/ActionBadge";
+import { useActionCounts } from "@/components/actions/useActionCounts";
 
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
@@ -85,6 +87,19 @@ const HOLD_STATUS_STYLE: Record<Exclude<HoldStatusKind, "CLEAR">, { bg: string; 
   MONITOR:   { bg: "var(--accent-dim)", fg: "var(--accent)", border: "rgba(110,142,200,0.4)", label: "◉ MONITOR" },
   EXIT:      { bg: "var(--red-dim)",    fg: "var(--red)",    border: "rgba(200,90,90,0.4)",   label: "✕ EXIT" },
 };
+
+const { counts: actionCounts } = useActionCounts();
+const handleActionNav = (ticker: string) => {
+  // Adjust to match your routing pattern
+  window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+};
+
+// 4. In each holding row, add the badge after the ticker or name
+<ActionBadge
+  count={actionCounts[(holding.ticker || "").toUpperCase()] || 0}
+  ticker={holding.ticker}
+  onClick={handleActionNav}
+/>
 
 function deriveHoldStatus(raw: string | null | undefined): HoldStatusKind {
   const u = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "_");
