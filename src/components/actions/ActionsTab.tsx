@@ -21,13 +21,34 @@ interface Group {
 
 export default function ActionsTab() {
   const { watchlist, holdings, earningsCalendar } = usePortfolioData();
-  const { items, loading, resolve, reopen, addManual, remove } = useActionTracker({
+  const { items, loading, resolve, reopen, addManual, remove, updateNote } = useActionTracker({
     watchlist,
     holdings,
     earnings: earningsCalendar,
   });
   const [filter, setFilter] = useState<FilterMode>("OPEN");
   const [showAdd, setShowAdd] = useState(false);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const readHash = () => {
+      const h = window.location.hash;
+      const m = h.match(/action=([^&]+)/);
+      setFocusKey(m ? decodeURIComponent(m[1]) : null);
+    };
+    readHash();
+    window.addEventListener("hashchange", readHash);
+    return () => window.removeEventListener("hashchange", readHash);
+  }, []);
+
+  // If focus is on a resolved item, ensure filter includes it
+  useEffect(() => {
+    if (!focusKey) return;
+    const target = items.find((i) => i.dedupe_key === focusKey || i.id === focusKey);
+    if (target && (target.status === "CONFIRMED" || target.status === "DISMISSED") && filter === "OPEN") {
+      setFilter("ALL");
+    }
+  }, [focusKey, items, filter]);
 
   const tickerOptions = useMemo(() => {
     const set = new Set<string>();
