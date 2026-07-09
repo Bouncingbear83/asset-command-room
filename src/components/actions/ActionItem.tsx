@@ -63,9 +63,13 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
     gap: 10,
     padding: "10px 12px",
     borderBottom: "1px solid var(--rim)",
-    background: resolved ? "rgba(255,255,255,0.02)" : "transparent",
-    opacity: resolved ? 0.55 : 1,
+    background: focused
+      ? "color-mix(in srgb, var(--gold) 8%, transparent)"
+      : resolved ? "rgba(255,255,255,0.02)" : "transparent",
+    opacity: resolved && !focused ? 0.55 : 1,
     alignItems: "start",
+    outline: focused ? "1px solid rgba(201,168,76,0.5)" : "none",
+    transition: "background 0.3s",
   };
 
   const chipStyle = (color: string): CSSProperties => ({
@@ -81,7 +85,7 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
   });
 
   return (
-    <div style={rowStyle}>
+    <div ref={rowRef} style={rowStyle}>
       <input
         type="checkbox"
         checked={resolved}
