@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useDailyPrices } from "@/hooks/useDailyPrices";
 import CommandTab from "@/components/CommandTab";
