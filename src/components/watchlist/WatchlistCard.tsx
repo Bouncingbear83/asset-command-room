@@ -25,6 +25,7 @@ import { AsymmetryPill } from "@/components/AsymmetryPill";
 import { IrrBbPill } from "@/components/IrrBbPill";
 import type { IrrBbResult } from "@/lib/computeIrrBb";
 import { ChinaRiskChip } from "@/components/ChinaRiskChip";
+import ActionBadge from "@/components/actions/ActionBadge";
 
 export type ZoneStatus = "IN_ZONE" | "APPROACHING" | "WAITING" | "PRE_IPO";
 
@@ -86,6 +87,10 @@ interface Props {
   hideActions?: boolean;
   /** Override default tint */
   tint?: "in-zone" | "approaching" | "overdue" | "none";
+  /** Open action count for this ticker (from useActionCounts) */
+  actionCount?: number;
+  /** Callback to navigate to Actions tab filtered by ticker */
+  onActionClick?: (ticker: string) => void;
 }
 
 // Status taxonomy v2 (Stellar Doctrine 2026):
@@ -479,7 +484,7 @@ function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.Mo
 
 // ── Card ──
 
-export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Props) {
+export function WatchlistCard({ row, variant, hideActions, tint = "none", actionCount, onActionClick }: Props) {
   const isMobile = useIsMobile();
   // Mobile compacts expand on tap
   const [expanded, setExpanded] = useState(false);
@@ -536,6 +541,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             {item.ticker}
           </button>
           <BrokerGatedBadge gated={item.brokerGated} />
+          <ActionBadge count={actionCount ?? 0} ticker={item.ticker} onClick={onActionClick} />
           <TriggerReviewClock ticker={item.ticker} reviewDate={item.triggerReviewDate} />
           <ChinaRiskChip flag={row.chinaExposureFlag} />
 
@@ -664,6 +670,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           {item.ticker}
         </button>
         <BrokerGatedBadge gated={item.brokerGated} />
+        <ActionBadge count={actionCount ?? 0} ticker={item.ticker} onClick={onActionClick} />
         <TriggerReviewClock ticker={item.ticker} reviewDate={item.triggerReviewDate} />
         {score?.total_score != null && (() => {
           const sc = score.total_score;
