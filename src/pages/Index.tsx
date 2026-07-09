@@ -147,6 +147,7 @@ export default function Index() {
         {portfolio.lastUpdated && !portfolio.loading && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--green)" }}>● LIVE · {portfolio.lastUpdated}</span>}
         {portfolio.error && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--amber)" }}>⚠ {portfolio.error}</span>}
         {!portfolio.loading && <button onClick={portfolio.refresh} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", padding: "2px 10px", cursor: "pointer" }}>REFRESH</button>}
+        <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", padding: "2px 10px", cursor: "pointer", marginLeft: 6 }}>SIGN OUT</button>
       </div>
 
       <nav className="stellar-nav">
