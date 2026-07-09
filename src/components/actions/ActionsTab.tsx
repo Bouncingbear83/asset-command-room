@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useActionTracker, type ActionItem } from "./useActionTracker";
 import ActionItemRow from "./ActionItem";
