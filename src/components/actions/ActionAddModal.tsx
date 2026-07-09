@@ -14,7 +14,26 @@ interface Props {
   }) => Promise<void>;
 }
 
-const TYPES: ActionType[] = ["EARNINGS_GATE", "PRICE_GATE", "CATALYST_WATCH", "REVIEW_DUE", "KILL_CHECK", "MANUAL"];
+const TYPES: ActionType[] = [
+  "CATALYST_WATCH",
+  "EARNINGS_GATE",
+  "PRICE_GATE",
+  "KILL_CHECK",
+  "DEPLOY_READY",
+  "REVIEW_DUE",
+  "MANUAL",
+];
+
+const TYPE_LABELS: Record<string, string> = {
+  CATALYST_WATCH: "Catalyst watch",
+  EARNINGS_GATE: "Earnings gate",
+  PRICE_GATE: "Price gate",
+  KILL_CHECK: "Kill check",
+  DEPLOY_READY: "Deploy ready",
+  REVIEW_DUE: "Review due",
+  MANUAL: "Manual",
+};
+
 const PRIORITIES: ActionPriority[] = ["HIGH", "MEDIUM", "LOW"];
 
 const overlay: CSSProperties = {
@@ -59,7 +78,7 @@ const input: CSSProperties = {
 
 export default function ActionAddModal({ tickerOptions, onClose, onSubmit }: Props) {
   const [ticker, setTicker] = useState("");
-  const [type, setType] = useState<ActionType>("MANUAL");
+  const [type, setType] = useState<ActionType>("CATALYST_WATCH");
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [summary, setSummary] = useState("");
   const [context, setContext] = useState("");
@@ -69,38 +88,84 @@ export default function ActionAddModal({ tickerOptions, onClose, onSubmit }: Pro
   return (
     <div style={overlay} onClick={onClose}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--gold)", marginTop: 0, marginBottom: 16 }}>
+        <h3
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: "var(--gold)",
+            marginTop: 0,
+            marginBottom: 16,
+          }}
+        >
           New Action
         </h3>
+
         <label style={label}>Ticker (optional)</label>
-        <input list="ticker-options" style={input} value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} />
+        <input
+          list="ticker-options"
+          style={input}
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value.toUpperCase())}
+          placeholder="e.g. SGL.DE"
+        />
         <datalist id="ticker-options">
-          {tickerOptions.map((t) => <option key={t} value={t} />)}
+          {tickerOptions.map((t) => (
+            <option key={t} value={t} />
+          ))}
         </datalist>
 
         <label style={label}>Type</label>
         <select style={input} value={type} onChange={(e) => setType(e.target.value as ActionType)}>
-          {TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+          {TYPES.map((t) => (
+            <option key={t} value={t}>
+              {TYPE_LABELS[t] || t}
+            </option>
+          ))}
         </select>
 
         <label style={label}>Due date</label>
         <input type="date" style={input} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
 
-        <label style={label}>Summary *</label>
-        <input style={input} value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What are you looking for?" />
+        <label style={label}>What to look for *</label>
+        <input
+          style={input}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="e.g. Binding MOUs from KIND/Hyundai"
+        />
 
-        <label style={label}>Context (why it matters)</label>
-        <textarea style={{ ...input, minHeight: 60, fontFamily: "var(--font-ui)" }} value={context} onChange={(e) => setContext(e.target.value)} />
+        <label style={label}>Why it matters</label>
+        <textarea
+          style={{ ...input, minHeight: 60, fontFamily: "var(--font-ui)" }}
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
+          placeholder="e.g. T2 add gate: needs binding MOUs + score >=67"
+        />
 
         <label style={label}>Priority</label>
         <select style={input} value={priority} onChange={(e) => setPriority(e.target.value as ActionPriority)}>
-          {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+          {PRIORITIES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
         </select>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
           <button
             onClick={onClose}
-            style={{ background: "transparent", border: "1px solid var(--rim)", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer" }}
+            style={{
+              background: "transparent",
+              border: "1px solid var(--rim)",
+              color: "var(--text-dim)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.15em",
+              padding: "6px 12px",
+              cursor: "pointer",
+            }}
           >
             CANCEL
           </button>
@@ -119,7 +184,16 @@ export default function ActionAddModal({ tickerOptions, onClose, onSubmit }: Pro
               setBusy(false);
               onClose();
             }}
-            style={{ background: "var(--gold-dim, rgba(201,168,76,0.12))", border: "1px solid rgba(201,168,76,0.4)", color: "var(--gold)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", padding: "6px 12px", cursor: "pointer" }}
+            style={{
+              background: "var(--gold-dim, rgba(201,168,76,0.12))",
+              border: "1px solid rgba(201,168,76,0.4)",
+              color: "var(--gold)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.15em",
+              padding: "6px 12px",
+              cursor: "pointer",
+            }}
           >
             ADD
           </button>
