@@ -1245,7 +1245,9 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Active Buys" count={activeBuys.length} dotColor="var(--green)" />
           {activeBuys.map((r) => (
-            <WatchlistCard key={`buy-${r.item.ticker}`} row={r} variant="compact" tint="in-zone" />
+            <WatchlistCard key={`buy-${r.item.ticker}`} row={r} variant="compact" tint="in-zone" 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}/>
           ))}
         </div>
       )}
@@ -1264,7 +1266,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
             }
           />
           {inZone.map((r) => (
-            <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="compact" tint="in-zone" />
+            <WatchlistCard key={`zone-${r.item.ticker}`} row={r} variant="compact" tint="in-zone"
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+            />
           ))}
         </div>
       ) : (
@@ -1276,7 +1281,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Approaching (within 10%)" count={approaching.length} dotColor="var(--amber)" />
           {approaching.map((r) => (
-            <WatchlistCard key={`appr-${r.item.ticker}`} row={r} variant="compact" tint="approaching" />
+            <WatchlistCard key={`appr-${r.item.ticker}`} row={r} variant="compact" tint="approaching" 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+              />
           ))}
         </div>
       )}
@@ -1286,7 +1294,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Overdue Reviews" count={overdue.length} dotColor="var(--red)" />
           {overdue.map((r) => (
-            <WatchlistCard key={`od-${r.item.ticker}`} row={r} variant="compact" tint="overdue" />
+            <WatchlistCard key={`od-${r.item.ticker}`} row={r} variant="compact" tint="overdue" 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+              />
           ))}
         </div>
       )}
@@ -1328,7 +1339,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
                   <span style={{ color: "var(--text-mid)", fontWeight: 400 }}>· {rows.length}</span>
                 </div>
                 {rows.map((r) => (
-                  <WatchlistCard key={`wait-${r.item.ticker}`} row={r} variant="compact" />
+                  <WatchlistCard key={`wait-${r.item.ticker}`} row={r} variant="compact" 
+                    actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+                    onActionClick={handleActionNav}
+                    />
                 ))}
               </div>
             ))}
@@ -1340,7 +1354,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Monitoring" count={monitoring.length} dotColor="var(--accent)" />
           {monitoring.map((r) => (
-            <WatchlistCard key={`mon-${r.item.ticker}`} row={r} variant="compact" hideActions />
+            <WatchlistCard key={`mon-${r.item.ticker}`} row={r} variant="compact" hideActions 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+              />
           ))}
         </div>
       )}
@@ -1422,7 +1439,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Post-Reclass Hold" count={postReclassHold.length} dotColor="rgb(251,146,60)" />
           {postReclassHold.map((r) => (
-            <WatchlistCard key={`prh-${r.item.ticker}`} row={r} variant="compact" hideActions />
+            <WatchlistCard key={`prh-${r.item.ticker}`} row={r} variant="compact" hideActions 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+              />
           ))}
         </div>
       )}
@@ -1432,7 +1452,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={{ ...sectionStyle, opacity: 0.78 }}>
           <SectionHeader label="Archive" count={archive.length} dotColor="rgb(156,163,175)" />
           {archive.map((r) => (
-            <WatchlistCard key={`arc-${r.item.ticker}`} row={r} variant="compact" hideActions />
+            <WatchlistCard key={`arc-${r.item.ticker}`} row={r} variant="compact" hideActions 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+              />
           ))}
         </div>
       )}
@@ -1442,7 +1465,10 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         <div style={sectionStyle}>
           <SectionHeader label="Uncategorised" count={uncategorised.length} dotColor="var(--text-dim)" />
           {uncategorised.map((r) => (
-            <WatchlistCard key={`uncat-${r.item.ticker}`} row={r} variant="compact" />
+            <WatchlistCard key={`uncat-${r.item.ticker}`} row={r} variant="compact" 
+              actionCount={actionTrackerCounts[(r.item.ticker || "").toUpperCase()] || 0}
+              onActionClick={handleActionNav}
+              />
           ))}
         </div>
       )}
