@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import type { ActionItem as Item } from "./useActionTracker";
 
 interface Props {
@@ -7,6 +7,8 @@ interface Props {
   onResolve: (item: Item, status: "CONFIRMED" | "DISMISSED", note: string) => Promise<void>;
   onReopen: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
+  onUpdateNote?: (item: Item, note: string) => Promise<void>;
+  focused?: boolean;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -36,11 +38,21 @@ function dueBadgeStyle(due: string): { color: string; label: string } {
   return { color: "var(--green)", label };
 }
 
-export default function ActionItemRow({ item, onResolve, onReopen, onDelete }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onUpdateNote, focused }: Props) {
+  const [expanded, setExpanded] = useState(!!focused);
   const [resolving, setResolving] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (focused && rowRef.current) {
+      setExpanded(true);
+      rowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [focused]);
 
   const resolved = item.status === "CONFIRMED" || item.status === "DISMISSED";
   const badge = dueBadgeStyle(item.due_date);
@@ -51,9 +63,13 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete }: P
     gap: 10,
     padding: "10px 12px",
     borderBottom: "1px solid var(--rim)",
-    background: resolved ? "rgba(255,255,255,0.02)" : "transparent",
-    opacity: resolved ? 0.55 : 1,
+    background: focused
+      ? "color-mix(in srgb, var(--gold) 8%, transparent)"
+      : resolved ? "rgba(255,255,255,0.02)" : "transparent",
+    opacity: resolved && !focused ? 0.55 : 1,
     alignItems: "start",
+    outline: focused ? "1px solid rgba(201,168,76,0.5)" : "none",
+    transition: "background 0.3s",
   };
 
   const chipStyle = (color: string): CSSProperties => ({
@@ -69,7 +85,7 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete }: P
   });
 
   return (
-    <div style={rowStyle}>
+    <div ref={rowRef} style={rowStyle}>
       <input
         type="checkbox"
         checked={resolved}
@@ -155,10 +171,83 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete }: P
               {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />} WHY
             </button>
           )}
-          {resolved && item.resolution_note && (
-            <span style={{ color: "var(--text-mid)" }}>· {item.resolution_note}</span>
+          {resolved && !editingNote && (
+            <span style={{ color: "var(--text-mid)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              {item.resolution_note ? `· ${item.resolution_note}` : "· (no note)"}
+              {item.persisted && onUpdateNote && (
+                <button
+                  type="button"
+                  title="Edit note"
+                  onClick={() => {
+                    setNoteDraft(item.resolution_note || "");
+                    setEditingNote(true);
+                  }}
+                  style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", padding: 0, display: "inline-flex" }}
+                >
+                  <Pencil size={10} />
+                </button>
+              )}
+            </span>
           )}
         </div>
+        {resolved && editingNote && (
+          <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Resolution note"
+              value={noteDraft}
+              autoFocus
+              onChange={(e) => setNoteDraft(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 180,
+                background: "var(--void)",
+                border: "1px solid var(--rim)",
+                color: "var(--text)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                padding: "4px 8px",
+              }}
+            />
+            <button
+              disabled={busy}
+              onClick={async () => {
+                if (!onUpdateNote) return;
+                setBusy(true);
+                await onUpdateNote(item, noteDraft);
+                setBusy(false);
+                setEditingNote(false);
+              }}
+              style={{
+                background: "var(--green-dim)",
+                border: "1px solid rgba(90,191,160,0.4)",
+                color: "var(--green)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                padding: "4px 10px",
+                cursor: "pointer",
+              }}
+            >
+              SAVE
+            </button>
+            <button
+              onClick={() => setEditingNote(false)}
+              style={{
+                background: "transparent",
+                border: "1px solid var(--rim)",
+                color: "var(--text-dim)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                padding: "4px 10px",
+                cursor: "pointer",
+              }}
+            >
+              CANCEL
+            </button>
+          </div>
+        )}
         {expanded && item.context && (
           <div
             style={{

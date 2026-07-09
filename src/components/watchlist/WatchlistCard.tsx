@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem } from "@/hooks/usePortfolioData";
 import { WatchlistSparkline } from "./WatchlistSparkline";
@@ -223,6 +223,53 @@ function StatusBadge({ status }: { status: string }) {
     >
       {label}
     </span>
+  );
+}
+
+/** Clock indicator when a watchlist row has a trigger_review_date within 14 days. Links to Actions tab. */
+function TriggerReviewClock({ ticker, reviewDate }: { ticker: string; reviewDate?: string | null }) {
+  if (!reviewDate) return null;
+  const iso = String(reviewDate).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const due = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (days > 14) return null;
+  const color = days < 0 ? "var(--red)" : days <= 3 ? "var(--amber)" : "var(--gold)";
+  const label = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? "today" : `${days}d`;
+  const key = `${ticker.toUpperCase()}|REVIEW_DUE|${iso}`;
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", "actions");
+    const url = `${window.location.pathname}?${params.toString()}#action=${encodeURIComponent(key)}`;
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  };
+  return (
+    <button
+      onClick={handleClick}
+      title={`Trigger review due ${iso} (${label}) — open in Actions`}
+      style={{
+        background: "none",
+        border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+        color,
+        cursor: "pointer",
+        padding: "1px 5px",
+        borderRadius: 2,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.08em",
+      }}
+    >
+      <Clock size={10} />
+      {label}
+    </button>
   );
 }
 
@@ -489,6 +536,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
             {item.ticker}
           </button>
           <BrokerGatedBadge gated={item.brokerGated} />
+          <TriggerReviewClock ticker={item.ticker} reviewDate={item.triggerReviewDate} />
           <ChinaRiskChip flag={row.chinaExposureFlag} />
 
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 140px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -616,6 +664,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none" }: Prop
           {item.ticker}
         </button>
         <BrokerGatedBadge gated={item.brokerGated} />
+        <TriggerReviewClock ticker={item.ticker} reviewDate={item.triggerReviewDate} />
         {score?.total_score != null && (() => {
           const sc = score.total_score;
           const c = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";

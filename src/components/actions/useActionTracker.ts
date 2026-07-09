@@ -268,5 +268,17 @@ export function useActionTracker({ watchlist, holdings, earnings }: Args) {
     [fetchRows],
   );
 
-  return { items, loading, error, resolve, reopen, addManual, remove, refresh: fetchRows };
+  const updateNote = useCallback(
+    async (item: ActionItem, note: string) => {
+      if (!item.persisted) return;
+      await (supabase as any)
+        .from("action_tracker")
+        .update({ resolution_note: note || null })
+        .eq("id", item.id);
+      await fetchRows();
+    },
+    [fetchRows],
+  );
+
+  return { items, loading, error, resolve, reopen, addManual, remove, updateNote, refresh: fetchRows };
 }
