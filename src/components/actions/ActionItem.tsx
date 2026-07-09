@@ -5,6 +5,7 @@ import type { ActionItem as Item } from "./useActionTracker";
 interface Props {
   item: Item;
   onResolve: (item: Item, status: "CONFIRMED" | "DISMISSED", note: string) => Promise<void>;
+  onSnooze: (item: Item, days?: number) => Promise<void>;
   onReopen: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
   onUpdateNote?: (item: Item, note: string) => Promise<void>;
@@ -12,11 +13,12 @@ interface Props {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  EARNINGS_GATE: "var(--amber)",
-  PRICE_GATE: "var(--gold)",
-  CATALYST_WATCH: "var(--gold)",
-  REVIEW_DUE: "var(--text-mid)",
+  EARNINGS_GATE: "#5b8def",
+  PRICE_GATE: "#5abfa0",
+  CATALYST_WATCH: "#a07de8",
+  REVIEW_DUE: "var(--amber)",
   KILL_CHECK: "var(--red)",
+  DEPLOY_READY: "#36bfb1",
   MANUAL: "var(--text-dim)",
 };
 
@@ -35,10 +37,11 @@ function dueBadgeStyle(due: string): { color: string; label: string } {
   if (diff < 0) return { color: "var(--red)", label: `${label} · ${Math.abs(diff)}d late` };
   if (diff === 0) return { color: "var(--red)", label: `${label} · today` };
   if (diff <= 7) return { color: "var(--amber)", label: `${label} · ${diff}d` };
+  if (diff <= 14) return { color: "var(--amber)", label };
   return { color: "var(--green)", label };
 }
 
-export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onUpdateNote, focused }: Props) {
+export default function ActionItemRow({ item, onResolve, onSnooze, onReopen, onDelete, onUpdateNote, focused }: Props) {
   const [expanded, setExpanded] = useState(!!focused);
   const [resolving, setResolving] = useState(false);
   const [note, setNote] = useState("");
@@ -65,7 +68,9 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
     borderBottom: "1px solid var(--rim)",
     background: focused
       ? "color-mix(in srgb, var(--gold) 8%, transparent)"
-      : resolved ? "rgba(255,255,255,0.02)" : "transparent",
+      : resolved
+        ? "rgba(255,255,255,0.02)"
+        : "transparent",
     opacity: resolved && !focused ? 0.55 : 1,
     alignItems: "start",
     outline: focused ? "1px solid rgba(201,168,76,0.5)" : "none",
@@ -84,8 +89,21 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
     border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
   });
 
+  const actionBtnStyle = (color: string, bg: string): CSSProperties => ({
+    background: bg,
+    border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+    color,
+    fontFamily: "var(--font-mono)",
+    fontSize: 10,
+    letterSpacing: "0.12em",
+    padding: "4px 10px",
+    cursor: "pointer",
+    borderRadius: 2,
+  });
+
   return (
     <div ref={rowRef} style={rowStyle}>
+      {/* Checkbox */}
       <input
         type="checkbox"
         checked={resolved}
@@ -95,7 +113,10 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
         }}
         style={{ marginTop: 4, cursor: "pointer" }}
       />
+
+      {/* Main content */}
       <div style={{ minWidth: 0 }}>
+        {/* Row 1: ticker + summary + badges */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           {item.ticker && (
             <span
@@ -137,6 +158,8 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
             }}
           />
         </div>
+
+        {/* Row 2: source + WHY toggle + resolution note */}
         <div
           style={{
             display: "flex",
@@ -149,7 +172,15 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
             alignItems: "center",
           }}
         >
-          {item.source && <span>SRC: {item.source}{item.source_session ? ` · ${item.source_session}` : ""}</span>}
+          {item.source && (
+            <span>
+              SRC: {item.source}
+              {item.source_ref ? ` · ${item.source_ref}` : ""}
+            </span>
+          )}
+          {item.layer && (
+            <span style={{ color: "var(--text-dim)", opacity: 0.7 }}>· {item.layer}</span>
+          )}
           {item.context && (
             <button
               type="button"
@@ -172,7 +203,14 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
             </button>
           )}
           {resolved && !editingNote && (
-            <span style={{ color: "var(--text-mid)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span
+              style={{
+                color: "var(--text-mid)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
               {item.resolution_note ? `· ${item.resolution_note}` : "· (no note)"}
               {item.persisted && onUpdateNote && (
                 <button
@@ -182,7 +220,14 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
                     setNoteDraft(item.resolution_note || "");
                     setEditingNote(true);
                   }}
-                  style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", padding: 0, display: "inline-flex" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-dim)",
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "inline-flex",
+                  }}
                 >
                   <Pencil size={10} />
                 </button>
@@ -190,6 +235,8 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
             </span>
           )}
         </div>
+
+        {/* Edit resolution note */}
         {resolved && editingNote && (
           <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input
@@ -218,36 +265,17 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
                 setBusy(false);
                 setEditingNote(false);
               }}
-              style={{
-                background: "var(--green-dim)",
-                border: "1px solid rgba(90,191,160,0.4)",
-                color: "var(--green)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: "0.12em",
-                padding: "4px 10px",
-                cursor: "pointer",
-              }}
+              style={actionBtnStyle("var(--green)", "var(--green-dim)")}
             >
               SAVE
             </button>
-            <button
-              onClick={() => setEditingNote(false)}
-              style={{
-                background: "transparent",
-                border: "1px solid var(--rim)",
-                color: "var(--text-dim)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: "0.12em",
-                padding: "4px 10px",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={() => setEditingNote(false)} style={actionBtnStyle("var(--text-dim)", "transparent")}>
               CANCEL
             </button>
           </div>
         )}
+
+        {/* Expanded context */}
         {expanded && item.context && (
           <div
             style={{
@@ -265,6 +293,8 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
             {item.context}
           </div>
         )}
+
+        {/* Resolution strip */}
         {resolving && !resolved && (
           <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input
@@ -292,16 +322,7 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
                 setResolving(false);
                 setNote("");
               }}
-              style={{
-                background: "var(--green-dim)",
-                border: "1px solid rgba(90,191,160,0.4)",
-                color: "var(--green)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: "0.12em",
-                padding: "4px 10px",
-                cursor: "pointer",
-              }}
+              style={actionBtnStyle("var(--green)", "var(--green-dim, rgba(90,191,160,0.1))")}
             >
               CONFIRM
             </button>
@@ -314,24 +335,29 @@ export default function ActionItemRow({ item, onResolve, onReopen, onDelete, onU
                 setResolving(false);
                 setNote("");
               }}
-              style={{
-                background: "transparent",
-                border: "1px solid var(--rim)",
-                color: "var(--text-dim)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                letterSpacing: "0.12em",
-                padding: "4px 10px",
-                cursor: "pointer",
-              }}
+              style={actionBtnStyle("var(--text-dim)", "transparent")}
             >
               DISMISS
+            </button>
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await onSnooze(item, 7);
+                setBusy(false);
+                setResolving(false);
+              }}
+              style={actionBtnStyle("var(--amber)", "transparent")}
+            >
+              SNOOZE 7D
             </button>
           </div>
         )}
       </div>
+
+      {/* Right column: delete button */}
       <div>
-        {item.persisted && item.source === "MANUAL" && (
+        {item.persisted && (item.source === "MANUAL" || item.source === "SESSION") && (
           <button
             onClick={() => onDelete(item)}
             title="Delete"
