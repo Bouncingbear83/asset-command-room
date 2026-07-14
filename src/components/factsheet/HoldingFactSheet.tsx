@@ -12,7 +12,6 @@ import { computeIrrBb, formatIrr, formatYears, type IrrBbBand } from "@/lib/comp
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
 import type { ReturnProfile } from "@/types/intelligence";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   ticker: string | null;
@@ -164,50 +163,6 @@ function SectionSkeleton({ rows = 2 }: { rows?: number }) {
         <Skeleton key={i} className="h-3 w-full mb-2 bg-[hsl(var(--muted))]/30" />
       ))}
     </div>
-  );
-}
-
-function DeepDiveLink({ ticker }: { ticker: string }) {
-  const [reportId, setReportId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!ticker) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("research_reports")
-        .select("id")
-        .ilike("ticker", ticker)
-        .eq("is_latest", true)
-        .maybeSingle();
-      if (!cancelled && data?.id) setReportId(data.id);
-    })();
-    return () => { cancelled = true; };
-  }, [ticker]);
-
-  if (!reportId) return null;
-
-  return (
-    <a
-      href={`#research-report-${reportId}`}
-      onClick={(e) => {
-        e.preventDefault();
-        // Navigate to Research tab with this report selected.
-        // For now, open in new tab via direct Supabase URL pattern.
-        window.open(
-          `${window.location.origin}/?tab=research&report=${reportId}`,
-          "_blank"
-        );
-      }}
-      style={{
-        fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em",
-        border: "1px solid var(--gold-dim)", color: "var(--gold)",
-        padding: "4px 12px", borderRadius: 2, textDecoration: "none",
-        cursor: "pointer",
-      }}
-    >
-      View deep dive report ↗
-    </a>
   );
 }
 
@@ -505,32 +460,6 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               )}
             </div>
 
-            {/* Classification */}
-            <div style={sectionStyle}>
-              <div style={sectionTitle}>Classification</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                {([
-                  ["Layer", layer],
-                  ["Tier", data.score?.tier],
-                  ["Return profile", data.score?.returnProfile],
-                  ["Compounder subtype", data.score?.compounderSubtype],
-                  ["Stack layer", data.score?.stackLayer || (data.rationale as any)?.stack_layer],
-                  ["Substrate level", data.score?.substrateLevel || (data.rationale as any)?.substrate_level],
-                  ["Factor primary", (firstHolding as any)?.factor_primary || (data.rationale as any)?.factor_primary],
-                  ["Factor group", (firstHolding as any)?.factor_group || (data.rationale as any)?.factor_group],
-                  ["Stage 2 subclass", (data.rationale as any)?.stage2_subclass],
-                  ["China exposure", (data.rationale as any)?.china_exposure_flag],
-                  ["Reclass status", (data.score as any)?.reclassStatus],
-                  ["Held status", (data.score as any)?.heldStatus],
-                ] as const).filter(([, v]) => v && String(v).trim() !== "").map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 8px", border: "1px solid var(--rim)", borderRadius: 2 }}>
-                    <span style={{ color: "var(--text-dim)" }}>{k}</span>
-                    <span style={{ color: "var(--text-bright)" }}>{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Thesis */}
             {(() => {
               const rawThesis = data.score?.fullThesis || "";
@@ -561,8 +490,34 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               );
             })()}
 
-            {/* Vault thesis content */}
+            {/* Vault thesis content: research notes, score evolution, session discussions */}
             <VaultTickerThesis ticker={ticker} />
+
+            {/* Classification (moved below thesis for research-first reading flow) */}
+            <div style={sectionStyle}>
+              <div style={sectionTitle}>Classification</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                {([
+                  ["Layer", layer],
+                  ["Tier", data.score?.tier],
+                  ["Return profile", data.score?.returnProfile],
+                  ["Compounder subtype", data.score?.compounderSubtype],
+                  ["Stack layer", data.score?.stackLayer || (data.rationale as any)?.stack_layer],
+                  ["Substrate level", data.score?.substrateLevel || (data.rationale as any)?.substrate_level],
+                  ["Factor primary", (firstHolding as any)?.factor_primary || (data.rationale as any)?.factor_primary],
+                  ["Factor group", (firstHolding as any)?.factor_group || (data.rationale as any)?.factor_group],
+                  ["Stage 2 subclass", (data.rationale as any)?.stage2_subclass],
+                  ["China exposure", (data.rationale as any)?.china_exposure_flag],
+                  ["Reclass status", (data.score as any)?.reclassStatus],
+                  ["Held status", (data.score as any)?.heldStatus],
+                ] as const).filter(([, v]) => v && String(v).trim() !== "").map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 8px", border: "1px solid var(--rim)", borderRadius: 2 }}>
+                    <span style={{ color: "var(--text-dim)" }}>{k}</span>
+                    <span style={{ color: "var(--text-bright)" }}>{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* ── Return Profile: IRR-BB ── */}
             {(() => {
@@ -955,7 +910,6 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               >
                 Deep dive: {tkr} ➜
               </ClaudePromptButton>
-              <DeepDiveLink ticker={tkr} />
               <a
                 href={SHEET_SCORES_URL}
                 target="_blank"
