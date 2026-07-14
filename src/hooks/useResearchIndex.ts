@@ -68,8 +68,7 @@ export function useResearchIndex() {
       (supabase as any)
         .from("vault_notes_meta")
         .select("path, ticker, title, frontmatter, body_sections")
-        .eq("type", "ticker")
-        .order("ticker", { ascending: true }),
+        .eq("type", "ticker"),
       // All latest bespoke HTML reports
       (supabase as any)
         .from("research_reports")
@@ -95,10 +94,17 @@ export function useResearchIndex() {
       }
 
       const items: ResearchIndexEntry[] = vaultRows
-        .filter((v) => v.ticker) // must have a ticker
         .map((v) => {
           const fm = v.frontmatter || {};
-          const tkr = (v.ticker || "").toUpperCase();
+          // Top-level ticker column may be NULL if nightly index hasn't backfilled.
+          // Fall back to frontmatter.ticker (always present for ticker-type notes).
+          const resolvedTicker = v.ticker || fm.ticker || "";
+          return { ...v, _ticker: resolvedTicker.toUpperCase() };
+        })
+        .filter((v) => v._ticker) // must resolve a ticker somehow
+        .map((v) => {
+          const fm = v.frontmatter || {};
+          const tkr = v._ticker;
           const report = reportMap.get(tkr) || null;
 
           return {
@@ -124,7 +130,24 @@ export function useResearchIndex() {
           };
         });
 
-      setEntries(items);
+      // Deduplicate: if multiple vault notes resolve to the same ticker,
+      // keep the one with the highest score (or most recent last_scored).
+      const deduped = new Map<string, ResearchIndexEntry>();
+      for (const item of items) {
+        const existing = deduped.get(item.ticker);
+        if (!existing) {
+          deduped.set(item.ticker, item);
+        } else {
+          // Prefer higher score, then more recent last_scored
+          const existingScore = existing.score ?? -1;
+          const itemScore = item.score ?? -1;
+          if (itemScore > existingScore || (itemScore === existingScore && (item.last_scored ?? "") > (existing.last_scored ?? ""))) {
+            deduped.set(item.ticker, item);
+          }
+        }
+      }
+
+      setEntries(Array.from(deduped.values()));
       setLoading(false);
     });
 
