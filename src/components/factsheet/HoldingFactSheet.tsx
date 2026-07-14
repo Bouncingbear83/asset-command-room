@@ -12,6 +12,7 @@ import { computeIrrBb, formatIrr, formatYears, type IrrBbBand } from "@/lib/comp
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
 import type { ReturnProfile } from "@/types/intelligence";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   ticker: string | null;
@@ -163,6 +164,50 @@ function SectionSkeleton({ rows = 2 }: { rows?: number }) {
         <Skeleton key={i} className="h-3 w-full mb-2 bg-[hsl(var(--muted))]/30" />
       ))}
     </div>
+  );
+}
+
+function DeepDiveLink({ ticker }: { ticker: string }) {
+  const [reportId, setReportId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ticker) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("research_reports")
+        .select("id")
+        .ilike("ticker", ticker)
+        .eq("is_latest", true)
+        .maybeSingle();
+      if (!cancelled && data?.id) setReportId(data.id);
+    })();
+    return () => { cancelled = true; };
+  }, [ticker]);
+
+  if (!reportId) return null;
+
+  return (
+    <a
+      href={`#research-report-${reportId}`}
+      onClick={(e) => {
+        e.preventDefault();
+        // Navigate to Research tab with this report selected.
+        // For now, open in new tab via direct Supabase URL pattern.
+        window.open(
+          `${window.location.origin}/?tab=research&report=${reportId}`,
+          "_blank"
+        );
+      }}
+      style={{
+        fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em",
+        border: "1px solid var(--gold-dim)", color: "var(--gold)",
+        padding: "4px 12px", borderRadius: 2, textDecoration: "none",
+        cursor: "pointer",
+      }}
+    >
+      View deep dive report ↗
+    </a>
   );
 }
 
@@ -910,6 +955,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               >
                 Deep dive: {tkr} ➜
               </ClaudePromptButton>
+              <DeepDiveLink ticker={tkr} />
               <a
                 href={SHEET_SCORES_URL}
                 target="_blank"
