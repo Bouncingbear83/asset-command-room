@@ -196,16 +196,11 @@ function SessionEntry({ note }: { note: VaultNote }) {
 }
 
 /* Enriched sections from the vault ticker note (deep dive protocol) */
-const ENRICHED_SECTIONS = [
-  "Substrate audit",
-  "Thesis",
-  "Kill conditions",
-  "Entry logic",
-  "Key findings",
-];
+/* Sections from the vault ticker note rendered in the fact sheet.
+   Score, Quartet, and Latest change are skipped (rendered elsewhere). */
 
-function EnrichedSection({ title, content }: { title: string; content: string }) {
-  const [open, setOpen] = useState(false);
+function EnrichedSection({ title, content, defaultOpen = false }: { title: string; content: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const preview = content.length > 200 ? content.slice(0, 200) + "..." : content;
 
   return (
@@ -253,12 +248,15 @@ export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
     [sessionNotes]
   );
 
-  // Extract enriched sections from vault note
+  // Extract enriched sections from vault note.
+  // Show everything except Score, Quartet, and Latest change (already rendered by score grid / change note).
+  const SKIP_SECTIONS = new Set(["score", "quartet", "latest change"]);
+
   const enrichedSections = useMemo(() => {
     if (!vaultNote?.body_sections) return [];
-    return ENRICHED_SECTIONS
-      .filter((s) => vaultNote.body_sections![s])
-      .map((s) => ({ title: s, content: vaultNote.body_sections![s] }));
+    return Object.entries(vaultNote.body_sections)
+      .filter(([key, val]) => val && !SKIP_SECTIONS.has(key.toLowerCase()))
+      .map(([key, val]) => ({ title: key, content: val }));
   }, [vaultNote]);
 
   if (!ticker) return null;
@@ -278,8 +276,13 @@ export function VaultTickerThesis({ ticker }: { ticker: string | null }) {
               <span style={{ ...mono9, color: "var(--text-dim)" }}>{enrichedSections.length} SECTIONS</span>
             </div>
             <div>
-              {enrichedSections.map((s) => (
-                <EnrichedSection key={s.title} title={s.title} content={s.content} />
+              {enrichedSections.map((s, i) => (
+                <EnrichedSection
+                  key={s.title}
+                  title={s.title}
+                  content={s.content}
+                  defaultOpen={s.title === "Thesis" || i === 0}
+                />
               ))}
             </div>
           </div>
