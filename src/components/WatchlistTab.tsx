@@ -13,7 +13,7 @@ import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePromp
 import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
-import { buildFrameworkIndex, type FrameworkTag } from "@/utils/frameworkDetection";
+import { buildFrameworkIndex, FRAMEWORK_TAGS, FRAMEWORK_LABEL, type FrameworkTag } from "@/utils/frameworkDetection";
 import ActionBadge from "@/components/actions/ActionBadge";
 import { useActionCounts } from "@/components/actions/useActionCounts";
 
@@ -316,6 +316,7 @@ function ChipFilterRow({
   onToggle,
   onReset,
   isMobile,
+  labelMap,
 }: {
   label: string;
   values: readonly string[];
@@ -323,6 +324,7 @@ function ChipFilterRow({
   onToggle: (v: string) => void;
   onReset: () => void;
   isMobile: boolean;
+  labelMap?: Record<string, string>;
 }) {
   const all = selected.size === 0;
   return (
@@ -384,7 +386,7 @@ function ChipFilterRow({
               textTransform: "uppercase",
             }}
           >
-            {v.replace(/_/g, " ")}
+            {labelMap?.[v] ?? v.replace(/_/g, " ")}
           </button>
         );
       })}
@@ -1203,10 +1205,17 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         isMobile={isMobile}
       />
 
-      {/* ── Framework filter chips (G(m), G, H, F) ── */}
+      {/* ── Framework filter chips ── */}
       <ChipFilterRow
         label="Framework"
-        values={["G(m)", "G", "H", "F"] as const}
+        values={FRAMEWORK_TAGS.filter((fw) => {
+          for (const r of derived) {
+            const entry = frameworkIndex.get(r.item.ticker.trim().toUpperCase());
+            if (entry?.framework === fw) return true;
+          }
+          return false;
+        })}
+        labelMap={FRAMEWORK_LABEL}
         selected={frameworkFilter}
         onToggle={(v) =>
           setFrameworkFilter((prev) => {
