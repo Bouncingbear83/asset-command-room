@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { Layers, Tag, AlignJustify, Wallet } from "lucide-react";
+import { FRAMEWORK_TAGS, FRAMEWORK_LABEL, FRAMEWORK_COLOR, type FrameworkTag } from "@/utils/frameworkDetection";
 import {
   Chip,
   ChipGroup,
@@ -32,6 +33,7 @@ interface Props {
   factorCounts: Record<string, number>;
   driverCounts: Record<string, number>;
   stackCounts: Record<string, number>;
+  frameworkCounts: Record<string, number>;
   layerCounts: LayerCounts;
   totalPositions: number;
   accountFilter: HoldingsAccount[];
@@ -39,6 +41,7 @@ interface Props {
   factorFilter: string[];
   driverFilter: string[];
   stackFilter: string[];
+  frameworkFilter: string[];
   layerFilter: Layer[];
   search: string;
   groupBy: HoldingsGroupBy;
@@ -54,6 +57,8 @@ interface Props {
   onResetDriver: () => void;
   onToggleStack: (s: string) => void;
   onResetStack: () => void;
+  onToggleFramework: (f: string) => void;
+  onResetFramework: () => void;
   onToggleLayer: (l: Layer) => void;
   onResetLayer: () => void;
   onSearchChange: (v: string) => void;
@@ -127,6 +132,11 @@ export function HoldingsFilters({
   const allFactorsActive = factorFilter.length === 0;
   const allDriversActive = driverFilter.length === 0;
   const allStacksActive = stackFilter.length === 0;
+  const allFrameworksActive = frameworkFilter.length === 0;
+  const frameworkEntries = Object.entries(frameworkCounts).filter(([, c]) => c > 0).sort(
+    ([a], [b]) => (FRAMEWORK_TAGS as readonly string[]).indexOf(a) - (FRAMEWORK_TAGS as readonly string[]).indexOf(b)
+  );
+  const totalFrameworks = frameworkEntries.reduce((s, [, c]) => s + c, 0);
   const allLayersActive = layerFilter.length === 0;
 
   // Sort action / factor chips by count desc for stable, useful ordering.
@@ -146,6 +156,7 @@ export function HoldingsFilters({
     (factorFilter.length > 0 ? 1 : 0) +
     (driverFilter.length > 0 ? 1 : 0) +
     (stackFilter.length > 0 ? 1 : 0) +
+    (frameworkFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
@@ -293,7 +304,37 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {(actionEntries.length > 0 || factorEntries.length > 0 || driverEntries.length > 0 || stackEntries.length > 0) && <div style={divider} />}
+      {/* Row 4d: framework chips */}
+      {frameworkEntries.length > 0 && (
+        <ChipGroup ariaLabel="Filter by framework">
+          <Chip
+            label="All Frameworks"
+            count={totalFrameworks}
+            active={allFrameworksActive}
+            onClick={onResetFramework}
+            ariaLabel="Reset framework filters"
+          />
+          {frameworkEntries.map(([value, count]) => {
+            const color = FRAMEWORK_COLOR[value as FrameworkTag];
+            const swatch = color ? (
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, marginRight: 2,
+                background: `color-mix(in srgb, ${color} 30%, transparent)`, border: `1px solid ${color}` }} aria-hidden />
+            ) : null;
+            return (
+              <Chip
+                key={value}
+                label={FRAMEWORK_LABEL[value as FrameworkTag] ?? value}
+                count={count}
+                active={!allFrameworksActive && frameworkFilter.includes(value)}
+                onClick={() => onToggleFramework(value)}
+                icon={swatch}
+              />
+            );
+          })}
+        </ChipGroup>
+      )}
+
+      {(actionEntries.length > 0 || factorEntries.length > 0 || driverEntries.length > 0 || stackEntries.length > 0 || frameworkEntries.length > 0) && <div style={divider} />}
 
       {/* Row 5: layer chips */}
       <ChipGroup ariaLabel="Filter by layer">
