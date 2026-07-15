@@ -34,6 +34,7 @@ import {
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
 import { FRAMEWORK_TAGS, type FrameworkTag } from "@/utils/frameworkDetection";import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters/MobileSortSelect";
 import { DriverChip, StackBadge, stackLayerOrder } from "@/components/holdings/DriverChip";
+import { buildFrameworkIndex, FRAMEWORK_LABEL, type FrameworkTag } from "@/utils/frameworkDetection";
 import { computeLiveAsymmetry, type LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { AsymmetryPill } from "@/components/AsymmetryPill";
@@ -1105,6 +1106,18 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
     return c;
   }, [positions]);
 
+  const frameworkIndex = useMemo(() => buildFrameworkIndex(scores ?? [], []), [scores]);
+
+  const frameworkCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const h of positions) {
+      const t = String(h.ticker ?? "").trim().toUpperCase();
+      const entry = frameworkIndex.get(t);
+      if (entry) c[entry.framework] = (c[entry.framework] || 0) + 1;
+    }
+    return c;
+  }, [positions, frameworkIndex]);
+
   const layerCounts = useMemo(() => {
     const c: Partial<Record<Layer, number>> = {};
     for (const h of positions) {
@@ -1151,6 +1164,11 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
         const s = normalizeActionFactor(String((h as any).stack_layer ?? ""));
         if (!s || !state.stackFilter.includes(s)) return false;
       }
+      if (state.frameworkFilter.length > 0) {
+        const t = String(h.ticker ?? "").trim().toUpperCase();
+        const entry = frameworkIndex.get(t);
+        if (!entry || !state.frameworkFilter.includes(entry.framework)) return false;
+      }
       if (state.layerFilter.length > 0) {
         const layerStr = (h.layer || "").trim();
         const match = LAYER_VALUES.find((l) => l.toLowerCase() === layerStr.toLowerCase());
@@ -1162,7 +1180,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
       }
       return true;
     });
-  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.driverFilter, state.stackFilter, state.layerFilter, state.tickers, state.search]);
+  }, [allHoldings, state.accountFilter, state.actionFilter, state.factorFilter, state.driverFilter, state.stackFilter, state.frameworkFilter, state.layerFilter, state.tickers, state.search, frameworkIndex]);
 
   const filteredPositionCount = filteredHoldings.filter((h) => !isCash(h)).length;
 
@@ -1203,6 +1221,13 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
       return { ...prev, stackFilter: next };
     });
   };
+  const toggleFramework = (f: string) => {
+    setState((prev) => {
+      const has = prev.frameworkFilter.includes(f);
+      const next = has ? prev.frameworkFilter.filter((x) => x !== f) : [...prev.frameworkFilter, f];
+      return { ...prev, frameworkFilter: next };
+    });
+  };
   const toggleLayer = (l: Layer) => {
     setState((prev) => {
       const has = prev.layerFilter.includes(l);
@@ -1231,7 +1256,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
     state.actionFilter.length > 0 ||
     state.factorFilter.length > 0 ||
     state.driverFilter.length > 0 ||
-    state.stackFilter.length > 0 ||
+    state.frameworkFilter.length > 0 ||    state.stackFilter.length > 0 ||
     state.layerFilter.length > 0 ||
     state.tickers.length > 0 ||
     state.search.trim() !== "";
@@ -1309,6 +1334,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
               factorCounts={factorCounts}
               driverCounts={driverCounts}
               stackCounts={stackCounts}
+              frameworkCounts={frameworkCounts}
               layerCounts={layerCounts}
               totalPositions={positions.length}
               accountFilter={state.accountFilter}
@@ -1316,6 +1342,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
               factorFilter={state.factorFilter}
               driverFilter={state.driverFilter}
               stackFilter={state.stackFilter}
+              frameworkFilter={state.frameworkFilter}
               layerFilter={state.layerFilter}
               search={state.search}
               groupBy={state.groupBy}
@@ -1323,6 +1350,8 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
               sortDir={state.sortDir}
               onToggleAccount={toggleAccount}
               onResetAccount={() => update({ accountFilter: [] })}
+              onToggleFramework={toggleFramework}
+              onResetFramework={() => update({ frameworkFilter: [] })}
               onToggleAction={toggleAction}
               onResetAction={() => update({ actionFilter: [] })}
               onToggleFactor={toggleFactor}
