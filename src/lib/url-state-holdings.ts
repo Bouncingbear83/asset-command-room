@@ -5,6 +5,7 @@
  */
 
 import { LAYER_VALUES, type Layer } from "@/types/intelligence";
+import { FRAMEWORK_TAGS, type FrameworkTag } from "@/utils/frameworkDetection";
 
 export type HoldingsSortField =
   | "ticker"
@@ -39,6 +40,7 @@ export interface HoldingsUiState {
   factorFilter: string[];             // uppercase+underscore, empty = all
   driverFilter: string[];             // FACTOR_GROUP enum, empty = all
   stackFilter: string[];              // STACK_LAYER enum, empty = all
+  frameworkFilter: string[];           // FRAMEWORK enum, empty = all
   layerFilter: Layer[];               // empty = all
   /** Restrict to an explicit ticker set (case-insensitive). Empty = no restriction.
    *  Used by deep-links (e.g. Layers tab matrix cell → "show me these holdings"). */
@@ -55,6 +57,7 @@ export const DEFAULT_HOLDINGS_STATE: HoldingsUiState = {
   factorFilter: [],
   driverFilter: [],
   stackFilter: [],
+  frameworkFilter: [],
   layerFilter: [],
   tickers: [],
   search: "",
@@ -132,6 +135,11 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
     ? stackRaw.split(",").map(normalizeActionFactor).filter(Boolean)
     : [];
 
+  const frameworkRaw = params.get("framework");
+  const frameworkFilter: string[] = frameworkRaw
+    ? frameworkRaw.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
   const layerRaw = params.get("layer");
   const layerFilter: Layer[] = layerRaw
     ? layerRaw
@@ -158,6 +166,7 @@ export function holdingsStateFromParams(params: URLSearchParams): HoldingsUiStat
     factorFilter,
     driverFilter,
     stackFilter,
+    frameworkFilter,
     layerFilter,
     tickers,
     search: params.get("q") ?? "",
@@ -174,6 +183,7 @@ export function holdingsStateToParams(state: HoldingsUiState): URLSearchParams {
   if (state.factorFilter.length > 0) out.set("factor", state.factorFilter.join(","));
   if (state.driverFilter.length > 0) out.set("driver", state.driverFilter.join(","));
   if (state.stackFilter.length > 0) out.set("stack", state.stackFilter.join(","));
+  if (state.frameworkFilter.length > 0) out.set("framework", state.frameworkFilter.join(","));
   if (state.layerFilter.length > 0) out.set("layer", state.layerFilter.join(","));
   if (state.tickers.length > 0) out.set("tickers", state.tickers.join(","));
   if (state.search.trim() !== "") out.set("q", state.search.trim());
