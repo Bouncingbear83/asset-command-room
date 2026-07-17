@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "sdk_version": "0.23.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://eervjywaxpxqdjjhtguz.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "stellar-command-mcp",
+      "version": "0.1.0",
+      "title": "Stellar Command MCP"
+    },
+    "tools": [
+      {
+        "name": "search_vault",
+        "title": "Search vault notes",
+        "description": "Full-text search across the user's research vault (tickers, themes, layers). Returns matching notes with a snippet and rank.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search query, e.g. 'NVDA moat' or 'AI infrastructure'."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Max results (default 10)."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_vault_note",
+        "title": "Get vault note",
+        "description": "Fetch a single research vault note by type (ticker/theme/layer/etc.) and identifier. Returns full body and sections.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Note type, e.g. 'ticker', 'theme', 'layer'."
+            },
+            "identifier": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Identifier within that type, e.g. 'NVDA'."
+            }
+          },
+          "required": [
+            "type",
+            "identifier"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_scores",
+        "title": "List latest scores snapshot",
+        "description": "Return the latest snapshot of 6D scores across holdings and watchlist. Optionally filter by ticker.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "ticker": {
+              "type": "string",
+              "description": "Optional ticker to filter, e.g. 'NVDA'."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Max rows (default 50)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
