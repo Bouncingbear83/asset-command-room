@@ -22,7 +22,7 @@ import {
   type StackLayerKey,
   type DriverKey,
 } from "@/lib/url-state";
-import type { AssetIntelligence, HeldStatus, Layer, Tier } from "@/types/intelligence";
+import type { FrameworkTag } from "@/utils/frameworkDetection";
 import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
 import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, stackLayerOrder } from "@/components/holdings/DriverChip";
 import ActionBadge from "@/components/actions/ActionBadge";
@@ -280,6 +280,14 @@ export default function IntelligenceTab() {
   };
   const resetDriver = () => update({ driverFilter: [] });
 
+  const toggleFramework = (f: FrameworkTag) => {
+    setState((prev) => {
+      const has = prev.frameworkFilter.includes(f);
+      const next = has ? prev.frameworkFilter.filter((x) => x !== f) : [...prev.frameworkFilter, f];
+      return { ...prev, frameworkFilter: next };
+    });
+  };
+
   const handleSort = (field: SortField) => {
     setState((prev) => {
       if (prev.sortField === field) {
@@ -323,13 +331,17 @@ export default function IntelligenceTab() {
       if (state.driverFilter.length > 0) {
         if (!a.factor_group || !(state.driverFilter as string[]).includes(a.factor_group)) return false;
       }
+      if (state.frameworkFilter.length > 0) {
+        const fw = (a as any).framework;
+        if (!fw || !state.frameworkFilter.includes(fw)) return false;
+      }
       if (q) {
         const hay = `${a.ticker} ${a.name}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.lbandFilter, state.stackFilter, state.driverFilter, state.search]);
+  }, [data, state.statusFilter, state.layerFilter, state.profileFilter, state.lbandFilter, state.stackFilter, state.driverFilter, state.frameworkFilter, state.search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => compareAssets(a, b, state.sortField, state.sortDir));
@@ -447,6 +459,9 @@ export default function IntelligenceTab() {
         onToggleLband={toggleLband}
         onResetLband={resetLband}
         onToggleStack={toggleStack}
+        frameworkFilter={state.frameworkFilter}
+        onToggleFramework={toggleFramework}
+        onResetFramework={() => update({ frameworkFilter: [] })}
         onResetStack={resetStack}
         onToggleDriver={toggleDriver}
         onResetDriver={resetDriver}
