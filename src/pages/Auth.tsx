@@ -1,6 +1,16 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+
+// Validate `next` as a same-origin relative path.
+function safeNext(raw: string | null): string {
+  if (!raw) return "/";
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (decoded.startsWith("/") && !decoded.startsWith("//")) return decoded;
+  } catch {}
+  return "/";
+}
 
 const wrap: React.CSSProperties = {
   position: "fixed",
@@ -111,6 +121,19 @@ export default function Auth() {
   const [info, setInfo] = useState<string | null>(null);
   const [mode, setMode] = useState<"signin" | "forgot">("signin");
 
+  const nextPath = safeNext(new URLSearchParams(window.location.search).get("next"));
+
+  useEffect(() => {
+    // If a session already exists (e.g. arriving at /auth?next=... while logged in), bounce.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && nextPath !== "/") window.location.replace(nextPath);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session && nextPath !== "/") window.location.replace(nextPath);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [nextPath]);
+
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
     if (busy || !email || !password) return;
@@ -125,8 +148,9 @@ export default function Auth() {
   const handleGoogle = async () => {
     setBusy(true);
     setError(null);
+    const returnTo = window.location.origin + nextPath;
     const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: returnTo,
     });
     if (res.error) {
       setError(res.error.message || "Google sign-in failed");
