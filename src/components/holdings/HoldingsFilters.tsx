@@ -129,7 +129,6 @@ export function HoldingsFilters({
   onSearchChange, onGroupChange, onSortChange,
   frameworkCounts, frameworkFilter,
 }: Props) {
-}: Props) {
   const allAccountsActive = accountFilter.length === 0;
   const allActionsActive = actionFilter.length === 0;
   const allFactorsActive = factorFilter.length === 0;
