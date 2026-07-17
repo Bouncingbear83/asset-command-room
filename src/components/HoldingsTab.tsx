@@ -19,6 +19,7 @@ import { HoldingsExpansionRow } from "@/components/HoldingsExpansionRow";
 import { HoldingsHeader } from "@/components/holdings/HoldingsHeader";
 import { HoldingsFilters } from "@/components/holdings/HoldingsFilters";
 import { HoldingsGroupHeader } from "@/components/holdings/HoldingsGroupHeader";
+import { MobileSortSelect, type MobileSortOption } from "@/components/shared/filters";
 import {
   DEFAULT_HOLDINGS_STATE,
   holdingsStateFromParams,
