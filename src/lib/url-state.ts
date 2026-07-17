@@ -6,6 +6,7 @@
 import type { HeldStatus, Layer } from "@/types/intelligence";
 import { HELD_STATUS_VALUES, LAYER_VALUES, RETURN_PROFILE_VALUES } from "@/types/intelligence";
 import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES } from "@/components/holdings/DriverChip";
+import { FRAMEWORK_TAGS, type FrameworkTag } from "@/utils/frameworkDetection";
 
 export type SortField = "score" | "ticker" | "layer" | "disruption" | "buy_distance" | "lband" | "stack" | "asymmetry" | "irrBb" | "sub" | "dem" | "moat" | "val" | "mgmt" | "disr";
 export type GroupBy = "none" | "layer" | "status" | "tier" | "driver" | "lband";
@@ -46,6 +47,7 @@ export interface IntelligenceUiState {
   lbandFilter: SubstrateLevel[]; // empty = all
   stackFilter: StackLayerKey[]; // empty = all
   driverFilter: DriverKey[]; // empty = all
+  frameworkFilter: FrameworkTag[]; // empty = all
   search: string;
 }
 
@@ -59,6 +61,7 @@ export const DEFAULT_STATE: IntelligenceUiState = {
   lbandFilter: [],
   stackFilter: [],
   driverFilter: [],
+  frameworkFilter: [],
   search: "",
 };
 
@@ -117,6 +120,12 @@ export function stateFromParams(params: URLSearchParams): IntelligenceUiState {
         .filter((s): s is DriverKey => (FACTOR_GROUP_VALUES as readonly string[]).includes(s))
     : [];
 
+  const frameworkRaw = params.get("framework");
+  const frameworkFilter: FrameworkTag[] = frameworkRaw
+    ? frameworkRaw.split(",").map((s) => s.trim())
+        .filter((s): s is FrameworkTag => (FRAMEWORK_TAGS as readonly string[]).includes(s))
+    : [];
+
   return {
     sortField,
     sortDir: dir,
@@ -127,6 +136,7 @@ export function stateFromParams(params: URLSearchParams): IntelligenceUiState {
     lbandFilter,
     stackFilter,
     driverFilter,
+    frameworkFilter,
     search: params.get("q") ?? "",
   };
 }
@@ -142,6 +152,7 @@ export function stateToParams(state: IntelligenceUiState): URLSearchParams {
   if (state.lbandFilter.length > 0) out.set("lband", state.lbandFilter.join(","));
   if (state.stackFilter.length > 0) out.set("stack", state.stackFilter.join(","));
   if (state.driverFilter.length > 0) out.set("driver", state.driverFilter.join(","));
+  if (state.frameworkFilter.length > 0) out.set("framework", state.frameworkFilter.join(","));
   if (state.search.trim() !== "") out.set("q", state.search.trim());
   return out;
 }
