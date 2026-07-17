@@ -16,6 +16,7 @@ import type { GroupBy, SortField, ProfileFilterKey, SubstrateLevel, StackLayerKe
 import { PROFILE_FILTER_KEYS, SUBSTRATE_LEVEL_VALUES } from "@/lib/url-state";
 import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, FACTOR_GROUP_COLORS } from "@/components/holdings/DriverChip";
 import { LBAND_COLORS } from "./LBandPill";
+import { FRAMEWORK_TAGS, FRAMEWORK_LABEL, FRAMEWORK_COLOR, type FrameworkTag } from "@/utils/frameworkDetection";
 import { profileChipStyle, subtypeChipStyle, PROFILE_LABEL } from "./profileChips";
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
   lbandFilter: SubstrateLevel[];
   stackFilter: StackLayerKey[];
   driverFilter: DriverKey[];
+  frameworkFilter: FrameworkTag[];
   search: string;
   groupBy: GroupBy;
   sortField: SortField;
@@ -43,6 +45,8 @@ interface Props {
   onResetStack: () => void;
   onToggleDriver: (d: DriverKey) => void;
   onResetDriver: () => void;
+  onToggleFramework: (f: FrameworkTag) => void;
+  onResetFramework: () => void;
   onSearchChange: (v: string) => void;
   onGroupChange: (g: GroupBy) => void;
   onSortChange: (field: SortField, dir: "asc" | "desc") => void;
@@ -142,7 +146,14 @@ export function IntelligenceFilters({
   const allProfilesActive = profileFilter.length === 0;
   const allLbandActive = lbandFilter.length === 0;
   const allStackActive = stackFilter.length === 0;
-  const allDriverActive = driverFilter.length === 0;
+  const allFrameworkActive = frameworkFilter.length === 0;
+  const frameworkCounts = new Map<FrameworkTag, number>();
+  for (const a of assets) {
+    const fw = (a as any).framework as FrameworkTag | undefined;
+    if (fw && (FRAMEWORK_TAGS as readonly string[]).includes(fw)) {
+      frameworkCounts.set(fw, (frameworkCounts.get(fw) ?? 0) + 1);
+    }
+  }
 
   const activeCount =
     (statusFilter.length > 0 ? 1 : 0) +
@@ -151,6 +162,7 @@ export function IntelligenceFilters({
     (lbandFilter.length > 0 ? 1 : 0) +
     (stackFilter.length > 0 ? 1 : 0) +
     (driverFilter.length > 0 ? 1 : 0) +
+    (frameworkFilter.length > 0 ? 1 : 0);
     (search.trim() ? 1 : 0);
 
   const chipsBlock = (
@@ -279,6 +291,23 @@ export function IntelligenceFilters({
             <Chip key={d} label={d.replace(/_/g, " ")} count={driverCounts.get(d) ?? 0}
               active={!allDriverActive && driverFilter.includes(d)}
               onClick={() => onToggleDriver(d)} icon={swatch} />
+          );
+        })}
+      </ChipGroup>
+
+      {/* Row 8: Framework chips */}
+      <ChipGroup ariaLabel="Filter by framework">
+        <Chip label="All Frameworks" active={allFrameworkActive} onClick={onResetFramework} ariaLabel="Reset framework filters" />
+        {FRAMEWORK_TAGS.filter((fw) => (frameworkCounts.get(fw) ?? 0) > 0).map((fw) => {
+          const color = FRAMEWORK_COLOR[fw];
+          const swatch = (
+            <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, marginRight: 2,
+              background: `color-mix(in srgb, ${color} 30%, transparent)`, border: `1px solid ${color}` }} aria-hidden />
+          );
+          return (
+            <Chip key={fw} label={FRAMEWORK_LABEL[fw]} count={frameworkCounts.get(fw) ?? 0}
+              active={!allFrameworkActive && frameworkFilter.includes(fw)}
+              onClick={() => onToggleFramework(fw)} icon={swatch} />
           );
         })}
       </ChipGroup>
