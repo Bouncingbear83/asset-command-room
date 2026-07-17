@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import IntelligencePreview from "./pages/IntelligencePreview";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import OAuthConsent from "./pages/OAuthConsent";
 import AuthGate from "./components/AuthGate";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/" element={<AuthGate><Index /></AuthGate>} />
           <Route path="/preview/intelligence-row" element={<AuthGate><IntelligencePreview /></AuthGate>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
