@@ -452,6 +452,8 @@ function buildOne(
   const substrate_level = (["L1", "L2", "L3", "L4"] as const).find((l) => l === slRaw) ?? null;
   const stRaw = String((s as { stackLayer?: unknown }).stackLayer ?? "").trim().toUpperCase();
   const stack_layer = stRaw && stRaw !== "N/A" ? stRaw : null;
+  const fwRaw = String((s as { framework?: unknown }).framework ?? "").trim();
+  const framework = fwRaw || null;
   // factor_group resolver — prefer Supabase score_rationales (canonical post-v2.13
   // resolver bugfix), fall back to HOLDINGS row for HELD-only tickers.
   const scoreRationaleRow = scoreRationaleByTicker.get(ticker);
