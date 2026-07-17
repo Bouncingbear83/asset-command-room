@@ -162,8 +162,9 @@ export function IntelligenceFilters({
     (lbandFilter.length > 0 ? 1 : 0) +
     (stackFilter.length > 0 ? 1 : 0) +
     (driverFilter.length > 0 ? 1 : 0) +
-    (frameworkFilter.length > 0 ? 1 : 0);
-    (search.trim() ? 1 : 0);
+    (driverFilter.length > 0 ? 1 : 0) +     // 164
+    (frameworkFilter.length > 0 ? 1 : 0) +    // 165 ← semicolon terminates
+    (search.trim() ? 1 : 0);                 // 166 ← dead expression
 
   const chipsBlock = (
     <>
