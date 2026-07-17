@@ -102,6 +102,9 @@ export function IntelligenceFilters({
   lbandFilter,
   stackFilter,
   driverFilter,
+  frameworkFilter,
+  onToggleFramework,
+  onResetFramework,
 }: Props) {
   // Counts always on full set so users can see distribution regardless of active filters.
   const statusCounts: Record<HeldStatus, number> = {
@@ -162,9 +165,8 @@ export function IntelligenceFilters({
     (lbandFilter.length > 0 ? 1 : 0) +
     (stackFilter.length > 0 ? 1 : 0) +
     (driverFilter.length > 0 ? 1 : 0) +
-    (driverFilter.length > 0 ? 1 : 0) +     // 164
-    (frameworkFilter.length > 0 ? 1 : 0) +    // 165 ← semicolon terminates
-    (search.trim() ? 1 : 0);                 // 166 ← dead expression
+    (frameworkFilter.length > 0 ? 1 : 0) +
+    (search.trim() ? 1 : 0);
 
   const chipsBlock = (
     <>
