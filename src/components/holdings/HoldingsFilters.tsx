@@ -124,8 +124,11 @@ export function HoldingsFilters({
   onToggleFactor, onResetFactor,
   onToggleDriver, onResetDriver,
   onToggleStack, onResetStack,
+  onToggleFramework, onResetFramework,
   onToggleLayer, onResetLayer,
   onSearchChange, onGroupChange, onSortChange,
+  frameworkCounts, frameworkFilter,
+}: Props) {
 }: Props) {
   const allAccountsActive = accountFilter.length === 0;
   const allActionsActive = actionFilter.length === 0;
