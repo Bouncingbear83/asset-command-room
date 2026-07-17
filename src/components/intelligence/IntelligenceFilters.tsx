@@ -149,6 +149,7 @@ export function IntelligenceFilters({
   const allProfilesActive = profileFilter.length === 0;
   const allLbandActive = lbandFilter.length === 0;
   const allStackActive = stackFilter.length === 0;
+  const allDriverActive = driverFilter.length === 0;
   const allFrameworkActive = frameworkFilter.length === 0;
   const frameworkCounts = new Map<FrameworkTag, number>();
   for (const a of assets) {
