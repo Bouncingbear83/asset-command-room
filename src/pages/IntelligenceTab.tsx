@@ -23,7 +23,7 @@ import {
   type DriverKey,
 } from "@/lib/url-state";
 import type { FrameworkTag } from "@/utils/frameworkDetection";
-import { HELD_STATUS_VALUES, LAYER_VALUES } from "@/types/intelligence";
+import { HELD_STATUS_VALUES, LAYER_VALUES, type AssetIntelligence, type HeldStatus, type Layer, type Tier } from "@/types/intelligence";
 import { FACTOR_GROUP_VALUES, STACK_LAYER_VALUES, stackLayerOrder } from "@/components/holdings/DriverChip";
 import ActionBadge from "@/components/actions/ActionBadge";
 import { useActionCounts } from "@/components/actions/useActionCounts";
