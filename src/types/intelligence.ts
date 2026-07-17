@@ -271,7 +271,7 @@ export interface AssetIntelligence {
   stack_layer: string | null;
   /** FACTOR_GROUP joined from HOLDINGS for HELD rows; null for unheld. */
   factor_group: string | null;
-  framework: string | null;
+  framework?: string | null;
 
   // Scoring
   score: number;
