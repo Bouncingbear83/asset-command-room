@@ -705,17 +705,30 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
     return { avg, highCount, total: ratios.length };
   }, [inZone]);
 
+  const inZoneIds = useMemo(
+    () => new Set(inZone.map((r) => r.item.ticker)),
+    [inZone],
+  );
+
   const approaching = useMemo(
     () =>
       filtered
-        .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker))
+        .filter((r) => r.zoneStatus === "APPROACHING" && !activeBuyIds.has(r.item.ticker) && !inZoneIds.has(r.item.ticker))
         .sort((a, b) => {
           const s = applySorts(a, b);
           if (s !== 0) return s;
           return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
         }),
-    [filtered, activeBuyIds, sortBy],
+    [filtered, activeBuyIds, inZoneIds, sortBy],
   );
+
+  // Cumulative set of tickers already claimed by price-zone buckets above.
+  const priceZoneIds = useMemo(
+    () => new Set([...activeBuyIds, ...inZoneIds, ...approaching.map((r) => r.item.ticker)]),
+    [activeBuyIds, inZoneIds, approaching],
+  );
+
+  // Tokens that get their own dedicated section
 
   // Tokens that get their own dedicated section — exclude them from overdue/waiting/uncategorised.
   const DEDICATED_TOKENS = new Set([
@@ -724,24 +737,24 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
 
   const overdue = useMemo(() => {
     return filtered
-      .filter((r) => r.isOverdue && !DEDICATED_TOKENS.has(normStatus(r.item.status)))
+      .filter((r) => r.isOverdue && !DEDICATED_TOKENS.has(normStatus(r.item.status)) && !priceZoneIds.has(r.item.ticker))
       .sort((a, b) => {
         const s = applySorts(a, b);
         if (s !== 0) return s;
         return (b.daysSinceReview ?? 0) - (a.daysSinceReview ?? 0);
       });
-  }, [filtered, sortBy]);
+  }, [filtered, priceZoneIds, sortBy]);
 
   const overdueIds = useMemo(() => new Set(overdue.map((r) => r.item.ticker)), [overdue]);
 
-  // Waiting: priced & WAITING-zone & WAIT_PRICE/WAIT_EVENT & not already shown.
+  // Waiting: priced & WAITING-zone & not already shown in any upstream bucket.
   const waiting = useMemo(() => {
+    const upstream = new Set([...priceZoneIds, ...overdueIds]);
     return filtered
       .filter(
         (r) =>
           r.zoneStatus === "WAITING" &&
-          !overdueIds.has(r.item.ticker) &&
-          !activeBuyIds.has(r.item.ticker) &&
+          !upstream.has(r.item.ticker) &&
           !DEDICATED_TOKENS.has(normStatus(r.item.status)),
       )
       .sort((a, b) => {
@@ -752,7 +765,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         if (sa != null && sb != null && sa !== sb) return sb - sa;
         return (a.distanceToEntryPct ?? 999) - (b.distanceToEntryPct ?? 999);
       });
-  }, [filtered, overdueIds, activeBuyIds, sortBy]);
+  }, [filtered, priceZoneIds, overdueIds, sortBy]);
 
   const waitingByLayer = useMemo(() => {
     const groups = new Map<string, DerivedRow[]>();
