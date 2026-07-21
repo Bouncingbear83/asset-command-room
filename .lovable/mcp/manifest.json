@@ -3,16 +3,12 @@
   "sdk_version": "0.23.0",
   "path": "/functions/v1/mcp",
   "auth": {
-    "type": "oauth",
-    "issuer": "https://eervjywaxpxqdjjhtguz.supabase.co/auth/v1",
-    "accepted_audiences": [
-      "authenticated"
-    ]
+    "type": "none"
   },
   "mcp": {
     "server": {
       "name": "stellar-command-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "Stellar Command MCP"
     },
     "tools": [

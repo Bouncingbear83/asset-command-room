@@ -151,7 +151,6 @@ export function IntelligenceFilters({
   const allStackActive = stackFilter.length === 0;
   const allDriverActive = driverFilter.length === 0;
   const allFrameworkActive = frameworkFilter.length === 0;
-  const allDriverActive = driverFilter.length === 0;
   const frameworkCounts = new Map<FrameworkTag, number>();
   for (const a of assets) {
     const fw = (a as any).framework as FrameworkTag | undefined;

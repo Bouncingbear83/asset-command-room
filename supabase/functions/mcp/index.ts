@@ -3,17 +3,18 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.23.0";
+import { defineMcp } from "npm:@lovable.dev/mcp-js@0.23.0";
 
 // src/lib/mcp/tools/search-vault.ts
 import { createClient } from "npm:@supabase/supabase-js@2.104.0";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z } from "npm:zod@^3.25.76";
-function sbForUser(ctx) {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
+function sbAnon() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_PUBLISHABLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
 }
 var search_vault_default = defineTool({
   name: "search_vault",
@@ -24,11 +25,8 @@ var search_vault_default = defineTool({
     limit: z.number().int().min(1).max(50).optional().describe("Max results (default 10).")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ query, limit }, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    }
-    const sb = sbForUser(ctx);
+  handler: async ({ query, limit }) => {
+    const sb = sbAnon();
     const { data, error } = await sb.rpc("vault_search", { q: query, lim: limit ?? 10 });
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
@@ -42,7 +40,7 @@ var search_vault_default = defineTool({
 import { createClient as createClient2 } from "npm:@supabase/supabase-js@2.104.0";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z as z2 } from "npm:zod@^3.25.76";
-function sbForUser2(ctx) {
+function sbForUser(ctx) {
   return createClient2(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
@@ -61,7 +59,7 @@ var get_vault_note_default = defineTool2({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const sb = sbForUser2(ctx);
+    const sb = sbForUser(ctx);
     const { data, error } = await sb.from("vault_notes_meta").select("type,identifier,body,body_sections,updated_at").eq("type", type.toLowerCase()).eq("identifier", identifier.toLowerCase()).maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Note not found" }], isError: true };
@@ -76,7 +74,7 @@ var get_vault_note_default = defineTool2({
 import { createClient as createClient3 } from "npm:@supabase/supabase-js@2.104.0";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z as z3 } from "npm:zod@^3.25.76";
-function sbForUser3(ctx) {
+function sbForUser2(ctx) {
   return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
@@ -95,7 +93,7 @@ var list_scores_default = defineTool3({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const sb = sbForUser3(ctx);
+    const sb = sbForUser2(ctx);
     let q = sb.from("scores_snapshot").select("*").limit(limit ?? 50);
     if (ticker) q = q.ilike("ticker", ticker);
     const { data, error } = await q;
@@ -108,16 +106,11 @@ var list_scores_default = defineTool3({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "eervjywaxpxqdjjhtguz";
 var mcp_default = defineMcp({
   name: "stellar-command-mcp",
   title: "Stellar Command MCP",
-  version: "0.1.0",
+  version: "0.2.0",
   instructions: "Tools for the Stellar Command dashboard. Use `search_vault` to full-text search research notes, `get_vault_note` to fetch a single note's full body, and `list_scores` to inspect the latest 6D scores snapshot.",
-  auth: auth.oauth.issuer({
-    issuer: `https://${projectRef}.supabase.co/auth/v1`,
-    acceptedAudiences: "authenticated"
-  }),
   tools: [search_vault_default, get_vault_note_default, list_scores_default]
 });
 
