@@ -325,7 +325,7 @@ export function HoldingsFilters({
             return (
               <Chip
                 key={value}
-                label={FRAMEWORK_LABEL[value as FrameworkTag] ?? value}
+                label={value}
                 count={count}
                 active={!allFrameworksActive && frameworkFilter.includes(value)}
                 onClick={() => onToggleFramework(value)}
