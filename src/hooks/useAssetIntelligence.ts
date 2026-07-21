@@ -585,6 +585,7 @@ function buildOne(
     compounder_subtype,
     substrate_level,
     stack_layer,
+    framework,
     factor_group: factor_group_final,
     score: toNum0(s.score),
     tier: normalizeTier(s.tier),
