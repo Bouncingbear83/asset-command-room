@@ -23,6 +23,8 @@ export interface RollingWindowRow {
   mv_end: number;
   period_return_pct: number;
   period_pnl_gbp: number;
+  has_capital_flow: boolean;
+  flow_day_count: number;
 }
 
 export interface DimensionWindowRow {
