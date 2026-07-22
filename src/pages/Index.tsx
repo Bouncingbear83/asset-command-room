@@ -17,19 +17,20 @@ import DriversTab from "@/components/DriversTab";
 
 import ResearchTab from "@/components/ResearchTab";
 import VaultTab from "@/components/VaultTab";
+import AttributionTab from "@/components/AttributionTab";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
 const TABS = [
   "Command", "Holdings", "Watchlist", "JISAs",
   "Signals", "Layers", "Drivers", "Intelligence", "Research", "Vault",
-  "Returns", "Actions", "Transactions"
+  "Returns", "Attribution", "Actions", "Transactions"
 ] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
   Command: "command", Signals: "signals", Watchlist: "watchlist", Layers: "layers",
   Drivers: "drivers",
-  Intelligence: "intelligence", Research: "research", Vault: "vault", Returns: "returns", Holdings: "holdings",
+  Intelligence: "intelligence", Research: "research", Vault: "vault", Returns: "returns", Attribution: "attribution", Holdings: "holdings",
   Transactions: "transactions", JISAs: "jisas", Actions: "actions",
 };
 const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
@@ -210,6 +211,7 @@ export default function Index() {
         {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
         {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
+        {active === "Attribution" && <AttributionTab />}
         {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
         {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier, ...portfolio.jisaHoldings.map((j) => ({ ticker: j.ticker, name: j.name, layer: j.layer, account: `JISA-${j.child}`, mv: j.mvGbp || 0, gl: j.glPct || 0, day: 0, aum_pct: 0, pct_below_52w_high: 0, pct_above_52w_low: 0, notes: "", action: "HOLD", price: j.priceLocal, prevClose: null, currency: j.currency, costGbp: j.costGbp, costLocal: null, shares: j.shares, add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "", alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null, deploy_target_gbp: null, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "", priceAtFirstAdd: null, firstAddDate: "", priceAtLastScore: null }))]} />}
         {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} jisaTotals={portfolio.jisaTotals} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
