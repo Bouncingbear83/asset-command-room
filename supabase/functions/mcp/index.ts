@@ -10,11 +10,11 @@ import { createClient } from "npm:@supabase/supabase-js@2.104.0";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z } from "npm:zod@^3.25.76";
 function sbAnon() {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
+  const url = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : process.env.SUPABASE_URL;
+  const key = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : process.env.SUPABASE_PUBLISHABLE_KEY;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
 }
 var search_vault_default = defineTool({
   name: "search_vault",
@@ -41,11 +41,11 @@ import { createClient as createClient2 } from "npm:@supabase/supabase-js@2.104.0
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z as z2 } from "npm:zod@^3.25.76";
 function sbAnon2() {
-  return createClient2(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
+  const url = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : process.env.SUPABASE_URL;
+  const key = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : process.env.SUPABASE_PUBLISHABLE_KEY;
+  return createClient2(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
 }
 var get_vault_note_default = defineTool2({
   name: "get_vault_note",
@@ -73,11 +73,11 @@ import { createClient as createClient3 } from "npm:@supabase/supabase-js@2.104.0
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z as z3 } from "npm:zod@^3.25.76";
 function sbAnon3() {
-  return createClient3(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
+  const url = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : process.env.SUPABASE_URL;
+  const key = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : process.env.SUPABASE_PUBLISHABLE_KEY;
+  return createClient3(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
 }
 var list_scores_default = defineTool3({
   name: "list_scores",
