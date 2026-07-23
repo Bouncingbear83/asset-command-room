@@ -13,7 +13,8 @@ export interface PortfolioDailyRow {
 
 export interface RollingWindowRow {
   ticker: string;
-  window_label: string;
+  account: string;
+  window_days: number;
   layer: string;
   factor_group: string;
   return_profile: string | null;
@@ -21,18 +22,26 @@ export interface RollingWindowRow {
   framework: string;
   mv_start: number | null;
   mv_end: number;
-  period_return_pct: number;
-  period_pnl_gbp: number;
+  price_start: number | null;
+  price_end: number | null;
+  price_return_pct: number | null;
+  mv_return_pct: number | null;
+  net_capital_flow_gbp: number;
+  trade_count: number;
   has_capital_flow: boolean;
-  flow_day_count: number;
 }
 
 export interface DimensionWindowRow {
-  group_name: string;
+  dimension_value: string;
   position_count: number;
-  total_mv_gbp: number;
-  weighted_return_pct: number;
-  total_pnl_gbp: number;
+  mv_start_gbp: number;
+  mv_end_gbp: number;
+  price_return_pct: number;
+  mv_return_pct: number;
+  net_capital_flow_gbp: number;
+  trade_count: number;
+  top_contributor: string | null;
+  bottom_contributor: string | null;
 }
 
 export type Dimension =
@@ -43,6 +52,13 @@ export type Dimension =
   | "framework";
 
 export type WindowLabel = "7d" | "30d" | "60d" | "90d";
+
+const WINDOW_DAYS: Record<WindowLabel, number> = {
+  "7d": 7,
+  "30d": 30,
+  "60d": 60,
+  "90d": 90,
+};
 
 // ── Hook ──
 
@@ -71,7 +87,7 @@ export function useAttribution() {
           .select("*"),
         supabase.rpc("perf_by_dimension_window" as any, {
           p_dimension: dimension,
-          p_window: window,
+          p_window: WINDOW_DAYS[window],
         }),
       ]);
 
@@ -94,7 +110,7 @@ export function useAttribution() {
     try {
       const res = await supabase.rpc("perf_by_dimension_window" as any, {
         p_dimension: dimension,
-        p_window: window,
+        p_window: WINDOW_DAYS[window],
       });
       if (res.error) throw new Error(res.error.message);
       setDimensionData((res.data ?? []) as DimensionWindowRow[]);
