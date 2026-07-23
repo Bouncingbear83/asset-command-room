@@ -19,6 +19,10 @@ import {
   type RollingWindowRow,
   type PortfolioDailyRow,
 } from "@/hooks/useAttribution";
+import RegimePanel from "@/components/RegimePanel";
+import Test5Panel from "@/components/Test5Panel";
+
+type SubView = "performance" | "regime" | "signals";
 
 // ── Styles (matches Stellar design system) ──
 
@@ -251,6 +255,7 @@ export default function AttributionTab() {
     refresh,
   } = useAttribution();
 
+  const [subView, setSubView] = useState<SubView>("performance");
   const [dailyRange, setDailyRange] = useState<"30" | "60" | "90" | "all">("90");
 
   // Filter daily data by range
@@ -358,8 +363,58 @@ export default function AttributionTab() {
     );
   }
 
+  const SUB_VIEWS: { key: SubView; label: string }[] = [
+    { key: "performance", label: "Performance" },
+    { key: "regime", label: "Regime" },
+    { key: "signals", label: "Signals" },
+  ];
+
   return (
     <div>
+      {/* ── Sub-view Toggle ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 0,
+          marginBottom: 12,
+          borderBottom: "1px solid var(--rim)",
+        }}
+      >
+        {SUB_VIEWS.map((sv) => (
+          <button
+            key={sv.key}
+            onClick={() => setSubView(sv.key)}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              fontWeight: subView === sv.key ? 700 : 400,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              padding: "10px 20px",
+              cursor: "pointer",
+              border: "none",
+              borderBottom: subView === sv.key
+                ? "2px solid var(--accent)"
+                : "2px solid transparent",
+              background: "transparent",
+              color: subView === sv.key ? "var(--accent)" : "var(--text-dim)",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {sv.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Regime Sub-view ── */}
+      {subView === "regime" && <RegimePanel />}
+
+      {/* ── Signals Sub-view ── */}
+      {subView === "signals" && <Test5Panel />}
+
+      {/* ── Performance Sub-view (original content) ── */}
+      {subView === "performance" && (
+      <>
       {/* ── Summary Strip ── */}
       {summary && (
         <div
@@ -733,6 +788,8 @@ export default function AttributionTab() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
