@@ -103,7 +103,10 @@ const WINDOWS: { key: WindowLabel; label: string }[] = [
   { key: "90d", label: "90D" },
 ];
 
-// Colour palette for bar segments
+const WINDOW_DAYS: Record<WindowLabel, number> = {
+  "7d": 7, "30d": 30, "60d": 60, "90d": 90,
+};
+
 const BAR_COLORS = [
   "var(--accent)",
   "var(--gold)",
@@ -123,15 +126,15 @@ function fmtDate(d: string): string {
 }
 
 function fmtPct(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "\u2014";
   const sign = v >= 0 ? "+" : "";
   return `${sign}${v.toFixed(2)}%`;
 }
 
 function fmtGbp(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "\u2014";
   const sign = v >= 0 ? "+" : "";
-  return `${sign}£${Math.abs(v).toLocaleString("en-GB", {
+  return `${sign}\u00a3${Math.abs(v).toLocaleString("en-GB", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   })}`;
@@ -144,18 +147,14 @@ function pctColor(v: number | null | undefined): string {
   return "var(--text-dim)";
 }
 
-/** G(m) distortion filter: exclude positions with mv_start from first 3 days of existence */
-function filterGmDistortion(rows: RollingWindowRow[]): RollingWindowRow[] {
-  return rows.filter((r) => {
-    // If mv_start is null or zero, position didn't exist at window start: exclude from return calcs
-    if (r.mv_start == null || r.mv_start === 0) return false;
-    return true;
-  });
+/** Exclude positions with no start-of-window presence */
+function filterNoStart(rows: RollingWindowRow[]): RollingWindowRow[] {
+  return rows.filter((r) => r.mv_start != null && r.mv_start > 0);
 }
 
 // ── Custom Tooltip Components ──
 
-function DailyTooltip({ active, payload, label }: any) {
+function DailyTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as PortfolioDailyRow | undefined;
   if (!d) return null;
@@ -173,7 +172,7 @@ function DailyTooltip({ active, payload, label }: any) {
         {fmtDate(d.snapshot_date)}
       </div>
       <div style={{ color: "var(--gold)" }}>
-        AUM: £{((d.total_mv_gbp || 0) / 1000).toFixed(0)}k
+        AUM: \u00a3{((d.total_mv_gbp || 0) / 1000).toFixed(0)}k
       </div>
       <div style={{ color: pctColor(d.daily_return_pct) }}>
         Day: {fmtPct(d.daily_return_pct)}
@@ -189,6 +188,7 @@ function BarTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
+  const hasFlows = (d.net_capital_flow_gbp ?? 0) !== 0;
   return (
     <div
       style={{
@@ -200,20 +200,37 @@ function BarTooltip({ active, payload }: any) {
       }}
     >
       <div style={{ color: "var(--text)", marginBottom: 4, fontWeight: 700 }}>
-        {d.group_name}
+        {d.dimension_value}
       </div>
       <div>
         Positions: <span style={{ color: "var(--gold)" }}>{d.position_count}</span>
       </div>
       <div>
-        MV: <span style={{ color: "var(--gold)" }}>£{((d.total_mv_gbp || 0) / 1000).toFixed(0)}k</span>
+        MV: <span style={{ color: "var(--gold)" }}>\u00a3{((d.mv_start_gbp || 0) / 1000).toFixed(0)}k</span>
       </div>
-      <div style={{ color: pctColor(d.weighted_return_pct) }}>
-        Return: {fmtPct(d.weighted_return_pct)}
+      <div style={{ color: pctColor(d.price_return_pct) }}>
+        Price Return: {fmtPct(d.price_return_pct)}
       </div>
-      <div style={{ color: pctColor(d.total_pnl_gbp) }}>
-        P&L: {fmtGbp(d.total_pnl_gbp)}
-      </div>
+      {hasFlows && (
+        <>
+          <div style={{ color: "var(--text-dim)", marginTop: 2 }}>
+            MV Return: {fmtPct(d.mv_return_pct)}
+          </div>
+          <div style={{ color: "var(--amber)" }}>
+            Flows: {fmtGbp(d.net_capital_flow_gbp)} ({d.trade_count} trades)
+          </div>
+        </>
+      )}
+      {d.top_contributor && (
+        <div style={{ color: "var(--green)", marginTop: 2 }}>
+          Best: {d.top_contributor}
+        </div>
+      )}
+      {d.bottom_contributor && (
+        <div style={{ color: "var(--red)" }}>
+          Worst: {d.bottom_contributor}
+        </div>
+      )}
     </div>
   );
 }
@@ -254,29 +271,29 @@ export default function AttributionTab() {
     });
   }, [filteredDaily]);
 
-  // Rolling window data for the selected window, with G(m) filter
+  // Rolling window data for the selected window
+  const windowDays = WINDOW_DAYS[windowLabel];
   const windowData = useMemo(() => {
-    const filtered = filterGmDistortion(rollingWindow);
-    return filtered.filter((r) => r.window_label === windowLabel);
-  }, [rollingWindow, windowLabel]);
+    const filtered = filterNoStart(rollingWindow);
+    return filtered.filter((r) => r.window_days === windowDays);
+  }, [rollingWindow, windowDays]);
 
-  // Top 5 / Bottom 5 (exclude capital-flow-contaminated positions)
+  // Top 5 / Bottom 5 using price returns (clean of capital flows)
   const { top5, bottom5 } = useMemo(() => {
-    const clean = windowData.filter((r) => !r.has_capital_flow);
-    const sorted = [...clean].sort(
-      (a, b) => b.period_return_pct - a.period_return_pct
-    );
+    const sorted = [...windowData]
+      .filter((r) => r.price_return_pct != null)
+      .sort((a, b) => (b.price_return_pct ?? 0) - (a.price_return_pct ?? 0));
     return {
       top5: sorted.slice(0, 5),
       bottom5: sorted.slice(-5).reverse(),
     };
   }, [windowData]);
 
-  // Heatmap: all positions sorted by return
+  // Heatmap: all positions sorted by price return
   const heatmapData = useMemo(() => {
-    return [...windowData].sort(
-      (a, b) => b.period_return_pct - a.period_return_pct
-    );
+    return [...windowData]
+      .filter((r) => r.price_return_pct != null)
+      .sort((a, b) => (b.price_return_pct ?? 0) - (a.price_return_pct ?? 0));
   }, [windowData]);
 
   // Summary stats
@@ -312,7 +329,7 @@ export default function AttributionTab() {
             color: "var(--accent)",
           }}
         >
-          ● LOADING ATTRIBUTION DATA...
+          \u25cf LOADING ATTRIBUTION DATA...
         </span>
       </div>
     );
@@ -323,7 +340,7 @@ export default function AttributionTab() {
       <div style={{ padding: 40 }}>
         <div style={card}>
           <div style={{ ...cardBody, color: "var(--amber)" }}>
-            <span style={monoSm}>⚠ {error}</span>
+            <span style={monoSm}>\u26a0 {error}</span>
             <button
               onClick={refresh}
               style={{
@@ -358,7 +375,7 @@ export default function AttributionTab() {
           <div style={monoSm}>
             AUM{" "}
             <span style={{ ...monoVal, color: "var(--gold)" }}>
-              £{(summary.aum / 1000).toFixed(0)}k
+              \u00a3{(summary.aum / 1000).toFixed(0)}k
             </span>
           </div>
           <div style={monoSm}>
@@ -493,19 +510,19 @@ export default function AttributionTab() {
                 />
                 <YAxis
                   type="category"
-                  dataKey="group_name"
+                  dataKey="dimension_value"
                   tick={{ fill: "var(--text-dim)", fontSize: 9, fontFamily: "var(--font-mono)" }}
                   stroke="var(--rim)"
                   width={96}
                 />
                 <Tooltip content={<BarTooltip />} />
                 <ReferenceLine x={0} stroke="var(--text-dim)" strokeDasharray="2 4" />
-                <Bar dataKey="weighted_return_pct" radius={[0, 2, 2, 0]}>
+                <Bar dataKey="price_return_pct" radius={[0, 2, 2, 0]}>
                   {dimensionData.map((entry, i) => (
                     <Cell
                       key={i}
                       fill={
-                        (entry.weighted_return_pct ?? 0) >= 0
+                        (entry.price_return_pct ?? 0) >= 0
                           ? "var(--green)"
                           : "var(--red)"
                       }
@@ -532,13 +549,13 @@ export default function AttributionTab() {
             >
               <thead>
                 <tr>
-                  {["Group", "Positions", "MV (£k)", "Wt. Return", "P&L"].map(
+                  {["Group", "#", "MV (£k)", "Return", "Flows (£k)", "Best", "Worst"].map(
                     (h) => (
                       <th
                         key={h}
                         style={{
                           ...monoSm,
-                          textAlign: h === "Group" ? "left" : "right",
+                          textAlign: h === "Group" || h === "Best" || h === "Worst" ? "left" : "right",
                           padding: "6px 8px",
                           borderBottom: "1px solid var(--rim)",
                           fontWeight: 400,
@@ -551,71 +568,99 @@ export default function AttributionTab() {
                 </tr>
               </thead>
               <tbody>
-                {dimensionData.map((row) => (
-                  <tr key={row.group_name}>
-                    <td
-                      style={{
-                        ...monoTicker,
-                        padding: "5px 8px",
-                        fontSize: 10,
-                        borderBottom: "1px solid var(--rim)",
-                      }}
-                    >
-                      {row.group_name}
-                    </td>
-                    <td
-                      style={{
-                        ...monoVal,
-                        textAlign: "right",
-                        padding: "5px 8px",
-                        color: "var(--text-dim)",
-                        borderBottom: "1px solid var(--rim)",
-                      }}
-                    >
-                      {row.position_count}
-                    </td>
-                    <td
-                      style={{
-                        ...monoVal,
-                        textAlign: "right",
-                        padding: "5px 8px",
-                        color: "var(--gold)",
-                        borderBottom: "1px solid var(--rim)",
-                      }}
-                    >
-                      {((row.total_mv_gbp || 0) / 1000).toFixed(0)}
-                    </td>
-                    <td
-                      style={{
-                        ...monoVal,
-                        textAlign: "right",
-                        padding: "5px 8px",
-                        color: pctColor(row.weighted_return_pct),
-                        borderBottom: "1px solid var(--rim)",
-                      }}
-                    >
-                      {fmtPct(row.weighted_return_pct)}
-                    </td>
-                    <td
-                      style={{
-                        ...monoVal,
-                        textAlign: "right",
-                        padding: "5px 8px",
-                        color: pctColor(row.total_pnl_gbp),
-                        borderBottom: "1px solid var(--rim)",
-                      }}
-                    >
-                      {fmtGbp(row.total_pnl_gbp)}
-                    </td>
-                  </tr>
-                ))}
+                {dimensionData.map((row) => {
+                  const hasFlows = (row.net_capital_flow_gbp ?? 0) !== 0;
+                  return (
+                    <tr key={row.dimension_value}>
+                      <td
+                        style={{
+                          ...monoTicker,
+                          padding: "5px 8px",
+                          fontSize: 10,
+                          borderBottom: "1px solid var(--rim)",
+                        }}
+                      >
+                        {row.dimension_value}
+                      </td>
+                      <td
+                        style={{
+                          ...monoVal,
+                          textAlign: "right",
+                          padding: "5px 8px",
+                          color: "var(--text-dim)",
+                          borderBottom: "1px solid var(--rim)",
+                        }}
+                      >
+                        {row.position_count}
+                      </td>
+                      <td
+                        style={{
+                          ...monoVal,
+                          textAlign: "right",
+                          padding: "5px 8px",
+                          color: "var(--gold)",
+                          borderBottom: "1px solid var(--rim)",
+                        }}
+                      >
+                        {((row.mv_start_gbp || 0) / 1000).toFixed(0)}
+                      </td>
+                      <td
+                        style={{
+                          ...monoVal,
+                          textAlign: "right",
+                          padding: "5px 8px",
+                          color: pctColor(row.price_return_pct),
+                          borderBottom: "1px solid var(--rim)",
+                        }}
+                      >
+                        {fmtPct(row.price_return_pct)}
+                      </td>
+                      <td
+                        style={{
+                          ...monoVal,
+                          textAlign: "right",
+                          padding: "5px 8px",
+                          color: hasFlows ? "var(--amber)" : "var(--text-dim)",
+                          borderBottom: "1px solid var(--rim)",
+                          fontSize: 10,
+                        }}
+                      >
+                        {hasFlows
+                          ? `${((row.net_capital_flow_gbp || 0) / 1000).toFixed(1)}`
+                          : "\u2014"}
+                      </td>
+                      <td
+                        style={{
+                          ...monoVal,
+                          padding: "5px 8px",
+                          color: "var(--green)",
+                          borderBottom: "1px solid var(--rim)",
+                          fontSize: 10,
+                        }}
+                      >
+                        {row.top_contributor || "\u2014"}
+                      </td>
+                      <td
+                        style={{
+                          ...monoVal,
+                          padding: "5px 8px",
+                          color: "var(--red)",
+                          borderBottom: "1px solid var(--rim)",
+                          fontSize: 10,
+                        }}
+                      >
+                        {row.bottom_contributor || "\u2014"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
       </div>
 
-      {/* ── 3. Top 5 / Bottom 5 Movers ── */}
+      {/* ── 3. Top 5 / Bottom 5 Movers (price returns, capital-flow-clean) ── */}
       <div
         style={{
           display: "grid",
@@ -667,7 +712,7 @@ export default function AttributionTab() {
         >
           {heatmapData.length > 0 ? (
             heatmapData.map((row) => (
-              <HeatCell key={row.ticker} row={row} />
+              <HeatCell key={`${row.ticker}-${row.account}`} row={row} />
             ))
           ) : (
             <div style={{ ...monoSm, padding: 20, width: "100%" }}>
@@ -684,8 +729,7 @@ export default function AttributionTab() {
               color: "var(--amber)",
             }}
           >
-            ⚑ Dashed amber border = capital flow detected (buy/sell during window). MV return includes additions/trims, not just price.
-            Excluded from Top/Bottom movers.
+            \u2691 Dashed amber border = capital flow detected (buy/sell during window). Returns shown are price-only (clean). Hover for flow details.
           </div>
         )}
       </div>
@@ -716,64 +760,82 @@ function MoverCard({
         {items.length === 0 ? (
           <div style={{ ...monoSm, padding: "12px 20px" }}>No data</div>
         ) : (
-          items.map((row, i) => (
-            <div
-              key={row.ticker}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "6px 20px",
-                borderBottom:
-                  i < items.length - 1 ? "1px solid var(--rim)" : "none",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span
-                  style={{
-                    ...monoSm,
-                    width: 16,
-                    textAlign: "right",
-                    color: "var(--text-dim)",
-                  }}
-                >
-                  {i + 1}
-                </span>
-                <span style={monoTicker}>{row.ticker}</span>
-                <span
-                  style={{
-                    ...monoSm,
-                    fontSize: 8,
-                    padding: "1px 6px",
-                    border: "1px solid var(--rim)",
-                    color: "var(--text-dim)",
-                  }}
-                >
-                  {row.layer}
-                </span>
+          items.map((row, i) => {
+            const pnlGbp = row.mv_start && row.price_return_pct != null
+              ? row.mv_start * row.price_return_pct / 100
+              : null;
+            return (
+              <div
+                key={`${row.ticker}-${row.account}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "6px 20px",
+                  borderBottom:
+                    i < items.length - 1 ? "1px solid var(--rim)" : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span
+                    style={{
+                      ...monoSm,
+                      width: 16,
+                      textAlign: "right",
+                      color: "var(--text-dim)",
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span style={monoTicker}>{row.ticker}</span>
+                  <span
+                    style={{
+                      ...monoSm,
+                      fontSize: 8,
+                      padding: "1px 6px",
+                      border: "1px solid var(--rim)",
+                      color: "var(--text-dim)",
+                    }}
+                  >
+                    {row.layer}
+                  </span>
+                  {row.has_capital_flow && (
+                    <span
+                      style={{
+                        ...monoSm,
+                        fontSize: 8,
+                        padding: "1px 4px",
+                        color: "var(--amber)",
+                        border: "1px dashed var(--amber)",
+                      }}
+                    >
+                      FLOW
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
+                  <span
+                    style={{
+                      ...monoVal,
+                      color: pctColor(row.price_return_pct),
+                    }}
+                  >
+                    {fmtPct(row.price_return_pct)}
+                  </span>
+                  <span
+                    style={{
+                      ...monoSm,
+                      color: pctColor(pnlGbp),
+                      minWidth: 60,
+                      textAlign: "right",
+                    }}
+                  >
+                    {fmtGbp(pnlGbp)}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
-                <span
-                  style={{
-                    ...monoVal,
-                    color: pctColor(row.period_return_pct),
-                  }}
-                >
-                  {fmtPct(row.period_return_pct)}
-                </span>
-                <span
-                  style={{
-                    ...monoSm,
-                    color: pctColor(row.period_pnl_gbp),
-                    minWidth: 60,
-                    textAlign: "right",
-                  }}
-                >
-                  {fmtGbp(row.period_pnl_gbp)}
-                </span>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -781,7 +843,7 @@ function MoverCard({
 }
 
 function HeatCell({ row }: { row: RollingWindowRow }) {
-  const ret = row.period_return_pct;
+  const ret = row.price_return_pct ?? 0;
   const abs = Math.abs(ret);
   const isFlow = row.has_capital_flow;
 
@@ -793,12 +855,9 @@ function HeatCell({ row }: { row: RollingWindowRow }) {
   else if (abs < 20) opacity = 0.7;
   else opacity = 0.9;
 
-  // Capital-flow-contaminated: use muted amber instead of green/red
-  const bg = isFlow
-    ? `rgba(200, 146, 90, ${opacity * 0.5})`
-    : ret >= 0
-      ? `rgba(90, 191, 160, ${opacity})`
-      : `rgba(200, 90, 90, ${opacity})`;
+  const bg = ret >= 0
+    ? `rgba(90, 191, 160, ${opacity})`
+    : `rgba(200, 90, 90, ${opacity})`;
 
   return (
     <div
@@ -810,18 +869,16 @@ function HeatCell({ row }: { row: RollingWindowRow }) {
         flex: "0 0 auto",
         textAlign: "center",
       }}
-      title={`${row.ticker}: ${fmtPct(ret)} (${fmtGbp(row.period_pnl_gbp)})${isFlow ? "\n⚠ Capital flow detected: MV return includes buys/sells" : ""}\n${row.layer} · ${row.return_profile ?? "—"}`}
+      title={`${row.ticker}: ${fmtPct(ret)} (price return)${isFlow ? `\n\u26a0 Capital flow: ${fmtGbp(row.net_capital_flow_gbp)} (${row.trade_count} trades)` : ""}\n${row.layer} \u00b7 ${row.return_profile ?? "\u2014"}`}
     >
       <div style={{ ...monoTicker, fontSize: 9 }}>
-        {row.ticker}{isFlow ? " ⚑" : ""}
+        {row.ticker}{isFlow ? " \u2691" : ""}
       </div>
       <div
         style={{
           ...monoVal,
           fontSize: 10,
-          color: isFlow
-            ? "var(--amber)"
-            : ret >= 0 ? "var(--green)" : "var(--red)",
+          color: ret >= 0 ? "var(--green)" : "var(--red)",
         }}
       >
         {fmtPct(ret)}
