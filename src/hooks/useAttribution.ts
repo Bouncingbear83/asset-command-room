@@ -95,9 +95,9 @@ export function useAttribution() {
       if (rollingRes.error) throw new Error(`rolling_window: ${rollingRes.error.message}`);
       if (dimRes.error) throw new Error(`dimension_window: ${dimRes.error.message}`);
 
-      setPortfolioDaily((dailyRes.data ?? []) as PortfolioDailyRow[]);
-      setRollingWindow((rollingRes.data ?? []) as RollingWindowRow[]);
-      setDimensionData((dimRes.data ?? []) as DimensionWindowRow[]);
+      setPortfolioDaily((dailyRes.data ?? []) as unknown as PortfolioDailyRow[]);
+      setRollingWindow((rollingRes.data ?? []) as unknown as RollingWindowRow[]);
+      setDimensionData((dimRes.data ?? []) as unknown as DimensionWindowRow[]);
     } catch (err: any) {
       setError(err.message ?? "Unknown error");
     } finally {

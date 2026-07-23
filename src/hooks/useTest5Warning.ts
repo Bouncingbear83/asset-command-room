@@ -36,7 +36,7 @@ export function useTest5Warning() {
         .order("price_proximity_pct", { ascending: false, nullsFirst: false });
 
       if (res.error) throw new Error(`test5: ${res.error.message}`);
-      setData((res.data ?? []) as Test5Row[]);
+      setData((res.data ?? []) as unknown as Test5Row[]);
     } catch (err: any) {
       setError(err.message ?? "Unknown error");
     } finally {
