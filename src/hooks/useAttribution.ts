@@ -1,48 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { parseRows } from "@/lib/safeRows";
+import {
+  PortfolioDailyRowSchema,
+  RollingWindowRowSchema,
+  DimensionWindowRowSchema,
+  type PortfolioDailyRow,
+  type RollingWindowRow,
+  type DimensionWindowRow,
+} from "@/lib/rowSchemas";
 
-// ── Types ──
-
-export interface PortfolioDailyRow {
-  snapshot_date: string;
-  total_mv_gbp: number;
-  position_count: number;
-  daily_pnl_gbp: number | null;
-  daily_return_pct: number | null;
-}
-
-export interface RollingWindowRow {
-  ticker: string;
-  account: string;
-  window_days: number;
-  layer: string;
-  factor_group: string;
-  return_profile: string | null;
-  reclass_status: string;
-  framework: string;
-  mv_start: number | null;
-  mv_end: number;
-  price_start: number | null;
-  price_end: number | null;
-  price_return_pct: number | null;
-  mv_return_pct: number | null;
-  net_capital_flow_gbp: number;
-  trade_count: number;
-  has_capital_flow: boolean;
-}
-
-export interface DimensionWindowRow {
-  dimension_value: string;
-  position_count: number;
-  mv_start_gbp: number;
-  mv_end_gbp: number;
-  price_return_pct: number;
-  mv_return_pct: number;
-  net_capital_flow_gbp: number;
-  trade_count: number;
-  top_contributor: string | null;
-  bottom_contributor: string | null;
-}
+export type { PortfolioDailyRow, RollingWindowRow, DimensionWindowRow };
 
 export type Dimension =
   | "layer"
@@ -59,6 +27,7 @@ const WINDOW_DAYS: Record<WindowLabel, number> = {
   "60d": 60,
   "90d": 90,
 };
+
 
 // ── Hook ──
 
