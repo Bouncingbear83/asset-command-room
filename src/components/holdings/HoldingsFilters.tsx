@@ -1,6 +1,6 @@
-import { CSSProperties } from "react";
-import { Layers, Tag, AlignJustify, Wallet } from "lucide-react";
-import { FRAMEWORK_TAGS, FRAMEWORK_LABEL, FRAMEWORK_COLOR, type FrameworkTag } from "@/utils/frameworkDetection";
+import { CSSProperties, useState } from "react";
+import { Layers, Tag, AlignJustify, Wallet, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import { FRAMEWORK_TAGS, FRAMEWORK_COLOR, type FrameworkTag } from "@/utils/frameworkDetection";
 import {
   Chip,
   ChipGroup,
@@ -103,17 +103,42 @@ const wrapMobile: CSSProperties = {
   borderBottom: "1px solid var(--rim)",
 };
 
+/** Display label: underscores → spaces, kept uppercase. */
+function displayLabel(v: string): string {
+  return v.replace(/_/g, " ");
+}
+
+/* ── Secondary-filter disclosure toggle (desktop + mobile) ────────── */
+const disclosureBtn: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  fontFamily: "var(--font-mono)",
+  fontSize: 10,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  padding: "5px 10px",
+  border: "1px solid var(--rim)",
+  background: "transparent",
+  color: "var(--text-dim)",
+  borderRadius: 2,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+};
+
+const disclosureBtnActive: CSSProperties = {
+  background: "var(--gold-dim, rgba(201,168,76,0.12))",
+  color: "var(--gold)",
+  borderColor: "rgba(201,168,76,0.4)",
+};
+
 const divider: CSSProperties = {
   height: 1,
   background: "var(--rim)",
   opacity: 0.4,
   margin: "2px 0",
 };
-
-/** Display label: underscores → spaces, kept uppercase. */
-function displayLabel(v: string): string {
-  return v.replace(/_/g, " ");
-}
 
 export function HoldingsFilters({
   accountCounts, actionCounts, factorCounts, driverCounts, stackCounts, layerCounts, totalPositions,
@@ -129,19 +154,22 @@ export function HoldingsFilters({
   onSearchChange, onGroupChange, onSortChange,
   frameworkCounts, frameworkFilter,
 }: Props) {
+  const isMobile = useIsMobile();
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
+
   const allAccountsActive = accountFilter.length === 0;
   const allActionsActive = actionFilter.length === 0;
   const allFactorsActive = factorFilter.length === 0;
   const allDriversActive = driverFilter.length === 0;
   const allStacksActive = stackFilter.length === 0;
   const allFrameworksActive = frameworkFilter.length === 0;
+  const allLayersActive = layerFilter.length === 0;
+
   const frameworkEntries = Object.entries(frameworkCounts).filter(([, c]) => c > 0).sort(
     ([a], [b]) => (FRAMEWORK_TAGS as readonly string[]).indexOf(a) - (FRAMEWORK_TAGS as readonly string[]).indexOf(b)
   );
   const totalFrameworks = frameworkEntries.reduce((s, [, c]) => s + c, 0);
-  const allLayersActive = layerFilter.length === 0;
 
-  // Sort action / factor chips by count desc for stable, useful ordering.
   const actionEntries = Object.entries(actionCounts).sort((a, b) => b[1] - a[1]);
   const factorEntries = Object.entries(factorCounts).sort((a, b) => b[1] - a[1]);
   const driverEntries = Object.entries(driverCounts).sort((a, b) => b[1] - a[1]);
@@ -152,18 +180,27 @@ export function HoldingsFilters({
   const totalDrivers = driverEntries.reduce((s, [, n]) => s + n, 0);
   const totalStacks  = stackEntries.reduce((s, [, n]) => s + n, 0);
 
-  const activeCount =
+  // Count of active primary + secondary filter dimensions (for mobile disclosure)
+  const primaryActiveCount =
     (accountFilter.length > 0 ? 1 : 0) +
     (actionFilter.length > 0 ? 1 : 0) +
-    (factorFilter.length > 0 ? 1 : 0) +
-    (driverFilter.length > 0 ? 1 : 0) +
-    (stackFilter.length > 0 ? 1 : 0) +
-    (frameworkFilter.length > 0 ? 1 : 0) +
     (layerFilter.length > 0 ? 1 : 0) +
     (search.trim() ? 1 : 0);
 
-  const isMobile = useIsMobile();
+  // Count of active secondary (taxonomy) filter dimensions
+  const secondaryActiveCount =
+    (factorFilter.length > 0 ? 1 : 0) +
+    (driverFilter.length > 0 ? 1 : 0) +
+    (stackFilter.length > 0 ? 1 : 0) +
+    (frameworkFilter.length > 0 ? 1 : 0);
 
+  const hasSecondaryFilters =
+    factorEntries.length > 0 || driverEntries.length > 0 ||
+    stackEntries.length > 0 || frameworkEntries.length > 0;
+
+  const totalActiveCount = primaryActiveCount + secondaryActiveCount;
+
+  /* ── Always-visible row: search + sort + group toggle ──────────── */
   const alwaysVisible = isMobile ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <SearchBox value={search} onChange={onSearchChange} />
@@ -194,9 +231,10 @@ export function HoldingsFilters({
     </div>
   );
 
-  const chipsBlock = (
+  /* ── Tier 1: primary filters (always visible on desktop) ───────── */
+  const primaryChips = (
     <>
-      {/* Row 2: account chips */}
+      {/* Account */}
       <ChipGroup ariaLabel="Filter by account">
         <Chip
           label="All Accounts"
@@ -216,9 +254,7 @@ export function HoldingsFilters({
         ))}
       </ChipGroup>
 
-      {(actionEntries.length > 0 || factorEntries.length > 0) && <div style={divider} />}
-
-      {/* Row 3: action chips — only render if any positions have an ACTION value */}
+      {/* Action */}
       {actionEntries.length > 0 && (
         <ChipGroup ariaLabel="Filter by action">
           <Chip
@@ -240,7 +276,31 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {/* Row 4: factor chips — only render if any positions have a FACTOR_PRIMARY */}
+      {/* Layer */}
+      <ChipGroup ariaLabel="Filter by layer">
+        <Chip
+          label="All Layers"
+          active={allLayersActive}
+          onClick={onResetLayer}
+          ariaLabel="Reset layer filters"
+        />
+        {LAYER_VALUES.map((l) => (
+          <Chip
+            key={l}
+            label={l}
+            count={layerCounts[l]}
+            active={!allLayersActive && layerFilter.includes(l)}
+            onClick={() => onToggleLayer(l)}
+          />
+        ))}
+      </ChipGroup>
+    </>
+  );
+
+  /* ── Tier 2: taxonomy filters (collapsible) ────────────────────── */
+  const secondaryChips = (
+    <>
+      {/* Factor */}
       {factorEntries.length > 0 && (
         <ChipGroup ariaLabel="Filter by primary factor">
           <Chip
@@ -262,7 +322,7 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {/* Row 4b: driver chips (FACTOR_GROUP) */}
+      {/* Driver */}
       {driverEntries.length > 0 && (
         <ChipGroup ariaLabel="Filter by driver">
           <Chip
@@ -284,7 +344,7 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {/* Row 4c: stack chips (STACK_LAYER) */}
+      {/* Stack */}
       {stackEntries.length > 0 && (
         <ChipGroup ariaLabel="Filter by stack layer">
           <Chip
@@ -306,7 +366,7 @@ export function HoldingsFilters({
         </ChipGroup>
       )}
 
-      {/* Row 4d: framework chips */}
+      {/* Framework */}
       {frameworkEntries.length > 0 && (
         <ChipGroup ariaLabel="Filter by framework">
           <Chip
@@ -335,34 +395,44 @@ export function HoldingsFilters({
           })}
         </ChipGroup>
       )}
-
-      {(actionEntries.length > 0 || factorEntries.length > 0 || driverEntries.length > 0 || stackEntries.length > 0 || frameworkEntries.length > 0) && <div style={divider} />}
-
-      {/* Row 5: layer chips */}
-      <ChipGroup ariaLabel="Filter by layer">
-        <Chip
-          label="All Layers"
-          active={allLayersActive}
-          onClick={onResetLayer}
-          ariaLabel="Reset layer filters"
-        />
-        {LAYER_VALUES.map((l) => (
-          <Chip
-            key={l}
-            label={l}
-            count={layerCounts[l]}
-            active={!allLayersActive && layerFilter.includes(l)}
-            onClick={() => onToggleLayer(l)}
-          />
-        ))}
-      </ChipGroup>
     </>
   );
 
+  /* ── Desktop disclosure toggle for secondary filters ───────────── */
+  const secondaryDisclosureToggle = hasSecondaryFilters ? (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={divider} />
+      <button
+        type="button"
+        aria-expanded={secondaryOpen}
+        onClick={() => setSecondaryOpen((o) => !o)}
+        style={{
+          ...disclosureBtn,
+          ...(secondaryActiveCount > 0 || secondaryOpen ? disclosureBtnActive : null),
+          alignSelf: "flex-start",
+        }}
+      >
+        <SlidersHorizontal size={11} />
+        <span>
+          {secondaryActiveCount > 0
+            ? `Classification (${secondaryActiveCount} active)`
+            : "Classification"}
+        </span>
+        {secondaryOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div style={isMobile ? wrapMobile : wrapDesktop}>
-      <FilterDisclosure activeCount={activeCount} alwaysVisible={alwaysVisible}>
-        {chipsBlock}
+      <FilterDisclosure activeCount={totalActiveCount} alwaysVisible={alwaysVisible}>
+        {primaryChips}
+        {secondaryDisclosureToggle}
+        {secondaryOpen && (
+          <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 6 : 10 }}>
+            {secondaryChips}
+          </div>
+        )}
       </FilterDisclosure>
     </div>
   );
