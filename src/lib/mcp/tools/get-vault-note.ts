@@ -22,12 +22,11 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ type, identifier }) => {
     const sb = sbAnon();
-    const { data, error } = await sb
-      .from("vault_notes_meta")
+    const { data, error } = (await (sb.from as any)("vault_notes_meta")
       .select("type,identifier,body,body_sections,updated_at")
       .eq("type", type.toLowerCase())
       .eq("identifier", identifier.toLowerCase())
-      .maybeSingle();
+      .maybeSingle()) as { data: any | null; error: any };
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Note not found" }], isError: true };
     return {
