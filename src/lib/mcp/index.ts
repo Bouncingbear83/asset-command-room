@@ -1,9 +1,10 @@
-import { defineMcp } from "@lovable.dev/mcp-js";
-import { defineTool } from "@lovable.dev/mcp-js";
+import { auth, defineMcp, defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import searchVaultTool from "./tools/search-vault";
 import getVaultNoteTool from "./tools/get-vault-note";
 import listScoresTool from "./tools/list-scores";
+
+const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
 const pingTool = defineTool({
   name: "ping",

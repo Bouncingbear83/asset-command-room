@@ -3,8 +3,7 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { defineMcp } from "npm:@lovable.dev/mcp-js@0.23.0";
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.23.0";
+import { defineMcp, defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.23.0";
 
 // src/lib/mcp/tools/search-vault.ts
 import { createClient } from "npm:@supabase/supabase-js@2.104.0";
