@@ -8,10 +8,26 @@
   "mcp": {
     "server": {
       "name": "stellar-command-mcp",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "title": "Stellar Command MCP"
     },
     "tools": [
+      {
+        "name": "ping",
+        "title": "Ping",
+        "description": "Health check. Returns pong.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
       {
         "name": "search_vault",
         "title": "Search vault notes",
