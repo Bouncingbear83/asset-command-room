@@ -4,6 +4,7 @@
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
 import { defineMcp } from "npm:@lovable.dev/mcp-js@0.23.0";
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.23.0";
 
 // src/lib/mcp/tools/search-vault.ts
 import { createClient } from "npm:@supabase/supabase-js@2.104.0";
@@ -102,12 +103,24 @@ var list_scores_default = defineTool3({
 });
 
 // src/lib/mcp/index.ts
+var pingTool = defineTool4({
+  name: "ping",
+  title: "Ping",
+  description: "Health check. Returns pong.",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async () => {
+    return {
+      content: [{ type: "text", text: "pong" }]
+    };
+  }
+});
 var mcp_default = defineMcp({
   name: "stellar-command-mcp",
   title: "Stellar Command MCP",
-  version: "0.2.0",
+  version: "0.2.1",
   instructions: "Tools for the Stellar Command dashboard. Use `search_vault` to full-text search research notes, `get_vault_note` to fetch a single note's full body, and `list_scores` to inspect the latest 6D scores snapshot.",
-  tools: [search_vault_default, get_vault_note_default, list_scores_default]
+  tools: [pingTool, search_vault_default, get_vault_note_default, list_scores_default]
 });
 
 // lovable-mcp-supabase-entry.ts
