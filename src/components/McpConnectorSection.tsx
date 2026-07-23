@@ -183,6 +183,7 @@ export function McpConnectorSection() {
       if (error) throw new Error(error.message);
       if (!data?.client_id) throw new Error(data?.error ?? "Registration failed");
       setCreated(data as CreatedClient);
+      selectClientId(data.client_id);
     } catch (e: any) {
       setCreateErr(e.message ?? "Failed to register client");
     } finally {
