@@ -375,28 +375,60 @@ export function McpConnectorSection() {
                 {loading ? "Loading…" : clients ? "Refresh" : "Load client IDs"}
               </button>
               {err && <div style={{ color: "#a04040", marginBottom: 6 }}>{err}</div>}
-              {clients && clients.length === 0 && (
-                <div>No registered clients yet.</div>
+              {selectedClientId && (
+                <div style={{ fontSize: 9, color: "#c9a84c", marginBottom: 6 }}>
+                  Saved client_id: {selectedClientId}
+                </div>
               )}
               {clients &&
-                clients.map((c) => (
-                  <div key={c.client_id} style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 9, color: "#8a8a9a", marginBottom: 2 }}>
-                      {c.client_name ?? "unnamed"}
-                      {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString()}` : ""}
+                clients.map((c) => {
+                  const isSelected = c.client_id === selectedClientId;
+                  return (
+                    <div
+                      key={c.client_id}
+                      style={{
+                        marginBottom: 8,
+                        padding: 6,
+                        border: isSelected ? "1px solid #c9a84c" : "1px solid transparent",
+                      }}
+                    >
+                      <div style={{ fontSize: 9, color: "#8a8a9a", marginBottom: 2 }}>
+                        {c.client_name ?? "unnamed"}
+                        {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString()}` : ""}
+                        {isSelected ? " · SELECTED" : ""}
+                      </div>
+                      <div style={rowStyle}>
+                        <div style={codeStyle} title={c.client_id}>{c.client_id}</div>
+                        <button
+                          type="button"
+                          style={copyBtn}
+                          onClick={() => handleCopy(c.client_id, c.client_id)}
+                        >
+                          {copied === c.client_id ? "Copied" : "Copy"}
+                        </button>
+                        <button
+                          type="button"
+                          style={copyBtn}
+                          onClick={() => selectClientId(c.client_id)}
+                        >
+                          {isSelected ? "Saved" : "Use"}
+                        </button>
+                      </div>
+                      {c.redirect_uris.map((uri) => (
+                        <div key={uri} style={{ ...rowStyle, marginTop: 4 }}>
+                          <div style={{ ...codeStyle, fontSize: 9 }} title={uri}>{uri}</div>
+                          <button
+                            type="button"
+                            style={copyBtn}
+                            onClick={() => handleCopy(uri, `${c.client_id}:${uri}`)}
+                          >
+                            {copied === `${c.client_id}:${uri}` ? "Copied" : "Copy"}
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div style={rowStyle}>
-                      <div style={codeStyle} title={c.client_id}>{c.client_id}</div>
-                      <button
-                        type="button"
-                        style={copyBtn}
-                        onClick={() => handleCopy(c.client_id, c.client_id)}
-                      >
-                        {copied === c.client_id ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </>
           )}
         </div>
