@@ -3,8 +3,7 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { defineMcp } from "npm:@lovable.dev/mcp-js@0.23.0";
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.23.0";
+import { auth, defineMcp, defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.23.0";
 
 // src/lib/mcp/tools/search-vault.ts
 import { createClient } from "npm:@supabase/supabase-js@2.104.0";
@@ -103,6 +102,7 @@ var list_scores_default = defineTool3({
 });
 
 // src/lib/mcp/index.ts
+var projectRef = "eervjywaxpxqdjjhtguz";
 var pingTool = defineTool4({
   name: "ping",
   title: "Ping",
@@ -118,8 +118,12 @@ var pingTool = defineTool4({
 var mcp_default = defineMcp({
   name: "stellar-command-mcp",
   title: "Stellar Command MCP",
-  version: "0.2.1",
+  version: "0.3.0",
   instructions: "Tools for the Stellar Command dashboard. Use `search_vault` to full-text search research notes, `get_vault_note` to fetch a single note's full body, and `list_scores` to inspect the latest 6D scores snapshot.",
+  auth: auth.oauth.issuer({
+    issuer: `https://${projectRef}.supabase.co/auth/v1`,
+    acceptedAudiences: "authenticated"
+  }),
   tools: [pingTool, search_vault_default, get_vault_note_default, list_scores_default]
 });
 
