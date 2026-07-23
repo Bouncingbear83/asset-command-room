@@ -72,6 +72,10 @@ interface CreatedClient {
   token_endpoint_auth_method: string;
 }
 
+const LS_CLIENT_ID = "mcp.selectedClientId";
+const LS_REDIRECT = "mcp.selectedRedirectUri";
+const LS_NAME = "mcp.clientName";
+
 export function McpConnectorSection() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -79,11 +83,27 @@ export function McpConnectorSection() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(
+    () => (typeof localStorage !== "undefined" ? localStorage.getItem(LS_CLIENT_ID) : null),
+  );
 
-  // Manual client registration form state
-  const [name, setName] = useState("Claude AI");
-  const [redirect, setRedirect] = useState(KNOWN_REDIRECTS[0].uri);
-  const [customRedirect, setCustomRedirect] = useState("");
+  // Manual client registration form state — prefilled from localStorage.
+  const [name, setName] = useState(() => {
+    if (typeof localStorage === "undefined") return "Claude AI";
+    return localStorage.getItem(LS_NAME) || "Claude AI";
+  });
+  const [redirect, setRedirect] = useState(() => {
+    if (typeof localStorage === "undefined") return KNOWN_REDIRECTS[0].uri;
+    const saved = localStorage.getItem(LS_REDIRECT);
+    if (!saved) return KNOWN_REDIRECTS[0].uri;
+    return KNOWN_REDIRECTS.some((r) => r.uri === saved) ? saved : "__custom__";
+  });
+  const [customRedirect, setCustomRedirect] = useState(() => {
+    if (typeof localStorage === "undefined") return "";
+    const saved = localStorage.getItem(LS_REDIRECT);
+    if (!saved) return "";
+    return KNOWN_REDIRECTS.some((r) => r.uri === saved) ? "" : saved;
+  });
   const [authMethod, setAuthMethod] = useState<"client_secret_basic" | "none">("client_secret_basic");
   const [creating, setCreating] = useState(false);
   const [createErr, setCreateErr] = useState<string | null>(null);
@@ -95,6 +115,26 @@ export function McpConnectorSection() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Persist selections.
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_NAME, name);
+    } catch {}
+  }, [name]);
+  useEffect(() => {
+    try {
+      const uri = redirect === "__custom__" ? customRedirect.trim() : redirect;
+      if (uri) localStorage.setItem(LS_REDIRECT, uri);
+    } catch {}
+  }, [redirect, customRedirect]);
+
+  function selectClientId(id: string) {
+    setSelectedClientId(id);
+    try {
+      localStorage.setItem(LS_CLIENT_ID, id);
+    } catch {}
+  }
+
   async function loadClients() {
     setLoading(true);
     setErr(null);
@@ -102,11 +142,25 @@ export function McpConnectorSection() {
       const { data, error } = await supabase.functions.invoke("list-oauth-clients", {
         method: "GET",
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const msg = (error.message || "").toLowerCase();
+        if (msg.includes("401") || msg.includes("unauthor")) {
+          throw new Error("Not authorized — your session may have expired. Sign in again and retry.");
+        }
+        if (msg.includes("502") || msg.includes("admin fetch")) {
+          throw new Error("Backend admin API rejected the request. Check the edge function logs for list-oauth-clients.");
+        }
+        throw new Error(error.message);
+      }
+      if (data?.error) throw new Error(String(data.error));
       const list = Array.isArray(data?.clients) ? (data.clients as OAuthClient[]) : [];
       setClients(list);
+      if (list.length === 0) {
+        setErr("No OAuth clients registered yet. Use “Register a client manually” above, or trigger the connector's sign-in flow to create one via DCR.");
+      }
     } catch (e: any) {
       setErr(e.message ?? "Failed to load clients");
+      setClients(null);
     } finally {
       setLoading(false);
     }
@@ -129,6 +183,7 @@ export function McpConnectorSection() {
       if (error) throw new Error(error.message);
       if (!data?.client_id) throw new Error(data?.error ?? "Registration failed");
       setCreated(data as CreatedClient);
+      selectClientId(data.client_id);
     } catch (e: any) {
       setCreateErr(e.message ?? "Failed to register client");
     } finally {
@@ -320,28 +375,60 @@ export function McpConnectorSection() {
                 {loading ? "Loading…" : clients ? "Refresh" : "Load client IDs"}
               </button>
               {err && <div style={{ color: "#a04040", marginBottom: 6 }}>{err}</div>}
-              {clients && clients.length === 0 && (
-                <div>No registered clients yet.</div>
+              {selectedClientId && (
+                <div style={{ fontSize: 9, color: "#c9a84c", marginBottom: 6 }}>
+                  Saved client_id: {selectedClientId}
+                </div>
               )}
               {clients &&
-                clients.map((c) => (
-                  <div key={c.client_id} style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 9, color: "#8a8a9a", marginBottom: 2 }}>
-                      {c.client_name ?? "unnamed"}
-                      {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString()}` : ""}
+                clients.map((c) => {
+                  const isSelected = c.client_id === selectedClientId;
+                  return (
+                    <div
+                      key={c.client_id}
+                      style={{
+                        marginBottom: 8,
+                        padding: 6,
+                        border: isSelected ? "1px solid #c9a84c" : "1px solid transparent",
+                      }}
+                    >
+                      <div style={{ fontSize: 9, color: "#8a8a9a", marginBottom: 2 }}>
+                        {c.client_name ?? "unnamed"}
+                        {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString()}` : ""}
+                        {isSelected ? " · SELECTED" : ""}
+                      </div>
+                      <div style={rowStyle}>
+                        <div style={codeStyle} title={c.client_id}>{c.client_id}</div>
+                        <button
+                          type="button"
+                          style={copyBtn}
+                          onClick={() => handleCopy(c.client_id, c.client_id)}
+                        >
+                          {copied === c.client_id ? "Copied" : "Copy"}
+                        </button>
+                        <button
+                          type="button"
+                          style={copyBtn}
+                          onClick={() => selectClientId(c.client_id)}
+                        >
+                          {isSelected ? "Saved" : "Use"}
+                        </button>
+                      </div>
+                      {c.redirect_uris.map((uri) => (
+                        <div key={uri} style={{ ...rowStyle, marginTop: 4 }}>
+                          <div style={{ ...codeStyle, fontSize: 9 }} title={uri}>{uri}</div>
+                          <button
+                            type="button"
+                            style={copyBtn}
+                            onClick={() => handleCopy(uri, `${c.client_id}:${uri}`)}
+                          >
+                            {copied === `${c.client_id}:${uri}` ? "Copied" : "Copy"}
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div style={rowStyle}>
-                      <div style={codeStyle} title={c.client_id}>{c.client_id}</div>
-                      <button
-                        type="button"
-                        style={copyBtn}
-                        onClick={() => handleCopy(c.client_id, c.client_id)}
-                      >
-                        {copied === c.client_id ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </>
           )}
         </div>
