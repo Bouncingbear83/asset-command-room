@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 
+declare const Deno: { env: { get(k: string): string | undefined } } | undefined;
+
 function sbAnon() {
   const url = typeof Deno !== "undefined"
     ? Deno.env.get("SUPABASE_URL")!
