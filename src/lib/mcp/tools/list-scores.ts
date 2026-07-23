@@ -22,9 +22,9 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ ticker, limit }) => {
     const sb = sbAnon();
-    let q = sb.from("scores_snapshot").select("*").limit(limit ?? 50);
+    let q = (sb.from as any)("scores_snapshot").select("*").limit(limit ?? 50);
     if (ticker) q = q.ilike("ticker", ticker);
-    const { data, error } = await q;
+    const { data, error } = (await q) as { data: any[] | null; error: any };
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
       content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
