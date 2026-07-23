@@ -60,13 +60,17 @@ export function useAttribution() {
         }),
       ]);
 
-      if (dailyRes.error) throw new Error(`portfolio_daily: ${dailyRes.error.message}`);
-      if (rollingRes.error) throw new Error(`rolling_window: ${rollingRes.error.message}`);
-      if (dimRes.error) throw new Error(`dimension_window: ${dimRes.error.message}`);
+      const daily = parseRows(PortfolioDailyRowSchema, dailyRes, "perf_portfolio_daily");
+      const rolling = parseRows(RollingWindowRowSchema, rollingRes, "perf_rolling_window");
+      const dim = parseRows(DimensionWindowRowSchema, dimRes, "perf_by_dimension_window");
 
-      setPortfolioDaily((dailyRes.data ?? []) as unknown as PortfolioDailyRow[]);
-      setRollingWindow((rollingRes.data ?? []) as unknown as RollingWindowRow[]);
-      setDimensionData((dimRes.data ?? []) as unknown as DimensionWindowRow[]);
+      if (daily.error) throw new Error(`portfolio_daily: ${daily.error}`);
+      if (rolling.error) throw new Error(`rolling_window: ${rolling.error}`);
+      if (dim.error) throw new Error(`dimension_window: ${dim.error}`);
+
+      setPortfolioDaily(daily.rows);
+      setRollingWindow(rolling.rows);
+      setDimensionData(dim.rows);
     } catch (err: any) {
       setError(err.message ?? "Unknown error");
     } finally {
@@ -76,16 +80,16 @@ export function useAttribution() {
 
   // Refetch dimension data when dimension or window changes
   const fetchDimension = useCallback(async () => {
-    try {
-      const res = await supabase.rpc("perf_by_dimension_window" as any, {
-        p_dimension: dimension,
-        p_window: WINDOW_DAYS[window],
-      });
-      if (res.error) throw new Error(res.error.message);
-      setDimensionData((res.data ?? []) as DimensionWindowRow[]);
-    } catch (err: any) {
-      console.error("dimension fetch:", err.message);
+    const res = await supabase.rpc("perf_by_dimension_window" as any, {
+      p_dimension: dimension,
+      p_window: WINDOW_DAYS[window],
+    });
+    const dim = parseRows(DimensionWindowRowSchema, res, "perf_by_dimension_window");
+    if (dim.error) {
+      console.error("dimension fetch:", dim.error);
+      return;
     }
+    setDimensionData(dim.rows);
   }, [dimension, window]);
 
   useEffect(() => {

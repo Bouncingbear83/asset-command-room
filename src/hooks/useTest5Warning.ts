@@ -1,25 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { parseRows } from "@/lib/safeRows";
+import { Test5RowSchema, type Test5Row } from "@/lib/rowSchemas";
 
-// ── Types ──
-
-export interface Test5Row {
-  ticker: string;
-  current_price: number;
-  mv_gbp: number;
-  reclass_status: string;
-  price_at_first_add: number | null;
-  pe_at_first_add: number | null;
-  first_add_date: string | null;
-  price_move_pct: number | null;
-  price_proximity_pct: number | null;
-  months_elapsed: number | null;
-  time_proximity_pct: number | null;
-  entry_pe: number | null;
-  test5_signal: "CLEAR" | "WATCH" | "TRIGGERED";
-}
-
-// ── Hook ──
+export type { Test5Row };
 
 export function useTest5Warning() {
   const [data, setData] = useState<Test5Row[]>([]);
@@ -29,19 +13,18 @@ export function useTest5Warning() {
   const fetch5 = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const res = await supabase
-        .from("test5_early_warning" as any)
-        .select("*")
-        .order("price_proximity_pct", { ascending: false, nullsFirst: false });
+    const res = await supabase
+      .from("test5_early_warning" as any)
+      .select("*")
+      .order("price_proximity_pct", { ascending: false, nullsFirst: false });
 
-      if (res.error) throw new Error(`test5: ${res.error.message}`);
-      setData((res.data ?? []) as unknown as Test5Row[]);
-    } catch (err: any) {
-      setError(err.message ?? "Unknown error");
-    } finally {
-      setLoading(false);
+    const parsed = parseRows(Test5RowSchema, res, "test5_early_warning");
+    if (parsed.error) {
+      setError(`test5: ${parsed.error}`);
+    } else {
+      setData(parsed.rows);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
