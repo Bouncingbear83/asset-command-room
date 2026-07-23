@@ -18,10 +18,12 @@ const wrap: React.CSSProperties = {
   inset: 0,
   background: "#0a0a1a",
   display: "flex",
+  flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
   zIndex: 9999,
   padding: 24,
+  overflowY: "auto",
 };
 
 const card: React.CSSProperties = {
