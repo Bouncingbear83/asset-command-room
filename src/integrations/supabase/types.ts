@@ -713,6 +713,30 @@ export type Database = {
         }
         Relationships: []
       }
+      position_reference: {
+        Row: {
+          first_add_date: string | null
+          pe_at_first_add: number | null
+          price_at_first_add: number | null
+          reclass_status_at_entry: string | null
+          ticker: string
+        }
+        Insert: {
+          first_add_date?: string | null
+          pe_at_first_add?: number | null
+          price_at_first_add?: number | null
+          reclass_status_at_entry?: string | null
+          ticker: string
+        }
+        Update: {
+          first_add_date?: string | null
+          pe_at_first_add?: number | null
+          price_at_first_add?: number | null
+          reclass_status_at_entry?: string | null
+          ticker?: string
+        }
+        Relationships: []
+      }
       research_reports: {
         Row: {
           created_at: string | null
@@ -957,11 +981,14 @@ export type Database = {
           demand: number
           disruption: number
           div_yield: number | null
+          framework: string | null
+          held_status: string | null
           id: number
           layer: string
           margin_of_safety: number
           mgmt: number
           moat: number
+          reclass_status: string | null
           reject_reason: string | null
           return_profile: string | null
           s3_transition_modifier: number | null
@@ -991,11 +1018,14 @@ export type Database = {
           demand: number
           disruption: number
           div_yield?: number | null
+          framework?: string | null
+          held_status?: string | null
           id?: never
           layer: string
           margin_of_safety: number
           mgmt: number
           moat: number
+          reclass_status?: string | null
           reject_reason?: string | null
           return_profile?: string | null
           s3_transition_modifier?: number | null
@@ -1025,11 +1055,14 @@ export type Database = {
           demand?: number
           disruption?: number
           div_yield?: number | null
+          framework?: string | null
+          held_status?: string | null
           id?: never
           layer?: string
           margin_of_safety?: number
           mgmt?: number
           moat?: number
+          reclass_status?: string | null
           reject_reason?: string | null
           return_profile?: string | null
           s3_transition_modifier?: number | null
@@ -1171,12 +1204,149 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      capital_flows_daily: {
+        Row: {
+          account: string | null
+          capital_flow_gbp: number | null
+          delta_shares: number | null
+          factor_group: string | null
+          flow_type: string | null
+          layer: string | null
+          mv_gbp: number | null
+          prev_mv_gbp: number | null
+          prev_shares: number | null
+          price_local: number | null
+          shares: number | null
+          snapshot_date: string | null
+          ticker: string | null
+        }
+        Relationships: []
+      }
+      perf_dimension_summary: {
+        Row: {
+          dimension: string | null
+          group_name: string | null
+          position_count: number | null
+          total_mv_gbp: number | null
+          weighted_return_pct: number | null
+        }
+        Relationships: []
+      }
+      perf_portfolio_daily: {
+        Row: {
+          daily_pnl_gbp: number | null
+          daily_return_pct: number | null
+          position_count: number | null
+          snapshot_date: string | null
+          total_mv_gbp: number | null
+        }
+        Relationships: []
+      }
+      perf_position_daily: {
+        Row: {
+          account: string | null
+          daily_pnl_gbp: number | null
+          factor_group: string | null
+          framework: string | null
+          gl_pct: number | null
+          layer: string | null
+          mv_gbp: number | null
+          reclass_status: string | null
+          return_profile: string | null
+          score: number | null
+          snapshot_date: string | null
+          ticker: string | null
+          tier: string | null
+        }
+        Relationships: []
+      }
+      perf_rolling_window: {
+        Row: {
+          account: string | null
+          compounder_subtype: string | null
+          factor_group: string | null
+          framework: string | null
+          has_capital_flow: boolean | null
+          held_status: string | null
+          layer: string | null
+          mv_end: number | null
+          mv_return_pct: number | null
+          mv_start: number | null
+          net_capital_flow_gbp: number | null
+          price_end: number | null
+          price_return_pct: number | null
+          price_start: number | null
+          reclass_status: string | null
+          return_profile: string | null
+          shares_end: number | null
+          shares_start: number | null
+          ticker: string | null
+          trade_count: number | null
+          window_days: number | null
+        }
+        Relationships: []
+      }
+      test5_early_warning: {
+        Row: {
+          current_price: number | null
+          entry_pe: number | null
+          first_add_date: string | null
+          months_elapsed: number | null
+          mv_gbp: number | null
+          pe_at_first_add: number | null
+          price_at_first_add: number | null
+          price_move_pct: number | null
+          price_proximity_pct: number | null
+          reclass_status: string | null
+          test5_signal: string | null
+          ticker: string | null
+          time_proximity_pct: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      capital_flows_by_dimension: {
+        Args: { p_dimension: string; p_window: number }
+        Returns: {
+          buy_count: number
+          dimension_value: string
+          net_flow_gbp: number
+          sell_count: number
+          tickers_traded: string[]
+          total_buys_gbp: number
+          total_sells_gbp: number
+        }[]
+      }
       get_missing_watchlist_tickers: {
         Args: { tickers: string[] }
         Returns: string[]
+      }
+      perf_by_dimension_window: {
+        Args: { p_dimension: string; p_window: number }
+        Returns: {
+          bottom_contributor: string
+          dimension_value: string
+          mv_end_gbp: number
+          mv_return_pct: number
+          mv_start_gbp: number
+          net_capital_flow_gbp: number
+          position_count: number
+          price_return_pct: number
+          top_contributor: string
+          trade_count: number
+        }[]
+      }
+      upsert_position_reference: {
+        Args: {
+          p_action?: string
+          p_first_add_date?: string
+          p_pe_at_first_add?: number
+          p_price_at_first_add?: number
+          p_reclass_status?: string
+          p_ticker: string
+        }
+        Returns: string
       }
       upsert_watchlist_prices: { Args: { prices: Json }; Returns: number }
       vault_list_by_type: {
