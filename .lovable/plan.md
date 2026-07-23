@@ -1,44 +1,28 @@
-## Goal
-Retire the shared SHA-256 `PasswordGate` and put the app behind real Lovable Cloud auth, restricted to your single account. Email/password + Google sign-in, no profiles table.
+## Diagnosis
 
-## Steps
+The error text ("Couldn't register with Stellar app's sign-in service … add an OAuth Client ID in the connector settings … `ofid_…`") comes from the external MCP client (ChatGPT-style connector), not from this app.
 
-1. **Backend config**
-   - Enable Google as a social provider (Lovable-managed credentials).
-   - Disable public signup and disable anonymous users so no one else can create an account.
-   - Leave email/password enabled; enable HIBP leaked-password protection.
+I probed the OAuth server directly and everything on our side is healthy:
 
-2. **Auth UI**
-   - New `src/pages/Auth.tsx` with two flows: email/password sign-in and "Continue with Google" (`lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`).
-   - Style to match the current gate (dark void, gold accent, Cormorant/DM Mono) so the look is preserved.
-   - Show inline errors; no signup form (signup is disabled backend-side). Include a small "Forgot password?" link → `resetPasswordForEmail` with `redirectTo: ${origin}/reset-password`.
-   - New `src/pages/ResetPassword.tsx` that detects `type=recovery` and calls `supabase.auth.updateUser({ password })`.
+- OAuth server enabled, consent path `/.lovable/oauth/consent` (returns 200)
+- Dynamic Client Registration works — a live POST to `/auth/v1/oauth/clients/register` returned HTTP 201 with a valid `client_id`
+- Discovery metadata (`.well-known/oauth-authorization-server`) advertises the `registration_endpoint`, PKCE (`S256`), `code` response type, and refresh tokens
+- Redirect-URI allow-list includes the published domain
+- MCP endpoint at `/functions/v1/mcp` responds to `initialize`
 
-3. **Session gate**
-   - New `src/components/AuthGate.tsx` replaces `PasswordGate` in `App.tsx`.
-   - Registers `onAuthStateChange` synchronously, then hydrates via `getSession()`.
-   - If no session → render `<Auth />`. If session → render children.
-   - Add a small "Sign out" control in the header (`supabase.auth.signOut()`).
+So this is almost certainly a transient failure on the connector side (network blip, or it cached a half-registered client).
 
-4. **Route wiring** (`App.tsx`)
-   - Remove `<PasswordGate>` wrapper.
-   - Add `/auth` and `/reset-password` as public routes outside `AuthGate`.
-   - Wrap `/` and `/preview/intelligence-row` in `AuthGate`.
+## Proposed steps
 
-5. **Bootstrap your account** (one-time)
-   - Since signup will be disabled, before flipping the switch: create your user via the backend Users panel (email + password you choose), or temporarily allow signup, create the account, then disable. I'll walk you through whichever you prefer at implementation time.
+1. **Retry from the connector.** In the client (ChatGPT/Claude/etc.), remove the half-registered Stellar connector entry, then re-add it using the MCP server URL:
+   `https://eervjywaxpxqdjjhtguz.supabase.co/functions/v1/mcp`
+2. **If it still fails**, use the fallback the error message offers: manually create an OAuth client and paste the `client_id` into the connector's "OAuth Client ID" field. I'll provide the exact `redirect_uris` the connector shows in its setup screen and register the client for you via the auth API, returning the `client_id`.
+3. **If both fail**, share the connector's own debug/log output (or which app it is — ChatGPT, Claude, Cursor, Codex). The `ofid_…` reference is only meaningful to that vendor's support; our server has no matching log entry.
 
-6. **Cleanup**
-   - Delete `src/components/PasswordGate.tsx`.
-   - Remove the `stellar-auth` sessionStorage key usage.
+## Not changing
 
-## Out of scope
-- No `profiles` table, no roles table (single-user app).
-- No custom auth email templates (default Lovable emails are fine unless you ask later).
-- No changes to existing Supabase RLS on data tables (they currently allow anon reads — flag: if you want to tighten those to `authenticated` only, that's a follow-up).
+No code or backend config changes in step 1. Steps 2–3 only run if the retry fails.
 
-## Files touched
-- Add: `src/pages/Auth.tsx`, `src/pages/ResetPassword.tsx`, `src/components/AuthGate.tsx`
-- Edit: `src/App.tsx`, `src/pages/Index.tsx` (add sign-out button in header)
-- Delete: `src/components/PasswordGate.tsx`
-- Backend: auth config (disable signup, enable Google, enable HIBP)
+## Question for you
+
+Which client are you connecting from (ChatGPT, Claude, Cursor, other), and what redirect URI does it show you on its "add MCP server" screen? That's what I need to pre-register a manual client if the retry doesn't fix it.
