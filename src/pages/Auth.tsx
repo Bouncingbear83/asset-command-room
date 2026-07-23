@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { McpConnectorSection } from "@/components/McpConnectorSection";
 
 // Validate `next` as a same-origin relative path.
 function safeNext(raw: string | null): string {
@@ -17,10 +18,12 @@ const wrap: React.CSSProperties = {
   inset: 0,
   background: "#0a0a1a",
   display: "flex",
+  flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
   zIndex: 9999,
   padding: 24,
+  overflowY: "auto",
 };
 
 const card: React.CSSProperties = {
@@ -222,6 +225,9 @@ export default function Auth() {
           {mode === "signin" ? "Forgot password?" : "Back to sign in"}
         </button>
       </form>
+      <div style={{ width: "100%", maxWidth: 400, marginTop: 16 }}>
+        <McpConnectorSection />
+      </div>
     </div>
   );
 }
