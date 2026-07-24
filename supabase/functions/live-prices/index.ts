@@ -241,6 +241,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  if (tickers.length > 20) {
+    return new Response(JSON.stringify({ error: "Max 20 tickers per request" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const aliases = await loadAliases();
   const tickerToYahoo = new Map<string, string>();
