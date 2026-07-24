@@ -23,6 +23,18 @@ Deno.serve(async (req) => {
     });
   }
 
+  const ingestSecret = Deno.env.get("INGEST_SECRET");
+  const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
+  const provided = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : "";
+  if (!ingestSecret || provided !== ingestSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let body: { items?: unknown };
   try {
     body = await req.json();
