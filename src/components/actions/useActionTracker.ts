@@ -452,7 +452,7 @@ export function useActionTracker({
       note: string,
     ) => {
       if (item.persisted) {
-        await (supabase as any)
+        const { error: err } = await (supabase as any)
           .from("action_tracker")
           .update({
             status: resolutionStatus,
@@ -460,20 +460,36 @@ export function useActionTracker({
             resolved_at: new Date().toISOString(),
           })
           .eq("id", item.id);
+        if (err) {
+          console.error("[action_tracker] update failed:", err);
+          setError(`Resolve failed: ${err.message}`);
+          return;
+        }
       } else {
-        await (supabase as any).from("action_tracker").insert({
-          ticker: item.ticker,
-          action_type: item.action_type,
-          due_date: item.due_date,
-          summary: item.summary,
-          context: item.context,
-          source: item.source,
-          priority: item.priority,
-          status: resolutionStatus,
-          resolution_note: note || null,
-          resolved_at: new Date().toISOString(),
-          dedupe_key: item.dedupe_key,
-        });
+        // Use upsert on dedupe_key to handle re-resolve of previously-inserted items
+        const { error: err } = await (supabase as any)
+          .from("action_tracker")
+          .upsert(
+            {
+              ticker: item.ticker,
+              action_type: item.action_type,
+              due_date: item.due_date,
+              summary: item.summary,
+              context: item.context,
+              source: item.source,
+              priority: item.priority,
+              status: resolutionStatus,
+              resolution_note: note || null,
+              resolved_at: new Date().toISOString(),
+              dedupe_key: item.dedupe_key,
+            },
+            { onConflict: "dedupe_key" },
+          );
+        if (err) {
+          console.error("[action_tracker] upsert failed:", err);
+          setError(`Resolve failed: ${err.message}`);
+          return;
+        }
       }
       await fetchRows();
     },
@@ -487,22 +503,37 @@ export function useActionTracker({
       const newDueStr = newDue.toISOString().slice(0, 10);
 
       if (item.persisted) {
-        await (supabase as any)
+        const { error: err } = await (supabase as any)
           .from("action_tracker")
           .update({ due_date: newDueStr })
           .eq("id", item.id);
+        if (err) {
+          console.error("[action_tracker] snooze update failed:", err);
+          setError(`Snooze failed: ${err.message}`);
+          return;
+        }
       } else {
-        await (supabase as any).from("action_tracker").insert({
-          ticker: item.ticker,
-          action_type: item.action_type,
-          due_date: newDueStr,
-          summary: item.summary,
-          context: item.context,
-          source: item.source,
-          priority: item.priority,
-          status: "OPEN",
-          dedupe_key: item.dedupe_key,
-        });
+        const { error: err } = await (supabase as any)
+          .from("action_tracker")
+          .upsert(
+            {
+              ticker: item.ticker,
+              action_type: item.action_type,
+              due_date: newDueStr,
+              summary: item.summary,
+              context: item.context,
+              source: item.source,
+              priority: item.priority,
+              status: "OPEN",
+              dedupe_key: item.dedupe_key,
+            },
+            { onConflict: "dedupe_key" },
+          );
+        if (err) {
+          console.error("[action_tracker] snooze upsert failed:", err);
+          setError(`Snooze failed: ${err.message}`);
+          return;
+        }
       }
       await fetchRows();
     },
@@ -512,10 +543,15 @@ export function useActionTracker({
   const reopen = useCallback(
     async (item: ActionItem) => {
       if (!item.persisted) return;
-      await (supabase as any)
+      const { error: err } = await (supabase as any)
         .from("action_tracker")
         .update({ status: "OPEN", resolution_note: null, resolved_at: null })
         .eq("id", item.id);
+      if (err) {
+        console.error("[action_tracker] reopen failed:", err);
+        setError(`Reopen failed: ${err.message}`);
+        return;
+      }
       await fetchRows();
     },
     [fetchRows],
@@ -532,7 +568,7 @@ export function useActionTracker({
       source?: ActionSource;
       source_ref?: string | null;
     }) => {
-      await (supabase as any).from("action_tracker").insert({
+      const { error: err } = await (supabase as any).from("action_tracker").insert({
         ticker: payload.ticker || null,
         action_type: payload.action_type,
         due_date: payload.due_date,
@@ -543,6 +579,11 @@ export function useActionTracker({
         source_ref: payload.source_ref || null,
         status: "OPEN",
       });
+      if (err) {
+        console.error("[action_tracker] addManual failed:", err);
+        setError(`Add failed: ${err.message}`);
+        return;
+      }
       await fetchRows();
     },
     [fetchRows],
@@ -551,7 +592,15 @@ export function useActionTracker({
   const remove = useCallback(
     async (item: ActionItem) => {
       if (!item.persisted) return;
-      await (supabase as any).from("action_tracker").delete().eq("id", item.id);
+      const { error: err } = await (supabase as any)
+        .from("action_tracker")
+        .delete()
+        .eq("id", item.id);
+      if (err) {
+        console.error("[action_tracker] delete failed:", err);
+        setError(`Delete failed: ${err.message}`);
+        return;
+      }
       await fetchRows();
     },
     [fetchRows],
@@ -560,10 +609,15 @@ export function useActionTracker({
   const updateNote = useCallback(
     async (item: ActionItem, note: string) => {
       if (!item.persisted) return;
-      await (supabase as any)
+      const { error: err } = await (supabase as any)
         .from("action_tracker")
         .update({ resolution_note: note || null })
         .eq("id", item.id);
+      if (err) {
+        console.error("[action_tracker] updateNote failed:", err);
+        setError(`Update note failed: ${err.message}`);
+        return;
+      }
       await fetchRows();
     },
     [fetchRows],
