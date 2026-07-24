@@ -53,7 +53,7 @@ function groupByTime(items: ActionItem[]): Group[] {
 
 export default function ActionsTab() {
   const { watchlist, holdings, earningsCalendar, scores } = usePortfolioData();
-  const { items, loading, resolve, snooze, reopen, addManual, remove, updateNote } =
+  const { items, loading, error: actionError, resolve, snooze, reopen, addManual, remove, updateNote } =
     useActionTracker({
       watchlist,
       holdings,
@@ -428,6 +428,23 @@ export default function ActionsTab() {
         >
           Auto-generated from score staleness. HELD: 30d · WATCHLIST/WAIT_PRICE:
           45d · RESEARCH: 60d · PRE_IPO: 90d · WAIT_EVENT/ARCHIVE: never.
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--red)",
+            padding: "8px 12px",
+            marginBottom: 12,
+            border: "1px solid var(--red)",
+            borderRadius: 2,
+            background: "rgba(255,60,60,0.06)",
+          }}
+        >
+          ⚠ {actionError}
         </div>
       )}
 
