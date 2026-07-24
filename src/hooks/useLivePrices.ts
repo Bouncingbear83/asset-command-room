@@ -73,10 +73,15 @@ export function useLivePrices(tickers: string[]): State {
           batches.push(allTickers.slice(i, i + BATCH_SIZE));
         }
 
-        const results = await Promise.all(
-          batches.map((batch) =>
-            supabase.functions.invoke("live-prices", { body: { tickers: batch } }),
-          ),
+        const results = await Promise.allSettled(
+          batches.map(async (batch) => {
+            try {
+              return await supabase.functions.invoke("live-prices", { body: { tickers: batch } });
+            } catch (e) {
+              console.error("[useLivePrices] batch invoke threw:", e);
+              return { data: null, error: e as any };
+            }
+          }),
         );
 
         if (cancelled) return;
@@ -86,7 +91,13 @@ export function useLivePrices(tickers: string[]): State {
         const allSkipped: string[] = [];
         let fetchedAt: string = new Date().toISOString();
 
-        for (const { data, error } of results) {
+        for (const settled of results) {
+          if (settled.status === "rejected") {
+            console.error("[useLivePrices] batch rejected:", settled.reason);
+            errors.push(String(settled.reason?.message ?? settled.reason ?? "batch failed"));
+            continue;
+          }
+          const { data, error } = settled.value as any;
           if (error) {
             console.error("[useLivePrices] invoke error:", error);
             errors.push(error.message ?? "Edge function error");
