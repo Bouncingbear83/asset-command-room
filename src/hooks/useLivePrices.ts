@@ -66,38 +66,43 @@ export function useLivePrices(tickers: string[]): State {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("live-prices", {
-          body: { tickers: key.split(",") },
-        });
+        const allTickers = key.split(",");
+        const BATCH_SIZE = 20;
+        const batches: string[][] = [];
+        for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
+          batches.push(allTickers.slice(i, i + BATCH_SIZE));
+        }
+
+        const results = await Promise.all(
+          batches.map((batch) =>
+            supabase.functions.invoke("live-prices", { body: { tickers: batch } }),
+          ),
+        );
 
         if (cancelled) return;
 
-        if (error) {
-          console.error("[useLivePrices] invoke error:", error);
-          setState((s) => ({
-            ...s,
-            loading: false,
-            error: error.message ?? "Edge function error",
-          }));
-          return;
-        }
-
-        const prices: LivePriceMap = data?.prices ?? {};
-        const fetchedAt: string = data?.fetchedAt ?? new Date().toISOString();
-
-        // Normalise keys to uppercase
         const normalised: LivePriceMap = {};
-        for (const [k, v] of Object.entries(prices)) {
-          normalised[k.toUpperCase()] = v as LivePrice;
-        }
+        const errors: string[] = [];
+        const allSkipped: string[] = [];
+        let fetchedAt: string = new Date().toISOString();
 
-        const errors = data?.errors ?? [];
-        if (errors.length > 0) {
-          console.warn("[useLivePrices] partial errors:", errors);
+        for (const { data, error } of results) {
+          if (error) {
+            console.error("[useLivePrices] invoke error:", error);
+            errors.push(error.message ?? "Edge function error");
+            continue;
+          }
+          const prices: LivePriceMap = data?.prices ?? {};
+          for (const [k, v] of Object.entries(prices)) {
+            normalised[k.toUpperCase()] = v as LivePrice;
+          }
+          if (data?.fetchedAt) fetchedAt = data.fetchedAt;
+          if (data?.errors?.length) errors.push(...data.errors);
+          if (data?.skipped?.length) allSkipped.push(...data.skipped);
         }
 
         console.log(
-          `[useLivePrices] fetched ${Object.keys(normalised).length} prices, skipped: ${(data?.skipped ?? []).join(", ") || "none"}`,
+          `[useLivePrices] fetched ${Object.keys(normalised).length} prices in ${batches.length} batch(es), skipped: ${allSkipped.join(", ") || "none"}`,
         );
 
         cacheRef = { key, ts: Date.now(), data: normalised, fetchedAt };
