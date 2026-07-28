@@ -67,12 +67,22 @@ export default function Index() {
   const total = sippTotal + isaTotal;
   const showMacroBanner = hasMacroBannerContent(portfolio.macroBanner);
 
-  const perf = portfolio.performance;
-  const latestPerf = perf.length > 0 ? perf[perf.length - 1] : null;
-  const prevPerf = perf.length > 1 ? perf[perf.length - 2] : null;
-  const dailyChangePct = latestPerf && prevPerf && prevPerf.totalValue > 0
-    ? ((latestPerf.totalValue - prevPerf.totalValue) / prevPerf.totalValue * 100)
-    : null;
+  // AUM day change = MV-weighted daily return of the securities in the shown AUM
+  // universe (SIPP + ISA). The old PERFORMANCE-tab delta was period-over-period
+  // and contaminated by deposits/withdrawals, so it never matched the tape.
+  const aumHoldings = [...portfolio.sipp, ...portfolio.isa];
+  const dw = aumHoldings.reduce(
+    (acc, h) => {
+      const mv = h.mv || 0;
+      if (mv > 0 && Number.isFinite(h.day)) {
+        acc.num += mv * h.day;   // h.day is already a percent (parsePercentLike)
+        acc.den += mv;
+      }
+      return acc;
+    },
+    { num: 0, den: 0 },
+  );
+  const dailyChangePct = dw.den > 0 ? dw.num / dw.den : null;
 
   useEffect(() => {
     const onScroll = () => setShowBackToTop(window.scrollY > 400);
