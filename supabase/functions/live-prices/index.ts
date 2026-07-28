@@ -322,16 +322,21 @@ Deno.serve(async (req) => {
     yahooToInternal.get(key)!.push(internal);
   }
 
+  const snapCloses = await loadSnapshotCloses();
   const prices: Record<string, LiveQuote> = {};
   for (const [yahooSym, q] of quotes) {
     for (const internal of yahooToInternal.get(yahooSym.toUpperCase()) ?? []) {
+      const snapClose = snapCloses.get(internal.toUpperCase());
       prices[internal] = {
         price: q.regularMarketPrice,
         currency: q.currency ?? "USD",
         marketTime: q.regularMarketTime ?? 0,
         marketState: q.marketState ?? "UNKNOWN",
-        previousClose: q.regularMarketPreviousClose ?? null,
-        changePercent: q.regularMarketChangePercent ?? null,
+        previousClose: snapClose ?? q.regularMarketPreviousClose ?? null,
+        changePercent:
+          snapClose && typeof q.regularMarketPrice === "number"
+            ? ((q.regularMarketPrice - snapClose) / snapClose) * 100
+            : q.regularMarketChangePercent ?? null,
       };
     }
   }
