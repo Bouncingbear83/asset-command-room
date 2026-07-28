@@ -72,6 +72,45 @@ async function loadAliases(): Promise<Map<string, { yahoo: string | null; skip: 
   }
 }
 
+// Snapshot prior-session closes (portfolio's own anchor). Overrides Yahoo's
+// previousClose/changePercent, which lag the weekend roll and are null for
+// TSE/OSE names.
+let snapshotCache: { map: Map<string, number>; ts: number } | null = null;
+const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
+async function loadSnapshotCloses(): Promise<Map<string, number>> {
+  if (snapshotCache && Date.now() - snapshotCache.ts < SNAPSHOT_TTL_MS) {
+    return snapshotCache.map;
+  }
+  const map = new Map<string, number>();
+  try {
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await sb
+      .from("stellar_daily_snapshot")
+      .select("ticker, price_local, snapshot_date")
+      .lt("snapshot_date", today)
+      .order("snapshot_date", { ascending: false });
+    if (error) throw error;
+    for (const row of (data ?? []) as {
+      ticker: string;
+      price_local: number | null;
+      snapshot_date: string;
+    }[]) {
+      if (!row.ticker || row.price_local == null) continue;
+      const key = row.ticker.trim().toUpperCase();
+      if (!map.has(key)) map.set(key, Number(row.price_local));
+    }
+    console.log(`[live-prices] Loaded ${map.size} snapshot closes`);
+    snapshotCache = { map, ts: Date.now() };
+  } catch (err) {
+    console.error("[live-prices] snapshot close load failed:", err);
+  }
+  return map;
+}
+
 function toYahooSymbol(
   ticker: string,
   aliases: Map<string, { yahoo: string | null; skip: boolean }>,
