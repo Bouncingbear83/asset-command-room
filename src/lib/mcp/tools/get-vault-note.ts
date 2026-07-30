@@ -31,7 +31,7 @@ export default defineTool({
     const { data, error } = (await (sb.from as any)("vault_notes_meta")
       .select("path,type,identifier,title,ticker,frontmatter,body,body_sections")
       .eq("type", type.toLowerCase())
-      .eq("identifier", identifier.toLowerCase())
+      .ilike("identifier", identifier)
       .maybeSingle()) as { data: any | null; error: any };
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Note not found" }], isError: true };
