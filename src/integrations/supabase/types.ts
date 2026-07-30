@@ -1286,6 +1286,46 @@ export type Database = {
         }
         Relationships: []
       }
+      scores_latest: {
+        Row: {
+          action: string | null
+          bb_target_date: string | null
+          bear_substrate_fail: number | null
+          bear_thesis_weak: number | null
+          bull_base: number | null
+          bull_bear_at_date: string | null
+          bull_stretch: number | null
+          buy_high: number | null
+          buy_low: number | null
+          compounder_subtype: string | null
+          created_at: string | null
+          demand: number | null
+          disruption: number | null
+          div_yield: number | null
+          framework: string | null
+          held_status: string | null
+          id: number | null
+          layer: string | null
+          margin_of_safety: number | null
+          mgmt: number | null
+          moat: number | null
+          reclass_status: string | null
+          reject_reason: string | null
+          return_profile: string | null
+          s3_transition_modifier: number | null
+          score: number | null
+          snapshot_date: string | null
+          source: string | null
+          stack_layer: string | null
+          stellar_type: string | null
+          substrate: number | null
+          substrate_level: string | null
+          substrate_stage: string | null
+          ticker: string | null
+          tier: string | null
+        }
+        Relationships: []
+      }
       test5_early_warning: {
         Row: {
           current_price: number | null
