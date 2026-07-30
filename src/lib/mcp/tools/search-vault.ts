@@ -28,7 +28,11 @@ export default defineTool({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ query, limit }) => {
     const sb = sbAnon();
-    const { data, error } = await sb.rpc("vault_search", { q: query, lim: limit ?? 10 });
+    const { data, error } = await sb.rpc("vault_search", {
+  search_query: query,
+  note_type: null,
+  max_results: limit ?? 10,
+});
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
       content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
