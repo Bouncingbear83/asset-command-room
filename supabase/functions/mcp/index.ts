@@ -62,7 +62,7 @@ var get_vault_note_default = defineTool2({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ type, identifier }) => {
     const sb = sbAnon2();
-    const { data, error } = await sb.from("vault_notes_meta").select("path,type,identifier,title,ticker,frontmatter,body,body_sections").eq("type", type.toLowerCase()).eq("identifier", identifier.toLowerCase()).maybeSingle();
+    const { data, error } = await sb.from("vault_notes_meta").select("path,type,identifier,title,ticker,frontmatter,body,body_sections").eq("type", type.toLowerCase()).ilike("identifier", identifier).maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Note not found" }], isError: true };
     return {
