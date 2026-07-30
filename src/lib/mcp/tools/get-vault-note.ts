@@ -29,7 +29,7 @@ export default defineTool({
   handler: async ({ type, identifier }) => {
     const sb = sbAnon();
     const { data, error } = (await (sb.from as any)("vault_notes_meta")
-      .select("type,identifier,body,body_sections,updated_at")
+      .select("path,type,identifier,title,ticker,frontmatter,body,body_sections")
       .eq("type", type.toLowerCase())
       .eq("identifier", identifier.toLowerCase())
       .maybeSingle()) as { data: any | null; error: any };
