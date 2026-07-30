@@ -94,7 +94,7 @@ var list_scores_default = defineTool3({
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ ticker, limit }) => {
     const sb = sbAnon3();
-    let q = sb.from("scores_snapshot").select("*").limit(limit ?? 50);
+    let q = sb.from("scores_latest").select("*").limit(limit ?? 200);
     if (ticker) q = q.ilike("ticker", ticker);
     const { data, error } = await q;
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
