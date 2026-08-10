@@ -18,17 +18,18 @@ import DriversTab from "@/components/DriversTab";
 import ResearchTab from "@/components/ResearchTab";
 import VaultTab from "@/components/VaultTab";
 import AttributionTab from "@/components/AttributionTab";
+import BottleneckCoverageTab from "@/components/BottleneckCoverageTab";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
 
 const TABS = [
   "Command", "Holdings", "Watchlist", "JISAs",
-  "Signals", "Layers", "Drivers", "Intelligence", "Research", "Vault",
+  "Signals", "Layers", "Bottlenecks", "Drivers", "Intelligence", "Research", "Vault",
   "Returns", "Attribution", "Actions", "Transactions"
 ] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_SLUGS: Record<Tab, string> = {
-  Command: "command", Signals: "signals", Watchlist: "watchlist", Layers: "layers",
+  Command: "command", Signals: "signals", Watchlist: "watchlist", Layers: "layers", Bottlenecks: "bottlenecks",
   Drivers: "drivers",
   Intelligence: "intelligence", Research: "research", Vault: "vault", Returns: "returns", Attribution: "attribution", Holdings: "holdings",
   Transactions: "transactions", JISAs: "jisas", Actions: "actions",
@@ -217,6 +218,7 @@ export default function Index() {
         )}
         {active === "Intelligence" && <IntelligenceTab />}
         {active === "Research" && <ResearchTab />}
+        {active === "Bottlenecks" && <BottleneckCoverageTab />}
         {active === "Vault" && <VaultTab />}
         {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
         
