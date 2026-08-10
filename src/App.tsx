@@ -1,4 +1,3 @@
-console.log('build timestamp', Date.now());
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,9 +26,9 @@ const App = () => (
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/" element={<AuthGate><Index /></AuthGate>} />
           <Route path="/preview/intelligence-row" element={<AuthGate><IntelligencePreview /></AuthGate>} />
+          <Route path="/bottlenecks" element={<AuthGate><BottleneckCoverage /></AuthGate>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-          <Route path="/bottlenecks" element={<BottleneckCoverage />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
