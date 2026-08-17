@@ -119,6 +119,63 @@ export type Database = {
         }
         Relationships: []
       }
+      bottleneck_map: {
+        Row: {
+          irreplaceability: number | null
+          keystone_flag: boolean | null
+          last_reviewed: string | null
+          layer: string | null
+          listing: string | null
+          map_id: string
+          note: string | null
+          penetration: number | null
+          qual_barrier_yrs: number | null
+          reclass_potential: number | null
+          source: string | null
+          stack: string
+          subsystem: string
+          subsystem_slug: string
+          supplier_name: string | null
+          ticker: string | null
+        }
+        Insert: {
+          irreplaceability?: number | null
+          keystone_flag?: boolean | null
+          last_reviewed?: string | null
+          layer?: string | null
+          listing?: string | null
+          map_id: string
+          note?: string | null
+          penetration?: number | null
+          qual_barrier_yrs?: number | null
+          reclass_potential?: number | null
+          source?: string | null
+          stack: string
+          subsystem: string
+          subsystem_slug: string
+          supplier_name?: string | null
+          ticker?: string | null
+        }
+        Update: {
+          irreplaceability?: number | null
+          keystone_flag?: boolean | null
+          last_reviewed?: string | null
+          layer?: string | null
+          listing?: string | null
+          map_id?: string
+          note?: string | null
+          penetration?: number | null
+          qual_barrier_yrs?: number | null
+          reclass_potential?: number | null
+          source?: string | null
+          stack?: string
+          subsystem?: string
+          subsystem_slug?: string
+          supplier_name?: string | null
+          ticker?: string | null
+        }
+        Relationships: []
+      }
       daily_prices: {
         Row: {
           created_at: string
@@ -1204,6 +1261,36 @@ export type Database = {
       }
     }
     Views: {
+      bottleneck_coverage: {
+        Row: {
+          coverage_pct: number | null
+          gap: number | null
+          nopipe: number | null
+          owned: number | null
+          stack: string | null
+          structural: number | null
+          subsystems: number | null
+          toehold: number | null
+        }
+        Relationships: []
+      }
+      bottleneck_subsystem_state: {
+        Row: {
+          all_private: boolean | null
+          any_held: boolean | null
+          any_watchlist: boolean | null
+          held_names: string | null
+          irreplaceability: number | null
+          keystone: boolean | null
+          layer: string | null
+          ownership_quality: number | null
+          stack: string | null
+          subsystem: string | null
+          subsystem_slug: string | null
+          subsystem_state: string | null
+        }
+        Relationships: []
+      }
       capital_flows_daily: {
         Row: {
           account: string | null
