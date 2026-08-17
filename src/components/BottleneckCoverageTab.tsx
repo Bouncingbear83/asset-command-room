@@ -71,7 +71,11 @@ export default function BottleneckCoverageTab() {
 
   async function openDrawer(s: SubsystemRow) {
     setDrawer(s); setNote(""); setSuppliers([]);
-    const { data: sup } = await supabase
+    const { data: sup } = await (supabase as unknown as {
+      from: (t: string) => {
+        select: (c: string) => { eq: (k: string, v: string) => Promise<{ data: SupplierRow[] | null }> };
+      };
+    })
       .from("bottleneck_supplier_state")
       .select("*")
       .eq("subsystem_slug", s.subsystem_slug);
