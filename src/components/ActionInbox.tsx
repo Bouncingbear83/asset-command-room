@@ -496,12 +496,19 @@ function buildInbox(
     });
   });
 
-  // R2 — drop dead tickers (any source)
+  // R2 — drop dead tickers, first match wins per LIVENESS_PRECEDENCE:
+  // 1. HOLDINGS → always live. 2. WATCHLIST status only (SCORES ignored).
+  // 3. SCORES-only tickers → Held_Status decides.
+  const held = new Set(holdings.map((h) => h.ticker.toUpperCase()));
+  const onWatchlist = new Set(watchlist.map((w) => w.ticker.toUpperCase()));
   const dead = new Set<string>();
-  // Sources: WATCHLIST status (col H) + SCORES Held_Status (col A). HOLDINGS rows are never dead.
   watchlist.forEach((w) => { if (isDeadStatus(w.status)) dead.add(w.ticker.toUpperCase()); });
-  scores.forEach((sc) => { if (isDeadStatus((sc as { heldStatus?: string }).heldStatus)) dead.add(sc.ticker.toUpperCase()); });
-  holdings.forEach((h) => dead.delete(h.ticker.toUpperCase()));
+  scores.forEach((sc) => {
+    const t = sc.ticker.toUpperCase();
+    if (held.has(t) || onWatchlist.has(t)) return; // higher-precedence source decides
+    if (isDeadStatus((sc as { heldStatus?: string }).heldStatus)) dead.add(t);
+  });
+  held.forEach((t) => dead.delete(t));
   const alive = items.filter((i) => !dead.has(i.ticker.toUpperCase()));
 
   // R1 — de-duplicate on ticker + signal_type + subtype; keep highest priority
