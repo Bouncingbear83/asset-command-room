@@ -7,6 +7,15 @@
 /** Matched against WATCHLIST status (col H) and SCORES Held_Status (col A). Held rows are never dead. */
 export const DEAD_STATUSES = ["ARCHIVE", "ARCHIVED", "EXITED", "REJECTED", "REMOVED"] as const;
 
+/**
+ * R2 — liveness precedence, first match wins:
+ * 1. Ticker in HOLDINGS → LIVE (always; a held row is a live position).
+ * 2. Ticker on WATCHLIST → use WATCHLIST STATUS (col H) only; dead if in
+ *    DEAD_STATUSES, else LIVE. SCORES Held_Status is ignored for these tickers.
+ * 3. Ticker in SCORES only → dead if Held_Status (col A) is in DEAD_STATUSES.
+ */
+export const LIVENESS_PRECEDENCE = ["HOLDINGS", "WATCHLIST", "SCORES"] as const;
+
 /** R3 — a stop is "approaching" only when price is within this % ABOVE the stop. */
 export const APPROACHING_STOP_PCT = 5;
 /** R3 — same band for add triggers. */
