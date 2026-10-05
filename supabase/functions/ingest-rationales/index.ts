@@ -207,6 +207,25 @@ Deno.serve(async (req) => {
     const scoreRows: AnyRow[] = Array.isArray(body.score_rationales) ? body.score_rationales : [];
     const disruptionRows: AnyRow[] = Array.isArray(body.disruption_rationales) ? body.disruption_rationales : [];
 
+    // mode=update — patch whitelisted columns on existing score_rationales rows.
+    // Rows are matched on (ticker, scored_at); no inserts are made.
+    if (body.mode === "update") {
+      const UPD = new Set(["mos_score","mos_rationale","factor_group","factor_primary","stack_layer","stage2_subclass","substrate_level","china_exposure_flag"]);
+      const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const out: AnyRow[] = [];
+      for (const r of scoreRows) {
+        const patch = Object.fromEntries(Object.entries(r).filter(([k]) => UPD.has(k)));
+        if (!r.ticker || !r.scored_at || !Object.keys(patch).length) { out.push({ ticker: r.ticker ?? null, error: "BAD_ROW" }); continue; }
+        const { data, error } = await supabase.from("score_rationales").update(patch)
+          .eq("ticker", r.ticker as string).eq("scored_at", new Date(r.scored_at as string).toISOString())
+          .select("ticker,scored_at");
+        out.push({ ticker: r.ticker, scored_at: r.scored_at, matched: data?.length ?? 0, error: error?.message ?? null });
+      }
+      const bad = out.filter((x) => x.error || x.matched !== 1).length;
+      return new Response(JSON.stringify({ status: bad ? "partial_failure" : "ok", request_id, mode: "update", results: out }),
+        { status: bad ? 207 : 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (scoreRows.length === 0 && disruptionRows.length === 0) {
       return new Response(
         JSON.stringify({
