@@ -198,7 +198,7 @@ export default function CommandTab() {
       </div>
 
       {/* ── CARD 2: ACTION INBOX ── */}
-      <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} />
+      <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} />
 
       {/* ── UPCOMING ACTIONS (from Action Tracker) ── */}
       <ActionUpcoming
