@@ -728,6 +728,11 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>
                       {item.ticker}
                     </span>
+                    {item.account && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)", letterSpacing: "0.1em" }}>
+                        {item.account}
+                      </span>
+                    )}
                   </div>
                   <span style={{
                     fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.1em",
