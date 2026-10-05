@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791230480389,
+      "tag": "0000_score_rationales_factor_primary_add_critical_minerals",
+      "breakpoints": true
+    }
+  ]
+}
