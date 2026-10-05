@@ -6,12 +6,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { type PromptTemplateKey, type PromptContext } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import type { LiveScore } from "@/hooks/usePortfolioData";
-import { useIrrBb, type IrrBbEntry } from "@/hooks/useIrrBb";
 import { normaliseTicker } from "@/lib/tickerAlias";
 import {
   DEAD_STATUSES, DEAD_NOTE_PREFIX, DEAD_NOTE_CONTAINS,
   APPROACHING_STOP_PCT, APPROACHING_ADD_PCT, STOP_BREACH_IMPLAUSIBLE_PCT,
   IRR_BB_MIN, STALE_TRIGGER_PCT, MISSING_SCORE_TOKENS,
+  STALE_NOTE_DAYS, STALE_NOTE_PREFIXES, OPERATOR_TOKEN,
   EARNINGS_WINDOW_DAYS, WATCH_STALE_DAYS, FLAG_STALE_DAYS,
   SWEEP_NEEDS_RESET_TOKEN, SWEEP_DATE_ROLL_PREFIX, INBOX_TOP_N,
 } from "@/config/signalRules";
@@ -36,7 +36,8 @@ type SignalKind =
   | "WATCH_STALE"
   | "VERIFY_STOP"
   | "TRIGGER_STALE"
-  | "WATCH_SWEEP";
+  | "WATCH_SWEEP"
+  | "STALE_NOTE";
 
 interface DetailField {
   label: string;
@@ -48,6 +49,7 @@ interface DetailField {
 interface InboxItem {
   key: string;
   ticker: string;
+  account?: string;     // R1 — part of dedupe key
   kind: SignalKind;
   label: string;        // short signal label
   context: string;      // one-line context
@@ -76,6 +78,7 @@ const KIND_STYLE: Record<SignalKind, { color: string; bg: string; label: string;
   WATCH_STALE:    { color: "var(--amber)", bg: "var(--amber-dim)", label: "REVIEW DUE",    emoji: "⏰" },
   VERIFY_STOP:    { color: "var(--amber)", bg: "var(--amber-dim)", label: "VERIFY STOP FIELD", emoji: "🟡" },
   TRIGGER_STALE:  { color: "var(--text-dim)", bg: "rgba(102,102,102,0.08)", label: "LOW · TRIGGER STALE", emoji: "⚪" },
+  STALE_NOTE:     { color: "var(--text-dim)", bg: "rgba(102,102,102,0.08)", label: "LOW · STALE NOTE", emoji: "⚪" },
   WATCH_SWEEP:    { color: "var(--amber)", bg: "var(--amber-dim)", label: "WATCHLIST SWEEP", emoji: "🧹" },
 };
 
@@ -155,9 +158,15 @@ function buildInbox(
   holdings: LiveHolding[],
   watchlist: LiveWatchItem[],
   earnings: LiveEarningsCalendarItem[],
-  irrByTicker: Map<string, IrrBbEntry> = new Map(),
+  scores: LiveScore[] = [],
 ): InboxItem[] {
   const items: InboxItem[] = [];
+  // R5 — score + live IRR-BB (SCORES col AU) keyed by ticker. Never parsed from notes.
+  const scoreByTicker = new Map<string, LiveScore>();
+  for (const sc of scores) {
+    const t = normaliseTicker(sc.ticker) || sc.ticker.toUpperCase();
+    if (t && !scoreByTicker.has(t)) scoreByTicker.set(t, sc);
+  }
 
   // 1. Zone breaches
   holdings.forEach((h) => {
@@ -168,16 +177,19 @@ function buildInbox(
 
     // stopDist > 0 = price above stop
     const stopDist = !isNaN(triggerExit) && triggerExit > 0 ? ((price - triggerExit) / triggerExit) * 100 : null;
-    const irr = irrByTicker.get(normaliseTicker(h.ticker) || h.ticker.toUpperCase());
-    const rawScore = irr?.score;
+    const sc = scoreByTicker.get(normaliseTicker(h.ticker) || h.ticker.toUpperCase());
+    const rawScore = sc?.score;
     const scoreMissing = rawScore == null || (MISSING_SCORE_TOKENS as readonly string[]).includes(String(rawScore).trim());
-    const holdOnly = irr?.result?.irrBb != null && irr.result.irrBb * 100 < IRR_BB_MIN;
+    const auRaw = (sc as { irrBbSheet?: number | null } | undefined)?.irrBbSheet ?? null;
+    const irrPct = auRaw == null ? null : Math.abs(auRaw) <= 2 ? auRaw * 100 : auRaw; // fraction or percent
+    const holdOnly = irrPct != null && irrPct < IRR_BB_MIN;
 
     if (stopDist != null && stopDist < -STOP_BREACH_IMPLAUSIBLE_PCT) {
       // R4 — implausible breach: level is probably a trim/upside trigger in the stop field
       items.push({
-        key: `verify-${h.ticker}`,
+        key: `verify-${h.ticker}-${h.account}`,
         ticker: h.ticker,
+        account: h.account,
         kind: "VERIFY_STOP",
         label: "Check level",
         context: `Px ${price.toFixed(2)} vs stop ${triggerExit.toFixed(2)} (${stopDist.toFixed(1)}%) — likely a trim/upside trigger in the stop field`,
@@ -204,8 +216,9 @@ function buildInbox(
       const pct = -stopDist;
       const breached = pct >= 0;
       items.push({
-        key: `exit-${h.ticker}`,
+        key: `exit-${h.ticker}-${h.account}`,
         ticker: h.ticker,
+        account: h.account,
         kind: "EXIT_ZONE",
         label: breached ? "Stop breached" : "Approaching stop",
         context: `Px ${price.toFixed(2)} · stop ${triggerExit.toFixed(2)} (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%)`,
@@ -241,8 +254,9 @@ function buildInbox(
     } else if (!isNaN(triggerAdd) && triggerAdd > 0 && !scoreMissing && !holdOnly && Math.abs(triggerAdd - price) / price * 100 > STALE_TRIGGER_PCT) {
       // R5 — add trigger too far from spot
       items.push({
-        key: `tstale-${h.ticker}`,
+        key: `tstale-${h.ticker}-${h.account}`,
         ticker: h.ticker,
+        account: h.account,
         kind: "TRIGGER_STALE",
         label: "reset",
         context: `Add trigger ${triggerAdd.toFixed(2)} vs spot ${price.toFixed(2)} (${(((triggerAdd - price) / price) * 100).toFixed(1)}%)`,
@@ -268,8 +282,9 @@ function buildInbox(
       const pct = ((triggerAdd - price) / triggerAdd * 100);
       const inside = pct >= 0;
       items.push({
-        key: `add-${h.ticker}`,
+        key: `add-${h.ticker}-${h.account}`,
         ticker: h.ticker,
+        account: h.account,
         kind: "ADD_ZONE",
         label: inside ? "In add zone" : "Approaching add",
         context: `Px ${price.toFixed(2)} · trigger ${triggerAdd.toFixed(2)} (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%)`,
@@ -308,17 +323,22 @@ function buildInbox(
   // 2. Review flags
   const flags: ReviewFlag[] = parseAllFlags(holdings);
   flags.forEach((f) => {
-    if (f.isStale) return;
     const dueIso = toIsoDate(f.date);
-    if (dueIso && daysSince(dueIso) > FLAG_STALE_DAYS) return;
-    const kind: SignalKind = f.priority === "HIGH" ? "REVIEW_HIGH" : f.priority === "MEDIUM" ? "REVIEW_MED" : "REVIEW_LOW";
-    const urgency = f.priority === "HIGH" ? 1 : f.priority === "MEDIUM" ? 4 : 6;
+    const age = dueIso ? daysSince(dueIso) : -1;
+    // R9 — old review notes without operator follow-up are LOW "STALE NOTE", never MED/HIGH
+    const isReviewNote = (STALE_NOTE_PREFIXES as readonly string[]).some((p) => f.prefix.startsWith(p));
+    const hasOperator = (f.reason || "").toUpperCase().includes(OPERATOR_TOKEN);
+    const staleNote = isReviewNote && age > STALE_NOTE_DAYS && !hasOperator;
+    if (!staleNote && age > FLAG_STALE_DAYS && !isReviewNote) return;
+    const kind: SignalKind = staleNote ? "STALE_NOTE" : f.priority === "HIGH" ? "REVIEW_HIGH" : f.priority === "MEDIUM" ? "REVIEW_MED" : "REVIEW_LOW";
+    const urgency = staleNote ? 6 : f.priority === "HIGH" ? 1 : f.priority === "MEDIUM" ? 4 : 6;
     const h = holdings.find((x) => x.ticker.toUpperCase() === f.ticker.toUpperCase());
     items.push({
       key: `flag-${f.ticker}-${f.prefix}`,
       ticker: f.ticker,
+      account: h?.account,
       kind,
-      label: f.flagType.replace(/_/g, " "),
+      label: staleNote ? `${age}d old` : f.flagType.replace(/_/g, " "),
       context: `${dueIso ? `Due ${dueIso} · ` : ""}${f.reason ? f.reason.slice(0, 110) : f.prefix.replace(/_/g, " ")}`,
       urgency,
       templateKey: "holdings_deep_dive",
@@ -489,7 +509,7 @@ function buildInbox(
   // R1 — de-duplicate on ticker + signal_type + subtype; keep highest priority
   const byKey = new Map<string, InboxItem>();
   for (const it of alive) {
-    const k = `${it.ticker.toUpperCase()}|${it.kind}|${it.label.toUpperCase()}`;
+    const k = `${it.ticker.toUpperCase()}|${(it.account || "").toUpperCase()}|${it.kind}|${it.label.toUpperCase()}`;
     const prev = byKey.get(k);
     if (!prev || it.urgency < prev.urgency) byKey.set(k, it);
   }
@@ -564,7 +584,6 @@ function ExplainRow({ label, value, accent = false }: { label: string; value: st
 
 export default function ActionInbox({ holdings, watchlist, earnings, scores = [] }: Props) {
   const isMobile = useIsMobile();
-  const { byTicker: irrByTicker } = useIrrBb(scores, holdings, watchlist);
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [openRows, setOpenRows] = useState<Record<string, boolean>>(() => {
@@ -605,7 +624,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   });
   const [showDone, setShowDone] = useState(false);
 
-  const items = useMemo(() => buildInbox(holdings, watchlist, earnings, irrByTicker), [holdings, watchlist, earnings, irrByTicker]);
+  const items = useMemo(() => buildInbox(holdings, watchlist, earnings, scores), [holdings, watchlist, earnings, scores]);
 
   // Persist expanded-row state across reloads/sessions.
   useEffect(() => {

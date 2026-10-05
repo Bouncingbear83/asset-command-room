@@ -35,5 +35,10 @@ export const FLAG_STALE_DAYS = 14;
 export const SWEEP_NEEDS_RESET_TOKEN = "STALE";
 export const SWEEP_DATE_ROLL_PREFIX = "OK";
 
+/** R9 — review notes (these prefixes) older than this with no operator text → LOW "STALE NOTE". */
+export const STALE_NOTE_DAYS = 60;
+export const STALE_NOTE_PREFIXES = ["Q_REVIEW", "W_", "M_"] as const;
+export const OPERATOR_TOKEN = "OPERATOR";
+
 /** Number of cards shown before "Show all". */
 export const INBOX_TOP_N = 8;
