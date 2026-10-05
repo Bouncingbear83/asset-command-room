@@ -8,7 +8,7 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import type { LiveScore } from "@/hooks/usePortfolioData";
 import { normaliseTicker } from "@/lib/tickerAlias";
 import {
-  DEAD_STATUSES, DEAD_NOTE_PREFIX, DEAD_NOTE_CONTAINS,
+  DEAD_STATUSES,
   APPROACHING_STOP_PCT, APPROACHING_ADD_PCT, STOP_BREACH_IMPLAUSIBLE_PCT,
   IRR_BB_MIN, STALE_TRIGGER_PCT, MISSING_SCORE_TOKENS,
   STALE_NOTE_DAYS, STALE_NOTE_PREFIXES, OPERATOR_TOKEN,
@@ -105,14 +105,10 @@ function isoToDate(value: string): Date | null {
   return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
-/** R2 — dead row detection on status + note fallback. */
-function isDead(status: string | undefined, ...notes: (string | undefined)[]): boolean {
+/** R2 — dead = status token in DEAD_STATUSES. Notes are never consulted. */
+function isDeadStatus(status: string | undefined): boolean {
   const st = (status || "").trim().toUpperCase();
-  if ((DEAD_STATUSES as readonly string[]).some((d) => st === d || st.startsWith(d + " "))) return true;
-  return notes.some((n) => {
-    const u = (n || "").trim().toUpperCase();
-    return u.startsWith(DEAD_NOTE_PREFIX) || u.includes(DEAD_NOTE_CONTAINS);
-  });
+  return (DEAD_STATUSES as readonly string[]).some((d) => st === d || st.startsWith(d + " "));
 }
 
 function parseEntryMidpoint(entry: string): number | null {
@@ -502,8 +498,10 @@ function buildInbox(
 
   // R2 — drop dead tickers (any source)
   const dead = new Set<string>();
-  holdings.forEach((h) => { if (isDead(h.action, h.notes, h.trigger_review_note)) dead.add(h.ticker.toUpperCase()); });
-  watchlist.forEach((w) => { if (isDead(w.status, w.triggerReviewNote, w.rationale)) dead.add(w.ticker.toUpperCase()); });
+  // Sources: WATCHLIST status (col H) + SCORES Held_Status (col A). HOLDINGS rows are never dead.
+  watchlist.forEach((w) => { if (isDeadStatus(w.status)) dead.add(w.ticker.toUpperCase()); });
+  scores.forEach((sc) => { if (isDeadStatus((sc as { heldStatus?: string }).heldStatus)) dead.add(sc.ticker.toUpperCase()); });
+  holdings.forEach((h) => dead.delete(h.ticker.toUpperCase()));
   const alive = items.filter((i) => !dead.has(i.ticker.toUpperCase()));
 
   // R1 — de-duplicate on ticker + signal_type + subtype; keep highest priority
