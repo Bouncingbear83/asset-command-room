@@ -546,6 +546,8 @@ function parseScores(rows: Record<string, any>[]) {
       // IRR-BB fields (AR-AS) [v3.12]
       bbTargetDate: parseSheetDate(findCol(row, "BB_TARGET_DATE", "bb_target_date", "Bb_Target_Date")),
       divYield: parseNum(findCol(row, "DIV_YIELD", "div_yield", "Div_Yield")),
+      // Live IRR-BB formula output (col AU) — display/gating only
+      irrBbSheet: parseNum(findCol(row, "IRR_BB", "irr_bb", "IRR-BB", "IRR BB", "Irr_Bb", "IRR_BB_PCT", "irr_bb_pct")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
       framework: String(findCol(row, "FRAMEWORK", "framework", "Framework") ?? ""),
     }));
