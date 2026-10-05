@@ -5,6 +5,16 @@ import { parseAllFlags, type ReviewFlag } from "@/components/ReviewQueue";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type PromptTemplateKey, type PromptContext } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
+import type { LiveScore } from "@/hooks/usePortfolioData";
+import { useIrrBb, type IrrBbEntry } from "@/hooks/useIrrBb";
+import { normaliseTicker } from "@/lib/tickerAlias";
+import {
+  DEAD_STATUSES, DEAD_NOTE_PREFIX, DEAD_NOTE_CONTAINS,
+  APPROACHING_STOP_PCT, APPROACHING_ADD_PCT, STOP_BREACH_IMPLAUSIBLE_PCT,
+  IRR_BB_MIN, STALE_TRIGGER_PCT, MISSING_SCORE_TOKENS,
+  EARNINGS_WINDOW_DAYS, WATCH_STALE_DAYS, FLAG_STALE_DAYS,
+  SWEEP_NEEDS_RESET_TOKEN, SWEEP_DATE_ROLL_PREFIX, INBOX_TOP_N,
+} from "@/config/signalRules";
 
 /**
  * Action Inbox — single ranked "Today's Decisions" list.
@@ -23,7 +33,10 @@ type SignalKind =
   | "ADD_ZONE"
   | "EARNINGS"
   | "WATCH_IN_ZONE"
-  | "WATCH_STALE";
+  | "WATCH_STALE"
+  | "VERIFY_STOP"
+  | "TRIGGER_STALE"
+  | "WATCH_SWEEP";
 
 interface DetailField {
   label: string;
@@ -43,6 +56,8 @@ interface InboxItem {
   templateContext: PromptContext;
   details: DetailField[];
   longNote?: string;    // free-form note shown at bottom of expansion
+  children?: InboxItem[]; // WATCH_SWEEP only
+  sweepGroup?: "RESET" | "ROLL" | "OTHER";
   explain: {
     trigger: string;    // what fired
     thesis: string;     // current thesis state / portfolio context
@@ -59,9 +74,43 @@ const KIND_STYLE: Record<SignalKind, { color: string; bg: string; label: string;
   EARNINGS:       { color: "var(--accent)", bg: "rgba(120,140,200,0.10)", label: "EARNINGS", emoji: "📊" },
   WATCH_IN_ZONE:  { color: "var(--green)", bg: "var(--green-dim)", label: "IN ZONE",       emoji: "🎯" },
   WATCH_STALE:    { color: "var(--amber)", bg: "var(--amber-dim)", label: "REVIEW DUE",    emoji: "⏰" },
+  VERIFY_STOP:    { color: "var(--amber)", bg: "var(--amber-dim)", label: "VERIFY STOP FIELD", emoji: "🟡" },
+  TRIGGER_STALE:  { color: "var(--text-dim)", bg: "rgba(102,102,102,0.08)", label: "LOW · TRIGGER STALE", emoji: "⚪" },
+  WATCH_SWEEP:    { color: "var(--amber)", bg: "var(--amber-dim)", label: "WATCHLIST SWEEP", emoji: "🧹" },
 };
 
-const ZONE_PROXIMITY_THRESHOLD = 0.15;
+/** R8 — a card is "urgent" iff it renders red. */
+const isRed = (k: SignalKind) => KIND_STYLE[k].color === "var(--red)";
+
+/** R6 — parse Google Viz "Date(y,m,d)" (0-indexed month) or any ISO-ish string → yyyy-mm-dd. */
+function toIsoDate(value: unknown): string {
+  if (value == null) return "";
+  const s = String(value).trim();
+  if (!s) return "";
+  const m = s.match(/^Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})/);
+  if (m) return `${m[1]}-${String(+m[2] + 1).padStart(2, "0")}-${String(+m[3]).padStart(2, "0")}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isoToDate(value: string): Date | null {
+  const iso = toIsoDate(value);
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3]);
+}
+
+/** R2 — dead row detection on status + note fallback. */
+function isDead(status: string | undefined, ...notes: (string | undefined)[]): boolean {
+  const st = (status || "").trim().toUpperCase();
+  if ((DEAD_STATUSES as readonly string[]).some((d) => st === d || st.startsWith(d + " "))) return true;
+  return notes.some((n) => {
+    const u = (n || "").trim().toUpperCase();
+    return u.startsWith(DEAD_NOTE_PREFIX) || u.includes(DEAD_NOTE_CONTAINS);
+  });
+}
 
 function parseEntryMidpoint(entry: string): number | null {
   if (!entry) return null;
@@ -72,9 +121,8 @@ function parseEntryMidpoint(entry: string): number | null {
 }
 
 function daysUntil(value: string): number {
-  if (!value) return Number.POSITIVE_INFINITY;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return Number.POSITIVE_INFINITY;
+  const d = isoToDate(value);
+  if (!d) return Number.POSITIVE_INFINITY;
   const start = new Date();
   start.setHours(0, 0, 0, 0);
   const target = new Date(d);
@@ -83,9 +131,8 @@ function daysUntil(value: string): number {
 }
 
 function daysSince(value: string): number {
-  if (!value) return -1;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return -1;
+  const d = isoToDate(value);
+  if (!d) return -1;
   return Math.floor((Date.now() - d.getTime()) / 86400000);
 }
 
@@ -108,6 +155,7 @@ function buildInbox(
   holdings: LiveHolding[],
   watchlist: LiveWatchItem[],
   earnings: LiveEarningsCalendarItem[],
+  irrByTicker: Map<string, IrrBbEntry> = new Map(),
 ): InboxItem[] {
   const items: InboxItem[] = [];
 
@@ -118,8 +166,42 @@ function buildInbox(
     const triggerAdd = parseFloat(String(h.trigger_price_add ?? ""));
     const triggerExit = parseFloat(String(h.trigger_price_exit ?? ""));
 
-    if (!isNaN(triggerExit) && triggerExit > 0 && price <= triggerExit * (1 + ZONE_PROXIMITY_THRESHOLD)) {
-      const pct = ((triggerExit - price) / triggerExit * 100);
+    // stopDist > 0 = price above stop
+    const stopDist = !isNaN(triggerExit) && triggerExit > 0 ? ((price - triggerExit) / triggerExit) * 100 : null;
+    const irr = irrByTicker.get(normaliseTicker(h.ticker) || h.ticker.toUpperCase());
+    const rawScore = irr?.score;
+    const scoreMissing = rawScore == null || (MISSING_SCORE_TOKENS as readonly string[]).includes(String(rawScore).trim());
+    const holdOnly = irr?.result?.irrBb != null && irr.result.irrBb * 100 < IRR_BB_MIN;
+
+    if (stopDist != null && stopDist < -STOP_BREACH_IMPLAUSIBLE_PCT) {
+      // R4 — implausible breach: level is probably a trim/upside trigger in the stop field
+      items.push({
+        key: `verify-${h.ticker}`,
+        ticker: h.ticker,
+        kind: "VERIFY_STOP",
+        label: "Check level",
+        context: `Px ${price.toFixed(2)} vs stop ${triggerExit.toFixed(2)} (${stopDist.toFixed(1)}%) — likely a trim/upside trigger in the stop field`,
+        urgency: 4,
+        templateKey: "holdings_deep_dive",
+        templateContext: {
+          ticker: h.ticker, mv: Math.round(h.mv), aum_pct: h.aum_pct?.toFixed(1) ?? "—",
+          gl_pct: h.gl?.toFixed(1) ?? "—", add_trigger: h.add_trigger || "—", exit_trigger: h.exit_trigger || "—",
+        },
+        details: [
+          { label: "Price", value: `${price.toFixed(2)} ${fmt(h.currency, "")}`.trim() },
+          { label: "Stop field", value: triggerExit.toFixed(2) },
+          { label: "Gap", value: fmtPct(stopDist) },
+          { label: "Exit trigger", value: fmt(h.exit_trigger), full: true },
+        ],
+        longNote: h.notes,
+        explain: {
+          trigger: `Price is ${Math.abs(stopDist).toFixed(1)}% below the stop — more than the ${STOP_BREACH_IMPLAUSIBLE_PCT}% plausibility guard.`,
+          thesis: `${fmt(h.layer, "Unknown layer")} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM).`,
+          action: `Verify the trigger_price_exit value in the sheet before acting — it is probably a trim or upside level.`,
+        },
+      });
+    } else if (stopDist != null && stopDist <= APPROACHING_STOP_PCT) {
+      const pct = -stopDist;
       const breached = pct >= 0;
       items.push({
         key: `exit-${h.ticker}`,
@@ -156,7 +238,33 @@ function buildInbox(
             : `No action yet — monitor closely; tighten attention on next session and pre-decide trim vs. exit if the stop fires.`,
         },
       });
-    } else if (!isNaN(triggerAdd) && triggerAdd > 0 && price <= triggerAdd * (1 + ZONE_PROXIMITY_THRESHOLD)) {
+    } else if (!isNaN(triggerAdd) && triggerAdd > 0 && !scoreMissing && !holdOnly && Math.abs(triggerAdd - price) / price * 100 > STALE_TRIGGER_PCT) {
+      // R5 — add trigger too far from spot
+      items.push({
+        key: `tstale-${h.ticker}`,
+        ticker: h.ticker,
+        kind: "TRIGGER_STALE",
+        label: "reset",
+        context: `Add trigger ${triggerAdd.toFixed(2)} vs spot ${price.toFixed(2)} (${(((triggerAdd - price) / price) * 100).toFixed(1)}%)`,
+        urgency: 6,
+        templateKey: "holdings_deep_dive",
+        templateContext: {
+          ticker: h.ticker, mv: Math.round(h.mv), aum_pct: h.aum_pct?.toFixed(1) ?? "—",
+          gl_pct: h.gl?.toFixed(1) ?? "—", add_trigger: h.add_trigger || "—", exit_trigger: h.exit_trigger || "—",
+        },
+        details: [
+          { label: "Price", value: price.toFixed(2) },
+          { label: "Add trigger", value: triggerAdd.toFixed(2) },
+          { label: "Add condition", value: fmt(h.add_trigger), full: true },
+        ],
+        longNote: h.notes,
+        explain: {
+          trigger: `Add trigger sits more than ${STALE_TRIGGER_PCT}% from spot.`,
+          thesis: `${fmt(h.layer, "Unknown layer")} · MV ${formatGBP(h.mv)}.`,
+          action: `Reset the add trigger to a level that reflects the current thesis.`,
+        },
+      });
+    } else if (!isNaN(triggerAdd) && triggerAdd > 0 && !scoreMissing && !holdOnly && price <= triggerAdd * (1 + APPROACHING_ADD_PCT / 100)) {
       const pct = ((triggerAdd - price) / triggerAdd * 100);
       const inside = pct >= 0;
       items.push({
@@ -201,6 +309,8 @@ function buildInbox(
   const flags: ReviewFlag[] = parseAllFlags(holdings);
   flags.forEach((f) => {
     if (f.isStale) return;
+    const dueIso = toIsoDate(f.date);
+    if (dueIso && daysSince(dueIso) > FLAG_STALE_DAYS) return;
     const kind: SignalKind = f.priority === "HIGH" ? "REVIEW_HIGH" : f.priority === "MEDIUM" ? "REVIEW_MED" : "REVIEW_LOW";
     const urgency = f.priority === "HIGH" ? 1 : f.priority === "MEDIUM" ? 4 : 6;
     const h = holdings.find((x) => x.ticker.toUpperCase() === f.ticker.toUpperCase());
@@ -209,7 +319,7 @@ function buildInbox(
       ticker: f.ticker,
       kind,
       label: f.flagType.replace(/_/g, " "),
-      context: f.reason ? f.reason.slice(0, 110) : f.prefix.replace(/_/g, " "),
+      context: `${dueIso ? `Due ${dueIso} · ` : ""}${f.reason ? f.reason.slice(0, 110) : f.prefix.replace(/_/g, " ")}`,
       urgency,
       templateKey: "holdings_deep_dive",
       templateContext: {
@@ -221,7 +331,7 @@ function buildInbox(
         { label: "Flag type", value: f.flagType },
         { label: "Prefix", value: f.prefix },
         { label: "Priority", value: f.priority },
-        { label: "Flagged", value: fmt(f.date) },
+        { label: "Due", value: fmt(dueIso) },
         ...(h
           ? [
               { label: "Layer / Acct", value: `${fmt(h.layer)} · ${fmt(h.account)}` },
@@ -233,7 +343,7 @@ function buildInbox(
       ],
       longNote: f.reason,
       explain: {
-        trigger: `${f.flagType.replace(/_/g, " ")} flagged on ${fmt(f.date, "an unknown date")} via ${f.prefix.replace(/_/g, " ")} (priority ${f.priority}).`,
+        trigger: `${f.flagType.replace(/_/g, " ")} due ${fmt(dueIso, "on an unknown date")} via ${f.prefix.replace(/_/g, " ")} (priority ${f.priority}).`,
         thesis: h
           ? `${fmt(h.layer)} · ${fmt(h.account)} · MV ${formatGBP(h.mv)} (${fmtPct(h.aum_pct, 1)} AUM) · open P&L ${fmtPct(h.gl)}.`
           : `Position context not currently in HOLDINGS — likely a watchlist or recently-exited name.`,
@@ -250,7 +360,7 @@ function buildInbox(
   // 3. Earnings within 5 days
   earnings.forEach((e) => {
     const d = daysUntil(e.nextEarningsDate);
-    if (d < 0 || d > 5) return;
+    if (d < 0 || d > EARNINGS_WINDOW_DAYS) return;
     const urgency = d <= 1 ? 1 : d <= 2 ? 2 : 3;
     const h = holdings.find((x) => x.ticker.toUpperCase() === e.ticker.toUpperCase());
     items.push({
@@ -265,7 +375,7 @@ function buildInbox(
         ticker: e.ticker, fiscal_period: e.fiscalPeriod || "—", earnings_date: e.nextEarningsDate,
       },
       details: [
-        { label: "Reports", value: fmt(e.nextEarningsDate) },
+        { label: "Reports", value: fmt(toIsoDate(e.nextEarningsDate)) },
         { label: "Period", value: fmt(e.fiscalPeriod) },
         { label: "Confirmed", value: e.confirmed ? "Yes" : "Estimated" },
         { label: "Last updated", value: fmt(e.lastUpdated) },
@@ -333,13 +443,16 @@ function buildInbox(
   // 5. Stale watchlist reviews (>14d overdue)
   watchlist.forEach((w) => {
     const since = daysSince(w.triggerReviewDate);
-    if (since <= 14) return;
+    if (since <= WATCH_STALE_DAYS) return;
+    const rn = (w.triggerReviewNote || "").trim().toUpperCase();
+    const sweepGroup: InboxItem["sweepGroup"] = rn.includes(SWEEP_NEEDS_RESET_TOKEN) ? "RESET" : rn.startsWith(SWEEP_DATE_ROLL_PREFIX) ? "ROLL" : "OTHER";
     items.push({
       key: `wstale-${w.ticker}`,
       ticker: w.ticker,
       kind: "WATCH_STALE",
+      sweepGroup,
       label: `${since}d stale`,
-      context: w.triggerReviewNote ? w.triggerReviewNote.slice(0, 110) : `Last reviewed ${w.triggerReviewDate || "—"}`,
+      context: w.triggerReviewNote ? w.triggerReviewNote.slice(0, 110) : `Due ${toIsoDate(w.triggerReviewDate) || "—"}`,
       urgency: since > 30 ? 4 : 5,
       templateKey: "watchlist_review",
       templateContext: {
@@ -350,7 +463,7 @@ function buildInbox(
         { label: "Name", value: fmt(w.name) },
         { label: "Layer", value: fmt(w.layer) },
         { label: "Status", value: fmt(w.status) },
-        { label: "Last reviewed", value: fmt(w.triggerReviewDate) },
+        { label: "Due", value: fmt(toIsoDate(w.triggerReviewDate)) },
         { label: "Days stale", value: String(since) },
         { label: "Entry target", value: fmt(w.entry) },
         { label: "Current", value: w.current != null ? w.current.toFixed(2) : "—" },
@@ -358,7 +471,7 @@ function buildInbox(
       ],
       longNote: w.triggerReviewNote || w.rationale,
       explain: {
-        trigger: `Trigger review for ${w.ticker} is ${since} day${since === 1 ? "" : "s"} stale (last reviewed ${fmt(w.triggerReviewDate, "—")}).`,
+        trigger: `Trigger review for ${w.ticker} is ${since} day${since === 1 ? "" : "s"} stale (due ${fmt(toIsoDate(w.triggerReviewDate), "—")}).`,
         thesis: `${fmt(w.layer)} watchlist · status ${fmt(w.status)}.${w.trigger ? ` Stated trigger: ${w.trigger}.` : ""}`,
         action: since > 30
           ? `Decide now: refresh trigger / upgrade to active / demote to research / reject. Don't let stale theses clutter the queue.`
@@ -367,13 +480,48 @@ function buildInbox(
     });
   });
 
-  return items.sort((a, b) => a.urgency - b.urgency);
+  // R2 — drop dead tickers (any source)
+  const dead = new Set<string>();
+  holdings.forEach((h) => { if (isDead(h.action, h.notes, h.trigger_review_note)) dead.add(h.ticker.toUpperCase()); });
+  watchlist.forEach((w) => { if (isDead(w.status, w.triggerReviewNote, w.rationale)) dead.add(w.ticker.toUpperCase()); });
+  const alive = items.filter((i) => !dead.has(i.ticker.toUpperCase()));
+
+  // R1 — de-duplicate on ticker + signal_type + subtype; keep highest priority
+  const byKey = new Map<string, InboxItem>();
+  for (const it of alive) {
+    const k = `${it.ticker.toUpperCase()}|${it.kind}|${it.label.toUpperCase()}`;
+    const prev = byKey.get(k);
+    if (!prev || it.urgency < prev.urgency) byKey.set(k, it);
+  }
+  const deduped = Array.from(byKey.values());
+
+  // R7 — collapse stale watchlist cohort into one sweep card
+  const stale = deduped.filter((i) => i.kind === "WATCH_STALE");
+  const others = deduped.filter((i) => i.kind !== "WATCH_STALE");
+  if (stale.length > 0) {
+    others.push({
+      key: "watchlist-sweep",
+      ticker: "WATCHLIST",
+      kind: "WATCH_SWEEP",
+      label: `Watchlist sweep (${stale.length} rows)`,
+      context: `${stale.filter((s) => s.sweepGroup === "RESET").length} need trigger reset · ${stale.filter((s) => s.sweepGroup === "ROLL").length} date roll only`,
+      urgency: 5,
+      templateKey: stale[0].templateKey,
+      templateContext: stale[0].templateContext,
+      details: [],
+      children: stale.sort((a, b) => a.ticker.localeCompare(b.ticker)),
+      explain: { trigger: "", thesis: "", action: "" },
+    });
+  }
+
+  return others.sort((a, b) => a.urgency - b.urgency);
 }
 
 interface Props {
   holdings: LiveHolding[];
   watchlist: LiveWatchItem[];
   earnings: LiveEarningsCalendarItem[];
+  scores?: LiveScore[];
 }
 
 const OPEN_ROWS_STORAGE_KEY = "stellar.actionInbox.openRows.v1";
@@ -414,8 +562,9 @@ function ExplainRow({ label, value, accent = false }: { label: string; value: st
   );
 }
 
-export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
+export default function ActionInbox({ holdings, watchlist, earnings, scores = [] }: Props) {
   const isMobile = useIsMobile();
+  const { byTicker: irrByTicker } = useIrrBb(scores, holdings, watchlist);
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [openRows, setOpenRows] = useState<Record<string, boolean>>(() => {
@@ -456,7 +605,7 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
   });
   const [showDone, setShowDone] = useState(false);
 
-  const items = useMemo(() => buildInbox(holdings, watchlist, earnings), [holdings, watchlist, earnings]);
+  const items = useMemo(() => buildInbox(holdings, watchlist, earnings, irrByTicker), [holdings, watchlist, earnings, irrByTicker]);
 
   // Persist expanded-row state across reloads/sessions.
   useEffect(() => {
@@ -523,39 +672,12 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
 
   const activeItems = items.filter((i) => !isDone(i.key));
   const doneItems = items.filter((i) => isDone(i.key));
-  const highCount = activeItems.filter((i) => i.urgency <= 1).length;
-  const visible = showAll ? activeItems : activeItems.slice(0, 8);
+  const highCount = activeItems.filter((i) => isRed(i.kind)).length;
+  const visible = showAll ? activeItems : activeItems.slice(0, INBOX_TOP_N);
   const mp = isMobile ? "10px 12px" : "14px 20px";
   const allCleared = activeItems.length === 0;
 
-  return (
-    <div style={{
-      background: "var(--panel)", border: "1px solid var(--rim)",
-      borderLeft: `3px solid ${allCleared ? "var(--green)" : "var(--gold)"}`, marginBottom: 16,
-    }}>
-      <div
-        onClick={() => setExpanded(!expanded)}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: mp, borderBottom: expanded ? "1px solid var(--rim)" : "none", cursor: "pointer",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: allCleared ? "var(--green)" : "var(--gold)" }}>
-            {allCleared ? "✅ All cleared for today" : "⚡ Today's Decisions"}
-          </span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.1em" }}>
-            {activeItems.length} open
-            {highCount > 0 && <span style={{ color: "var(--red)", marginLeft: 6 }}>· {highCount} urgent</span>}
-            {doneItems.length > 0 && <span style={{ marginLeft: 6 }}>· {doneItems.length} done</span>}
-          </span>
-        </div>
-        <div style={{ color: "var(--text-dim)" }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
-      </div>
-
-      {expanded && (
-        <div style={{ padding: mp, display: "grid", gap: 6 }}>
-          {visible.map((item) => {
+  const renderRow = (item: InboxItem) => {
             const style = KIND_STYLE[item.kind];
             const isOpen = !!openRows[item.key];
             return (
@@ -760,9 +882,74 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                 )}
               </div>
             );
-          })}
+  };
 
-          {activeItems.length > 8 && (
+  const renderSweep = (item: InboxItem) => {
+    const style = KIND_STYLE[item.kind];
+    const isOpen = !!openRows[item.key];
+    const kids = item.children ?? [];
+    const groups: { label: string; rows: InboxItem[] }[] = [
+      { label: "Needs trigger reset", rows: kids.filter((k) => k.sweepGroup === "RESET") },
+      { label: "Date roll only", rows: kids.filter((k) => k.sweepGroup === "ROLL") },
+      { label: "Other", rows: kids.filter((k) => k.sweepGroup === "OTHER") },
+    ].filter((g) => g.rows.length > 0);
+    return (
+      <div key={item.key} style={{ background: style.bg, border: "1px solid var(--rim)", borderLeft: `3px solid ${style.color}`, borderRadius: 2 }}>
+        <div
+          onClick={() => setOpenRows((s) => ({ ...s, [item.key]: !s[item.key] }))}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", flexWrap: "wrap" }}
+        >
+          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          <span style={{ fontSize: 12 }}>{style.emoji}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{item.label}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{item.context}</span>
+        </div>
+        {isOpen && (
+          <div style={{ borderTop: "1px solid var(--rim)", padding: "10px 14px", display: "grid", gap: 10 }}>
+            {groups.map((g) => (
+              <div key={g.label} style={{ display: "grid", gap: 4 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-dim)" }}>
+                  {g.label} · {g.rows.length}
+                </span>
+                {g.rows.map((r) => renderRow(r))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      background: "var(--panel)", border: "1px solid var(--rim)",
+      borderLeft: `3px solid ${allCleared ? "var(--green)" : "var(--gold)"}`, marginBottom: 16,
+    }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: mp, borderBottom: expanded ? "1px solid var(--rim)" : "none", cursor: "pointer",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: allCleared ? "var(--green)" : "var(--gold)" }}>
+            {allCleared ? "✅ All cleared for today" : "⚡ Today's Decisions"}
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.1em" }}>
+            {activeItems.length} open
+            {highCount > 0 && <span style={{ color: "var(--red)", marginLeft: 6 }}>· {highCount} urgent</span>}
+            {doneItems.length > 0 && <span style={{ marginLeft: 6 }}>· {doneItems.length} done</span>}
+          </span>
+        </div>
+        <div style={{ color: "var(--text-dim)" }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: mp, display: "grid", gap: 6 }}>
+          {visible.map((item) => (item.kind === "WATCH_SWEEP" ? renderSweep(item) : renderRow(item)))}
+
+          {activeItems.length > INBOX_TOP_N && (
             <button
               onClick={() => setShowAll((s) => !s)}
               style={{
@@ -772,7 +959,7 @@ export default function ActionInbox({ holdings, watchlist, earnings }: Props) {
                 cursor: "pointer", borderRadius: 2, justifySelf: "start",
               }}
             >
-              {showAll ? `Show top 8` : `Show all ${activeItems.length}`}
+              {showAll ? `Show top ${INBOX_TOP_N}` : `Show all ${activeItems.length}`}
             </button>
           )}
 
