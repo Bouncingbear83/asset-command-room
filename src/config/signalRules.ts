@@ -4,10 +4,8 @@
  */
 
 /** R2 — statuses that mean the row is dead and must never surface. */
-export const DEAD_STATUSES = ["ARCHIVED", "ARCHIVE", "EXITED", "REMOVED"] as const;
-/** R2 fallback — note prefix / substring that also marks a row dead. */
-export const DEAD_NOTE_PREFIX = "ARCHIVED";
-export const DEAD_NOTE_CONTAINS = "EXITED";
+/** Matched against WATCHLIST status (col H) and SCORES Held_Status (col A). Held rows are never dead. */
+export const DEAD_STATUSES = ["ARCHIVE", "ARCHIVED", "EXITED", "REJECTED", "REMOVED"] as const;
 
 /** R3 — a stop is "approaching" only when price is within this % ABOVE the stop. */
 export const APPROACHING_STOP_PCT = 5;
