@@ -1,3 +1,7 @@
+import { EVENT_ACTION_TYPES } from "@/config/signalRules";
+const isEventItem = (i: { action_type: string; source?: string | null; persisted?: boolean }) =>
+  (EVENT_ACTION_TYPES as readonly string[]).includes(String(i.action_type).toUpperCase()) ||
+  (!!i.persisted && String(i.source ?? "").toUpperCase() === "SESSION");
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { useActionTracker, type ActionItem } from "./useActionTracker";
@@ -127,11 +131,12 @@ export default function ActionsTab() {
   }, [holdings, watchlist]);
 
   // ── Split items into event-driven vs routine ──
-  const eventItems = useMemo(() => items.filter((i) => !i.is_routine && i.lane !== "BACKLOG"), [items]);
+  // F6 — Events = EARNINGS_GATE / CATALYST_WATCH / DEPLOY / KILL_CHECK and session rows only.
+  const eventItems = useMemo(() => items.filter((i) => !i.is_routine && i.lane !== "BACKLOG" && isEventItem(i)), [items]);
   // R17 — INFRA / DOCTRINE / SOURCING / RESEARCH / ticker-less MANUAL rows.
   const backlogItems = useMemo(() => items.filter((i) => i.lane === "BACKLOG"), [items]);
   const backlogOpenCount = backlogItems.filter((i) => i.status === "OPEN").length;
-  const routineItems = useMemo(() => items.filter((i) => i.is_routine), [items]);
+  const routineItems = useMemo(() => items.filter((i) => i.is_routine || (i.lane !== "BACKLOG" && !isEventItem(i) && (i.source === "WATCHLIST" || i.source === "SCORES"))), [items]);
 
   const activeItems =
     view === "EVENTS"
