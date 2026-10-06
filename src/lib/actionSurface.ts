@@ -26,6 +26,9 @@ import {
   GM_MAX_AGGREGATE_PCT,
   GM_MAX_POSITIONS,
   GM_SOFT_CAP_ACK,
+  APPROACHING_ADD_PCT,
+  WATCH_WAKE_STATUSES,
+  EXIT_RECLASS_TAG,
 } from "@/config/signalRules";
 
 export type Lane = "DECIDE" | "PREPARE" | "WATCH" | "BACKLOG" | "MISSED";
@@ -64,6 +67,7 @@ export interface WatchIn {
 }
 export interface ScoreIn { ticker: string; heldStatus?: string; irrBbSheet?: number | null; score?: number | null }
 export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; fiscalPeriod?: string; confirmed?: boolean }
+export interface TxnIn { ticker: string; account?: string; date: string; action: string }
 export interface TrackerRowIn {
   id: string; ticker: string | null; action_type: string; due_date: string; summary: string;
   status: string; priority?: string; layer?: string | null; source?: string | null;
@@ -195,18 +199,33 @@ export function holdAlert(h: HoldingIn, irrBbRaw: number | null | undefined): Ho
     const irr = irrPct(irrBbRaw);
     if (add == null || add <= 0) return null;
     if (irr == null || irr < IRR_BB_MIN) return null;
+    // F2 — the Weekly ALERT_STATUS is not trusted on its own: spot must be within the add band.
+    if (!(h.price > 0) || h.price > add * (1 + APPROACHING_ADD_PCT / 100)) return null;
   }
   const due = isoDate(h.alert_fired_date);
   return { status: st, severity: st === "STOP_BREACH" ? "RED" : "AMBER", due: due || "" };
 }
 
 // ── Entry zone parsing (display only) ──
+/** F3 — only a purely numeric range (or single numeric value) is a zone; text conditions are not. */
 export function parseZone(entry: string | undefined): { low: number; high: number } | null {
-  if (!entry) return null;
-  const nums = (String(entry).match(/[\d]+(?:[.,]\d+)?/g) || []).map((x) => parseFloat(x.replace(/,/g, ""))).filter((n) => n > 0);
-  if (nums.length === 0) return null;
-  if (nums.length === 1) return { low: nums[0], high: nums[0] };
-  return { low: Math.min(nums[0], nums[1]), high: Math.max(nums[0], nums[1]) };
+  const s = String(entry ?? "").trim();
+  if (!s) return null;
+  const P = "[$£€¥]?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:p|c|USD|GBP|EUR|JPY)?";
+  const range = s.match(new RegExp(`^${P}\\s*(?:-|–|—|to)\\s*${P}$`, "i"));
+  const single = s.match(new RegExp(`^[<>≤≥]?=?\\s*${P}$`, "i"));
+  const toN = (x: string) => parseFloat(x.replace(/,/g, ""));
+  if (range) {
+    const a = toN(range[1]), b = toN(range[2]);
+    if (!(a > 0 && b > 0)) return null;
+    return { low: Math.min(a, b), high: Math.max(a, b) };
+  }
+  if (single) {
+    const n = toN(single[1]);
+    if (!(n > 0)) return null;
+    return s.startsWith("<") || s.startsWith("≤") ? { low: 0, high: n } : { low: n, high: n };
+  }
+  return null;
 }
 
 // ── Builder ──
@@ -219,6 +238,8 @@ export interface BuildArgs {
   today: string;
   gm?: { aggregatePct: number; deployed: number; staged: number } | null;
   sharesBaseline?: Record<string, number>;
+  /** F4 v2 — TRANSACTIONS rows; a same-side row on/after the order date clears R16. */
+  transactions?: TxnIn[];
 }
 
 export interface Surface {
@@ -229,14 +250,23 @@ export interface Surface {
   backlog: Candidate[];
   overflow: number;
   wakeWithin10: number;
+  /** F8 — live names with nothing firing (held + live watchlist). */
+  watchCount: number;
 }
 
 const SEV_RANK: Record<Severity, number> = { RED: 0, AMBER: 1, GREY: 2 };
 
-export function routeTrackerRow(r: TrackerRowIn, today: string): Lane {
+/**
+ * F7 — `known` = tickers in HOLDINGS / WATCHLIST / SCORES. A ticker outside it (e.g. "INFRA")
+ * counts as no ticker. MANUAL rows on dead tickers go to BACKLOG.
+ */
+export function routeTrackerRow(r: TrackerRowIn, today: string, known?: Set<string>, dead?: Set<string>): Lane {
   const t = up(r.action_type);
+  const tk = up(r.ticker);
+  const hasTicker = !!tk && (!known || known.size === 0 || known.has(tk));
   if ((BACKLOG_ACTION_TYPES as readonly string[]).includes(t)) return "BACKLOG";
-  if (t === "MANUAL" && !r.ticker) return "BACKLOG";
+  if (t === "MANUAL" && (!hasTicker || dead?.has(tk))) return "BACKLOG";
+  if (!hasTicker) return "BACKLOG";
   const due = isoDate(r.due_date);
   if (!due) return "WATCH";
   const d = daysFrom(today, due);
@@ -252,6 +282,7 @@ export function buildSurface(a: BuildArgs): Surface {
   const scoreBy = new Map<string, ScoreIn>();
   for (const s of a.scores) if (!scoreBy.has(up(s.ticker))) scoreBy.set(up(s.ticker), s);
   const heldSet = new Set(a.holdings.map((h) => up(h.ticker)));
+  const known = new Set<string>([...heldSet, ...a.watchlist.map((w) => up(w.ticker)), ...a.scores.map((s) => up(s.ticker))]);
   const byKey = new Map<string, Candidate>();
   let wakeWithin10 = 0;
 
@@ -297,11 +328,25 @@ export function buildSurface(a: BuildArgs): Surface {
     }
 
     // R16 — reconcile fill
-    const fill = reconcileFill(h, a.sharesBaseline?.[t]);
+    let fill = reconcileFill(h, a.sharesBaseline?.[t]);
+    if (fill && a.transactions?.length) {
+      const f = fill;
+      const orderDate = [h.deploy_note, h.trigger_review_note, h.notes].map((x) => String(x ?? "")).find((x) => x.includes(f.raw))?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+      const buySide = /BUY|^T\d/.test(f.side);
+      if (orderDate && a.transactions.some((x) => up(x.ticker) === t && (!h.account || !x.account || up(x.account) === up(h.account))
+        && isoDate(x.date) >= orderDate && (buySide ? /BUY|ADD/.test(up(x.action)) : /SELL|TRIM/.test(up(x.action))))) fill = null;
+    }
     if (fill) {
       emit({ ticker: t, trigger_type: "RECONCILE_FILL", title: "Reconcile fill: check broker, log contract note", lane: "DECIDE", severity: "RED",
         fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null, layer: h.layer,
         reason: `${fill.side} limit ${fill.op} ${fill.price}; spot ${h.price}; ${h.shares ?? "?"} sh held`, account: h.account });
+    }
+
+    // F5 — R13 exception: [EXIT_RECLASS] tag in AJ with no operator verdict is a decision.
+    if (note.toUpperCase().includes(EXIT_RECLASS_TAG) && !verdict) {
+      emit({ ticker: t, trigger_type: "EXIT_RECLASS", title: "Exit reclass: trim-or-recommit", lane: "DECIDE", severity: "AMBER",
+        fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: nextReview, layer: h.layer,
+        reason: note.slice(0, 160), account: h.account });
     }
 
     // R11 — hold alerts (R12 supersession applies; R13 automation notes never an event)
@@ -325,7 +370,7 @@ export function buildSurface(a: BuildArgs): Surface {
     const superseded = isSuperseded(note, w.triggerReviewDate, today);
     const rd = isoDate(w.triggerReviewDate);
     if (rd && rd <= today) batchNames++;
-    if (st.startsWith("WAIT_EVENT")) continue; // never wakes on price
+    if (!(WATCH_WAKE_STATUSES as readonly string[]).some((w) => st.startsWith(w))) continue; // F3
     const px = num(w.current);
     if (px == null || px <= 0) continue;
     const zone = parseZone(w.entry);
@@ -364,7 +409,10 @@ export function buildSurface(a: BuildArgs): Surface {
     if (!d) continue;
     const delta = daysFrom(today, d);
     const notes = [holdingNotes.get(t), wlNotes.get(t)].filter(Boolean).join(" | ");
-    const gateMatch = notes.split("|").map((s) => s.trim()).find((s) => /print|earnings|results|\bQ[1-4]\b|report/i.test(s) && !isAutomationNote(s));
+    const gateRaw = notes.split("|").map((s) => s.trim()).find((s) => /print|earnings|results|\bQ[1-4]\b|report/i.test(s) && !isAutomationNote(s));
+    // F10 — a test dated before the last print is stale. Last print = this print if past, else next print − 1 quarter.
+    const lastPrint = delta < 0 ? d : new Date(Date.parse(d + "T00:00:00Z") - 91 * 86400000).toISOString().slice(0, 10);
+    const gateMatch = gateRaw ? (isGateTestStale(gateRaw, lastPrint) ? `STALE TEST (${gateRaw.slice(0, 80)})` : gateRaw) : undefined;
     if (delta >= 0 && delta <= EARNINGS_PREPARE_DAYS) {
       emit({ ticker: t, trigger_type: "EARNINGS", title: `Earnings ${d}${e.fiscalPeriod ? ` (${e.fiscalPeriod})` : ""}`, lane: "PREPARE", severity: "GREY",
         fired_at: d, source: "EARNINGS", source_ref: null, gate_test: gateMatch ?? null, verdict_at: null, next_review: d,
@@ -394,7 +442,7 @@ export function buildSurface(a: BuildArgs): Surface {
   // ── action_tracker (R17) ──
   for (const r of a.tracker ?? []) {
     if (up(r.status) !== "OPEN") continue;
-    const lane = routeTrackerRow(r, today);
+    const lane = routeTrackerRow(r, today, known, dead);
     const t = up(r.ticker);
     emit({ ticker: t, trigger_type: `TRACKER_${up(r.action_type)}`, title: r.summary.slice(0, 120), lane,
       severity: lane === "MISSED" ? "GREY" : up(r.priority) === "HIGH" ? "AMBER" : "GREY",
@@ -416,6 +464,7 @@ export function buildSurface(a: BuildArgs): Surface {
     backlog: all.filter((c) => c.lane === "BACKLOG"),
     overflow: overflowItems.length,
     wakeWithin10,
+    watchCount: countWatching(a, dead, heldSet, all),
   };
 }
 
@@ -430,4 +479,34 @@ export function gmStatus(aggregatePct: number, deployed: number, today: string):
       : { level: "BREACH", label: `BREACH ${aggregatePct.toFixed(1)}% vs ${GM_MAX_AGGREGATE_PCT}%`, frozen: true, ackActive };
   }
   return { level: "OK", label: "", frozen, ackActive };
+}
+
+// ── F10: gate-test staleness ──
+const MONTHS: Record<string, number> = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+/** First date in the text (YYYY-MM-DD or "15 Jun"[ 2026]); a missing year is inferred relative to lastPrint. */
+export function testDate(text: string, lastPrint: string): string | null {
+  const iso = text.match(/\d{4}-\d{2}-\d{2}/);
+  if (iso) return iso[0];
+  const m = text.match(/\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?(?:\s+(\d{4}))?/i);
+  if (!m) return null;
+  let y = m[3] ? +m[3] : +lastPrint.slice(0, 4);
+  const mk = (yy: number) => `${yy}-${String(MONTHS[m[2].slice(0, 3).toUpperCase()]).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  if (!m[3] && mk(y) > lastPrint && daysFrom(lastPrint, mk(y)) > 180) y -= 1;
+  return mk(y);
+}
+export function isGateTestStale(text: string, lastPrint: string): boolean {
+  const td = testDate(text, lastPrint);
+  return !!td && td < lastPrint;
+}
+
+// ── F8: watching = every live name with nothing firing ──
+function countWatching(a: BuildArgs, dead: Set<string>, held: Set<string>, all: Candidate[]): number {
+  const firing = new Set(all.filter((c) => c.lane === "DECIDE").map((c) => c.ticker));
+  const names = new Set<string>();
+  for (const t of held) if (t && !firing.has(t)) names.add(t);
+  for (const w of a.watchlist) {
+    const t = up(w.ticker);
+    if (t && !dead.has(t) && !firing.has(t)) names.add(t);
+  }
+  return names.size;
 }
