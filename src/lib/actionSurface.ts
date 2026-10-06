@@ -266,7 +266,7 @@ export function routeTrackerRow(r: TrackerRowIn, today: string, known?: Set<stri
   const hasTicker = !!tk && (!known || known.size === 0 || known.has(tk));
   if ((BACKLOG_ACTION_TYPES as readonly string[]).includes(t)) return "BACKLOG";
   if (t === "MANUAL" && (!hasTicker || dead?.has(tk))) return "BACKLOG";
-  if (!hasTicker) return "BACKLOG";
+  if (tk && !hasTicker) return "BACKLOG"; // unknown ticker (e.g. INFRA) = not a position event
   const due = isoDate(r.due_date);
   if (!due) return "WATCH";
   const d = daysFrom(today, due);
