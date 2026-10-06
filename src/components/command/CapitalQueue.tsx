@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { DP_MIN_PCT, QUEUE_BLOCK_ACTIONS, QUEUE_MIN_GBP } from "@/config/signalRules";
+import { buildDeadSet, parseZone } from "@/lib/actionSurface";
 import { LiveHolding, LiveWatchItem, LiveLayer, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -64,9 +66,15 @@ interface Props {
   watchlist: LiveWatchItem[];
   layers: LiveLayer[];
   macroState: Record<string, LiveMacroStateRow>;
+  /** Gross dry powder % of AUM (R21) — Armed requires the DP gate to pass. */
+  dpPct?: number | null;
+  scores?: { ticker: string; heldStatus?: string }[];
 }
 
-export default function CapitalQueue({ holdings, watchlist, layers, macroState }: Props) {
+export default function CapitalQueue({ holdings, watchlist, layers, macroState, dpPct = null, scores = [] }: Props) {
+  const [gapsOpen, setGapsOpen] = useState(false);
+  const dpGate = dpPct == null || dpPct > DP_MIN_PCT;
+  const dead = useMemo(() => buildDeadSet(holdings, watchlist, scores), [holdings, watchlist, scores]);
   const isMobile = useIsMobile();
 
   // Pause status
@@ -86,71 +94,59 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState }
 
   const holdingsTickers = useMemo(() => new Set(holdings.map((h) => h.ticker.toUpperCase())), [holdings]);
 
-  const queue = useMemo(() => {
+  // R19 — Armed (trigger met, not blocked, DP gate passes) vs Gaps (target − actual, informational).
+  const { queue, gaps } = useMemo(() => {
     const items: QueueItem[] = [];
+    const gapItems: QueueItem[] = [];
+    const blocked = (a: string) => (QUEUE_BLOCK_ACTIONS as readonly string[]).some((b) => a.toUpperCase().includes(b));
 
-    // --- Holdings: SIZE UP / TOP-UP ---
     holdings.forEach((h) => {
+      if (dead.has(h.ticker.toUpperCase())) return;
       const target = h.deploy_target_gbp;
       if (target <= 0 || target <= h.mv) return;
       const amount = Math.round(target - h.mv);
+      if (amount < QUEUE_MIN_GBP) return;
       const act = h.action.trim().toUpperCase();
       const action = act === "SIZE UP" ? "SIZE UP" : "TOP-UP";
       const priority = action === "SIZE UP" ? 0 : 1;
       const layerGap = layerGapMap.get(h.layer.toUpperCase()) ?? 0;
       const context = h.deploy_note || `${h.action} · ${h.notes}`.trim() || `Deploy to ${formatCurrency(target)} target`;
-      items.push({
-        ticker: h.ticker,
-        action,
-        amount,
-        layer: h.layer,
-        context,
-        price: h.price,
-        priority,
-        layerGap,
-        isWatchlist: false,
-        tier: null,
-      });
+      const add = parseFloat(String(h.trigger_price_add ?? ""));
+      const triggerMet = h.alert_status.toUpperCase() === "ADD_ZONE" || (add > 0 && h.price > 0 && h.price <= add);
+      const blk = blocked(act) || blocked(h.deploy_note || "") || blocked(h.notes || "");
+      const row: QueueItem = { ticker: h.ticker, action, amount, layer: h.layer, context, price: h.price, priority, layerGap, isWatchlist: false, tier: null };
+      if (triggerMet && !blk && dpGate) items.push(row);
+      else gapItems.push({ ...row, action: "GAP" });
     });
 
-    // --- Watchlist: BUY ---
     watchlist.forEach((w) => {
       if (!w.status.toUpperCase().startsWith("BUY")) return;
+      if (dead.has(w.ticker.toUpperCase())) return;
       if (holdingsTickers.has(w.ticker.toUpperCase())) return;
       const amount = w.deploy_amount_gbp;
-      if (amount <= 0) return;
-
-      // Extract tier
+      if (amount < QUEUE_MIN_GBP) return;
       const tierMatch = w.status.match(/T(\d)/i);
       const tier = tierMatch ? parseInt(tierMatch[1], 10) : 9;
       const priority = tier <= 1 ? 2 : 3;
       const layerGap = layerGapMap.get(w.layer.toUpperCase()) ?? 0;
       const action = tier <= 3 ? `BUY T${tier}` : "BUY";
       const context = w.trigger || `Entry at ${w.entry}`;
-      items.push({
-        ticker: w.ticker,
-        action,
-        amount,
-        layer: w.layer,
-        context,
-        price: typeof w.current === "number" ? w.current : 0,
-        priority,
-        layerGap,
-        isWatchlist: true,
-        tier,
-      });
+      const px = typeof w.current === "number" ? w.current : 0;
+      const edge = w.triggerPriceNumeric && w.triggerPriceNumeric > 0 ? w.triggerPriceNumeric : parseZone(w.entry)?.high ?? 0;
+      const row: QueueItem = { ticker: w.ticker, action, amount, layer: w.layer, context, price: px, priority, layerGap, isWatchlist: true, tier };
+      if (px > 0 && edge > 0 && px <= edge && dpGate) items.push(row);
+      else gapItems.push({ ...row, action: "GAP" });
     });
 
-    // Sort: priority first, then by layer gap (most underweight first), then by amount
-    items.sort((a, b) => {
+    const sorter = (a: QueueItem, b: QueueItem) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      // More negative layerGap = more underweight = higher priority
       if (a.layerGap !== b.layerGap) return a.layerGap - b.layerGap;
       return b.amount - a.amount;
-    });
-
-    return items;
-  }, [holdings, watchlist, layerGapMap, holdingsTickers]);
+    };
+    items.sort(sorter);
+    gapItems.sort((a, b) => b.amount - a.amount);
+    return { queue: items, gaps: gapItems };
+  }, [holdings, watchlist, layerGapMap, holdingsTickers, dead, dpGate]);
 
   const deployTotal = queue.reduce((sum, d) => sum + d.amount, 0);
   const mp = isMobile ? "10px 12px" : "10px 16px";
@@ -158,9 +154,10 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState }
   return (
     <div style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}` }}>
       <div style={cardHeader}>
-        <span style={cardTitle}>Capital Queue {isPaused ? "(paused)" : ""}</span>
+        <span style={cardTitle}>Capital Queue · Armed {isPaused ? "(paused)" : ""}</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-          {queue.length > 0 ? `${queue.length} items · ${formatCurrency(deployTotal)}` : "—"}
+          {queue.length > 0 ? `${queue.length} armed · ${formatCurrency(deployTotal)}` : "0 armed"}
+          {!dpGate && <span style={{ color: "var(--amber)", marginLeft: 6 }}>· DP gate closed ({dpPct?.toFixed(1)}% ≤ {DP_MIN_PCT}%)</span>}
         </span>
       </div>
       <div style={{ padding: mp }}>
@@ -180,7 +177,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState }
         )}
         {queue.length === 0 ? (
           <div style={{ padding: "12px 0", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)" }}>
-            No deployments queued
+            Nothing armed
           </div>
         ) : (
           queue.map((d, i) => {
@@ -247,6 +244,24 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState }
               </div>
             );
           })
+        )}
+        {gaps.length > 0 && (
+          <div style={{ marginTop: 10, borderTop: "1px solid var(--rim)", paddingTop: 8 }}>
+            <button
+              onClick={() => setGapsOpen((o) => !o)}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-dim)" }}
+            >
+              {gapsOpen ? "▾" : "▸"} Gaps · {gaps.length} · {formatCurrency(gaps.reduce((s, g) => s + g.amount, 0))} (informational)
+            </button>
+            {gapsOpen && gaps.map((g) => (
+              <div key={`gap-${g.ticker}-${g.isWatchlist}`} style={{ display: "flex", gap: 10, padding: "4px 0", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
+                <span style={{ minWidth: 60, color: "var(--text-mid)" }}>{g.ticker}</span>
+                <span style={{ minWidth: 60 }}>{formatCurrency(g.amount)}</span>
+                <span style={{ minWidth: 60 }}>{g.layer}</span>
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.context}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
