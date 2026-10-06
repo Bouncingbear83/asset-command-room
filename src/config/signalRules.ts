@@ -49,3 +49,62 @@ export const OPERATOR_TOKEN = "OPERATOR";
 
 /** Number of cards shown before "Show all". */
 export const INBOX_TOP_N = 8;
+
+// ═══════════════════════════════════════════════════════════════════
+// Action Surface Spec v1 (docs/action-surface-spec-v1.md) — R10 to R22
+// Display/routing only. Never feeds score, IRR-BB or composite maths.
+// ═══════════════════════════════════════════════════════════════════
+
+/** Lanes a candidate can be routed to. */
+export const LANES = ["DECIDE", "PREPARE", "WATCH", "BACKLOG", "MISSED"] as const;
+
+/** R10 — dead filter (DEAD_STATUSES + LIVENESS_PRECEDENCE) applies to EVERY builder. */
+export const DEAD_FILTER_EVERYWHERE = true;
+
+/** R11 — the only HOLDINGS ALERT_STATUS values that create a HOLD_ALERT. Others produce nothing. */
+export const HOLD_ALERT_STATUSES = ["EXIT_ZONE", "STOP_BREACH", "ADD_ZONE", "THESIS_BREAK"] as const;
+
+/** R12 — dated verdict tokens; paired with a YYYY-MM-DD date in the review note. */
+export const VERDICT_TOKENS = ["HOLD", "NO ADD", "COMMITTED", "CLOSED", "ARCHIVED", "EXITED", "FILLED", "DONE"] as const;
+
+/** R13 — automation prefixes: never events, only annotate WATCH. */
+export const AUTOMATION_PREFIXES = ["M_WL", "M_", "W_", "Q_REVIEW"] as const;
+
+/** R14 — earnings: held names only, this many days ahead, lane PREPARE. */
+export const EARNINGS_PREPARE_DAYS = 14;
+/** R14 — post-print thesis check, business days after the print. */
+export const THESIS_CHECK_BUSINESS_DAYS = 5;
+
+/** R15 — WAIT_PRICE wakes when spot is within this % of the zone edge. */
+export const WATCH_WAKE_PCT = 10;
+
+/** R16 — limit-order pattern in notes / DEPLOY_NOTE. Group 1 side, 2 operator, 3 price. */
+export const LIMIT_ORDER_REGEX = /(BUY|TRIM|SELL|T\d+).*?limit\s*(<=|>=|≤|≥)\s*[$£€p]?\s*([\d,.]+)/i;
+export const FILLED_TOKEN = "FILLED";
+
+/** R17 — action_tracker types that always route to BACKLOG (MANUAL only when no ticker). */
+export const BACKLOG_ACTION_TYPES = ["INFRA", "DOCTRINE", "SOURCING", "RESEARCH"] as const;
+/** R17 — rows/events this many days past due with no verdict go to MISSED. */
+export const MISSED_AFTER_DAYS = 3;
+
+/** R18 — hard cap on DECIDE; overflow drops lowest severity to WATCH. */
+export const DECIDE_CAP = 10;
+/** PREPARE horizon for held-name events. */
+export const PREPARE_HORIZON_DAYS = 14;
+
+/** R19 — Capital Queue: actions that block Armed, and the minimum row size. */
+export const QUEUE_BLOCK_ACTIONS = ["NO ADD", "HOLD-ONLY", "HOLD ONLY", "DORMANT"] as const;
+export const QUEUE_MIN_GBP = 1000;
+
+/** R20 — G(m) caps and the v1 soft-cap acknowledgement (reverts to RED on expiry). */
+export const GM_MAX_AGGREGATE_PCT = 2.5;
+export const GM_MAX_POSITIONS = 4;
+export const GM_MAX_SINGLE_PCT = 1.0;
+export const GM_SOFT_CAP_ACK = { since: "2026-10-06", expires: "2027-01-04" } as const;
+
+/** R21 — dry-powder posture band (gross cash % of AUM). AMBER outside. Also the Armed DP gate floor. */
+export const DP_MIN_PCT = 7;
+export const DP_MAX_PCT = 8;
+
+/** R22 — overdue layer reviews covered by a later scheduled_reviews session render "rolled to …". */
+export const LAYER_ROLL_MATCH = /layer|P\d/i;

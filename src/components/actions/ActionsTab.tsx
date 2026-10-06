@@ -5,7 +5,7 @@ import ActionItemRow from "./ActionItem";
 import ActionAddModal from "./ActionAddModal";
 
 type FilterMode = "ALL" | "OPEN" | "RESOLVED";
-type ViewMode = "EVENTS" | "ROUTINE" | "ALL_ITEMS";
+type ViewMode = "EVENTS" | "ROUTINE" | "BACKLOG" | "ALL_ITEMS";
 
 function daysUntil(due: string): number {
   const d = new Date(due);
@@ -127,7 +127,10 @@ export default function ActionsTab() {
   }, [holdings, watchlist]);
 
   // ── Split items into event-driven vs routine ──
-  const eventItems = useMemo(() => items.filter((i) => !i.is_routine), [items]);
+  const eventItems = useMemo(() => items.filter((i) => !i.is_routine && i.lane !== "BACKLOG"), [items]);
+  // R17 — INFRA / DOCTRINE / SOURCING / RESEARCH / ticker-less MANUAL rows.
+  const backlogItems = useMemo(() => items.filter((i) => i.lane === "BACKLOG"), [items]);
+  const backlogOpenCount = backlogItems.filter((i) => i.status === "OPEN").length;
   const routineItems = useMemo(() => items.filter((i) => i.is_routine), [items]);
 
   const activeItems =
@@ -135,7 +138,9 @@ export default function ActionsTab() {
       ? eventItems
       : view === "ROUTINE"
         ? routineItems
-        : items;
+        : view === "BACKLOG"
+          ? backlogItems
+          : items;
 
   const openCount = useMemo(
     () => items.filter((i) => i.status === "OPEN").length,
@@ -247,6 +252,12 @@ export default function ActionsTab() {
           onClick={() => setView("ROUTINE")}
         >
           Reviews{routineOpenCount > 0 ? ` (${routineOpenCount})` : ""}
+        </button>
+        <button
+          style={viewChipStyle(view === "BACKLOG", "var(--text-mid)")}
+          onClick={() => setView("BACKLOG")}
+        >
+          Backlog{backlogOpenCount > 0 ? ` (${backlogOpenCount})` : ""}
         </button>
         <button
           style={viewChipStyle(view === "ALL_ITEMS")}

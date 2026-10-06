@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  buildDeadSet, holdAlert, isAutomationNote, isSuperseded, routeTrackerRow, type Lane,
+} from "@/lib/actionSurface";
+import { EARNINGS_PREPARE_DAYS } from "@/config/signalRules";
 import type {
   LiveHolding,
   LiveWatchItem,
@@ -16,7 +20,11 @@ export type ActionType =
   | "REVIEW_DUE"
   | "KILL_CHECK"
   | "DEPLOY_READY"
-  | "MANUAL";
+  | "MANUAL"
+  | "INFRA"
+  | "DOCTRINE"
+  | "SOURCING"
+  | "RESEARCH";
 
 export type ActionStatus = "OPEN" | "CONFIRMED" | "DISMISSED" | "EXPIRED";
 export type ActionPriority = "HIGH" | "MEDIUM" | "LOW";
@@ -51,6 +59,8 @@ export interface ActionItem {
    * Used by the tab to separate routine from signal.
    */
   is_routine: boolean;
+  /** Spec v1 lane (R17). BACKLOG items never appear on the Command tab. */
+  lane: Lane;
 }
 
 interface Args {
@@ -202,6 +212,17 @@ export function useActionTracker({
     return m;
   }, [watchlist]);
 
+  // R10 — dead filter applies to every builder.
+  const dead = useMemo(
+    () => buildDeadSet(holdings, watchlist, scores as any),
+    [holdings, watchlist, scores],
+  );
+  const scoreIrr = useMemo(() => {
+    const m = new Map<string, number | null>();
+    for (const s of scores) m.set(String(s.ticker ?? "").trim().toUpperCase(), (s as any).irrBbSheet ?? null);
+    return m;
+  }, [scores]);
+
   // ── Sheet-derived items (SELECTIVE) ──
   const sheetItems: ActionItem[] = useMemo(() => {
     const out: ActionItem[] = [];
@@ -217,6 +238,9 @@ export function useActionTracker({
     const seenRoutine = new Set<string>();
 
     for (const [ticker, sc] of scoreMap.entries()) {
+      if (dead.has(ticker)) continue;
+      // R15 — calendar cadence no longer drives watchlist names; held names only.
+      if (!held.has(ticker)) continue;
       // Determine status: prefer SCORES.heldStatus, fall back to WATCHLIST.status
       const wl = watchMap.get(ticker);
       const status = sc.heldStatus || wl?.status || "";
@@ -271,6 +295,7 @@ export function useActionTracker({
         dedupe_key: key,
         persisted: false,
         is_routine: true,
+        lane: "WATCH",
       });
 
       seenRoutine.add(ticker);
@@ -286,7 +311,10 @@ export function useActionTracker({
     for (const w of watchlist) {
       const due = toDateISO(w.triggerReviewDate);
       if (!due) continue;
+      if (dead.has((w.ticker || "").toUpperCase())) continue; // R10
+      if (isAutomationNote(w.triggerReviewNote)) continue; // R13
       if (!isSubstantiveNote(w.triggerReviewNote)) continue;
+      if (isSuperseded(w.triggerReviewNote, w.triggerReviewDate, today)) continue; // R12
 
       const key = makeKey("WL_TRIGGER", w.ticker, due);
       out.push({
@@ -310,6 +338,7 @@ export function useActionTracker({
         dedupe_key: key,
         persisted: false,
         is_routine: false,
+        lane: "DECIDE",
       });
     }
 
@@ -318,9 +347,11 @@ export function useActionTracker({
     // ═══════════════════════════════════════════════════════════
 
     for (const h of holdings) {
-      const alertStatus = (h.alert_status || "").toUpperCase();
-      if (!alertStatus || alertStatus === "CLEAR" || alertStatus === "OK")
-        continue;
+      // R11 — only EXIT_ZONE / STOP_BREACH / ADD_ZONE (gated) / THESIS_BREAK.
+      const alert = holdAlert(h as any, scoreIrr.get((h.ticker || "").toUpperCase()));
+      if (!alert) continue;
+      if (isSuperseded(h.trigger_review_note, h.trigger_review_date, today)) continue; // R12
+      const alertStatus = alert.status;
 
       const monthKey = today.slice(0, 7);
       const key = makeKey("HOLD_ALERT", h.ticker, monthKey);
@@ -334,7 +365,7 @@ export function useActionTracker({
         name: h.name || null,
         layer: h.layer || null,
         action_type: "REVIEW_DUE",
-        due_date: today,
+        due_date: alert.due || today,
         summary: `Alert: ${alertStatus}${h.trigger_review_note ? ` — ${h.trigger_review_note.slice(0, 80)}` : ""}`,
         context: `Flagged by monitoring.${priceStr} Check thesis assumptions.`,
         source: "HOLDINGS",
@@ -342,10 +373,11 @@ export function useActionTracker({
         status: "OPEN",
         resolution_note: null,
         resolved_at: null,
-        priority: "HIGH",
+        priority: alert.severity === "RED" ? "HIGH" : "MEDIUM",
         dedupe_key: key,
         persisted: false,
         is_routine: false,
+        lane: "DECIDE",
       });
     }
 
@@ -354,9 +386,9 @@ export function useActionTracker({
     // ═══════════════════════════════════════════════════════════
 
     const cutoffPast = new Date();
-    cutoffPast.setDate(cutoffPast.getDate() - 7);
+    cutoffPast.setDate(cutoffPast.getDate() - 1);
     const cutoffFuture = new Date();
-    cutoffFuture.setDate(cutoffFuture.getDate() + 60);
+    cutoffFuture.setDate(cutoffFuture.getDate() + EARNINGS_PREPARE_DAYS); // R14
 
     for (const e of earnings) {
       const due = toDateISO(e.nextEarningsDate);
@@ -366,6 +398,7 @@ export function useActionTracker({
 
       const key = makeKey("EARNINGS", e.ticker, due);
       const isHeld = held.has((e.ticker || "").toUpperCase());
+      if (!isHeld) continue; // R14 — unheld names never shown
 
       out.push({
         id: `sheet:${key}`,
@@ -383,15 +416,16 @@ export function useActionTracker({
         status: "OPEN",
         resolution_note: null,
         resolved_at: null,
-        priority: isHeld ? "HIGH" : "MEDIUM",
+        priority: "MEDIUM",
         dedupe_key: key,
         persisted: false,
         is_routine: false,
+        lane: "PREPARE",
       });
     }
 
     return out;
-  }, [watchlist, holdings, earnings, held, scoreMap, watchMap]);
+  }, [watchlist, holdings, earnings, held, scoreMap, watchMap, dead, scoreIrr]);
 
   // ── Merge sheet + Supabase ──
   const items: ActionItem[] = useMemo(() => {
@@ -422,6 +456,7 @@ export function useActionTracker({
       persisted: true,
       // Supabase items from SESSION/MANUAL are never routine
       is_routine: false,
+      lane: routeTrackerRow(r, todayISO()),
     }));
 
     for (const s of supaItems) {
