@@ -71,8 +71,8 @@ function deriveMacroCounts(state: Record<string, LiveMacroStateRow>) {
 export function computeDpPct(layers: { name: string; mv: number }[], cashGbp: number): number | null {
   const totalRow = layers.find((l) => l.name.toUpperCase() === "TOTAL");
   const invested = totalRow?.mv ?? layers.filter((l) => l.name.toUpperCase() !== "CASH").reduce((s, l) => s + l.mv, 0);
-  const hasCashRow = layers.some((l) => l.name.toUpperCase() === "CASH");
-  const denom = hasCashRow && totalRow ? invested : invested + cashGbp;
+  // F1 — DP = gross cash / LAYERS TOTAL (the TOTAL row already includes cash).
+  const denom = totalRow ? invested : invested + cashGbp;
   if (!denom || denom <= 0) return null;
   return (cashGbp / denom) * 100;
 }
