@@ -22,6 +22,10 @@ const TYPES: ActionType[] = [
   "DEPLOY_READY",
   "REVIEW_DUE",
   "MANUAL",
+  "INFRA",
+  "DOCTRINE",
+  "SOURCING",
+  "RESEARCH",
 ];
 
 const TYPE_LABELS: Record<string, string> = {
