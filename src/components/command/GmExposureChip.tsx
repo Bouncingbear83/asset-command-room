@@ -14,6 +14,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveScore, LiveHolding, LiveWatchItem } from "@/hooks/usePortfolioData";
 import { buildFrameworkIndex } from "@/utils/frameworkDetection";
 import TickerButton from "@/components/factsheet/TickerButton";
+import { GM_MAX_POSITIONS, GM_MAX_AGGREGATE_PCT, GM_MAX_SINGLE_PCT, GM_SOFT_CAP_ACK } from "@/config/signalRules";
+import { gmStatus } from "@/lib/actionSurface";
 
 interface Props {
   scores: LiveScore[];
@@ -21,9 +23,6 @@ interface Props {
   watchlist: LiveWatchItem[];
 }
 
-const GM_MAX_POSITIONS = 4;
-const GM_MAX_AGGREGATE_PCT = 2.5;
-const GM_MAX_SINGLE_PCT = 1.0;
 
 interface RowInfo {
   ticker: string;
@@ -37,76 +36,26 @@ export default function GmExposureChip({ scores, holdings, watchlist }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const frameworkIndex = useMemo(
-    () => buildFrameworkIndex(scores, watchlist),
-    [scores, watchlist],
+  const { total, deployed, staged, aggregatePct: aggregateAum } = useMemo(
+    () => computeGmStats(scores, holdings, watchlist),
+    [scores, holdings, watchlist],
   );
-
-  const scoreByTicker = useMemo(() => {
-    const m = new Map<string, LiveScore>();
-    for (const s of scores) {
-      const t = s.ticker.trim().toUpperCase();
-      if (t) m.set(t, s);
-    }
-    return m;
-  }, [scores]);
-
-  const watchByTicker = useMemo(() => {
-    const m = new Map<string, LiveWatchItem>();
-    for (const w of watchlist) {
-      const t = w.ticker.trim().toUpperCase();
-      if (t) m.set(t, w);
-    }
-    return m;
-  }, [watchlist]);
-
-  const holdingByTicker = useMemo(() => {
-    const m = new Map<string, LiveHolding>();
-    for (const h of holdings) {
-      const t = h.ticker.trim().toUpperCase();
-      if (t) m.set(t, h);
-    }
-    return m;
-  }, [holdings]);
-
-  const { allGm, deployed, staged } = useMemo(() => {
-    const gm: string[] = [];
-    for (const [t, entry] of frameworkIndex.entries()) {
-      if (entry.framework === "G(m)") gm.push(t);
-    }
-    const dep: RowInfo[] = [];
-    const stg: RowInfo[] = [];
-    for (const t of gm) {
-      const s = scoreByTicker.get(t) ?? null;
-      const w = watchByTicker.get(t) ?? null;
-      const h = holdingByTicker.get(t) ?? null;
-      const isHeld = s && s.heldStatus.toUpperCase() === "HELD" && !!h;
-      const row: RowInfo = {
-        ticker: t,
-        score: s?.score ?? null,
-        status: (s?.heldStatus || w?.status || "").toUpperCase(),
-        aum_pct: h?.aum_pct ?? null,
-        entry: w?.entry ?? "",
-      };
-      if (isHeld) dep.push(row);
-      else stg.push(row);
-    }
-    dep.sort((a, b) => (b.aum_pct ?? 0) - (a.aum_pct ?? 0));
-    stg.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
-    return { allGm: gm, deployed: dep, staged: stg };
-  }, [frameworkIndex, scoreByTicker, watchByTicker, holdingByTicker]);
+  const allGm = { length: total };
+  const today = new Date().toISOString().slice(0, 10);
+  const gm = gmStatus(aggregateAum, deployed.length, today);
 
   const deployedCount = deployed.length;
-  const aggregateAum = deployed.reduce((sum, h) => sum + (h.aum_pct ?? 0), 0);
   const stagedCount = staged.length;
 
   const countBreach = deployedCount > GM_MAX_POSITIONS;
-  const aggBreach = aggregateAum > GM_MAX_AGGREGATE_PCT;
+  // R20 — aggregate over cap is RED unless a soft-cap acknowledgement is active (then AMBER).
+  const aggBreach = gm.level === "BREACH";
+  const softCap = gm.level === "SOFT";
   const singleBreach = deployed.some((h) => (h.aum_pct ?? 0) > GM_MAX_SINGLE_PCT);
   const anyBreach = countBreach || aggBreach || singleBreach;
   const anyWarn =
     !anyBreach &&
-    (deployedCount >= GM_MAX_POSITIONS || aggregateAum > GM_MAX_AGGREGATE_PCT * 0.8);
+    (softCap || deployedCount >= GM_MAX_POSITIONS || aggregateAum > GM_MAX_AGGREGATE_PCT * 0.8);
 
   // Close on outside click
   useEffect(() => {
@@ -182,6 +131,18 @@ export default function GmExposureChip({ scores, holdings, watchlist }: Props) {
           <span style={{ color: "var(--text-dim)" }}>{stagedCount} staged</span>
         )}
 
+        {aggBreach && (
+          <span style={{ color: "var(--red)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" }}>BREACH</span>
+        )}
+        {softCap && (
+          <span
+            title={`Soft-cap acknowledged ${GM_SOFT_CAP_ACK.since}, expires ${GM_SOFT_CAP_ACK.expires}`}
+            style={{ color: "var(--amber)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" }}
+          >
+            SOFT CAP · staged FROZEN
+          </span>
+        )}
+
         {singleBreach && (
           <span
             style={{
@@ -224,6 +185,7 @@ export default function GmExposureChip({ scores, holdings, watchlist }: Props) {
             title={`STAGED · ${stagedCount}`}
             rows={staged}
             variant="staged"
+            frozen={gm.frozen}
           />
         </div>
       )}
@@ -235,10 +197,12 @@ function PopoverSection({
   title,
   rows,
   variant,
+  frozen = false,
 }: {
   title: string;
   rows: RowInfo[];
   variant: "deployed" | "staged";
+  frozen?: boolean;
 }) {
   const leftBorder = variant === "deployed" ? "var(--green)" : "var(--rim)";
   const lastColLabel = variant === "deployed" ? "AUM%" : "Entry";
@@ -254,7 +218,7 @@ function PopoverSection({
           marginBottom: 6,
         }}
       >
-        {title}
+        {title}{frozen && variant === "staged" ? " · FROZEN" : ""}
       </div>
 
       <div
@@ -301,6 +265,7 @@ function PopoverSection({
               padding: "4px 6px 4px 8px",
               borderLeft: `2px solid ${leftBorder}`,
               borderBottom: "1px solid rgba(28,28,48,0.4)",
+              opacity: frozen && variant === "staged" ? 0.5 : 1,
             }}
           >
             <TickerButton
@@ -327,7 +292,7 @@ function PopoverSection({
                 whiteSpace: "nowrap",
               }}
             >
-              {r.status || "—"}
+              {frozen && variant === "staged" ? "FROZEN" : r.status || "—"}
             </span>
             <span
               style={{
@@ -346,4 +311,35 @@ function PopoverSection({
       )}
     </div>
   );
+}
+
+/** Shared G(m) aggregation (used by the chip and the Action Surface). */
+export function computeGmStats(scores: LiveScore[], holdings: LiveHolding[], watchlist: LiveWatchItem[]) {
+  const frameworkIndex = buildFrameworkIndex(scores, watchlist);
+  const scoreBy = new Map(scores.map((s) => [s.ticker.trim().toUpperCase(), s] as const));
+  const watchBy = new Map(watchlist.map((w) => [w.ticker.trim().toUpperCase(), w] as const));
+  const holdBy = new Map(holdings.map((h) => [h.ticker.trim().toUpperCase(), h] as const));
+  const deployed: RowInfo[] = [];
+  const staged: RowInfo[] = [];
+  let total = 0;
+  for (const [t, entry] of frameworkIndex.entries()) {
+    if (entry.framework !== "G(m)") continue;
+    total++;
+    const s = scoreBy.get(t) ?? null;
+    const w = watchBy.get(t) ?? null;
+    const h = holdBy.get(t) ?? null;
+    const row: RowInfo = {
+      ticker: t,
+      score: s?.score ?? null,
+      status: (s?.heldStatus || w?.status || "").toUpperCase(),
+      aum_pct: h?.aum_pct ?? null,
+      entry: w?.entry ?? "",
+    };
+    if (s && s.heldStatus.toUpperCase() === "HELD" && h) deployed.push(row);
+    else staged.push(row);
+  }
+  deployed.sort((a, b) => (b.aum_pct ?? 0) - (a.aum_pct ?? 0));
+  staged.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+  const aggregatePct = deployed.reduce((sum, r) => sum + (r.aum_pct ?? 0), 0);
+  return { total, deployed, staged, aggregatePct };
 }
