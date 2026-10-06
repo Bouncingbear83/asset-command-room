@@ -1,3 +1,4 @@
+import { DP_MIN_PCT, DP_MAX_PCT } from "@/config/signalRules";
 import { LiveLayer, LiveRiskControl, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 
 const CLAUDE_PROJECT_BASE_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
@@ -64,6 +65,16 @@ function deriveMacroCounts(state: Record<string, LiveMacroStateRow>) {
     else green++;
   }
   return { green, amber, red };
+}
+
+/** R21 — gross dry powder % of AUM (display only). */
+export function computeDpPct(layers: { name: string; mv: number }[], cashGbp: number): number | null {
+  const totalRow = layers.find((l) => l.name.toUpperCase() === "TOTAL");
+  const invested = totalRow?.mv ?? layers.filter((l) => l.name.toUpperCase() !== "CASH").reduce((s, l) => s + l.mv, 0);
+  const hasCashRow = layers.some((l) => l.name.toUpperCase() === "CASH");
+  const denom = hasCashRow && totalRow ? invested : invested + cashGbp;
+  if (!denom || denom <= 0) return null;
+  return (cashGbp / denom) * 100;
 }
 
 export default function CommandHeader({ layers, riskControls, macroState, cashGbp, isMobile }: Props) {
@@ -150,6 +161,19 @@ export default function CommandHeader({ layers, riskControls, macroState, cashGb
         <span style={{ ...chipBase, color: cashGbp > 20_000 ? "var(--green)" : "var(--amber)" }}>
           {formatCurrency(cashGbp)} cash
         </span>
+        {(() => {
+          const dp = computeDpPct(layers, cashGbp);
+          if (dp == null) return null;
+          const inBand = dp >= DP_MIN_PCT && dp <= DP_MAX_PCT;
+          return (
+            <span
+              title={`Gross dry powder ${dp.toFixed(2)}% (posture ${DP_MIN_PCT}–${DP_MAX_PCT}%). USD earmark not deducted; net est. in ops.`}
+              style={{ ...chipBase, color: inBand ? "var(--green)" : "var(--amber)", background: inBand ? "var(--green-dim)" : "var(--amber-dim)" }}
+            >
+              DP {dp.toFixed(1)}%
+            </span>
+          );
+        })()}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React from "react";
 import { LiveMacroStateRow, usePortfolioData } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
-import CommandHeader from "@/components/command/CommandHeader";
+import CommandHeader, { computeDpPct } from "@/components/command/CommandHeader";
 import MoversCard from "@/components/command/MoversCard";
 import ActionInbox from "@/components/ActionInbox";
 import CapitalQueue from "@/components/command/CapitalQueue";
@@ -14,7 +14,6 @@ import BenchmarkStrip from "@/components/command/BenchmarkStrip";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
 import ScheduledReviewsCard from "@/components/ScheduledReviewsCard";
-import ActionUpcoming from "@/components/actions/ActionUpcoming";
 
 const SIGNAL_KEYS = ["VIX", "SP500_YTD_PCT", "GOLD_USD", "PAUSE_ACTIVE", "EARNINGS_BLACKOUT"] as const;
 const SIGNAL_LABELS: Record<(typeof SIGNAL_KEYS)[number], string> = {
@@ -200,18 +199,8 @@ export default function CommandTab() {
       {/* ── CARD 2: ACTION INBOX ── */}
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} />
 
-      {/* ── UPCOMING ACTIONS (from Action Tracker) ── */}
-      <ActionUpcoming
-        onNavigate={() => {
-          const params = new URLSearchParams(window.location.search);
-          params.set("tab", "actions");
-          window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
-          window.dispatchEvent(new PopStateEvent("popstate"));
-        }}
-      />
-
       {/* ── CARD 3: CAPITAL QUEUE ── */}
-      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} />
+      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={computeDpPct(layers, cashGbp)} scores={scores} />
 
       {/* ── CARD 4: OPPORTUNITY MAP (scatter, desktop only) ── */}
       <OpportunityScatter
