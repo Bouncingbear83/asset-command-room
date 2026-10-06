@@ -144,7 +144,7 @@ export default function GmExposureChip({ scores, holdings, watchlist }: Props) {
           </span>
         )}
 
-        {singleBreach && (
+        {singleBreach && !softCap && (
           <span
             style={{
               color: "var(--red)",
