@@ -1081,7 +1081,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheet({ gid: GIDS.performance, range: "A1:AR" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
-        fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
+        fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:L500" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5000", headers: 0 }).catch(() => []),
         fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }).catch(() => []),
