@@ -108,3 +108,14 @@ export const DP_MAX_PCT = 8;
 
 /** R22 — overdue layer reviews covered by a later scheduled_reviews session render "rolled to …". */
 export const LAYER_ROLL_MATCH = /layer|P\d/i;
+
+// ═══════════════════════════════════════════════════════════════════
+// v1.1 fixes
+// ═══════════════════════════════════════════════════════════════════
+
+/** F3 — only these WATCHLIST statuses wake on price (R15). */
+export const WATCH_WAKE_STATUSES = ["WAIT_PRICE", "DEPLOY"] as const;
+/** F5 — AJ tag that makes an automation note a DECIDE item (unless an operator verdict exists). */
+export const EXIT_RECLASS_TAG = "[EXIT_RECLASS]";
+/** F6 — the only action types shown as Events on the Actions tab (plus SESSION rows). */
+export const EVENT_ACTION_TYPES = ["EARNINGS_GATE", "CATALYST_WATCH", "DEPLOY", "KILL_CHECK"] as const;

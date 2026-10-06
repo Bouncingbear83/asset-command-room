@@ -39,9 +39,10 @@ interface Props {
   watchlist: LiveWatchItem[];
   earnings: LiveEarningsCalendarItem[];
   scores?: LiveScore[];
+  transactions?: { ticker: string; account?: string; date: string; action: string }[];
 }
 
-export default function ActionInbox({ holdings, watchlist, earnings, scores = [] }: Props) {
+export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [] }: Props) {
   const isMobile = useIsMobile();
   const today = todayISO();
   const tracker = useActionTracker({ watchlist, holdings, earnings, scores });
@@ -70,8 +71,8 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   );
 
   const surface = useMemo(
-    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline }),
-    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline],
+    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions }),
+    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions],
   );
 
   useEffect(() => {
@@ -190,7 +191,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
 
         {/* WATCH + MISSED counters */}
         <div style={{ ...mono(9, "var(--text-dim)"), letterSpacing: "0.1em", padding: "4px 2px" }}>
-          👁 {surface.watch.length} watching, {surface.wakeWithin10} wake within {WATCH_WAKE_PCT}%
+          👁 {surface.watchCount} watching, {surface.wakeWithin10} wake within {WATCH_WAKE_PCT}%
         </div>
         {missed.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, ...mono(9, "var(--amber)"), letterSpacing: "0.1em", padding: "2px" }}>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { parseCashLedger } from "@/lib/cashLedger";
 
 const SHEET_ID = "1T2afEG3mLjxmonduDugHA5SlJ44-RBJmv0bxISfalNo";
 
@@ -1081,7 +1082,7 @@ export function usePortfolioData(): PortfolioData {
         fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
         fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:F32" }).catch(() => []),
-        fetchSheetGrid({ gid: GIDS.cash, range: "A1:F6" }).catch(() => []),
+        fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5000", headers: 0 }).catch(() => []),
         fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
         fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }).catch(() => []),
       ]);
@@ -1097,30 +1098,11 @@ export function usePortfolioData(): PortfolioData {
       const macroStateRows = parseMacroStateRows(macroState);
       const jisaParsed = parseJisaHoldings(jisaHoldingsRaw);
 
-      // Parse cash balances from CASH sheet
-      // Parse cash balances from CASH sheet — balances in column F (index 5), labels in column A
-      let cashSipp = 0, cashIsa = 0, cashTotal = 0;
-      console.log("[CASH] raw grid:", JSON.stringify(cashGrid));
-      const CASH_BALANCE_COL = 5; // Column F (zero-based)
-      if (cashGrid.length >= 2) {
-        // Primary: row-based layout — col A = account label, col F = balance
-        const CASH_KNOWN = ["sipp", "isa", "total", "jisa"];
-        for (let r = 1; r < cashGrid.length; r++) {
-          const row = cashGrid[r];
-          if (!row || row.length <= CASH_BALANCE_COL) continue;
-          const label = normalizeToken(row[0]);
-          const balance = parseMv(row[CASH_BALANCE_COL]);
-          if (label.includes("sipp")) {
-            cashSipp = balance;
-          } else if (label.includes("isa") && !label.includes("jisa")) {
-            cashIsa = balance;
-          } else if (label.includes("total")) {
-            cashTotal = balance;
-          }
-        }
-        if (cashTotal === 0 && (cashSipp > 0 || cashIsa > 0)) cashTotal = cashSipp + cashIsa;
-      }
-      console.log("[CASH] parsed:", { cashSipp, cashIsa, cashTotal });
+      // CASH sheet is a ledger (A date, B account, C balance): latest row per account, JISA excluded.
+      const ledger = parseCashLedger(cashGrid as unknown[][]);
+      const cashSipp = ledger.byAccount["SIPP"] ?? 0;
+      const cashIsa = ledger.byAccount["ISA"] ?? 0;
+      const cashTotal = ledger.total;
 
       setState({
         holdings: allHoldings,

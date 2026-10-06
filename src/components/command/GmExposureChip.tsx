@@ -52,7 +52,8 @@ export default function GmExposureChip({ scores, holdings, watchlist }: Props) {
   const aggBreach = gm.level === "BREACH";
   const softCap = gm.level === "SOFT";
   const singleBreach = deployed.some((h) => (h.aum_pct ?? 0) > GM_MAX_SINGLE_PCT);
-  const anyBreach = countBreach || aggBreach || singleBreach;
+  // F9 — an active soft-cap acknowledgement downgrades all breach styling to amber.
+  const anyBreach = !softCap && (countBreach || aggBreach || singleBreach);
   const anyWarn =
     !anyBreach &&
     (softCap || deployedCount >= GM_MAX_POSITIONS || aggregateAum > GM_MAX_AGGREGATE_PCT * 0.8);
@@ -139,11 +140,11 @@ export default function GmExposureChip({ scores, holdings, watchlist }: Props) {
             title={`Soft-cap acknowledged ${GM_SOFT_CAP_ACK.since}, expires ${GM_SOFT_CAP_ACK.expires}`}
             style={{ color: "var(--amber)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase" }}
           >
-            SOFT CAP · staged FROZEN
+            SOFT CAP +{(aggregateAum - GM_MAX_AGGREGATE_PCT).toFixed(1)}pp · staged FROZEN
           </span>
         )}
 
-        {singleBreach && (
+        {singleBreach && !softCap && (
           <span
             style={{
               color: "var(--red)",

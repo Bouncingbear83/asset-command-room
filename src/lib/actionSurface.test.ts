@@ -132,3 +132,31 @@ describe("dedupe ticker + trigger_type", () => {
     expect(s.decide[0].accounts).toEqual(["ISA", "SIPP"]);
   });
 });
+
+import { parseZone as pz, holdAlert as ha, routeTrackerRow as rtr, isGateTestStale } from "./actionSurface";
+import { parseCashLedger } from "./cashLedger";
+import { describe as d2, it as i2, expect as e2 } from "vitest";
+d2("v1.1 fixes", () => {
+  i2("F1 cash ledger: latest per account, JISA excluded", () => {
+    const g = [["DATE","ACCOUNT","BALANCE"],["2026-10-01","SIPP","100"],["2026-10-06","SIPP","200"],["2026-10-06","ISA","50"],["2026-10-06","JISA_BEAR","999"]];
+    e2(parseCashLedger(g).total).toBe(250);
+  });
+  i2("F2 PRY ADD_ZONE needs price within band", () => {
+    e2(ha({ ticker: "PRY", price: 129.65, alert_status: "ADD_ZONE", trigger_price_add: "115" }, 0.3)).toBeNull();
+    e2(ha({ ticker: "PRY", price: 118, alert_status: "ADD_ZONE", trigger_price_add: "115" }, 0.3)).not.toBeNull();
+  });
+  i2("F3 text conditions are not zones", () => {
+    e2(pz("66p floor reclear + design-in")).toBeNull();
+    e2(pz("$32-40")).toEqual({ low: 32, high: 40 });
+    e2(pz("420-450p")).toEqual({ low: 420, high: 450 });
+  });
+  i2("F7 unknown ticker / dead MANUAL → BACKLOG", () => {
+    const known = new Set(["ASML", "KTOS"]);
+    e2(rtr({ id: "1", ticker: "INFRA", action_type: "SESSION", due_date: "2026-10-06", summary: "", status: "OPEN" }, "2026-10-06", known)).toBe("BACKLOG");
+    e2(rtr({ id: "2", ticker: "KTOS", action_type: "MANUAL", due_date: "2026-10-06", summary: "", status: "OPEN" }, "2026-10-06", known, new Set(["KTOS"]))).toBe("BACKLOG");
+  });
+  i2("F10 test dated before last print is stale", () => {
+    e2(isGateTestStale("15 Jun thesis check: Q2 print GM >53%", "2026-07-16")).toBe(true);
+    e2(isGateTestStale("2026-10-01 Q3 print test", "2026-07-16")).toBe(false);
+  });
+});

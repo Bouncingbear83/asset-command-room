@@ -94,7 +94,7 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashTotal } =
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashTotal, transactions } =
     usePortfolioData();
   const isMobile = useIsMobile();
 
@@ -197,7 +197,7 @@ export default function CommandTab() {
       </div>
 
       {/* ── CARD 2: ACTION INBOX ── */}
-      <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} />
+      <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} transactions={transactions} />
 
       {/* ── CARD 3: CAPITAL QUEUE ── */}
       <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={computeDpPct(layers, cashGbp)} scores={scores} />

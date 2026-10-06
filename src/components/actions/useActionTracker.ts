@@ -337,8 +337,8 @@ export function useActionTracker({
           : "MEDIUM",
         dedupe_key: key,
         persisted: false,
-        is_routine: false,
-        lane: "DECIDE",
+        is_routine: true, // F6 — watchlist review dates belong on the Reviews tab
+        lane: "WATCH",
       });
     }
 
@@ -427,6 +427,12 @@ export function useActionTracker({
     return out;
   }, [watchlist, holdings, earnings, held, scoreMap, watchMap, dead, scoreIrr]);
 
+  const knownTickers = useMemo(() => new Set<string>([
+    ...holdings.map((h) => (h.ticker || "").toUpperCase()),
+    ...watchlist.map((w) => (w.ticker || "").toUpperCase()),
+    ...scores.map((x) => (x.ticker || "").toUpperCase()),
+  ].filter(Boolean)), [holdings, watchlist, scores]);
+
   // ── Merge sheet + Supabase ──
   const items: ActionItem[] = useMemo(() => {
     const byKey = new Map<string, ActionItem>();
@@ -456,7 +462,7 @@ export function useActionTracker({
       persisted: true,
       // Supabase items from SESSION/MANUAL are never routine
       is_routine: false,
-      lane: routeTrackerRow(r, todayISO()),
+      lane: routeTrackerRow(r, todayISO(), knownTickers, dead), // F7
     }));
 
     for (const s of supaItems) {
@@ -476,7 +482,7 @@ export function useActionTracker({
     }
 
     return Array.from(byKey.values());
-  }, [sheetItems, rows]);
+  }, [sheetItems, rows, knownTickers, dead]);
 
   // ── CRUD ──
 
