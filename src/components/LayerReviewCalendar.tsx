@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useLayerReviews, LayerReview } from "@/hooks/useLayerReviews";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useScheduledReviews } from "@/hooks/useScheduledReviews";
+import { LAYER_ROLL_MATCH } from "@/config/signalRules";
 
 /* ── Layer colour map (matches LAYERS tab hex) ── */
 const LAYER_COLORS: Record<string, string> = {
@@ -70,6 +72,21 @@ export default function LayerReviewCalendar() {
   const { reviews, trendCounts, loading, error, markDone, toggleActionItem } = useLayerReviews();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmDone, setConfirmDone] = useState<string | null>(null);
+  const { reviews: sessions } = useScheduledReviews();
+
+  // R22 — an overdue layer review covered by a later scheduled session renders "rolled to …".
+  const rolledTo = (scheduledDate: string): string | null => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (scheduledDate >= today) return null;
+    const later = (sessions || [])
+      .filter((s) => s.next_due > scheduledDate && String(s.status).toUpperCase() !== "COMPLETE"
+        && LAYER_ROLL_MATCH.test(`${s.review_type} ${s.title}`))
+      .sort((a, b) => a.next_due.localeCompare(b.next_due))[0];
+    if (!later) return null;
+    const p = later.title.match(/\bP\d+\b/)?.[0];
+    const d = new Date(later.next_due + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return `ROLLED TO ${p ?? later.title.slice(0, 16).toUpperCase()} ${d}`;
+  };
 
   if (loading) {
     return (
@@ -134,7 +151,9 @@ export default function LayerReviewCalendar() {
       {/* ── Review cards ── */}
       <div style={{ padding: isMobile ? "8px 10px" : "8px 14px" }}>
         {reviews.map((review) => {
-          const { bg, fg, label } = statusColor(review.status, review.scheduled_date);
+          const base = statusColor(review.status, review.scheduled_date);
+          const roll = base.label === "OVERDUE" ? rolledTo(review.scheduled_date) : null;
+          const { bg, fg, label } = roll ? { bg: "transparent", fg: "var(--text-dim)", label: roll } : base;
           const layerColor = LAYER_COLORS[review.layer] || "var(--text-mid)";
           const trends = trendCounts[review.layer] || 0;
           const isExpanded = expandedId === review.id;
