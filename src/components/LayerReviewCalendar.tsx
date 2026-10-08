@@ -3,6 +3,7 @@ import { useLayerReviews, LayerReview } from "@/hooks/useLayerReviews";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useScheduledReviews } from "@/hooks/useScheduledReviews";
 import { LAYER_ROLL_MATCH } from "@/config/signalRules";
+import { currentReviewCycle } from "@/lib/reviewCycle";
 
 /* ── Layer colour map (matches LAYERS tab hex) ── */
 const LAYER_COLORS: Record<string, string> = {
@@ -115,7 +116,7 @@ export default function LayerReviewCalendar() {
   }
 
   const completedCount = reviews.filter((r) => r.status === "COMPLETE").length;
-  const cycle = reviews[0]?.cycle || "Q3-2026";
+  const cycle = reviews[0]?.cycle || currentReviewCycle();
 
   return (
     <div style={card}>
