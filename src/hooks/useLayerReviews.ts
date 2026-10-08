@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { currentReviewCycle } from "@/lib/reviewCycle";
 
 export interface LayerReview {
   id: string;
@@ -27,7 +28,7 @@ export interface TrendCount {
   count: number;
 }
 
-export function useLayerReviews(cycle = "Q3-2026") {
+export function useLayerReviews(cycle = currentReviewCycle()) {
   const [reviews, setReviews] = useState<LayerReview[]>([]);
   const [trendCounts, setTrendCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);

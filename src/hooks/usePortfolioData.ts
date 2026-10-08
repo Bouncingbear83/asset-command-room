@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { parseCashLedger } from "@/lib/cashLedger";
+import { effectiveEarningsDate } from "@/lib/earningsDate";
 
 const SHEET_ID = "1T2afEG3mLjxmonduDugHA5SlJ44-RBJmv0bxISfalNo";
 
@@ -781,18 +782,34 @@ function parseWeeklyTriggers(macroStateRows: LiveMacroStateRow[]) {
 }
 
 function parseEarningsCalendar(rows: Record<string, any>[]) {
+  const today = new Date().toISOString().slice(0, 10);
   return rows
     .map((row) => {
       const confirmedRaw = findCol(row, "confirmed", "CONFIRMED");
+      const sheetDate = parseSheetDate(findCol(row, "next_earnings_date", "NEXT_EARNINGS_DATE", "next earnings date"));
+      const sheetConfirmed =
+        confirmedRaw === true ||
+        String(confirmedRaw ?? "")
+          .trim()
+          .toUpperCase() === "TRUE";
+      // I:L verified columns (daily run / live sessions); see src/lib/earningsDate.ts
+      const eff = effectiveEarningsDate(
+        {
+          sheetDate,
+          sheetConfirmed,
+          verifiedDate: parseSheetDate(findCol(row, "verified_date", "VERIFIED_DATE")),
+          verifiedClass: String(findCol(row, "verified_class", "VERIFIED_CLASS") ?? ""),
+          verifyNote: String(findCol(row, "verify_note", "VERIFY_NOTE") ?? ""),
+        },
+        today,
+      );
       return {
         ticker: String(findCol(row, "ticker", "TICKER") ?? ""),
-        nextEarningsDate: parseSheetDate(findCol(row, "next_earnings_date", "NEXT_EARNINGS_DATE", "next earnings date")),
+        nextEarningsDate: eff.date,
         fiscalPeriod: String(findCol(row, "fiscal_period", "FISCAL_PERIOD", "fiscal period") ?? ""),
-        confirmed:
-          confirmedRaw === true ||
-          String(confirmedRaw ?? "")
-            .trim()
-            .toUpperCase() === "TRUE",
+        confirmed: eff.confirmed,
+        dateSource: eff.source,
+        verifiedClass: eff.verifiedClass,
         lastUpdated: parseSheetDate(findCol(row, "last_updated", "LAST_UPDATED")),
       };
     })
