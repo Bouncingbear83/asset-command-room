@@ -160,3 +160,33 @@ d2("v1.1 fixes", () => {
     e2(isGateTestStale("2026-10-01 Q3 print test", "2026-07-16")).toBe(false);
   });
 });
+
+import { buildSurface as bs, buildDeadSet as bds } from "./actionSurface";
+d2("WATCHLIST BAND (col AL)", () => {
+  const W = (o: Record<string, unknown>) => ({ ticker: "X", status: "WAIT_PRICE", current: 100, triggerPriceNumeric: 90, ...o }) as any;
+  const run = (wl: any[], tracker: any[] = []) => bs({ holdings: [], scores: [], earnings: [], today: "2026-10-10", watchlist: wl, tracker });
+  i2("ZONE → IN_ZONE; NEAR → APPROACHING_ZONE (no app recompute)", () => {
+    e2(run([W({ band: "ZONE" })]).decide[0]?.trigger_type).toBe("IN_ZONE");
+    e2(run([W({ band: "NEAR", current: 500 })]).decide[0]?.trigger_type).toBe("APPROACHING_ZONE");
+    e2(run([W({ band: "BENCH", current: 85 })]).decide).toHaveLength(0);
+  });
+  i2("ARCHIVE + ZONE → RESET_ZONE and not dead", () => {
+    const w = W({ status: "ARCHIVE", band: "ZONE" });
+    e2(bds([], [w], []).has("X")).toBe(false);
+    e2(bds([], [W({ status: "ARCHIVE", band: "NEAR" })], []).has("X")).toBe(true);
+    const c = run([w]).decide[0];
+    e2(c?.trigger_type).toBe("RESET_ZONE");
+    e2(c?.severity).toBe("AMBER");
+  });
+  i2("WAIT_EVENT + ZONE → R3_LINT only without an open gating row", () => {
+    const w = W({ status: "WAIT_EVENT", band: "ZONE" });
+    e2(run([w]).decide[0]?.trigger_type).toBe("R3_LINT");
+    const tr = [{ id: "1", ticker: "X", action_type: "CATALYST_WATCH", due_date: "2026-11-01", summary: "", status: "OPEN" }];
+    e2(run([w], tr).decide.find((c) => c.trigger_type === "R3_LINT")).toBeUndefined();
+  });
+  i2("#REF! → PREPARE error item and computed fallback", () => {
+    const s = run([W({ band: "#REF!", current: 85 })]);
+    e2(s.prepare.some((c) => c.title === "WATCHLIST BAND column error: check sheet AL2")).toBe(true);
+    e2(s.decide[0]?.trigger_type).toBe("IN_ZONE");
+  });
+});
