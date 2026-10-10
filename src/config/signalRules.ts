@@ -75,7 +75,7 @@ export const EARNINGS_PREPARE_DAYS = 14;
 /** R14 — post-print thesis check, business days after the print. */
 export const THESIS_CHECK_BUSINESS_DAYS = 5;
 
-/** R15 — WAIT_PRICE wakes when spot is within this % of the zone edge. */
+/** @deprecated R15 — fallback only, used when the WATCHLIST BAND column (AL) errors. BAND is the source of truth. */
 export const WATCH_WAKE_PCT = 10;
 
 /** R16 — limit-order pattern in notes / DEPLOY_NOTE. Group 1 side, 2 operator, 3 price. */

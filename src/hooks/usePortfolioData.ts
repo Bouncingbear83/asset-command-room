@@ -460,6 +460,7 @@ function parseWatchlist(rows: Record<string, any>[]) {
         archiveReason: String(findCol(row, "archive_reason", "ARCHIVE_REASON", "Archive_Reason", "archive reason") ?? "").trim(),
         researchQuestion: String(findCol(row, "research_question", "RESEARCH_QUESTION", "Research_Question", "research question") ?? "").trim(),
         promotionTrigger: String(findCol(row, "promotion_trigger", "PROMOTION_TRIGGER", "Promotion_Trigger", "promotion trigger") ?? "").trim(),
+        band: String(findCol(row, "band", "BAND", "Band") ?? "").trim(),
         archivePrice: parseNum(findCol(row, "archive_price", "ARCHIVE_PRICE", "Archive_Price", "archive price")),
       };
     })
@@ -1086,7 +1087,7 @@ export function usePortfolioData(): PortfolioData {
         jisaHoldingsRaw,
       ] = await Promise.all([
         fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:AE5000" }).catch((e) => {
+        fetchSheet({ gid: GIDS.watchlist, range: "A1:AL5000" }).catch((e) => {
           console.error("[watchlist fetch] failed:", e);
           return [];
         }),
