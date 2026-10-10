@@ -30,6 +30,7 @@ import {
   WATCH_WAKE_STATUSES,
   EXIT_RECLASS_TAG,
 } from "@/config/signalRules";
+import { normBand } from "@/lib/watchlistBands";
 
 export type Lane = "DECIDE" | "PREPARE" | "WATCH" | "BACKLOG" | "MISSED";
 export type Severity = "RED" | "AMBER" | "GREY";
@@ -64,6 +65,8 @@ export interface WatchIn {
   ticker: string; layer?: string; status: string; current: number | string | null;
   entry?: string; triggerPriceNumeric?: number | null;
   triggerReviewDate?: string; triggerReviewNote?: string;
+  /** WATCHLIST col AL — single source of truth for price bands. */
+  band?: string;
 }
 export interface ScoreIn { ticker: string; heldStatus?: string; irrBbSheet?: number | null; score?: number | null }
 export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; fiscalPeriod?: string; confirmed?: boolean }
@@ -117,7 +120,9 @@ export function buildDeadSet(holdings: HoldingIn[], watchlist: WatchIn[], scores
   const dead = new Set<string>();
   for (const w of watchlist) {
     const t = up(w.ticker);
-    if (!held.has(t) && isDeadStatus(w.status)) dead.add(t);
+    // ARCHIVE + BAND ZONE is a reset candidate, not dead.
+    const archiveZone = up(w.status).startsWith("ARCHIVE") && normBand(w.band) === "ZONE";
+    if (!held.has(t) && isDeadStatus(w.status) && !archiveZone) dead.add(t);
   }
   for (const s of scores) {
     const t = up(s.ticker);
@@ -360,27 +365,54 @@ export function buildSurface(a: BuildArgs): Surface {
     }
   }
 
-  // ── WATCHLIST (R15) ──
+  // ── WATCHLIST (R15) — BAND (col AL) drives IN_ZONE / APPROACHING_ZONE ──
   let batchNames = 0;
+  const bandError = a.watchlist.some((w) => normBand(w.band) === "ERROR");
+  const openGateTickers = new Set(
+    (a.tracker ?? []).filter((r) => up(r.status) === "OPEN" && ["CATALYST_WATCH", "EARNINGS_GATE"].includes(up(r.action_type))).map((r) => up(r.ticker)),
+  );
   for (const w of a.watchlist) {
     const t = up(w.ticker);
     if (!t || dead.has(t) || heldSet.has(t)) continue;
     const st = up(w.status).replace(/\s+/g, "_");
+    const band = normBand(w.band);
     const note = w.triggerReviewNote || "";
     const superseded = isSuperseded(note, w.triggerReviewDate, today);
     const rd = isoDate(w.triggerReviewDate);
     if (rd && rd <= today) batchNames++;
-    if (!(WATCH_WAKE_STATUSES as readonly string[]).some((w) => st.startsWith(w))) continue; // F3
     const px = num(w.current);
-    if (px == null || px <= 0) continue;
-    const zone = parseZone(w.entry);
-    const edge = w.triggerPriceNumeric && w.triggerPriceNumeric > 0 ? w.triggerPriceNumeric : zone?.high ?? null;
-    if (!edge) continue;
     const base = { ticker: t, source: "WATCHLIST", source_ref: null, gate_test: null, verdict_at: findVerdict(note), next_review: rd || null, layer: w.layer, fired_at: today };
     const lane: Lane = superseded ? "WATCH" : "DECIDE";
+
+    if (!bandError && band === "ZONE" && st.startsWith("ARCHIVE")) {
+      emit({ ...base, trigger_type: "RESET_ZONE", title: "Archive name back in zone: re-run RCIS", lane: "DECIDE", severity: "AMBER",
+        reason: `Px ${px ?? "?"} ≤ re-engage ${w.triggerPriceNumeric ?? "?"}` });
+      continue;
+    }
+    if (!bandError && band === "ZONE" && st.startsWith("WAIT_EVENT") && !openGateTickers.has(t)) {
+      emit({ ...base, trigger_type: "R3_LINT", title: "In zone, gating event undated", lane: "DECIDE", severity: "AMBER",
+        reason: "BAND ZONE but no open CATALYST_WATCH / EARNINGS_GATE row" });
+      continue;
+    }
+    if (!(WATCH_WAKE_STATUSES as readonly string[]).some((x) => st.startsWith(x))) continue; // F3
+    if (px == null || px <= 0) continue;
+    const zone = parseZone(w.entry);
     if (zone && px < zone.low && st.startsWith("WAIT_PRICE")) {
       emit({ ...base, trigger_type: "BELOW_ZONE", title: "Below zone: thesis check", lane, severity: "AMBER", reason: `Px ${px} < buy_low ${zone.low}` });
-    } else if (px <= edge) {
+      continue;
+    }
+    if (!bandError) {
+      if (band === "ZONE") emit({ ...base, trigger_type: "IN_ZONE", title: "In zone", lane, severity: "AMBER", reason: `BAND ZONE · Px ${px}` });
+      else if (band === "NEAR") {
+        wakeWithin10++;
+        emit({ ...base, trigger_type: "APPROACHING_ZONE", title: "Approaching zone", lane, severity: "GREY", reason: `BAND NEAR · Px ${px}` });
+      }
+      continue;
+    }
+    // Fallback (BAND column error): old computed logic for this render only.
+    const edge = w.triggerPriceNumeric && w.triggerPriceNumeric > 0 ? w.triggerPriceNumeric : zone?.high ?? null;
+    if (!edge) continue;
+    if (px <= edge) {
       emit({ ...base, trigger_type: "IN_ZONE", title: "In zone", lane, severity: "AMBER", reason: `Px ${px} ≤ edge ${edge}` });
     } else {
       const dist = ((px - edge) / edge) * 100;
@@ -389,6 +421,10 @@ export function buildSurface(a: BuildArgs): Surface {
         emit({ ...base, trigger_type: "APPROACHING_ZONE", title: "Approaching zone", lane, severity: "GREY", reason: `Px ${px} is ${dist.toFixed(1)}% above edge ${edge}` });
       }
     }
+  }
+  if (bandError) {
+    emit({ ticker: "", trigger_type: "BAND_ERROR", title: "WATCHLIST BAND column error: check sheet AL2", lane: "PREPARE", severity: "AMBER",
+      fired_at: today, source: "WATCHLIST", source_ref: null, gate_test: null, verdict_at: null, next_review: today, reason: "Non-standard BAND value; using computed fallback" });
   }
   if (batchNames > 0) {
     emit({ ticker: "", trigger_type: "BATCH_REVIEW", title: `Weekly batch review: ${batchNames} names`, lane: "PREPARE", severity: "GREY",

@@ -15,6 +15,8 @@ import { useIrrBb } from "@/hooks/useIrrBb";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
 import { buildFrameworkIndex, FRAMEWORK_TAGS, FRAMEWORK_LABEL, type FrameworkTag } from "@/utils/frameworkDetection";
 import ActionBadge from "@/components/actions/ActionBadge";
+import BandChipView from "./watchlist/BandChipView";
+import type { BandChip } from "@/lib/watchlistBands";
 import { useActionCounts } from "@/components/actions/useActionCounts";
 
 import {
@@ -497,6 +499,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
       return next;
     });
   };
+  const [bandChip, setBandChip] = useState<BandChip | null>(null);
   const resetStatusFilter = () => setStatusFilter(new Set(DEFAULT_STATUS_FILTER));
 
   // ── Derive every row ──
@@ -1262,6 +1265,19 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         </div>
       )}
 
+      <BandChipView
+        rows={derived.filter((r) => {
+          const q = search.trim().toLowerCase();
+          if (q && !`${r.item.ticker} ${r.item.name}`.toLowerCase().includes(q)) return false;
+          return layerFilter === "ALL" || r.item.layer === layerFilter;
+        })}
+        chip={bandChip}
+        onChip={setBandChip}
+        actionCounts={actionTrackerCounts}
+        onActionClick={handleActionNav}
+      />
+
+      {bandChip === "ALL" && (<>
       {/* ── 0. ACTIVE BUYS (status = BUY / ACTIVE) ── */}
       {activeBuys.length > 0 && (
         <div style={sectionStyle}>
@@ -1494,6 +1510,8 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
           ))}
         </div>
       )}
+
+      </>)}
 
       {/* Loading hint when sparkline data is still being fetched */}
       {trajLoading && (
