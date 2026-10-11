@@ -230,8 +230,9 @@ d2("WATCHLIST BAND (col AL)", () => {
   i2("session keys retain normal routing and closed AUTO rows are ignored", () => {
     const s = run([], [{ id: "session", ticker: "ASPI", action_type: "CATALYST_WATCH", status: "OPEN", summary: "Session", due_date: "2026-10-17", dedupe_key: "ASPI|CATALYST_WATCH|2026-10-17" }, { id: "closed", ticker: "ASPI", action_type: "MANUAL", status: "DONE", summary: "Closed", due_date: "2026-10-09", dedupe_key: "AUTO:ASPI:RESET:v1" }]);
     e2(s.decide).toHaveLength(0);
-    e2(s.backlog).toHaveLength(1);
-    e2(s.backlog[0].trigger_type).toBe("TRACKER_CATALYST_WATCH");
+    e2(s.prepare).toHaveLength(1);
+    e2(s.prepare[0].trigger_type).toBe("TRACKER_CATALYST_WATCH");
+    e2(s.prepare[0].source_ref).toBe("session");
   });
 });
 

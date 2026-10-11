@@ -2,4 +2,4 @@
 - [x] Exclude NEAR from Parked and gate Watchlist debugging behind debug=1.
 - [x] Run regression tests and verify the live display.
 - [x] Merge OPEN AUTO R3LINT/RESET tracker rows into grouped cards and forward dedupe keys.
-- [ ] Verify AUTO grouping regression tests and signed-in preview.
+- [x] Verify AUTO grouping regression tests and signed-in preview.
