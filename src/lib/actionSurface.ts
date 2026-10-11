@@ -386,12 +386,12 @@ export function buildSurface(a: BuildArgs): Surface {
 
     if (!bandError && band === "ZONE" && st.startsWith("ARCHIVE")) {
       emit({ ...base, trigger_type: "RESET_ZONE", title: "Archive name back in zone: re-run RCIS", lane: "DECIDE", severity: "AMBER",
-        reason: `Px ${px ?? "?"} ≤ re-engage ${w.triggerPriceNumeric ?? "?"}` });
+        reason: `${t}: px ${px ?? "?"} vs trigger ${w.triggerPriceNumeric ?? "?"}` });
       continue;
     }
     if (!bandError && band === "ZONE" && st.startsWith("WAIT_EVENT") && !openGateTickers.has(t)) {
       emit({ ...base, trigger_type: "R3_LINT", title: "In zone, gating event undated", lane: "DECIDE", severity: "AMBER",
-        reason: "BAND ZONE but no open CATALYST_WATCH / EARNINGS_GATE row" });
+        reason: `${t}: px ${px ?? "?"} vs trigger ${w.triggerPriceNumeric ?? "?"}` });
       continue;
     }
     if (!(WATCH_WAKE_STATUSES as readonly string[]).some((x) => st.startsWith(x))) continue; // F3
@@ -487,11 +487,31 @@ export function buildSurface(a: BuildArgs): Surface {
   }
 
   // ── Lanes + R18 cap ──
-  const all = Array.from(byKey.values());
-  const decideAll = all.filter((c) => c.lane === "DECIDE").sort((x, y) => SEV_RANK[x.severity] - SEV_RANK[y.severity]);
+  const candidates = Array.from(byKey.values());
+  const groupedTypes = new Set(["RESET_ZONE", "R3_LINT"]);
+  const all = candidates.filter((c) => c.source !== "WATCHLIST" || !groupedTypes.has(c.trigger_type));
+  const earliest = (dates: (string | null)[]) => dates.filter((d): d is string => !!d).sort()[0] ?? null;
+  for (const trigger_type of groupedTypes) {
+    const members = candidates.filter((c) => c.source === "WATCHLIST" && c.trigger_type === trigger_type);
+    const first = members[0];
+    if (!first) continue;
+    members.sort((x, y) => x.ticker.localeCompare(y.ticker));
+    all.push({
+      ...first, key: `:${trigger_type}`, ticker: "", layer: undefined,
+      title: `${trigger_type === "RESET_ZONE" ? "Archive names back in zone: re-run RCIS" : "In zone, gating event undated"} (${members.length})`,
+      lane: "DECIDE", severity: "AMBER", accounts: [], verdict_at: null,
+      reasons: [members.flatMap((c) => c.reasons).join("; ")],
+      next_review: earliest(members.map((c) => c.next_review)),
+      fired_at: earliest(members.map((c) => c.fired_at)),
+    });
+  }
+  const byDate = (x: Candidate, y: Candidate) => String(x.next_review ?? "9").localeCompare(String(y.next_review ?? "9"));
+  const decideAll = all.filter((c) => c.lane === "DECIDE").sort((x, y) =>
+    SEV_RANK[x.severity] - SEV_RANK[y.severity] || byDate(x, y)
+    || String(x.fired_at ?? "9").localeCompare(String(y.fired_at ?? "9"))
+    || x.key.localeCompare(y.key));
   const decide = decideAll.slice(0, DECIDE_CAP);
   const overflowItems = decideAll.slice(DECIDE_CAP).map((c) => ({ ...c, lane: "WATCH" as Lane }));
-  const byDate = (x: Candidate, y: Candidate) => String(x.next_review ?? "9").localeCompare(String(y.next_review ?? "9"));
   return {
     decide,
     prepare: all.filter((c) => c.lane === "PREPARE").sort(byDate),

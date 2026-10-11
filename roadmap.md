@@ -1,0 +1,3 @@
+- [x] Collapse RESET_ZONE and R3_LINT and sort Decide by review/fired dates.
+- [x] Exclude NEAR from Parked and gate Watchlist debugging behind debug=1.
+- [ ] Run regression tests and verify the live display.
