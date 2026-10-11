@@ -73,7 +73,7 @@ export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; 
 export interface TxnIn { ticker: string; account?: string; date: string; action: string }
 export interface TrackerRowIn {
   id: string; ticker: string | null; action_type: string; due_date: string; summary: string;
-  status: string; priority?: string; layer?: string | null; source?: string | null;
+  status: string; priority?: string; layer?: string | null; source?: string | null; dedupe_key?: string | null;
 }
 
 // ── Dates ──
@@ -478,6 +478,27 @@ export function buildSurface(a: BuildArgs): Surface {
   // ── action_tracker (R17) ──
   for (const r of a.tracker ?? []) {
     if (up(r.status) !== "OPEN") continue;
+    const autoType = r.dedupe_key?.match(/^AUTO:[^:]+:(R3LINT|RESET):/)?.[1];
+    if (autoType) {
+      const ticker = up(r.ticker);
+      if (!ticker) continue;
+      const trigger_type = autoType === "R3LINT" ? "R3_LINT" : "RESET_ZONE";
+      const key = `${ticker}:${trigger_type}`;
+      const due = isoDate(r.due_date) || null;
+      const member = byKey.get(key);
+      if (member) {
+        if (due && (!member.next_review || due < member.next_review)) member.next_review = due;
+      } else {
+        const w = a.watchlist.find((row) => up(row.ticker) === ticker);
+        byKey.set(key, {
+          key, ticker, trigger_type, title: "", lane: "DECIDE", severity: "AMBER",
+          source: "WATCHLIST", source_ref: null, accounts: [], gate_test: null, verdict_at: null,
+          fired_at: today, next_review: due, layer: r.layer ?? undefined,
+          reasons: [`${ticker}: px ${num(w?.current) ?? "?"} vs trigger ${w?.triggerPriceNumeric ?? "?"}`],
+        });
+      }
+      continue; // AUTO lint/reset rows contribute to the group, never standalone tracker cards.
+    }
     const lane = routeTrackerRow(r, today, known, dead);
     const t = up(r.ticker);
     emit({ ticker: t, trigger_type: `TRACKER_${up(r.action_type)}`, title: r.summary.slice(0, 120), lane,

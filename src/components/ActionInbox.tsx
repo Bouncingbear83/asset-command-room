@@ -65,7 +65,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   const trackerRows = useMemo(
     () => tracker.items.filter((i) => i.persisted).map((i) => ({
       id: i.id, ticker: i.ticker, action_type: i.action_type, due_date: i.due_date, summary: i.summary,
-      status: i.status, priority: i.priority, layer: i.layer, source: i.source,
+      status: i.status, priority: i.priority, layer: i.layer, source: i.source, dedupe_key: i.dedupe_key,
     })),
     [tracker.items],
   );

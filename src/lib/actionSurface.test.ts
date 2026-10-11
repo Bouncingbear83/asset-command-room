@@ -206,6 +206,34 @@ d2("WATCHLIST BAND (col AL)", () => {
     e2(s.decide[0].next_review).toBe("2026-10-01");
     e2(s.overflow).toBe(0);
   });
+  i2("five R3 band rows plus five matching AUTO tracker rows produce one Decide card only", () => {
+    const tickers = ["BESI", "CC", "ERII", "EUZ.DE", "IVSO"];
+    const s = run(tickers.map((ticker) => W({ ticker, status: "WAIT_EVENT", band: "ZONE", triggerReviewDate: "2026-10-20" })),
+      tickers.map((ticker, i) => ({ id: String(i), ticker, action_type: "MANUAL", status: "OPEN", due_date: i === 4 ? "2026-10-09" : "2026-10-15", summary: "Auto lint", dedupe_key: `AUTO:${ticker}:R3LINT:2026-10-09` })));
+    e2(s.decide).toHaveLength(1);
+    e2(s.decide[0].trigger_type).toBe("R3_LINT");
+    e2(s.decide[0].next_review).toBe("2026-10-09");
+    e2(s.decide[0].severity).toBe("AMBER");
+    tickers.forEach((ticker) => e2(s.decide[0].reasons[0].split(`${ticker}:`)).toHaveLength(2));
+    e2([...s.decide, ...s.prepare, ...s.watch, ...s.backlog, ...s.missed].some((c) => c.trigger_type.startsWith("TRACKER_"))).toBe(false);
+  });
+  i2("AUTO rows alone create each group and add unique members with earliest due date", () => {
+    const row = (ticker: string, token: string, due_date: string) => ({ id: `${ticker}-${due_date}`, ticker, action_type: "MANUAL", status: "OPEN", summary: "Auto", due_date, dedupe_key: `AUTO:${ticker}:${token}:v1` });
+    const s = run([], [row("AAA", "R3LINT", "2026-10-15"), row("BBB", "R3LINT", "2026-10-12"), row("AAA", "R3LINT", "2026-10-11"), row("ASPI", "RESET", "2026-10-17")]);
+    e2(s.decide).toHaveLength(2);
+    e2(s.decide[0].trigger_type).toBe("R3_LINT");
+    e2(s.decide[0].next_review).toBe("2026-10-11");
+    e2(s.decide[0].reasons[0].split("; ")).toHaveLength(2);
+    e2(s.decide[1].trigger_type).toBe("RESET_ZONE");
+    e2(s.decide[1].severity).toBe("AMBER");
+  });
+  i2("session keys retain normal routing and closed AUTO rows are ignored", () => {
+    const s = run([], [{ id: "session", ticker: "ASPI", action_type: "CATALYST_WATCH", status: "OPEN", summary: "Session", due_date: "2026-10-17", dedupe_key: "ASPI|CATALYST_WATCH|2026-10-17" }, { id: "closed", ticker: "ASPI", action_type: "MANUAL", status: "DONE", summary: "Closed", due_date: "2026-10-09", dedupe_key: "AUTO:ASPI:RESET:v1" }]);
+    e2(s.decide).toHaveLength(0);
+    e2(s.prepare).toHaveLength(1);
+    e2(s.prepare[0].trigger_type).toBe("TRACKER_CATALYST_WATCH");
+    e2(s.prepare[0].source_ref).toBe("session");
+  });
 });
 
 describe("Decide ordering", () => {
