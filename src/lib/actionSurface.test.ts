@@ -195,6 +195,7 @@ d2("WATCHLIST BAND (col AL)", () => {
     const cards = s.decide.filter((c) => c.trigger_type === "R3_LINT");
     e2(cards).toHaveLength(1);
     e2(cards[0].severity).toBe("AMBER");
+    e2(s.watchCount).toBe(0);
     tickers.forEach((ticker, i) => e2(cards[0].reasons.join("; ")).toContain(`${ticker}: px ${80 + i} vs trigger ${90 + i}`));
   });
   i2("archive reset names collapse before the Decide cap with earliest review date", () => {

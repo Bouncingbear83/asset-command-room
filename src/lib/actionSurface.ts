@@ -520,7 +520,7 @@ export function buildSurface(a: BuildArgs): Surface {
     backlog: all.filter((c) => c.lane === "BACKLOG"),
     overflow: overflowItems.length,
     wakeWithin10,
-    watchCount: countWatching(a, dead, heldSet, all),
+    watchCount: countWatching(a, dead, heldSet, candidates),
   };
 }
 
