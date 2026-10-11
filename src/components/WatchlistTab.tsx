@@ -897,7 +897,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
 
   return (
     <div>
-      {import.meta.env.DEV && (
+      {import.meta.env.DEV && new URLSearchParams(window.location.search).get("debug") === "1" && (
         <div style={{ padding: "8px 14px" }}>
           <WatchlistDebugTable />
         </div>

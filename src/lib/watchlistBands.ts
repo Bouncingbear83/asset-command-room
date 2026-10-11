@@ -40,7 +40,7 @@ export function matchesChip(chip: BandChip, statusRaw: unknown, bandRaw: unknown
     case "STALE": return band === "STALE" && startsAny(st, ["WAIT_PRICE"]);
     case "DATA": return band === "NO_LEVEL" || band === "UNIT_CHECK";
     case "BENCH": return band === "BENCH" && !startsAny(st, DEAD_LIKE);
-    case "PARKED": return band !== "ZONE" && startsAny(st, PARKED_STATUSES);
+    case "PARKED": return band !== "ZONE" && band !== "NEAR" && startsAny(st, PARKED_STATUSES);
     case "ALL": return true;
   }
 }

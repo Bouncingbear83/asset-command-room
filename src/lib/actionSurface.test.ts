@@ -189,4 +189,29 @@ d2("WATCHLIST BAND (col AL)", () => {
     e2(s.prepare.some((c) => c.title === "WATCHLIST BAND column error: check sheet AL2")).toBe(true);
     e2(s.decide[0]?.trigger_type).toBe("IN_ZONE");
   });
+  i2("five R3 names produce one AMBER card containing every ticker and price/trigger pair", () => {
+    const tickers = ["BESI", "CC", "AAA", "BBB", "CCC"];
+    const s = run(tickers.map((ticker, i) => W({ ticker, status: "WAIT_EVENT", band: "ZONE", current: 80 + i, triggerPriceNumeric: 90 + i })));
+    const cards = s.decide.filter((c) => c.trigger_type === "R3_LINT");
+    e2(cards).toHaveLength(1);
+    e2(cards[0].severity).toBe("AMBER");
+    e2(s.watchCount).toBe(0);
+    tickers.forEach((ticker, i) => e2(cards[0].reasons.join("; ")).toContain(`${ticker}: px ${80 + i} vs trigger ${90 + i}`));
+  });
+  i2("archive reset names collapse before the Decide cap with earliest review date", () => {
+    const s = run(Array.from({ length: 12 }, (_, i) => W({ ticker: `ARC${i}`, status: "ARCHIVE", band: "ZONE", triggerReviewDate: i === 11 ? "2026-10-01" : "2026-11-01" })));
+    e2(s.decide).toHaveLength(1);
+    e2(s.decide[0].trigger_type).toBe("RESET_ZONE");
+    e2(s.decide[0].severity).toBe("AMBER");
+    e2(s.decide[0].next_review).toBe("2026-10-01");
+    e2(s.overflow).toBe(0);
+  });
+});
+
+describe("Decide ordering", () => {
+  it("sorts severity first, then review ascending, then fired date, with undated last", () => {
+    const holding = (ticker: string, review: string, fired: string, status = "EXIT_ZONE"): HoldingIn => ({ ticker, price: 100, alert_status: status, trigger_review_date: review, alert_fired_date: fired });
+    const s = buildSurface({ holdings: [holding("LATE", "2026-10-15", "2026-10-01"), holding("TIE_LATE", "2026-10-12", "2026-10-03"), holding("UNDATED", "", ""), holding("TIE_EARLY", "2026-10-12", "2026-10-02"), holding("RED", "2026-11-01", "2026-10-10", "STOP_BREACH")], watchlist: [], scores: [], earnings: [], today: TODAY });
+    expect(s.decide.map((c) => c.ticker)).toEqual(["RED", "TIE_EARLY", "TIE_LATE", "LATE", "UNDATED"]);
+  });
 });
