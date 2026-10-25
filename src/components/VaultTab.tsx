@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { supabase } from "@/integrations/supabase/client";
 
 /* ── types ── */
@@ -45,7 +46,7 @@ type ViewMode = "browse" | "search";
 const NOTE_TYPES: NoteType[] = ["all", "ticker", "session", "rule", "framework", "section", "layer", "trend", "spec"];
 const VAULT_SEARCH_URL = "https://bertbroad83.app.n8n.cloud/webhook/stellar-vault-search";
 const GITHUB_RAW_BASE = "https://github.com/Bouncingbear83/stellar-ops/blob/main";
-const DEEP_DIVE_BASE = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?q=Deep+dive+";
+const deepDivePrompt = (id: string) => `Deep dive on ${id}. Pull current state from HOLDINGS / SCORES / DISRUPTION via Sheet Reader. Full reassessment.`;
 
 /* ── shared styles ── */
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
@@ -181,7 +182,8 @@ function BacklinksPanel({
       {/* Deep Dive link for tickers */}
       {note.type === "ticker" && note.identifier && (
         <a
-          href={`${DEEP_DIVE_BASE}${note.identifier}`}
+          href={CLAUDE_PROJECT_BASE}
+          onClick={(e) => { e.preventDefault(); void openClaudeWithText(deepDivePrompt(note.identifier)); }}
           target="_blank"
           rel="noopener noreferrer"
           style={{ ...mono9, color: "var(--gold)", textDecoration: "none", display: "inline-block", marginBottom: 12, marginLeft: 16 }}
@@ -247,7 +249,7 @@ function BacklinksPanel({
 function SearchResultCard({ result }: { result: VaultSearchResult }) {
   const [expanded, setExpanded] = useState(false);
   const fm = result.frontmatter ?? {};
-  const deepDiveUrl = result.type === "ticker" ? `${DEEP_DIVE_BASE}${result.identifier}` : null;
+  const deepDiveUrl = result.type === "ticker" ? CLAUDE_PROJECT_BASE : null;
 
   return (
     <div
@@ -386,6 +388,7 @@ function SearchResultCard({ result }: { result: VaultSearchResult }) {
           {deepDiveUrl && (
             <a
               href={deepDiveUrl}
+              onClick={(e) => { e.preventDefault(); void openClaudeWithText(deepDivePrompt(result.identifier)); }}
               target="_blank"
               rel="noopener noreferrer"
               style={{

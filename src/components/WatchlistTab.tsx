@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem, LiveMacroState, LiveScore } from "@/hooks/usePortfolioData";
@@ -9,7 +10,7 @@ import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { useLivePrices } from "@/hooks/useLivePrices";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import WatchlistDebugTable from "./WatchlistDebugTable";
-import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
+import { buildSubstrateAuditPrompt } from "@/lib/claudePrompts";
 import type { AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { canonicalAsymmetry } from "@/lib/canonical";
 import { openActionsForTicker } from "@/lib/navigate";
@@ -165,8 +166,7 @@ function ResearchRow({ row }: { row: DerivedRow }) {
   const handleAudit = (e: React.MouseEvent) => {
     e.stopPropagation();
     const prompt = buildSubstrateAuditPrompt(item.ticker);
-    const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
-    (window.top || window).open(url, "_blank");
+    void openClaudeWithText(prompt);
   };
   return (
     <div style={{ padding: "10px 18px 8px", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>

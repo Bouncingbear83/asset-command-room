@@ -1,7 +1,7 @@
 import { DP_MIN_PCT, DP_MAX_PCT } from "@/config/signalRules";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { LiveLayer, LiveRiskControl, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 
-const CLAUDE_PROJECT_BASE_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
 
 const SESSION_PROMPT = `New Stellar session.
 
@@ -112,7 +112,8 @@ export default function CommandHeader({ riskControls, macroState, cashGbp, aum, 
     }}>
       {/* Start Session CTA */}
       <a
-        href={`${CLAUDE_PROJECT_BASE_URL}?q=${encodeURIComponent(SESSION_PROMPT)}`}
+        href={CLAUDE_PROJECT_BASE}
+        onClick={(e) => { e.preventDefault(); void openClaudeWithText(SESSION_PROMPT); }}
         target="_blank"
         rel="noopener noreferrer"
         style={{

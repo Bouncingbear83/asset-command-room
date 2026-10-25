@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import { LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
 
 // ── Prefix taxonomy ─────────────────────────────────────────────────────────
 // Score / weekly / quarterly review prefixes (existing)
@@ -470,8 +470,7 @@ export default function ReviewQueue({ holdings, compact = false }: ReviewQueuePr
                                   onClick={() => {
                                     const subject = flag.isPortfolio ? "the portfolio" : flag.ticker;
                                     const prompt = `Review flag ${flag.prefix} on ${subject}. Type: ${flag.flagType}. Priority: ${flag.priority}. Reason: ${flag.reason || "—"}. Reassess and produce Research Commit.`;
-                                    const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
-                                    (window.top || window).open(url, "_blank");
+                                    void openClaudeWithText(prompt);
                                   }}
                                   style={{
                                     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em",

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { useLayerReviews, LayerReview } from "@/hooks/useLayerReviews";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useScheduledReviews } from "@/hooks/useScheduledReviews";
@@ -62,9 +63,7 @@ function formatDateShort(dateStr: string): string {
 /* ── Prompt launcher ── */
 function launchReview(review: LayerReview) {
   const prompt = review.prompt_template || `Layer Review: ${review.layer} (${review.cycle})`;
-  // Claude project deep link: open claude.ai with pre-filled prompt
-  const encoded = encodeURIComponent(prompt);
-  window.open(`https://claude.ai/new?q=${encoded}`, "_blank");
+  void openClaudeWithText(prompt);
 }
 
 /* ── Main component ── */
