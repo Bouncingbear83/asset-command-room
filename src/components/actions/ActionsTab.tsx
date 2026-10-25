@@ -76,11 +76,10 @@ export default function ActionsTab() {
   // Read URL params for deep-linking
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
-    const t = params.get("ticker") || hashParams.get("ticker") || "";
-    const l = params.get("layer") || hashParams.get("layer") || "";
-    const tp = params.get("type") || hashParams.get("type") || "";
-    const fk = params.get("action") || hashParams.get("action") || "";
+    const t = params.get("ticker") || "";
+    const l = params.get("layer") || "";
+    const tp = params.get("type") || "";
+    const fk = params.get("action") || "";
     if (t) setTickerFilter(t.toUpperCase());
     if (l) setLayerFilter(l);
     if (tp) setTypeFilter(tp);
