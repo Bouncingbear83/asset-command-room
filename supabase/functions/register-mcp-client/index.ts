@@ -7,6 +7,7 @@
 // re-reveal it later.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { isOwnerEmail } from "../_shared/owner-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,7 @@ Deno.serve(async (req) => {
     });
     const { data: userRes, error: userErr } = await asUser.auth.getUser();
     if (userErr || !userRes.user) return json({ error: "unauthorized" }, 401);
+    if (!userRes.user.email_confirmed_at || !isOwnerEmail(userRes.user.email)) return json({ error: "owner_only" }, 403);
 
     const body = await req.json().catch(() => ({}));
     const client_name = String(body?.client_name ?? "").trim();
