@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import { useActionTracker } from "./useActionTracker";
 
 interface Props {

@@ -3,7 +3,7 @@ const isEventItem = (i: { action_type: string; source?: string | null; persisted
   (EVENT_ACTION_TYPES as readonly string[]).includes(String(i.action_type).toUpperCase()) ||
   (!!i.persisted && String(i.source ?? "").toUpperCase() === "SESSION");
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import { useActionTracker, type ActionItem } from "./useActionTracker";
 import ActionItemRow from "./ActionItem";
 import ActionAddModal from "./ActionAddModal";

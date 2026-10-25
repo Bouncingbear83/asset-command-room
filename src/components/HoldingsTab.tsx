@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
-import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";

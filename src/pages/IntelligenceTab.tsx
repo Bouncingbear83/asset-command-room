@@ -7,7 +7,8 @@ import { IntelligenceGroupHeader } from "@/components/intelligence/IntelligenceG
 import { IntelligenceHeader } from "@/components/intelligence/IntelligenceHeader";
 import { ProfileMixWidget } from "@/components/intelligence/ProfileMixWidget";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
-import { usePortfolioData, type LiveLayer } from "@/hooks/usePortfolioData";
+import { type LiveLayer } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import {
   DEFAULT_STATE,
   stateFromParams,

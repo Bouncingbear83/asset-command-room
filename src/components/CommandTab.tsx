@@ -1,5 +1,6 @@
 import React from "react";
-import { LiveMacroStateRow, usePortfolioData } from "@/hooks/usePortfolioData";
+import { LiveMacroStateRow } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CommandHeader, { computeDpPct } from "@/components/command/CommandHeader";
 import MoversCard from "@/components/command/MoversCard";
