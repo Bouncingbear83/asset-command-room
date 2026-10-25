@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 import {
-  usePortfolioData,
   type LiveScore,
   type LiveDisruption,
   type LiveHolding,
   type LiveScoreLog,
   type LiveWatchItem,
 } from "./usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import {
   AssetIntelligence,
   AssetDisruption,
