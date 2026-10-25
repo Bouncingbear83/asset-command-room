@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
 import { parseCashLedger } from "@/lib/cashLedger";
 import { effectiveEarningsDate } from "@/lib/earningsDate";
+import { parseHoldingsCashBlock, HOLDINGS_CASH_RANGE, EMPTY_CASH_BLOCK, type CashBlock } from "@/lib/canonical";
 
 const SHEET_ID = "1T2afEG3mLjxmonduDugHA5SlJ44-RBJmv0bxISfalNo";
 
@@ -551,6 +551,8 @@ function parseScores(rows: Record<string, any>[]) {
       divYield: parseNum(findCol(row, "DIV_YIELD", "div_yield", "Div_Yield")),
       // Live IRR-BB formula output (col AU) — display/gating only
       irrBbSheet: parseNum(findCol(row, "IRR_BB", "irr_bb", "IRR-BB", "IRR BB", "Irr_Bb", "IRR_BB_PCT", "irr_bb_pct")),
+      // Live asymmetry formula output (col AV) — canonical
+      asymSheet: parseNum(findCol(row, "ASYM", "asym", "Asym")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
       framework: String(findCol(row, "FRAMEWORK", "framework", "Framework") ?? ""),
     }));
@@ -1005,6 +1007,21 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
 export type LiveJisaHolding = JisaParseResult["holdings"][number];
 export type LiveJisaTotals = Record<string, JisaChildTotals>;
 
+export type SourceKey =
+  | "holdings" | "holdingsCash" | "watchlist" | "layers" | "scores" | "scoreLog" | "monitor"
+  | "disruption" | "performance" | "narrative" | "macroState" | "earningsCalendar"
+  | "cash" | "transactions" | "jisaHoldings";
+
+export interface SourceResult {
+  status: "ok" | "error" | "empty";
+  rows: number;
+  /** yyyy-mm-dd of the data (latest dated row where known, else fetch date). */
+  dataDate: string | null;
+  error?: string;
+}
+
+export type SourceMap = Record<SourceKey, SourceResult>;
+
 export interface PortfolioData {
   holdings: LiveHolding[];
   sipp: LiveHolding[];
@@ -1030,170 +1047,130 @@ export interface PortfolioData {
   cashSipp: number;
   cashIsa: number;
   cashTotal: number;
+  /** Canonical HOLDINGS cash block (rows 58–65). */
+  cashBlock: CashBlock;
+  sources: SourceMap;
   lastUpdated: string | null;
   loading: boolean;
   error: string | null;
   refresh: () => void;
 }
 
-export function usePortfolioData(): PortfolioData {
-  const [state, setState] = useState<Omit<PortfolioData, "refresh">>({
-    holdings: [],
-    sipp: [],
-    isa: [],
-    bordier: [],
-    watchlist: [],
-    layers: [],
-    scores: [],
-    scoreLog: [],
-    monitor: [],
-    disruption: [],
-    performance: [],
-    narrativeData: createEmptyNarrativeData(),
-    macroState: {},
-    macroStateRows: [],
-    macroBanner: null,
-    riskControls: [],
-    weeklyTriggers: [],
-    earningsCalendar: [],
-    transactions: [],
-    jisaHoldings: [],
-    jisaTotals: { Bear: { mv: 0, cash: 0, portfolio: 0 }, Alfie: { mv: 0, cash: 0, portfolio: 0 }, Edie: { mv: 0, cash: 0, portfolio: 0 } },
-    cashSipp: 0,
-    cashIsa: 0,
-    cashTotal: 0,
-    lastUpdated: null,
-    loading: true,
-    error: null,
-  });
+export type PortfolioSnapshot = Omit<PortfolioData, "loading" | "error" | "refresh">;
 
-  const load = useCallback(async () => {
-    setState((previous) => ({ ...previous, loading: true, error: null }));
+const ALL_SOURCES: SourceKey[] = [
+  "holdings", "holdingsCash", "watchlist", "layers", "scores", "scoreLog", "monitor", "disruption",
+  "performance", "narrative", "macroState", "earningsCalendar", "cash", "transactions", "jisaHoldings",
+];
+
+export function pendingSources(): SourceMap {
+  return Object.fromEntries(ALL_SOURCES.map((k) => [k, { status: "empty", rows: 0, dataDate: null }])) as unknown as SourceMap;
+}
+
+export const EMPTY_SNAPSHOT: PortfolioSnapshot = {
+  holdings: [], sipp: [], isa: [], bordier: [], watchlist: [], layers: [], scores: [], scoreLog: [],
+  monitor: [], disruption: [], performance: [], narrativeData: createEmptyNarrativeData(), macroState: {},
+  macroStateRows: [], macroBanner: null, riskControls: [], weeklyTriggers: [], earningsCalendar: [],
+  transactions: [], jisaHoldings: [],
+  jisaTotals: { Bear: { mv: 0, cash: 0, portfolio: 0 }, Alfie: { mv: 0, cash: 0, portfolio: 0 }, Edie: { mv: 0, cash: 0, portfolio: 0 } },
+  cashSipp: 0, cashIsa: 0, cashTotal: 0, cashBlock: EMPTY_CASH_BLOCK, sources: pendingSources(), lastUpdated: null,
+};
+
+function isoToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Fetch every sheet once. Never throws: each source reports ok / error / empty. */
+export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
+  const today = isoToday();
+  const sources = pendingSources();
+  const settle = async <T,>(key: SourceKey, p: Promise<T>, fallback: T): Promise<T> => {
     try {
-      const [
-        holdingsRaw,
-        watchlistRaw,
-        layersRaw,
-        scoresRaw,
-        scoreLogRaw,
-        monitorRaw,
-        disruptionRaw,
-        performanceRaw,
-        narrativeGrid,
-        macroStateGrid,
-        earningsCalendarRaw,
-        cashGrid,
-        transactionsRaw,
-        jisaHoldingsRaw,
-      ] = await Promise.all([
-        fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }),
-        fetchSheet({ gid: GIDS.watchlist, range: "A1:AL5000" }).catch((e) => {
-          console.error("[watchlist fetch] failed:", e);
-          return [];
-        }),
-        fetchSheet({ gid: GIDS.layers, range: "A2:H11" }).catch(() => []),
-        fetchSheet({ gid: GIDS.scores, range: "A1:AX" }).catch(() => []),
-        fetchSheet({ gid: GIDS.scoreLog }).catch(() => []),
-        fetchSheet({ gid: GIDS.monitor }).catch(() => []),
-        fetchSheet({ gid: GIDS.disruption }).catch(() => []),
-        fetchSheet({ gid: GIDS.performance, range: "A1:AR" }).catch(() => []),
-        fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }).catch(() => []),
-        fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }).catch(() => []),
-        fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:L500" }).catch(() => []),
-        fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5000", headers: 0 }).catch(() => []),
-        fetchSheet({ gid: GIDS.transactions, range: "A1:O" }).catch(() => []),
-        fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }).catch(() => []),
-      ]);
-
-      const allHoldings = parseHoldings(holdingsRaw);
-
-      
-      const sipp = allHoldings.filter((holding) => holding.account.toUpperCase() === "SIPP");
-      const isa = allHoldings.filter((holding) => holding.account.toUpperCase() === "ISA");
-      const bordier = allHoldings.filter((holding) => holding.account.toUpperCase().replace(/[^A-Z]/g, "") === "BORDIERGIA");
-      const narrativeData = parseNarrativeData(narrativeGrid);
-      const macroState = parseMacroState(macroStateGrid);
-      const macroStateRows = parseMacroStateRows(macroState);
-      const jisaParsed = parseJisaHoldings(jisaHoldingsRaw);
-
-      // CASH sheet is a ledger (A date, B account, C balance): latest row per account, JISA excluded.
-      const ledger = parseCashLedger(cashGrid as unknown[][]);
-      const cashSipp = ledger.byAccount["SIPP"] ?? 0;
-      const cashIsa = ledger.byAccount["ISA"] ?? 0;
-      const cashTotal = ledger.total;
-
-      setState({
-        holdings: allHoldings,
-        sipp,
-        isa,
-        bordier,
-        watchlist: (() => {
-          const wl = parseWatchlist(watchlistRaw);
-          if (import.meta.env.DEV) {
-            const tickers = wl.map((w) => w.ticker || w.name).filter(Boolean);
-            console.debug(`[watchlist parseWatchlist] in=${watchlistRaw.length} out=${wl.length}`);
-            console.debug(`[watchlist tickers] last10=`, tickers.slice(-10));
-            const parsedKeys = new Set(wl.map((w) => `${w.ticker}|${w.name}`));
-            const droppedByParse = watchlistRaw
-              .map((row, i) => {
-                const t = String(row["ticker"] ?? row["TICKER"] ?? row["Ticker"] ?? "").trim();
-                const n = String(row["name"] ?? row["NAME"] ?? row["Name"] ?? "").trim();
-                return { rowIndex: i, ticker: t, name: n };
-              })
-              .filter((r) => !parsedKeys.has(`${r.ticker}|${r.name}`));
-            (window as any).__watchlistDebug = {
-              ...((window as any).__watchlistDebug ?? {}),
-              parsed: wl,
-              droppedByParse,
-              parsedAt: new Date().toISOString(),
-            };
-          }
-          return wl;
-        })(),
-
-        layers: parseLayers(layersRaw),
-        scores: parseScores(scoresRaw),
-        scoreLog: parseScoreLog(scoreLogRaw),
-        monitor: parseMonitor(monitorRaw),
-        disruption: parseDisruption(disruptionRaw),
-        performance: parsePerformance(performanceRaw),
-        narrativeData,
-        macroState,
-        macroStateRows,
-        macroBanner: parseMacroBanner(macroState, narrativeData),
-        riskControls: parseRiskControls(macroState),
-        weeklyTriggers: parseWeeklyTriggers(macroStateRows),
-        earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
-        transactions: parseTransactions(transactionsRaw),
-        jisaHoldings: jisaParsed.holdings,
-        jisaTotals: jisaParsed.totals,
-        cashSipp,
-        cashIsa,
-        cashTotal,
-        lastUpdated: new Date().toLocaleTimeString("en-GB"),
-        loading: false,
-        error: null,
-      });
-      window.dispatchEvent(new CustomEvent("lovable:portfolio-refreshed", { detail: { at: Date.now() } }));
-    } catch (error: any) {
-      setState((previous) => ({
-        ...previous,
-        loading: false,
-        error: `Sheet unreachable — static snapshot. (${error.message})`,
-      }));
+      const v = await p;
+      sources[key] = { status: Array.isArray(v) && v.length === 0 ? "empty" : "ok", rows: Array.isArray(v) ? v.length : 1, dataDate: today };
+      return v;
+    } catch (e: any) {
+      console.error(`[portfolio] ${key} fetch failed:`, e);
+      sources[key] = { status: "error", rows: 0, dataDate: null, error: String(e?.message ?? e) };
+      return fallback;
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    load();
-    const interval = setInterval(load, 5 * 60 * 1000);
-    const onExternalRefresh = () => load();
-    window.addEventListener("lovable:portfolio-refresh", onExternalRefresh);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("lovable:portfolio-refresh", onExternalRefresh);
-    };
-  }, [load]);
+  const [
+    holdingsRaw, holdingsCashGrid, watchlistRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw,
+    performanceRaw, narrativeGrid, macroStateGrid, earningsCalendarRaw, cashGrid, transactionsRaw, jisaHoldingsRaw,
+  ] = await Promise.all([
+    settle("holdings", fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }), [] as Record<string, any>[]),
+    settle("holdingsCash", fetchSheetGrid({ gid: GIDS.holdings, range: HOLDINGS_CASH_RANGE, headers: 0 }), [] as string[][]),
+    settle("watchlist", fetchSheet({ gid: GIDS.watchlist, range: "A1:AL5000" }), [] as Record<string, any>[]),
+    settle("layers", fetchSheet({ gid: GIDS.layers, range: "A2:H11" }), [] as Record<string, any>[]),
+    settle("scores", fetchSheet({ gid: GIDS.scores, range: "A1:AX" }), [] as Record<string, any>[]),
+    settle("scoreLog", fetchSheet({ gid: GIDS.scoreLog }), [] as Record<string, any>[]),
+    settle("monitor", fetchSheet({ gid: GIDS.monitor }), [] as Record<string, any>[]),
+    settle("disruption", fetchSheet({ gid: GIDS.disruption }), [] as Record<string, any>[]),
+    settle("performance", fetchSheet({ gid: GIDS.performance, range: "A1:AR" }), [] as Record<string, any>[]),
+    settle("narrative", fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }), [] as string[][]),
+    settle("macroState", fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }), [] as string[][]),
+    settle("earningsCalendar", fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:L500" }), [] as Record<string, any>[]),
+    settle("cash", fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5000", headers: 0 }), [] as string[][]),
+    settle("transactions", fetchSheet({ gid: GIDS.transactions, range: "A1:O" }), [] as Record<string, any>[]),
+    settle("jisaHoldings", fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }), [] as string[][]),
+  ]);
 
-  return { ...state, refresh: load };
+  const allHoldings = parseHoldings(holdingsRaw);
+  const sipp = allHoldings.filter((h) => h.account.toUpperCase() === "SIPP");
+  const isa = allHoldings.filter((h) => h.account.toUpperCase() === "ISA");
+  const bordier = allHoldings.filter((h) => h.account.toUpperCase().replace(/[^A-Z]/g, "") === "BORDIERGIA");
+  const narrativeData = parseNarrativeData(narrativeGrid);
+  const macroState = parseMacroState(macroStateGrid);
+  const macroStateRows = parseMacroStateRows(macroState);
+  const jisaParsed = parseJisaHoldings(jisaHoldingsRaw);
+
+  // HOLDINGS cash block is canonical for AUM / cash / DP.
+  const cashBlock = parseHoldingsCashBlock(holdingsCashGrid);
+  if (sources.holdingsCash.status === "ok" && cashBlock.aum === null) {
+    sources.holdingsCash = { status: "error", rows: 0, dataDate: null, error: "Cash block (rows 58–65) not found" };
+  }
+
+  // CASH sheet is a ledger (A date, B account, C balance): latest row per account, JISA excluded.
+  const ledger = parseCashLedger(cashGrid as unknown[][]);
+  const transactions = parseTransactions(transactionsRaw);
+  if (sources.transactions.status === "ok") {
+    const latest = transactions.reduce((m, t) => (t.date && t.date > m ? t.date : m), "");
+    if (latest) sources.transactions.dataDate = latest.slice(0, 10);
+  }
+  if (sources.cash.status === "ok") {
+    const dates = (cashGrid as unknown[][]).map((r) => parseSheetDate(r?.[0])).filter(Boolean).sort();
+    if (dates.length) sources.cash.dataDate = String(dates[dates.length - 1]).slice(0, 10);
+  }
+
+  const watchlist = parseWatchlist(watchlistRaw);
+  if (import.meta.env.DEV) {
+    (window as any).__watchlistDebug = { ...((window as any).__watchlistDebug ?? {}), parsed: watchlist, parsedAt: new Date().toISOString() };
+  }
+
+  return {
+    holdings: allHoldings, sipp, isa, bordier, watchlist,
+    layers: parseLayers(layersRaw),
+    scores: parseScores(scoresRaw),
+    scoreLog: parseScoreLog(scoreLogRaw),
+    monitor: parseMonitor(monitorRaw),
+    disruption: parseDisruption(disruptionRaw),
+    performance: parsePerformance(performanceRaw),
+    narrativeData, macroState, macroStateRows,
+    macroBanner: parseMacroBanner(macroState, narrativeData),
+    riskControls: parseRiskControls(macroState),
+    weeklyTriggers: parseWeeklyTriggers(macroStateRows),
+    earningsCalendar: parseEarningsCalendar(earningsCalendarRaw),
+    transactions,
+    jisaHoldings: jisaParsed.holdings,
+    jisaTotals: jisaParsed.totals,
+    cashSipp: cashBlock.cashBySleeve.SIPP ?? ledger.byAccount["SIPP"] ?? 0,
+    cashIsa: cashBlock.cashBySleeve.ISA ?? ledger.byAccount["ISA"] ?? 0,
+    cashTotal: cashBlock.cashTotal ?? ledger.total,
+    cashBlock,
+    sources,
+    lastUpdated: new Date().toLocaleTimeString("en-GB"),
+  };
 }
