@@ -119,7 +119,7 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
       <summary style={{ ...cardHeaderBase, cursor: "pointer", userSelect: "none", listStyle: "none" }}>
         <span style={cardTitle}>Tools</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.12em" }}>
-          ▸ COMMANDS · WEBHOOKS · COMMIT
+          ▸ COMMANDS · WEBHOOKS
         </span>
       </summary>
       <div style={{ padding: mp }}>
@@ -189,44 +189,6 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
           {webhookFired && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--green)", letterSpacing: "0.1em" }}>{webhookFired}</div>}
         </div>
 
-        {/* Commit Research */}
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Commit Research</div>
-        <textarea
-          value={jsonText}
-          onChange={(e) => setJsonText(e.target.value)}
-          placeholder='{"ticker":"ASML","action":"RESCORE","substrate":22,...}'
-          rows={5}
-          style={{
-            width: "100%",
-            background: "var(--surface)",
-            border: "1px solid var(--rim)",
-            color: "var(--text)",
-            fontFamily: "'DM Mono', var(--font-mono)",
-            fontSize: 11,
-            padding: "10px 12px",
-            resize: "vertical",
-            borderRadius: 2,
-            lineHeight: 1.5,
-          }}
-        />
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
-          <button
-            disabled={commitLoading || !jsonText.trim()}
-            onClick={handleCommit}
-            style={{
-              ...fireStyle,
-              cursor: commitLoading || !jsonText.trim() ? "not-allowed" : "pointer",
-              opacity: commitLoading || !jsonText.trim() ? 0.4 : 1,
-            }}
-          >
-            {commitLoading ? "Committing…" : "Commit"}
-          </button>
-          {commitStatus && (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: commitStatus.startsWith("✓") ? "var(--green)" : "var(--red)" }}>
-              {commitStatus}
-            </span>
-          )}
-        </div>
       </div>
     </details>
   );

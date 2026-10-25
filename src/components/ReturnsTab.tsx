@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -195,10 +194,8 @@ export default function ReturnsTab({ sipp, isa, bordier = [], performance, cashS
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
 
-  const sippData =
-    sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
-  const isaData =
-    isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => ({ ...h, day: 0, price: null, currency: "USD", costGbp: null }));
+  const sippData = sipp;
+  const isaData = isa;
   const all = [...sippData, ...isaData, ...bordier];
 
   const sippTotal = sippData.reduce((s, h) => s + (h.mv || 0), 0) + cashSipp;

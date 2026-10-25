@@ -35,9 +35,14 @@ function formatSignedCurrency(val: number): string {
   return `${sign}£${Math.abs(val).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 }
 
+const CCY_SYMBOLS: Record<string, string> = {
+  GBP: "£", EUR: "€", USD: "$", JPY: "¥", GBX: "p", NOK: "kr ", AUD: "A$", CAD: "C$", CHF: "CHF ",
+};
+
 function formatPrice(val: number | null, ccy: string): string {
   if (val === null) return "—";
-  const sym = ccy === "GBP" ? "£" : ccy === "EUR" ? "€" : "$";
+  const sym = CCY_SYMBOLS[(ccy || "").toUpperCase()] ?? "$";
+  if ((ccy || "").toUpperCase() === "GBX") return `${val.toFixed(2)}p`;
   return `${sym}${val.toFixed(2)}`;
 }
 
@@ -101,7 +106,7 @@ export default function TransactionsTab({ transactions, scores, layers, holdings
 
   const filtered = useMemo(() => {
     const base = transactions.filter(t => {
-      if (accountFilter !== "All" && t.account.toUpperCase() !== accountFilter) return false;
+      if (accountFilter !== "All" && t.account.trim().toUpperCase() !== accountFilter.trim().toUpperCase()) return false;
       if (actionFilter !== "All") {
         if (actionFilter === "BUY" && !BUY_ACTIONS.includes(t.action)) return false;
         if (actionFilter === "SELL" && !SELL_ACTIONS.includes(t.action)) return false;
@@ -324,7 +329,7 @@ function TickerDrillDown({ ticker, transactions, scores, holdings, layerHexMap, 
 
   const filtered = useMemo(() => {
     const base = tickerTxns.filter(t => {
-      if (accountFilter !== "All" && t.account !== accountFilter) return false;
+      if (accountFilter !== "All" && t.account.trim().toUpperCase() !== accountFilter.trim().toUpperCase()) return false;
       if (actionFilter !== "All") {
         if (actionFilter === "BUY" && !BUY_ACTIONS.includes(t.action)) return false;
         if (actionFilter === "SELL" && !SELL_ACTIONS.includes(t.action)) return false;
