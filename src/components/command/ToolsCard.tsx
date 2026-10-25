@@ -53,9 +53,6 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
   const [webhookTarget, setWebhookTarget] = useState("");
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [webhookFired, setWebhookFired] = useState("");
-  const [jsonText, setJsonText] = useState("");
-  const [commitStatus, setCommitStatus] = useState("");
-  const [commitLoading, setCommitLoading] = useState(false);
 
   const tickers = holdings.map((h) => h.ticker).filter(Boolean);
   const watchlistTickers = (watchlist || []).map((w) => w.ticker).filter(Boolean);
@@ -78,30 +75,7 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
     setTimeout(() => setWebhookFired(""), 3000);
   };
 
-  const handleCommit = async () => {
-    if (!jsonText.trim()) return;
-    setCommitLoading(true);
-    try {
-      const payload = JSON.parse(jsonText);
-      const response = await fetch(
-        "https://bertbroad83.app.n8n.cloud/webhook/stellar-research-commit",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-stellar-key": "STELLAR" },
-          body: JSON.stringify(payload),
-        },
-      );
-      if (response.ok) {
-        setCommitStatus(`✓ Committed ${payload.ticker || "?"} (${payload.action || "unknown"})`);
-        setJsonText("");
-      } else {
-        setCommitStatus(`✗ Error: ${response.statusText}`);
-      }
-    } catch {
-      setCommitStatus("✗ Invalid JSON");
-    }
-    setCommitLoading(false);
-  };
+
 
   const selectStyle: React.CSSProperties = {
     background: "var(--surface)", border: "1px solid var(--rim)", color: "var(--text-mid)",
