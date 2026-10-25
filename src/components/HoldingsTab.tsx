@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem } from "@/hooks/usePortfolioData";
 import { usePortfolio } from "@/data/PortfolioProvider";
+import { openActionsForTicker } from "@/lib/navigate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";
@@ -272,7 +273,7 @@ function UnifiedView({
   // Action tracker badge counts
   const { counts: actionTrackerCounts } = useActionCounts();
   const handleActionNav = (ticker: string) => {
-    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+    openActionsForTicker(ticker);
   };
 
  // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST

@@ -9,6 +9,7 @@ import { ProfileMixWidget } from "@/components/intelligence/ProfileMixWidget";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
 import { type LiveLayer } from "@/hooks/usePortfolioData";
 import { usePortfolio } from "@/data/PortfolioProvider";
+import { openActionsForTicker } from "@/lib/navigate";
 import {
   DEFAULT_STATE,
   stateFromParams,
@@ -206,7 +207,7 @@ export default function IntelligenceTab() {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   const { counts: actionTrackerCounts } = useActionCounts();
   const handleActionNav = (ticker: string) => {
-    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+    openActionsForTicker(ticker);
   };
 
   // Mount: derive initial state from URL. Then keep state mirror so updates feel snappy.

@@ -10,7 +10,9 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import WatchlistDebugTable from "./WatchlistDebugTable";
 import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
-import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import type { AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { canonicalAsymmetry } from "@/lib/canonical";
+import { openActionsForTicker } from "@/lib/navigate";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
 import { buildFrameworkIndex, FRAMEWORK_TAGS, FRAMEWORK_LABEL, type FrameworkTag } from "@/utils/frameworkDetection";
@@ -455,7 +457,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
   const { byTicker: irrBbMap } = useIrrBb(scores ?? [], holdings, liveData);
   const { counts: actionTrackerCounts } = useActionCounts();
   const handleActionNav = (ticker: string) => {
-    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+    openActionsForTicker(ticker);
   };
 
   // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
@@ -548,7 +550,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         bearSubstrateFail: matched.bearSubstrateFail ?? null,
         bullBearAtDate: matched.bullBearAtDate ?? null,
       } : { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
-      const liveAsymmetry = computeLiveAsymmetry(quartet, currentPrice);
+      const liveAsymmetry = canonicalAsymmetry(matched, quartet, currentPrice);
 
      const irrEntry = irrBbMap.get(ticker);
       return {
