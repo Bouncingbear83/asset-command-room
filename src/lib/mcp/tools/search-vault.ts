@@ -1,20 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabaseForOwner } from "../supabase";
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-
-declare const Deno: { env: { get(k: string): string | undefined } } | undefined;
-
-function sbAnon() {
-  const url = typeof Deno !== "undefined"
-    ? Deno.env.get("SUPABASE_URL")!
-    : process.env.SUPABASE_URL!;
-  const key = typeof Deno !== "undefined"
-    ? Deno.env.get("SUPABASE_ANON_KEY")!
-    : process.env.SUPABASE_PUBLISHABLE_KEY!;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 export default defineTool({
   name: "search_vault",
@@ -26,8 +12,8 @@ export default defineTool({
     limit: z.number().int().min(1).max(50).optional().describe("Max results (default 10)."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ query, limit }) => {
-    const sb = sbAnon();
+  handler: async ({ query, limit }, ctx) => {
+    const sb = await supabaseForOwner(ctx);
     const { data, error } = await sb.rpc("vault_search", {
   search_query: query,
   note_type: null,

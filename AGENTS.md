@@ -3,3 +3,5 @@
 - Portfolio sheets are fetched once by src/data/PortfolioProvider.tsx (React Query) and read via usePortfolio(); each source reports ok/error/empty and panels on a non-ok source render NO DATA — no static fallbacks, so a failed fetch never shows as zero.
 - Headline numbers (AUM, cash, gross DP, IRR-BB, asymmetry, band, tier) are read from the sheet via src/lib/canonical.ts; computeIrrBb survives only as a dev-mode cross-check — the app must not diverge from the sheet.
 - Tracker automation endpoints share server-only secret authentication and keep v1 REST normalization intact; v2 additions use strict function-local validation and fixed SDK RPC/upsert paths, never generic table/RPC writes, to preserve session contracts and bound service-role access.
+- MCP handlers preserve the SDK-verified OAuth subject and bearer through a shared caller-scoped database factory; never use service-role queries for MCP, so table RLS remains the authorization boundary.
+- Browser price/earnings endpoints share verified owner-or-ingest authentication and exact app-origin CORS; OAuth client administration independently checks the verified owner before using server credentials.
