@@ -156,10 +156,9 @@ export default function Index() {
           <span style={s.sub}>Portfolio Command</span>
         </div>
         <div className="stellar-header-stats">
-          <div style={s.meta}>AUM<br /><span style={s.val}>{k(total)}</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}</div>
+          <div style={s.meta}>AUM<br /><span style={s.val}>{k(total)}</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}<span style={{ fontSize: 8, marginLeft: 6, opacity: 0.8 }}>· {dataDate ?? "no date"}</span></div>
           <div style={s.meta}>SIPP<br /><span style={s.val}>{k(sippTotal)}</span></div>
           <div style={s.meta}>ISA<br /><span style={s.val}>{k(isaTotal)}</span></div>
-          <div style={s.meta}>DATA<br /><span style={s.val}>{dataDate ?? "—"}</span></div>
           <div style={s.meta}>TARGET<br /><span style={s.val}>15–20% PA</span></div>
         </div>
       </header>
