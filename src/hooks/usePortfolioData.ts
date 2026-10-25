@@ -1141,7 +1141,7 @@ export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
     if (latest) sources.transactions.dataDate = latest.slice(0, 10);
   }
   if (sources.cash.status === "ok") {
-    const dates = (cashGrid as unknown[][]).map((r) => parseSheetDate(r?.[0])).filter(Boolean).sort();
+    const dates = (cashGrid as unknown[][]).map((r) => parseSheetDate(r?.[0])).filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d)).sort();
     if (dates.length) sources.cash.dataDate = String(dates[dates.length - 1]).slice(0, 10);
   }
 

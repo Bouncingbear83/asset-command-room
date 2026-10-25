@@ -95,7 +95,7 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 
 export default function CommandTab() {
   const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashTotal, transactions } =
-    usePortfolioData();
+    usePortfolio();
   const isMobile = useIsMobile();
 
   const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: isMobile ? "10px 12px" : "12px 14px" };

@@ -709,7 +709,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     watchlist,
     loading: sheetsLoading,
     error: sheetsError,
-  } = usePortfolioData();
+  } = usePortfolio();
 
   const { byTicker: snapshotMap } = useScoresSnapshot();
 

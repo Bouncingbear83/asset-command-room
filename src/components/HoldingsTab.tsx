@@ -992,7 +992,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
 
   const update = (patch: Partial<HoldingsUiState>) => setState((p) => ({ ...p, ...patch }));
 
-  const portfolio = usePortfolioData();
+  const portfolio = usePortfolio();
 
   const disruptionMap = new Map<string, LiveDisruption>();
   for (const d of disruption) {

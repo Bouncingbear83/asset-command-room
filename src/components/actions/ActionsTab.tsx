@@ -56,7 +56,7 @@ function groupByTime(items: ActionItem[]): Group[] {
 }
 
 export default function ActionsTab() {
-  const { watchlist, holdings, earningsCalendar, scores } = usePortfolioData();
+  const { watchlist, holdings, earningsCalendar, scores } = usePortfolio();
   const { items, loading, error: actionError, resolve, snooze, reopen, addManual, remove, updateNote } =
     useActionTracker({
       watchlist,

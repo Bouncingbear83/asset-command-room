@@ -199,7 +199,7 @@ function SkeletonRow() {
 
 export default function IntelligenceTab() {
   const { data, loading, error } = useAssetIntelligence();
-  const portfolio = usePortfolioData();
+  const portfolio = usePortfolio();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());

@@ -61,7 +61,7 @@ export default function Index() {
   const [active, setActive] = useState<Tab>(tabFromUrl);
   const [macroBannerOpen, setMacroBannerOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const portfolio = usePortfolioData();
+  const portfolio = usePortfolio();
   const { priceData } = useDailyPrices();
   const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
   const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
