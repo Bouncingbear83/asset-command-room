@@ -2,7 +2,7 @@ import React from "react";
 import { LiveMacroStateRow } from "@/hooks/usePortfolioData";
 import { usePortfolio } from "@/data/PortfolioProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
-import CommandHeader, { computeDpPct } from "@/components/command/CommandHeader";
+import CommandHeader from "@/components/command/CommandHeader";
 import MoversCard from "@/components/command/MoversCard";
 import ActionInbox from "@/components/ActionInbox";
 import CapitalQueue from "@/components/command/CapitalQueue";
@@ -95,13 +95,17 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashTotal, transactions } =
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashBlock, sources, transactions } =
     usePortfolio();
   const isMobile = useIsMobile();
 
   const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: isMobile ? "10px 12px" : "12px 14px" };
 
-  const cashGbp = cashTotal || 0;
+  // Canonical HOLDINGS cash block (rows 58–65). Null when the source failed — never zero.
+  const cashOk = sources.holdingsCash.status === "ok";
+  const cashGbp = cashOk ? cashBlock.cashTotal : null;
+  const canonAum = cashOk ? cashBlock.aum : null;
+  const dpPct = cashOk && cashBlock.grossDp != null ? cashBlock.grossDp * 100 : null;
 
   // Narrative derived data
   const priorityNarratives = [
@@ -183,6 +187,8 @@ export default function CommandTab() {
         riskControls={riskControls}
         macroState={macroState}
         cashGbp={cashGbp}
+        aum={canonAum}
+        dpPct={dpPct}
         isMobile={isMobile}
       />
 
@@ -201,7 +207,7 @@ export default function CommandTab() {
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} transactions={transactions} />
 
       {/* ── CARD 3: CAPITAL QUEUE ── */}
-      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={computeDpPct(layers, cashGbp)} scores={scores} />
+      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={dpPct} scores={scores} />
 
       {/* ── CARD 4: OPPORTUNITY MAP (scatter, desktop only) ── */}
       <OpportunityScatter
