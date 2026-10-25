@@ -76,4 +76,12 @@ export async function openClaudeWithPrompt(
   }
 }
 
+/** Copy any free-text prompt and open the Stellar Claude project. Every Claude button routes here. */
+export async function openClaudeWithText(prompt: string, toast?: (msg: string) => void): Promise<void> {
+  let copied = false;
+  try { await navigator.clipboard.writeText(prompt); copied = true; } catch (err) { console.warn("Clipboard write failed", err); }
+  (window.top || window).open(CLAUDE_PROJECT_BASE, "_blank");
+  if (toast) toast(copied ? "Prompt copied — paste into Claude (⌘V)" : "Open Claude and paste manually");
+}
+
 export { CLAUDE_PROJECT_BASE };

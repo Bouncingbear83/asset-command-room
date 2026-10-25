@@ -9,8 +9,8 @@
  */
 
 import { useMemo } from "react";
+import { canonicalAsymmetry } from "@/lib/canonical";
 import {
-  computeLiveAsymmetry,
   type AsymmetryQuartet,
   type LiveAsymmetryResult,
 } from "@/lib/liveAsymmetry";
@@ -111,7 +111,7 @@ export function useQuartetMap(
       }
 
       map.set(t, {
-        asymmetry: computeLiveAsymmetry(quartet, priceUsed),
+        asymmetry: canonicalAsymmetry(sheetScore, quartet, priceUsed),
         quartet,
         priceUsed,
         priceSource,

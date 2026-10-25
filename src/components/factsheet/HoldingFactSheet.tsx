@@ -6,9 +6,10 @@ import { triggerWebhook } from "@/lib/webhooks";
 import { GIDS, type PortfolioData, type LiveHolding } from "@/hooks/usePortfolioData";
 import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
-import { computeLiveAsymmetry, formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { canonicalAsymmetry, canonicalIrrBb } from "@/lib/canonical";
 import { AsymmetryBar } from "@/components/AsymmetryBar";
-import { computeIrrBb, formatIrr, formatYears, type IrrBbBand } from "@/lib/computeIrrBb";
+import { formatIrr, formatYears, type IrrBbBand } from "@/lib/computeIrrBb";
 import { VaultTickerThesis } from "@/components/vault/VaultIntegrations";
 import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profileChips";
 import type { ReturnProfile } from "@/types/intelligence";
@@ -532,9 +533,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               const isHeld = data.holdings.length > 0;
               const ccy = score?.currency ?? (data.watchlist as any)?.currency ?? null;
 
-              if (bullBase === null || !bbTargetDate) return null;
-
-              const irr = computeIrrBb(bullBase, livePrice, bbTargetDate, divYield, priceAtLastScore, isHeld);
+              const irr = canonicalIrrBb(score, { isHeld, livePrice, bullBase, bbTargetDate, divYield, priceAtLastScore });
               if (irr.irrBb === null) return null;
 
               const irrPct = irr.irrBb * 100;
@@ -681,7 +680,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               // (most authoritative time-series spot) -> WATCHLIST.current (can be stale)
               const latestDailyPrice = data.pricePoints[data.pricePoints.length - 1]?.priceLocal ?? null;
               const livePrice = data.holdings[0]?.price ?? latestDailyPrice ?? data.watchlist?.current ?? null;
-              const live = computeLiveAsymmetry(quartet, livePrice);
+              const live = canonicalAsymmetry(score, quartet, livePrice);
               const rationale: any = data.rationale;
               const hasQuartet = quartet.bullBase !== null || quartet.bearThesisWeak !== null;
               if (!rationale?.bull_case && !rationale?.bear_case && !hasQuartet) return null;

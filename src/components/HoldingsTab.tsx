@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
-import { SIPP_HOLDINGS, ISA_HOLDINGS } from "@/data/portfolio";
-import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem, usePortfolioData } from "@/hooks/usePortfolioData";
+import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
+import { openActionsForTicker } from "@/lib/navigate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
 import { PriceDataMap, normaliseTicker } from "@/hooks/useDailyPrices";
@@ -272,7 +273,7 @@ function UnifiedView({
   // Action tracker badge counts
   const { counts: actionTrackerCounts } = useActionCounts();
   const handleActionNav = (ticker: string) => {
-    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+    openActionsForTicker(ticker);
   };
 
  // Shared quartet map: SCORES quartet + live price from HOLDINGS/WATCHLIST
@@ -926,18 +927,6 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
   );
 }
 
-// ── Fallback helper ──
-
-function withFallbackHolding(h: (typeof SIPP_HOLDINGS)[number], account: "SIPP" | "ISA"): LiveHolding {
-  return {
-    ...h, account, day: 0, aum_pct: 0, pct_below_52w_high: 0, pct_above_52w_low: 0,
-    price: 0, prevClose: 0, currency: "USD", costGbp: 0, costLocal: 0, shares: 0,
-    add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "",
-    alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null,
-    deploy_target_gbp: 0, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "", priceAtFirstAdd: null, firstAddDate: "", priceAtLastScore: null,
-  };
-}
-
 // ── Group By Dropdown ──
 
 function GroupByDropdown({ value, onChange }: { value: GroupMode; onChange: (v: GroupMode) => void }) {
@@ -1005,15 +994,15 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
 
   const update = (patch: Partial<HoldingsUiState>) => setState((p) => ({ ...p, ...patch }));
 
-  const portfolio = usePortfolioData();
+  const portfolio = usePortfolio();
 
   const disruptionMap = new Map<string, LiveDisruption>();
   for (const d of disruption) {
     if (d.ticker) disruptionMap.set(d.ticker, d);
   }
 
-  const sippData: LiveHolding[] = sipp.length > 0 ? sipp : SIPP_HOLDINGS.map((h) => withFallbackHolding(h, "SIPP"));
-  const isaData: LiveHolding[] = isa.length > 0 ? isa : ISA_HOLDINGS.map((h) => withFallbackHolding(h, "ISA"));
+  const sippData: LiveHolding[] = sipp;
+  const isaData: LiveHolding[] = isa;
 
   const allHoldings = [...sippData, ...isaData, ...bordier];
 

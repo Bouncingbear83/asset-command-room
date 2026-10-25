@@ -1,7 +1,7 @@
 import { DP_MIN_PCT, DP_MAX_PCT } from "@/config/signalRules";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { LiveLayer, LiveRiskControl, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 
-const CLAUDE_PROJECT_BASE_URL = "https://claude.ai/project/be2a318a-707e-4e8d-ae4b-23f3eab50633";
 
 const SESSION_PROMPT = `New Stellar session.
 
@@ -31,7 +31,12 @@ interface Props {
   layers: LiveLayer[];
   riskControls: LiveRiskControl[];
   macroState: Record<string, LiveMacroStateRow>;
-  cashGbp: number;
+  /** Canonical HOLDINGS E65; null = source failed. */
+  cashGbp: number | null;
+  /** Canonical HOLDINGS E60; null = source failed. */
+  aum: number | null;
+  /** Canonical HOLDINGS F58 as percent; null = source failed. */
+  dpPct: number | null;
   isMobile: boolean;
 }
 
@@ -77,9 +82,7 @@ export function computeDpPct(layers: { name: string; mv: number }[], cashGbp: nu
   return (cashGbp / denom) * 100;
 }
 
-export default function CommandHeader({ layers, riskControls, macroState, cashGbp, isMobile }: Props) {
-  const totalRow = layers.find((l) => l.name.toUpperCase() === "TOTAL");
-  const aum = totalRow?.mv ?? layers.reduce((s, l) => s + l.mv, 0);
+export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, isMobile }: Props) {
   const risk = deriveRiskCounts(riskControls);
   const macro = deriveMacroCounts(macroState);
 
@@ -109,7 +112,8 @@ export default function CommandHeader({ layers, riskControls, macroState, cashGb
     }}>
       {/* Start Session CTA */}
       <a
-        href={`${CLAUDE_PROJECT_BASE_URL}?q=${encodeURIComponent(SESSION_PROMPT)}`}
+        href={CLAUDE_PROJECT_BASE}
+        onClick={(e) => { e.preventDefault(); void openClaudeWithText(SESSION_PROMPT); }}
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -156,14 +160,14 @@ export default function CommandHeader({ layers, riskControls, macroState, cashGb
 
         {/* AUM + Cash */}
         <span style={{ ...chipBase, color: "var(--text-mid)", marginLeft: "auto" }}>
-          {formatCurrency(aum)} AUM
+          {aum == null ? "NO DATA" : formatCurrency(aum)} AUM
         </span>
-        <span style={{ ...chipBase, color: cashGbp > 20_000 ? "var(--green)" : "var(--amber)" }}>
-          {formatCurrency(cashGbp)} cash
+        <span style={{ ...chipBase, color: cashGbp == null ? "var(--red)" : cashGbp > 20_000 ? "var(--green)" : "var(--amber)" }}>
+          {cashGbp == null ? "NO DATA" : formatCurrency(cashGbp)} cash
         </span>
         {(() => {
-          const dp = computeDpPct(layers, cashGbp);
-          if (dp == null) return null;
+          const dp = dpPct;
+          if (dp == null) return <span style={{ ...chipBase, color: "var(--red)" }}>DP NO DATA</span>;
           const inBand = dp >= DP_MIN_PCT && dp <= DP_MAX_PCT;
           return (
             <span

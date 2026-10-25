@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import { useActionTracker } from "./useActionTracker";
 
 interface Props {
@@ -45,7 +45,7 @@ const title: CSSProperties = {
 };
 
 export default function ActionUpcoming({ onNavigate }: Props) {
-  const { watchlist, holdings, earningsCalendar } = usePortfolioData();
+  const { watchlist, holdings, earningsCalendar } = usePortfolio();
   const { items } = useActionTracker({ watchlist, holdings, earnings: earningsCalendar });
 
   const top = useMemo(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem, LiveMacroState, LiveScore } from "@/hooks/usePortfolioData";
@@ -9,8 +10,10 @@ import { useWatchlistScores } from "@/hooks/useWatchlistScores";
 import { useLivePrices } from "@/hooks/useLivePrices";
 import { WatchlistCard, ProfileChip, type DerivedRow, type ZoneStatus } from "./watchlist/WatchlistCard";
 import WatchlistDebugTable from "./WatchlistDebugTable";
-import { buildSubstrateAuditPrompt, CLAUDE_PROJECT_URL } from "@/lib/claudePrompts";
-import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { buildSubstrateAuditPrompt } from "@/lib/claudePrompts";
+import type { AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { canonicalAsymmetry } from "@/lib/canonical";
+import { openActionsForTicker } from "@/lib/navigate";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
 import { buildFrameworkIndex, FRAMEWORK_TAGS, FRAMEWORK_LABEL, type FrameworkTag } from "@/utils/frameworkDetection";
@@ -163,8 +166,7 @@ function ResearchRow({ row }: { row: DerivedRow }) {
   const handleAudit = (e: React.MouseEvent) => {
     e.stopPropagation();
     const prompt = buildSubstrateAuditPrompt(item.ticker);
-    const url = `${CLAUDE_PROJECT_URL}?prompt=${encodeURIComponent(prompt)}`;
-    (window.top || window).open(url, "_blank");
+    void openClaudeWithText(prompt);
   };
   return (
     <div style={{ padding: "10px 18px 8px", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
@@ -455,7 +457,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
   const { byTicker: irrBbMap } = useIrrBb(scores ?? [], holdings, liveData);
   const { counts: actionTrackerCounts } = useActionCounts();
   const handleActionNav = (ticker: string) => {
-    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+    openActionsForTicker(ticker);
   };
 
   // ── Profile lookup from SCORES sheet (case-insensitive, with suffix-stripping fallback) ──
@@ -548,7 +550,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
         bearSubstrateFail: matched.bearSubstrateFail ?? null,
         bullBearAtDate: matched.bullBearAtDate ?? null,
       } : { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
-      const liveAsymmetry = computeLiveAsymmetry(quartet, currentPrice);
+      const liveAsymmetry = canonicalAsymmetry(matched, quartet, currentPrice);
 
      const irrEntry = irrBbMap.get(ticker);
       return {

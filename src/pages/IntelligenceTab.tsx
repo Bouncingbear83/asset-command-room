@@ -7,7 +7,9 @@ import { IntelligenceGroupHeader } from "@/components/intelligence/IntelligenceG
 import { IntelligenceHeader } from "@/components/intelligence/IntelligenceHeader";
 import { ProfileMixWidget } from "@/components/intelligence/ProfileMixWidget";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
-import { usePortfolioData, type LiveLayer } from "@/hooks/usePortfolioData";
+import { type LiveLayer } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
+import { openActionsForTicker } from "@/lib/navigate";
 import {
   DEFAULT_STATE,
   stateFromParams,
@@ -199,13 +201,13 @@ function SkeletonRow() {
 
 export default function IntelligenceTab() {
   const { data, loading, error } = useAssetIntelligence();
-  const portfolio = usePortfolioData();
+  const portfolio = usePortfolio();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   const { counts: actionTrackerCounts } = useActionCounts();
   const handleActionNav = (ticker: string) => {
-    window.location.hash = `#tab=actions&ticker=${encodeURIComponent(ticker)}`;
+    openActionsForTicker(ticker);
   };
 
   // Mount: derive initial state from URL. Then keep state mirror so updates feel snappy.

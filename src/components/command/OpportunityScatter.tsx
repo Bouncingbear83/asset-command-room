@@ -7,8 +7,6 @@ import { LiveHolding, LiveWatchItem, LiveScore } from "@/hooks/usePortfolioData"
 import { useIrrBb } from "@/hooks/useIrrBb";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
-import { computeLiveAsymmetry } from "@/lib/liveAsymmetry";
-import { computeIrrBb } from "@/lib/computeIrrBb";
 import { PROFILE_PALETTE } from "@/components/intelligence/profileChips";
 
 import { normaliseTicker } from "@/lib/tickerAlias";
@@ -446,11 +444,9 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
       if (entry.result.irrBb === null) continue;
 
       const qEntry = quartetMap.get(t);
-      const asym = qEntry?.asymmetry ?? computeLiveAsymmetry(
-        { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null },
-        null,
-      );
-      if (asym.baseRatio === null || asym.baseRatio <= 0) continue;
+      // Canonical: asymmetry = SCORES AV (via useQuartetMap → canonicalAsymmetry).
+      const asym = qEntry?.asymmetry;
+      if (!asym || asym.baseRatio === null || asym.baseRatio <= 0) continue;
 
       const irrPct = Math.min(entry.result.irrBb * 100, 50);
       const asymClamped = Math.min(asym.baseRatio, 10);
@@ -488,33 +484,10 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
       const colors = PROFILE_COLORS[profileKey] ?? PROFILE_COLORS.UNKNOWN;
       const shape = PROFILE_SHAPE[profileKey] ?? "circle";
 
-      // Compute entry-state for WL dots with buy_high
-      let entryIrrBb: number | null = null;
-      let entryAsymmetry: number | null = null;
-      if (!entry.held) {
-        const buyHigh = scoreInputMap.get(t)?.buyHigh ?? null;
-        if (buyHigh !== null && buyHigh > 0) {
-          const qEntry2 = quartetMap.get(t);
-          const quartet = qEntry2?.quartet ?? { bullBase: null, bullStretch: null, bearThesisWeak: null, bearSubstrateFail: null, bullBearAtDate: null };
-          // IRR-BB at entry price
-          const entryResult = computeIrrBb(
-            entry.result.bullBase,
-            buyHigh,
-            entry.result.bbTargetDate,
-            entry.result.divYield,
-            null,
-            false,
-          );
-          if (entryResult.irrBb !== null) {
-            entryIrrBb = Math.round(Math.min(entryResult.irrBb * 100, 50) * 10) / 10;
-          }
-          // Asymmetry at entry price
-          const entryAsym = computeLiveAsymmetry(quartet, buyHigh);
-          if (entryAsym.baseRatio !== null && entryAsym.baseRatio > 0) {
-            entryAsymmetry = Math.round(Math.min(entryAsym.baseRatio, 10) * 10) / 10;
-          }
-        }
-      }
+      // Entry-state (hypothetical IRR/asymmetry at buy price) is not in the sheet,
+      // and the app no longer recomputes headline maths — WL dots show live sheet values.
+      const entryIrrBb: number | null = null;
+      const entryAsymmetry: number | null = null;
 
       out.push({
         ticker: entry.ticker,

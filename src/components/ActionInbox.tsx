@@ -21,7 +21,8 @@ const SEV: Record<Severity, { color: string; bg: string; emoji: string }> = {
   GREY: { color: "var(--text-dim)", bg: "rgba(102,102,102,0.08)", emoji: "⚪" },
 };
 
-const DONE_KEY = "stellar.actionSurface.done.v1";
+/** Mark-done rows written to action_tracker for derived (non-tracker) cards. */
+const SURFACE_PREFIX = "SURFACE:";
 const BASELINE_KEY = "stellar.actionSurface.sharesBaseline.v1";
 
 function todayISO() {
@@ -48,11 +49,8 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   const tracker = useActionTracker({ watchlist, holdings, earnings, scores });
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [prepOpen, setPrepOpen] = useState(false);
-  const [done, setDone] = useState<Record<string, string>>(() => {
-    const m = load<Record<string, string>>(DONE_KEY, {});
-    return Object.fromEntries(Object.entries(m).filter(([, v]) => v === todayISO()));
-  });
-  useEffect(() => { try { localStorage.setItem(DONE_KEY, JSON.stringify(done)); } catch { /* ignore */ } }, [done]);
+  // Done state lives in action_tracker (status CONFIRMED). Optimistic set covers the refetch gap.
+  const [pendingDone, setPendingDone] = useState<Record<string, true>>({});
 
   // R16 — remember SHARES when a limit order is first seen, so a change clears the card.
   const [baseline, setBaseline] = useState<Record<string, number>>(() => load(BASELINE_KEY, {}));
@@ -86,17 +84,53 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
     if (changed) { setBaseline(next); try { localStorage.setItem(BASELINE_KEY, JSON.stringify(next)); } catch { /* ignore */ } }
   }, [surface.decide, holdings, baseline]);
 
-  const isDone = (k: string) => done[k] === today;
-  const decide = surface.decide.filter((c) => !isDone(c.key));
-  const missed = surface.missed.filter((c) => !isDone(c.key));
-  const markDone = (k: string) => setDone((m) => ({ ...m, [k]: today }));
+  const surfaceKey = (c: Candidate) => `${SURFACE_PREFIX}${c.key}:${today}`;
+  const doneKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of tracker.items) {
+      if (i.persisted && i.status !== "OPEN" && i.dedupe_key?.startsWith(SURFACE_PREFIX)) set.add(i.dedupe_key);
+    }
+    return set;
+  }, [tracker.items]);
+  const isDone = (c: Candidate) => !!pendingDone[c.key] || doneKeys.has(surfaceKey(c));
+  const decide = surface.decide.filter((c) => !isDone(c));
+  const missed = surface.missed.filter((c) => !isDone(c));
+
+  /** Resolve the card in action_tracker via the existing update path. */
+  const resolveCard = async (c: Candidate, status: "CONFIRMED" | "DISMISSED", note: string) => {
+    setPendingDone((m) => ({ ...m, [c.key]: true }));
+    const existing = c.source_ref ? tracker.items.find((i) => i.id === c.source_ref) : undefined;
+    if (existing) return tracker.resolve(existing, status, note);
+    await tracker.resolve({
+      id: surfaceKey(c), ticker: c.ticker && c.ticker !== "G(m)" ? c.ticker : null, name: null, layer: c.layer ?? null,
+      action_type: "MANUAL", due_date: today, summary: `${c.title}${c.reasons[0] ? ` — ${c.reasons[0]}` : ""}`.slice(0, 500),
+      context: c.reasons.join(" | ").slice(0, 2000), source: "MANUAL", source_ref: null, status: "OPEN",
+      resolution_note: null, resolved_at: null, priority: c.severity === "RED" ? "HIGH" : c.severity === "AMBER" ? "MEDIUM" : "LOW",
+      dedupe_key: surfaceKey(c), persisted: false, is_routine: false,
+    } as any, status, note);
+  };
+  const markDone = (c: Candidate) => resolveCard(c, "CONFIRMED", `Marked done from Command · ${c.title}`);
 
   const closeAllMissed = async () => {
-    for (const c of missed) {
-      const item = tracker.items.find((i) => i.id === c.source_ref);
-      if (item) await tracker.resolve(item, "DISMISSED", "Closed as missed");
-    }
-    setDone((m) => ({ ...m, ...Object.fromEntries(missed.map((c) => [c.key, today])) }));
+    for (const c of missed) await resolveCard(c, "DISMISSED", "Closed as missed");
+  };
+
+  /** Full holding context for the Claude deep-dive prompt. */
+  const deepDiveContext = (ticker: string) => {
+    const rows = holdings.filter((h) => h.ticker.toUpperCase() === ticker.toUpperCase());
+    const mv = rows.reduce((s, h) => s + (h.mv || 0), 0);
+    const aum = rows.reduce((s, h) => s + (h.aum_pct || 0), 0);
+    const cost = rows.reduce((s, h) => s + (h.costGbp || 0), 0);
+    const gl = rows.length === 1 ? rows[0].gl : cost > 0 ? ((mv - cost) / cost) * 100 : null;
+    const first = rows[0];
+    return {
+      ticker,
+      mv: rows.length ? Math.round(mv).toLocaleString("en-GB") : "n/a (not held)",
+      aum_pct: rows.length ? aum.toFixed(2) : "0",
+      gl_pct: gl == null || !Number.isFinite(gl) ? "n/a" : gl.toFixed(1),
+      add_trigger: first?.add_trigger || "none",
+      exit_trigger: first?.exit_trigger || "none",
+    };
   };
 
   const mp = isMobile ? "10px 12px" : "14px 20px";
@@ -127,7 +161,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
           <span style={{ ...mono(10), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{c.reasons[0]}</span>
           {c.ticker && c.ticker !== "G(m)" ? (
             <div onClick={(e) => e.stopPropagation()}>
-              <ClaudePromptButton templateKey="holdings_deep_dive" context={{ ticker: c.ticker }} stopPropagation />
+              <ClaudePromptButton templateKey="holdings_deep_dive" context={deepDiveContext(c.ticker)} stopPropagation />
             </div>
           ) : <span />}
         </div>
@@ -137,7 +171,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
             <div style={mono(9, "var(--text-dim)")}>
               Source {c.source}{c.fired_at ? ` · fired ${c.fired_at}` : ""}{c.verdict_at ? ` · verdict ${c.verdict_at}` : ""}{c.next_review ? ` · next ${c.next_review}` : ""}
             </div>
-            <button onClick={() => markDone(c.key)} style={{ justifySelf: "end", display: "inline-flex", gap: 6, alignItems: "center", background: "transparent", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)", color: "var(--green)", ...mono(9, "var(--green)"), letterSpacing: "0.14em", textTransform: "uppercase", padding: "6px 12px", borderRadius: 2, cursor: "pointer" }}>
+            <button onClick={() => { void markDone(c); }} style={{ justifySelf: "end", display: "inline-flex", gap: 6, alignItems: "center", background: "transparent", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)", color: "var(--green)", ...mono(9, "var(--green)"), letterSpacing: "0.14em", textTransform: "uppercase", padding: "6px 12px", borderRadius: 2, cursor: "pointer" }}>
               <Check size={11} /> Mark done
             </button>
           </div>

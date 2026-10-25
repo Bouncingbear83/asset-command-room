@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
 import {
-  usePortfolioData,
   type LiveScore,
   type LiveDisruption,
   type LiveHolding,
   type LiveScoreLog,
   type LiveWatchItem,
 } from "./usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import {
   AssetIntelligence,
   AssetDisruption,
@@ -41,8 +41,8 @@ import {
   ChinaExposureFlag,
 } from "@/types/intelligence";
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
-import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
-import { computeIrrBb } from "@/lib/computeIrrBb";
+import type { AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { canonicalAsymmetry, canonicalIrrBb } from "@/lib/canonical";
 
 function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
   const s = String(raw ?? "").trim().toUpperCase();
@@ -562,19 +562,15 @@ function buildOne(
     bearSubstrateFail: snap?.bear_substrate_fail ?? (s as { bearSubstrateFail?: number | null }).bearSubstrateFail ?? null,
     bullBearAtDate: snap?.bull_bear_at_date ?? (s as { bullBearAtDate?: string | null }).bullBearAtDate ?? null,
   };
-  const liveAsymmetry = computeLiveAsymmetry(quartet, current_price);
+  const liveAsymmetry = canonicalAsymmetry(s as any, quartet, current_price);
 
   // IRR-BB from bull_base + bb_target_date + live price
   const bbTargetDate = snap?.bb_target_date ?? (s as any).bbTargetDate ?? null;
   const divYield = snap?.div_yield ?? (s as any).divYield ?? null;
-  const irrBbResult = computeIrrBb(
-    quartet.bullBase,
-    current_price,
-    bbTargetDate,
-    divYield,
-    (s as any).priceAtLastScore ?? null,
-    held_status === "HELD",
-  );
+  const irrBbResult = canonicalIrrBb(s as any, {
+    isHeld: held_status === "HELD", livePrice: current_price, bullBase: quartet.bullBase,
+    bbTargetDate, divYield, priceAtLastScore: (s as any).priceAtLastScore ?? null, ticker,
+  });
 
   return {
     ticker,
@@ -709,7 +705,7 @@ export function useAssetIntelligence(): UseAssetIntelligenceResult {
     watchlist,
     loading: sheetsLoading,
     error: sheetsError,
-  } = usePortfolioData();
+  } = usePortfolio();
 
   const { byTicker: snapshotMap } = useScoresSnapshot();
 

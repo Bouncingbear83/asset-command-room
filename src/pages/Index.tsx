@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
+import type { PortfolioData, SourceKey } from "@/hooks/usePortfolioData";
+import SourceStatus, { NoData } from "@/components/SourceStatus";
 import { useDailyPrices } from "@/hooks/useDailyPrices";
 import CommandTab from "@/components/CommandTab";
 import HoldingsTab from "@/components/HoldingsTab";
@@ -48,7 +50,7 @@ function tabFromUrl(): Tab {
   return (slug && SLUG_TO_TAB[slug]) || "Command";
 }
 
-function hasMacroBannerContent(macroBanner: ReturnType<typeof usePortfolioData>["macroBanner"]) {
+function hasMacroBannerContent(macroBanner: PortfolioData["macroBanner"]) {
   if (!macroBanner) return false;
   return Object.values(macroBanner).some((value) => value !== null && value !== "");
 }
@@ -61,17 +63,24 @@ export default function Index() {
   const [active, setActive] = useState<Tab>(tabFromUrl);
   const [macroBannerOpen, setMacroBannerOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const portfolio = usePortfolioData();
+  const portfolio = usePortfolio();
   const { priceData } = useDailyPrices();
-  const sippTotal = (portfolio.sipp.length > 0 ? portfolio.sipp.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 575000) + portfolio.cashSipp;
-  const isaTotal = (portfolio.isa.length > 0 ? portfolio.isa.reduce((sum, holding) => sum + (holding.mv || 0), 0) : 424000) + portfolio.cashIsa;
-  const total = sippTotal + isaTotal;
+  const ok = (...keys: SourceKey[]) => keys.every((k) => portfolio.sources[k]?.status === "ok");
+  const holdingsOk = ok("holdings", "holdingsCash");
+  const sippTotal = holdingsOk ? portfolio.sipp.reduce((sum, h) => sum + (h.mv || 0), 0) + portfolio.cashSipp : null;
+  const isaTotal = holdingsOk ? portfolio.isa.reduce((sum, h) => sum + (h.mv || 0), 0) + portfolio.cashIsa : null;
+  // Header AUM = canonical HOLDINGS E60 (includes Bordier).
+  const total = ok("holdingsCash") ? portfolio.cashBlock.aum : null;
+  const dataDate = portfolio.sources.holdingsCash?.dataDate ?? null;
+  const k = (v: number | null) => (v == null ? "NO DATA" : `£${(v / 1000).toFixed(0)}k`);
+  const gate = (keys: SourceKey[], label: string, node: React.ReactNode) =>
+    !portfolio.lastUpdated ? null : ok(...keys) ? node : <NoData label={label} />;
   const showMacroBanner = hasMacroBannerContent(portfolio.macroBanner);
 
   // AUM day change = MV-weighted daily return of the securities in the shown AUM
   // universe (SIPP + ISA). The old PERFORMANCE-tab delta was period-over-period
   // and contaminated by deposits/withdrawals, so it never matched the tape.
-  const aumHoldings = [...portfolio.sipp, ...portfolio.isa];
+  const aumHoldings = [...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier];
   const dw = aumHoldings.reduce(
     (acc, h) => {
       const mv = h.mv || 0;
@@ -147,12 +156,14 @@ export default function Index() {
           <span style={s.sub}>Portfolio Command</span>
         </div>
         <div className="stellar-header-stats">
-          <div style={s.meta}>AUM<br /><span style={s.val}>£{(total / 1000).toFixed(0)}k</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}</div>
-          <div style={s.meta}>SIPP<br /><span style={s.val}>£{(sippTotal / 1000).toFixed(0)}k</span></div>
-          <div style={s.meta}>ISA<br /><span style={s.val}>£{(isaTotal / 1000).toFixed(0)}k</span></div>
+          <div style={s.meta}>AUM<br /><span style={s.val}>{k(total)}</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}<span style={{ fontSize: 8, marginLeft: 6, opacity: 0.8 }}>· {dataDate ?? "no date"}</span></div>
+          <div style={s.meta}>SIPP<br /><span style={s.val}>{k(sippTotal)}</span></div>
+          <div style={s.meta}>ISA<br /><span style={s.val}>{k(isaTotal)}</span></div>
           <div style={s.meta}>TARGET<br /><span style={s.val}>15–20% PA</span></div>
         </div>
       </header>
+
+      <SourceStatus sources={portfolio.sources} loading={portfolio.loading} />
 
       <div className="stellar-status">
         {portfolio.loading && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", color: "var(--accent)" }}>● SYNCING...</span>}
@@ -197,9 +208,9 @@ export default function Index() {
 
       <div className="stellar-page">
         {active === "Command" && <CommandTab />}
-        {active === "Signals" && <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} earningsCalendar={portfolio.earningsCalendar} />}
-        {active === "Watchlist" && <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} scores={portfolio.scores} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}        
-        {active === "Layers" && (
+        {active === "Signals" && gate(["monitor"], "MONITOR", <MonitorTab monitorData={portfolio.monitor} weeklyTriggers={portfolio.weeklyTriggers} earningsCalendar={portfolio.earningsCalendar} />)}
+        {active === "Watchlist" && gate(["watchlist", "scores"], "WATCHLIST / SCORES", <WatchlistTab liveData={portfolio.watchlist} macroState={portfolio.macroState} scores={portfolio.scores} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />)}
+        {active === "Layers" && gate(["layers"], "LAYERS", (
           <LayersTab
             liveData={portfolio.layers}
             watchlist={portfolio.watchlist}
@@ -215,18 +226,18 @@ export default function Index() {
               setActive("Holdings");
             }}
           />
-        )}
+        ))}
         {active === "Intelligence" && <IntelligenceTab />}
         {active === "Research" && <ResearchTab />}
         {active === "Bottlenecks" && <BottleneckCoverageTab />}
         {active === "Vault" && <VaultTab />}
-        {active === "Drivers" && <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />}
+        {active === "Drivers" && gate(["holdings"], "HOLDINGS", <DriversTab holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier]} />)}
         
-        {active === "Returns" && <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />}
+        {active === "Returns" && gate(["holdings", "holdingsCash", "performance"], "HOLDINGS / PERFORMANCE", <ReturnsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} performance={portfolio.performance} cashSipp={portfolio.cashSipp} cashIsa={portfolio.cashIsa} />)}
         {active === "Attribution" && <AttributionTab />}
-        {active === "Holdings" && <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />}
-        {active === "Transactions" && <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier, ...portfolio.jisaHoldings.map((j) => ({ ticker: j.ticker, name: j.name, layer: j.layer, account: `JISA-${j.child}`, mv: j.mvGbp || 0, gl: j.glPct || 0, day: 0, aum_pct: 0, pct_below_52w_high: 0, pct_above_52w_low: 0, notes: "", action: "HOLD", price: j.priceLocal, prevClose: null, currency: j.currency, costGbp: j.costGbp, costLocal: null, shares: j.shares, add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "", alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null, deploy_target_gbp: null, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "", priceAtFirstAdd: null, firstAddDate: "", priceAtLastScore: null }))]} />}
-        {active === "JISAs" && <JisasTab jisaHoldings={portfolio.jisaHoldings} jisaTotals={portfolio.jisaTotals} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />}
+        {active === "Holdings" && gate(["holdings"], "HOLDINGS", <HoldingsTab sipp={portfolio.sipp} isa={portfolio.isa} bordier={portfolio.bordier} disruption={portfolio.disruption} transactions={portfolio.transactions} scores={portfolio.scores} priceData={priceData} />)}
+        {active === "Transactions" && gate(["transactions"], "TRANSACTIONS", <TransactionsTab transactions={portfolio.transactions} scores={portfolio.scores} layers={portfolio.layers} holdings={[...portfolio.sipp, ...portfolio.isa, ...portfolio.bordier, ...portfolio.jisaHoldings.map((j) => ({ ticker: j.ticker, name: j.name, layer: j.layer, account: `JISA-${j.child}`, mv: j.mvGbp || 0, gl: j.glPct || 0, day: 0, aum_pct: 0, pct_below_52w_high: 0, pct_above_52w_low: 0, notes: "", action: "HOLD", price: j.priceLocal, prevClose: null, currency: j.currency, costGbp: j.costGbp, costLocal: null, shares: j.shares, add_trigger: "", exit_trigger: "", trigger_type: "", trigger_price_add: "", trigger_price_exit: "", alert_status: "CLEAR", alert_fired_date: "", ma60: null, high_52w: null, low_52w: null, deploy_target_gbp: null, deploy_note: "", trigger_review_date: "", trigger_review_note: "", factor_primary: "", factor_group: "", stack_layer: "", priceAtFirstAdd: null, firstAddDate: "", priceAtLastScore: null }))]} />)}
+        {active === "JISAs" && gate(["jisaHoldings"], "JISA_HOLDINGS", <JisasTab jisaHoldings={portfolio.jisaHoldings} jisaTotals={portfolio.jisaTotals} transactions={portfolio.transactions} layers={portfolio.layers} performance={portfolio.performance} />)}
         {active === "Actions" && <ActionsTab />}
       </div>
 

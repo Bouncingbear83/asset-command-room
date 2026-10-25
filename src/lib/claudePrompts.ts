@@ -1,4 +1,4 @@
-export const CLAUDE_PROJECT_URL = "https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1";
+export { CLAUDE_PROJECT_BASE as CLAUDE_PROJECT_URL } from "@/lib/claudePromptUrl";
 
 export function buildDeepDivePrompt(ticker: string): string {
   const t = ticker.toUpperCase();

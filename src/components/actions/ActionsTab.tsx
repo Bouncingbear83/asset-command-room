@@ -3,7 +3,7 @@ const isEventItem = (i: { action_type: string; source?: string | null; persisted
   (EVENT_ACTION_TYPES as readonly string[]).includes(String(i.action_type).toUpperCase()) ||
   (!!i.persisted && String(i.source ?? "").toUpperCase() === "SESSION");
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { usePortfolio } from "@/data/PortfolioProvider";
 import { useActionTracker, type ActionItem } from "./useActionTracker";
 import ActionItemRow from "./ActionItem";
 import ActionAddModal from "./ActionAddModal";
@@ -56,7 +56,7 @@ function groupByTime(items: ActionItem[]): Group[] {
 }
 
 export default function ActionsTab() {
-  const { watchlist, holdings, earningsCalendar, scores } = usePortfolioData();
+  const { watchlist, holdings, earningsCalendar, scores } = usePortfolio();
   const { items, loading, error: actionError, resolve, snooze, reopen, addManual, remove, updateNote } =
     useActionTracker({
       watchlist,
@@ -76,11 +76,10 @@ export default function ActionsTab() {
   // Read URL params for deep-linking
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
-    const t = params.get("ticker") || hashParams.get("ticker") || "";
-    const l = params.get("layer") || hashParams.get("layer") || "";
-    const tp = params.get("type") || hashParams.get("type") || "";
-    const fk = params.get("action") || hashParams.get("action") || "";
+    const t = params.get("ticker") || "";
+    const l = params.get("layer") || "";
+    const tp = params.get("type") || "";
+    const fk = params.get("action") || "";
     if (t) setTickerFilter(t.toUpperCase());
     if (l) setLayerFilter(l);
     if (tp) setTypeFilter(tp);

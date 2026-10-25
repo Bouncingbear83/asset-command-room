@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { useVaultSearch, VaultSearchResult } from "@/hooks/useVaultSearch";
 import { Search, FileText, Hash, Settings, BookOpen, Layers, TrendingUp, X } from "lucide-react";
 
@@ -117,7 +118,7 @@ function VaultResultCard({ result, query }: { result: VaultSearchResult; query: 
 
   // Deep Dive link for tickers
     const deepDiveUrl = result.type === "ticker"
-    ? `https://claude.ai/project/019ca3a9-aefe-77ea-af76-db62fd96f4e1?q=Deep+dive+${result.identifier}`
+    ? CLAUDE_PROJECT_BASE
     : null;
 
   return (
@@ -213,6 +214,7 @@ function VaultResultCard({ result, query }: { result: VaultSearchResult; query: 
           {deepDiveUrl && (
             <a
               href={deepDiveUrl}
+              onClick={(e) => { e.preventDefault(); void openClaudeWithText(`Deep dive on ${result.identifier}. Pull current state from HOLDINGS / SCORES / DISRUPTION via Sheet Reader. Full reassessment.`); }}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700"
