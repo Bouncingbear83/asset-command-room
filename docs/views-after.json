@@ -1,0 +1,58 @@
+{
+  "rows": [
+    {
+      "relname": "bottleneck_coverage",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "bottleneck_subsystem_state",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "capital_flows_daily",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "perf_dimension_summary",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "perf_portfolio_daily",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "perf_position_daily",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "perf_rolling_window",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "scores_latest",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    },
+    {
+      "relname": "test5_early_warning",
+      "reloptions": [
+        "security_invoker=true"
+      ]
+    }
+  ]
+}
