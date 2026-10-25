@@ -43,7 +43,6 @@ import {
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
 import type { AsymmetryQuartet } from "@/lib/liveAsymmetry";
 import { canonicalAsymmetry, canonicalIrrBb } from "@/lib/canonical";
-import { computeIrrBb } from "@/lib/computeIrrBb";
 
 function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
   const s = String(raw ?? "").trim().toUpperCase();

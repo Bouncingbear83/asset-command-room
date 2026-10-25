@@ -9,8 +9,8 @@
  */
 
 import { useMemo } from "react";
+import { canonicalAsymmetry } from "@/lib/canonical";
 import {
-  computeLiveAsymmetry,
   type AsymmetryQuartet,
   type LiveAsymmetryResult,
 } from "@/lib/liveAsymmetry";

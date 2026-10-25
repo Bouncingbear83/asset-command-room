@@ -533,8 +533,6 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               const isHeld = data.holdings.length > 0;
               const ccy = score?.currency ?? (data.watchlist as any)?.currency ?? null;
 
-              if (bullBase === null || !bbTargetDate) return null;
-
               const irr = canonicalIrrBb(score, { isHeld, livePrice, bullBase, bbTargetDate, divYield, priceAtLastScore });
               if (irr.irrBb === null) return null;
 
