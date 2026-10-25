@@ -1,0 +1,64 @@
+{
+  "rows": [
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "capital_flows_by_dimension(text,integer)"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "get_missing_watchlist_tickers(text[])"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "perf_by_dimension_window(text,integer)"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "update_layer_review_updated_at()"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "update_research_reports_updated_at()"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "update_scheduled_reviews_updated_at()"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "update_ticker_aliases_timestamp()"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": true,
+      "signature": "upsert_position_reference(text,numeric,numeric,date,text,text)"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": true,
+      "signature": "upsert_watchlist_prices(jsonb)"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "vault_list_by_type(text)"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": true,
+      "signature": "vault_search_with_backlinks(text,text,integer,boolean)"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_eervjywaxpxqdjjhtguz=X/postgres}",
+      "security_definer": false,
+      "signature": "vault_search(text,text,integer)"
+    }
+  ]
+}
