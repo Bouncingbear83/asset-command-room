@@ -6,3 +6,5 @@
 - [x] Add INGEST_SECRET-protected tracker-write matching Action Write semantics; return affected rows.
 - [x] Add tracker-read matching the Supabase Read allowlist without policy changes.
 - [x] Test and verify both functions (18 regression tests, live acceptance samples, unchanged pg_policies).
+- [ ] Extend tracker v2 fixed table/RPC allowlists and validated vault/position write modes.
+- [ ] Run v1/v2 acceptance samples, deploy, and verify unchanged database policies/functions/grants.
