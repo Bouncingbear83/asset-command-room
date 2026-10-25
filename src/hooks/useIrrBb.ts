@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import type { LiveHolding, LiveScore, LiveWatchItem } from "@/hooks/usePortfolioData";
 import { useScoresSnapshot, type QuartetSnapshotRow } from "@/hooks/useScoresSnapshot";
-import { computeIrrBb, type IrrBbResult } from "@/lib/computeIrrBb";
+import type { IrrBbResult } from "@/lib/computeIrrBb";
+import { canonicalIrrBb } from "@/lib/canonical";
 import { normaliseTicker } from "@/lib/tickerAlias";
 
 export interface IrrBbEntry {
@@ -104,14 +105,11 @@ export function useIrrBb(
       // Resolve bull_base: prefer Supabase, fallback to sheet
       const bullBase = snap?.bull_base ?? s.bullBase ?? null;
 
-      const result = computeIrrBb(
-        bullBase,
-        livePrice,
-        bbTargetDate,
-        divYield,
-        s.priceAtLastScore ?? null,
-        isHeld,
-      );
+      // Canonical: IRR-BB value = SCORES AU (dev-mode cross-check vs computeIrrBb inside).
+      const result = canonicalIrrBb(s, {
+        isHeld, livePrice, bullBase, bbTargetDate, divYield,
+        priceAtLastScore: s.priceAtLastScore ?? null, ticker: t,
+      });
 
       byTicker.set(t, {
         ticker: s.ticker || t,

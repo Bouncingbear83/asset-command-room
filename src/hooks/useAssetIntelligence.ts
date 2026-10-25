@@ -41,7 +41,8 @@ import {
   ChinaExposureFlag,
 } from "@/types/intelligence";
 import { parseAsymmetryRatio } from "@/lib/asymmetry";
-import { computeLiveAsymmetry, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import type { AsymmetryQuartet } from "@/lib/liveAsymmetry";
+import { canonicalAsymmetry, canonicalIrrBb } from "@/lib/canonical";
 import { computeIrrBb } from "@/lib/computeIrrBb";
 
 function normalizeChinaFlag(raw: unknown): ChinaExposureFlag | null {
@@ -562,19 +563,15 @@ function buildOne(
     bearSubstrateFail: snap?.bear_substrate_fail ?? (s as { bearSubstrateFail?: number | null }).bearSubstrateFail ?? null,
     bullBearAtDate: snap?.bull_bear_at_date ?? (s as { bullBearAtDate?: string | null }).bullBearAtDate ?? null,
   };
-  const liveAsymmetry = computeLiveAsymmetry(quartet, current_price);
+  const liveAsymmetry = canonicalAsymmetry(s as any, quartet, current_price);
 
   // IRR-BB from bull_base + bb_target_date + live price
   const bbTargetDate = snap?.bb_target_date ?? (s as any).bbTargetDate ?? null;
   const divYield = snap?.div_yield ?? (s as any).divYield ?? null;
-  const irrBbResult = computeIrrBb(
-    quartet.bullBase,
-    current_price,
-    bbTargetDate,
-    divYield,
-    (s as any).priceAtLastScore ?? null,
-    held_status === "HELD",
-  );
+  const irrBbResult = canonicalIrrBb(s as any, {
+    isHeld: held_status === "HELD", livePrice: current_price, bullBase: quartet.bullBase,
+    bbTargetDate, divYield, priceAtLastScore: (s as any).priceAtLastScore ?? null, ticker,
+  });
 
   return {
     ticker,
