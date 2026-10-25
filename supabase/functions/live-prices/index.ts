@@ -7,12 +7,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { appCorsHeaders, ownerOrIngest } from "../_shared/owner-access.ts";
 
 const FALLBACK_ALIASES: Record<string, string | null> = {
   RSW: "RSW.L",
@@ -89,7 +84,7 @@ async function loadSnapshotCloses(): Promise<Map<string, number>> {
     );
     const today = new Date().toISOString().slice(0, 10);
     const { data, error } = await sb
-      .from("stellar_daily_snapshot")
+      .from("daily_prices")
       .select("ticker, price_local, snapshot_date")
       .lt("snapshot_date", today)
       .order("snapshot_date", { ascending: false });
@@ -255,7 +250,11 @@ async function fetchV8Chart(symbols: string[]): Promise<Map<string, any>> {
 
 // ── Main handler ──
 Deno.serve(async (req) => {
+  const corsHeaders = appCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!await ownerOrIngest(req)) return new Response(JSON.stringify({ error: "unauthorized" }), {
+    status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,

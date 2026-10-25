@@ -103,8 +103,6 @@ export function useNarrativeSignals() {
       .from("narrative_signals")
       .update({
         review_status: "REVIEWED",
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: "command_ui",
       })
       .eq("id", id);
     if (error) {

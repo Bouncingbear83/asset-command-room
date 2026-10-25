@@ -1,20 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabaseForOwner } from "../supabase";
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-
-declare const Deno: { env: { get(k: string): string | undefined } } | undefined;
-
-function sbAnon() {
-  const url = typeof Deno !== "undefined"
-    ? Deno.env.get("SUPABASE_URL")!
-    : process.env.SUPABASE_URL!;
-  const key = typeof Deno !== "undefined"
-    ? Deno.env.get("SUPABASE_ANON_KEY")!
-    : process.env.SUPABASE_PUBLISHABLE_KEY!;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 export default defineTool({
   name: "get_vault_note",
@@ -26,8 +12,8 @@ export default defineTool({
     identifier: z.string().min(1).describe("Identifier within that type, e.g. 'NVDA'."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ type, identifier }) => {
-    const sb = sbAnon();
+  handler: async ({ type, identifier }, ctx) => {
+    const sb = await supabaseForOwner(ctx);
     const { data, error } = (await (sb.from as any)("vault_notes_meta")
       .select("path,type,identifier,title,ticker,frontmatter,body,body_sections")
       .eq("type", type.toLowerCase())

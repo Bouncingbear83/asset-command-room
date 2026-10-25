@@ -3,6 +3,7 @@ import { z } from "zod";
 import searchVaultTool from "./tools/search-vault";
 import getVaultNoteTool from "./tools/get-vault-note";
 import listScoresTool from "./tools/list-scores";
+import { supabaseForOwner } from "./supabase";
 
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
@@ -12,7 +13,8 @@ const pingTool = defineTool({
   description: "Health check. Returns pong.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async () => {
+  handler: async (_args, ctx) => {
+    await supabaseForOwner(ctx);
     return {
       content: [{ type: "text", text: "pong" }],
     };

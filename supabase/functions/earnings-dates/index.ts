@@ -8,12 +8,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { appCorsHeaders, ownerOrIngest } from "../_shared/owner-access.ts";
 
 const FALLBACK_ALIASES: Record<string, string | null> = {
   RSW: "RSW.L", SGLD: "SGLD.L", SLVP: "SLVP.L", ONT: "ONT.L",
@@ -167,7 +162,11 @@ function deriveFiscalPeriod(q: any): string | null {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = appCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!await ownerOrIngest(req)) return new Response(JSON.stringify({ error: "unauthorized" }), {
+    status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },

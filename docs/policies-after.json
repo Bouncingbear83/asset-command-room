@@ -1,0 +1,304 @@
+{
+  "rows": [
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_delete",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_insert",
+      "qual": null,
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_update",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "alerts_log",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "bottleneck_map",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "daily_prices",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "disruption_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "disruption_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "factor_group_weights",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "fx_rates",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "holdings_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "jisa_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_review_schedule",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_update",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_review_schedule",
+      "with_check": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_weights_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "macro_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "narrative_signals",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_update",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "narrative_signals",
+      "with_check": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "narrative_watch",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "position_reference",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "research_reports",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "scheduled_reviews",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_update",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "scheduled_reviews",
+      "with_check": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "score_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "scores_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "ticker_aliases",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "vault_backlinks",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "vault_notes_meta",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner_select",
+      "qual": "((auth.jwt() -\u003e\u003e 'email'::text) = 'bertbroadhead@gmail.com'::text)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "watchlist_price_history",
+      "with_check": null
+    }
+  ]
+}

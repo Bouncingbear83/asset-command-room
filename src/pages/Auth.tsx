@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { McpConnectorSection } from "@/components/McpConnectorSection";
+import { isOwnerEmail } from "@/lib/ownerAccess";
 
 // Validate `next` as a same-origin relative path.
 function safeNext(raw: string | null): string {
@@ -116,7 +117,7 @@ const errStyle: React.CSSProperties = {
 
 const infoStyle: React.CSSProperties = { ...errStyle, color: "#c9a84c" };
 
-export default function Auth() {
+export default function Auth({ accessDenied = false }: { accessDenied?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -129,10 +130,10 @@ export default function Auth() {
   useEffect(() => {
     // If a session already exists (e.g. arriving at /auth?next=... while logged in), bounce.
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session && nextPath !== "/") window.location.replace(nextPath);
+      if (data.session && isOwnerEmail(data.session.user.email) && nextPath !== "/") window.location.replace(nextPath);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session && nextPath !== "/") window.location.replace(nextPath);
+      if (session && isOwnerEmail(session.user.email) && nextPath !== "/") window.location.replace(nextPath);
     });
     return () => sub.subscription.unsubscribe();
   }, [nextPath]);
@@ -211,7 +212,7 @@ export default function Auth() {
           </button>
         )}
 
-        <div style={info ? infoStyle : errStyle}>{error || info || "\u00A0"}</div>
+        <div role="status" style={info ? infoStyle : errStyle}>{error || info || (accessDenied ? "Access is restricted to the owner account" : "\u00A0")}</div>
 
         <button
           type="button"

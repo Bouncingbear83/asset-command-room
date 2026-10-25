@@ -1,0 +1,584 @@
+{
+  "rows": [
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "action_tracker_all_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_delete",
+      "qual": "true",
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_insert",
+      "qual": null,
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": "true"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_update",
+      "qual": "true",
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": "true"
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "authenticated_delete",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "authenticated_insert",
+      "qual": null,
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": "true"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "authenticated_update",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "action_tracker",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read alerts_log",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "alerts_log",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "alerts_log",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Anon can read daily_prices",
+      "qual": "true",
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "daily_prices",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read daily_prices",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "daily_prices",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "daily_prices",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Anon can read disruption_rationales",
+      "qual": "true",
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "disruption_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read disruption_rationales",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "disruption_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "disruption_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read disruption_snapshot",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "disruption_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "disruption_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read factor_group_weights",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "factor_group_weights",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read fx_rates",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "fx_rates",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "fx_rates",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read holdings_snapshot",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "holdings_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "holdings_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read jisa_snapshot",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "jisa_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "jisa_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can manage layer reviews",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_review_schedule",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Public can read layer reviews",
+      "qual": "true",
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_review_schedule",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "Public can update layer reviews",
+      "qual": "true",
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_review_schedule",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read layer_weights_snapshot",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "layer_weights_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "layer_weights_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read macro_snapshot",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "macro_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "macro_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Anon can read narrative_signals",
+      "qual": "true",
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "narrative_signals",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "service role full access",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "narrative_signals",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "narrative_watch",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "authenticated_read",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "narrative_watch",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "service role full access",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "narrative_watch",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "position_reference_anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "position_reference",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Allow anon read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "research_reports",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Allow service write",
+      "qual": "(auth.role() = 'service_role'::text)",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "research_reports",
+      "with_check": "(auth.role() = 'service_role'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "research_reports",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Allow all access to scheduled_reviews",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "scheduled_reviews",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Anon can read score_rationales",
+      "qual": "true",
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "score_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read score_rationales",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "score_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "score_rationales",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read scores_snapshot",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "scores_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "scores_snapshot",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Allow anon read",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "ticker_aliases",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Allow service role all",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "ticker_aliases",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Public read vault_backlinks",
+      "qual": "true",
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "vault_backlinks",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Vault backlinks readable by all",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "vault_backlinks",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Vault backlinks service_role full access",
+      "qual": "true",
+      "roles": "{service_role}",
+      "schemaname": "public",
+      "tablename": "vault_backlinks",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Public read vault_notes_meta",
+      "qual": "true",
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "vault_notes_meta",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Vault notes meta readable by all",
+      "qual": "true",
+      "roles": "{public}",
+      "schemaname": "public",
+      "tablename": "vault_notes_meta",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "Vault notes meta service_role full access",
+      "qual": "true",
+      "roles": "{service_role}",
+      "schemaname": "public",
+      "tablename": "vault_notes_meta",
+      "with_check": "true"
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_insert",
+      "qual": null,
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "vault_notes_meta",
+      "with_check": "true"
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "anon_update",
+      "qual": "true",
+      "roles": "{anon,authenticated}",
+      "schemaname": "public",
+      "tablename": "vault_notes_meta",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Anon users can read watchlist_price_history",
+      "qual": "true",
+      "roles": "{anon}",
+      "schemaname": "public",
+      "tablename": "watchlist_price_history",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read watchlist_price_history",
+      "qual": "true",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "watchlist_price_history",
+      "with_check": null
+    }
+  ]
+}

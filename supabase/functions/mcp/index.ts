@@ -5,17 +5,41 @@
 // src/lib/mcp/index.ts
 import { auth, defineMcp, defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.23.0";
 
-// src/lib/mcp/tools/search-vault.ts
+// src/lib/mcp/supabase.ts
 import { createClient } from "npm:@supabase/supabase-js@2.104.0";
-import { defineTool } from "npm:@lovable.dev/mcp-js@0.23.0";
-import { z } from "npm:zod@^3.25.76";
-function sbAnon() {
-  const url = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : process.env.SUPABASE_URL;
-  const key = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : process.env.SUPABASE_PUBLISHABLE_KEY;
-  return createClient(url, key, {
+
+// src/lib/ownerAccess.ts
+var OWNER_EMAIL = "bertbroadhead@gmail.com";
+function isOwnerEmail(email) {
+  return typeof email === "string" && email.toLowerCase() === OWNER_EMAIL;
+}
+
+// src/lib/mcp/supabase.ts
+function env(name) {
+  const runtime = globalThis;
+  return runtime.Deno?.env?.get?.(name) ?? runtime.process?.env?.[name];
+}
+async function supabaseForOwner(ctx) {
+  const token = ctx.getToken();
+  const subject = ctx.getUserId();
+  if (!ctx.isAuthenticated() || !token || !subject || !ctx.getClientId()) throw new Error("Verified OAuth access required");
+  const url = env("SUPABASE_URL") ?? env("VITE_SUPABASE_URL");
+  const key = env("SUPABASE_ANON_KEY") ?? env("SUPABASE_PUBLISHABLE_KEY") ?? env("VITE_SUPABASE_PUBLISHABLE_KEY");
+  if (!url || !key) throw new Error("MCP database configuration missing");
+  const sb = createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
+  const { data, error } = await sb.auth.getUser(token);
+  if (error || data.user?.id !== subject || !data.user?.email_confirmed_at || !isOwnerEmail(data.user.email)) {
+    throw new Error("Owner access required");
+  }
+  return sb;
 }
+
+// src/lib/mcp/tools/search-vault.ts
+import { defineTool } from "npm:@lovable.dev/mcp-js@0.23.0";
+import { z } from "npm:zod@^3.25.76";
 var search_vault_default = defineTool({
   name: "search_vault",
   title: "Search vault notes",
@@ -25,8 +49,8 @@ var search_vault_default = defineTool({
     limit: z.number().int().min(1).max(50).optional().describe("Max results (default 10).")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ query, limit }) => {
-    const sb = sbAnon();
+  handler: async ({ query, limit }, ctx) => {
+    const sb = await supabaseForOwner(ctx);
     const { data, error } = await sb.rpc("vault_search", {
       search_query: query,
       note_type: null,
@@ -41,16 +65,8 @@ var search_vault_default = defineTool({
 });
 
 // src/lib/mcp/tools/get-vault-note.ts
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@2.104.0";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z as z2 } from "npm:zod@^3.25.76";
-function sbAnon2() {
-  const url = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : process.env.SUPABASE_URL;
-  const key = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : process.env.SUPABASE_PUBLISHABLE_KEY;
-  return createClient2(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
 var get_vault_note_default = defineTool2({
   name: "get_vault_note",
   title: "Get vault note",
@@ -60,8 +76,8 @@ var get_vault_note_default = defineTool2({
     identifier: z2.string().min(1).describe("Identifier within that type, e.g. 'NVDA'.")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ type, identifier }) => {
-    const sb = sbAnon2();
+  handler: async ({ type, identifier }, ctx) => {
+    const sb = await supabaseForOwner(ctx);
     const { data, error } = await sb.from("vault_notes_meta").select("path,type,identifier,title,ticker,frontmatter,body,body_sections").eq("type", type.toLowerCase()).ilike("identifier", identifier).maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Note not found" }], isError: true };
@@ -73,16 +89,8 @@ var get_vault_note_default = defineTool2({
 });
 
 // src/lib/mcp/tools/list-scores.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@2.104.0";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.23.0";
 import { z as z3 } from "npm:zod@^3.25.76";
-function sbAnon3() {
-  const url = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_URL") : process.env.SUPABASE_URL;
-  const key = typeof Deno !== "undefined" ? Deno.env.get("SUPABASE_ANON_KEY") : process.env.SUPABASE_PUBLISHABLE_KEY;
-  return createClient3(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
 var list_scores_default = defineTool3({
   name: "list_scores",
   title: "List latest scores snapshot",
@@ -92,8 +100,8 @@ var list_scores_default = defineTool3({
     limit: z3.number().int().min(1).max(200).optional().describe("Max rows (default 50).")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ ticker, limit }) => {
-    const sb = sbAnon3();
+  handler: async ({ ticker, limit }, ctx) => {
+    const sb = await supabaseForOwner(ctx);
     let q = sb.from("scores_latest").select("*").limit(limit ?? 200);
     if (ticker) q = q.ilike("ticker", ticker);
     const { data, error } = await q;
@@ -113,7 +121,8 @@ var pingTool = defineTool4({
   description: "Health check. Returns pong.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async () => {
+  handler: async (_args, ctx) => {
+    await supabaseForOwner(ctx);
     return {
       content: [{ type: "text", text: "pong" }]
     };
