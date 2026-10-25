@@ -3,6 +3,6 @@
 - [x] Run regression tests and verify the live display.
 - [x] Merge OPEN AUTO R3LINT/RESET tracker rows into grouped cards and forward dedupe keys.
 - [x] Verify AUTO grouping regression tests and signed-in preview.
-- [ ] Add INGEST_SECRET-protected tracker-write matching Action Write semantics; return affected rows.
-- [ ] Add tracker-read matching the Supabase Read allowlist without policy changes.
-- [ ] Test and verify both functions.
+- [x] Add INGEST_SECRET-protected tracker-write matching Action Write semantics; return affected rows.
+- [x] Add tracker-read matching the Supabase Read allowlist without policy changes.
+- [x] Test and verify both functions (18 regression tests, live acceptance samples, unchanged pg_policies).
