@@ -8,6 +8,7 @@
 - [x] Test and verify both functions (18 regression tests, live acceptance samples, unchanged pg_policies).
 - [x] Extend tracker v2 fixed table/RPC allowlists and validated vault/position write modes.
 - [x] Run 40 contract tests and deployed v1/v2 acceptance samples; unchanged policy and RPC definition/grant fingerprints.
-- [ ] Apply one owner-only database lockdown migration and record before/after policies and function grants.
-- [ ] Restrict sign-in, client registration, MCP, prices and earnings access to the owner or approved automation.
-- [ ] Verify anonymous denial, owner app writes/browsing, tracker contracts and MCP; report any remaining verification blockers.
+- [x] Apply one owner-only database lockdown migration and record before/after policies and function grants.
+- [x] Restrict sign-in, client registration, MCP source, prices and earnings access to the owner or approved automation.
+- [x] Verify anonymous denial, all owner tabs, TEST action/review writes, tracker v1/v2 samples, and owner-boundary tests; report in docs/owner-lockdown-acceptance.md.
+- [ ] Republish and verify all four MCP tools through a real OAuth connector session. Blocked: app publication requires the user's publish request; existing published MCP anonymous reads are now denied.
