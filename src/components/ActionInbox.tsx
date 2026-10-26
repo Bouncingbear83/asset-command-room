@@ -8,6 +8,10 @@ import { useActionTracker } from "@/components/actions/useActionTracker";
 import { computeGmStats } from "@/components/command/GmExposureChip";
 import { buildSurface, type Candidate, type Severity } from "@/lib/actionSurface";
 import { DECIDE_CAP, WATCH_WAKE_PCT } from "@/config/signalRules";
+import EarningsVerdictCard from "@/components/EarningsVerdictCard";
+import { supabase } from "@/integrations/supabase/client";
+import { proxyWebhook } from "@/lib/ownerFunction";
+import { openVaultNote } from "@/lib/navigate";
 
 /**
  * Action Surface (spec v1) — Command tab.
@@ -83,6 +87,33 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
     }
     if (changed) { setBaseline(next); try { localStorage.setItem(BASELINE_KEY, JSON.stringify(next)); } catch { /* ignore */ } }
   }, [surface.decide, holdings, baseline]);
+
+  // Earnings engine — briefs superseded by a verdict for the same ticker + print date.
+  useEffect(() => {
+    for (const id of surface.supersededBriefs) {
+      void (supabase as any).from("action_tracker").update({ status: "CONFIRMED", resolution_note: "superseded by verdict", resolved_at: new Date().toISOString() })
+        .eq("id", id).eq("status", "OPEN").then(() => tracker.refresh());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surface.supersededBriefs.join(",")]);
+
+  const openBrief = async (b: NonNullable<Candidate["brief"]>) => {
+    if (!b.viewed) await (supabase as any).from("action_tracker").update({ staged_payload: { ...b.payload, viewed_at: new Date().toISOString() } }).eq("id", b.id);
+    if (b.note_path) openVaultNote(b.note_path);
+    void tracker.refresh();
+  };
+
+  const [applyAllMsg, setApplyAllMsg] = useState<string | null>(null);
+  const applyAllIds = () => surface.decide.filter((c) => c.verdict && c.verdict.apply_target === "UPDATE_ROW" && c.verdict.state === "NEW").map((c) => c.verdict!.id);
+  const applyAll = async () => {
+    const ids = applyAllIds();
+    if (!ids.length || !window.confirm(`Apply ${ids.length} staged verdicts to the sheet?`)) return;
+    const res = await proxyWebhook("apply-tracker", { op: "apply_all", ids });
+    const j = await res.json().catch(() => ({}));
+    setApplyAllMsg(j.stale ? "Sheet changed since staging: rebuild in session" : j.error ? String(j.error) : null);
+    void tracker.refresh();
+  };
+  const heldShares = (t: string) => holdings.filter((h) => h.ticker.toUpperCase() === t).reduce((s, h) => s + (h.shares || 0), 0);
 
   const surfaceKey = (c: Candidate) => `${SURFACE_PREFIX}${c.key}:${today}`;
   const doneKeys = useMemo(() => {
@@ -187,6 +218,11 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
           {decide.length ? "⚡ Decide" : "✅ Nothing to decide"}
         </span>
         <span style={{ ...mono(9, "var(--text-dim)"), letterSpacing: "0.1em" }}>
+          {applyAllIds().length > 0 && (
+            <button onClick={() => void applyAll()} style={{ marginRight: 10, background: "none", border: "1px solid color-mix(in srgb, var(--green) 40%, transparent)", color: "var(--green)", ...mono(8, "var(--green)"), letterSpacing: "0.12em", textTransform: "uppercase", padding: "3px 8px", cursor: "pointer", borderRadius: 2 }}>
+              Apply {applyAllIds().length} accepted
+            </button>
+          )}
           {decide.length}/{DECIDE_CAP}
           {urgent > 0 && <span style={{ color: "var(--red)", marginLeft: 6 }}>· {urgent} urgent</span>}
           {surface.overflow > 0 && <span style={{ marginLeft: 6 }}>· {surface.overflow} overflow → watch</span>}
@@ -194,7 +230,10 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
       </div>
 
       <div style={{ padding: mp, display: "grid", gap: 6 }}>
-        {decide.map(renderCard)}
+        {applyAllMsg && <div style={mono(10, "var(--amber)")}>{applyAllMsg}</div>}
+        {decide.map((c) => c.verdict
+          ? <EarningsVerdictCard key={c.key} c={c} heldShares={heldShares(c.ticker)} onChanged={() => void tracker.refresh()} />
+          : renderCard(c))}
 
         {/* PREPARE — collapsed */}
         <div style={{ marginTop: decide.length ? 8 : 0, border: "1px solid var(--rim)", borderRadius: 2 }}>
@@ -215,6 +254,11 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
                       {needsTest && (c.gate_test
                         ? <span style={{ color: "var(--text-dim)" }}> · test: {c.gate_test.slice(0, 120)}</span>
                         : <span style={{ marginLeft: 8, color: "var(--amber)", fontSize: 8, letterSpacing: "0.1em", border: "1px solid var(--amber)", padding: "0 4px", borderRadius: 2 }}>⚠️ NO TEST</span>)}
+                      {c.brief && (
+                        <button onClick={() => void openBrief(c.brief!)} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", padding: 0, ...mono(9, "var(--gold)") }}>
+                          Open brief{c.brief.viewed ? " ✓" : ""}
+                        </button>
+                      )}
                     </span>
                   </div>
                 );
