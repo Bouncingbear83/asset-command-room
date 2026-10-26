@@ -47,6 +47,7 @@ import { profileChipStyle, PROFILE_LABEL } from "@/components/intelligence/profi
 import type { ReturnProfile } from "@/types/intelligence";
 import ActionBadge from "@/components/actions/ActionBadge";
 import { useActionCounts } from "@/components/actions/useActionCounts";
+import StalePriceBadge from "@/components/StalePriceBadge";
 
 
 // (Claude project URL is now constructed in src/lib/claudePromptUrl.ts)
@@ -483,10 +484,11 @@ function UnifiedView({
                       }}
                     >
                       {/* Line 1: ticker · score badge · alert · flag · chevron */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
                         <TickerButton ticker={h.ticker} style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)", letterSpacing: "0.04em" }}>
                           {h.ticker}
                         </TickerButton>
+                        <StalePriceBadge holding={h} />
                         {summary && (() => {
                           const sc = summary.total_score;
                           const badgeColor = sc >= 80 ? "var(--green)" : sc >= 60 ? "var(--accent)" : sc >= 40 ? "var(--amber)" : "var(--red)";
@@ -680,6 +682,7 @@ function UnifiedView({
                                 })()}
                               </Tooltip>
                             </TooltipProvider>
+                            <StalePriceBadge holding={h} />
                             {(() => {
                               const summary = getSummary(h.ticker);
                               if (!summary) return null;

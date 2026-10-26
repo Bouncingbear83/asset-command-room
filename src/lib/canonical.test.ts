@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseHoldingsCashBlock } from "./canonical";
+import { hasStalePrice, unpricedPositionCount, parseHoldingsCashBlock } from "./canonical";
 
 // HOLDINGS r56:r65, cols A–F, as the sheet stood on 25 Oct 2026.
 const HOLDINGS_R56_R65_2026_10_25: unknown[][] = [
@@ -14,6 +14,25 @@ const HOLDINGS_R56_R65_2026_10_25: unknown[][] = [
   ["", "", "Bordier", "", 26077.0, ""],                       // r64
   ["", "", "Total", "", 166677.05, ""],                       // r65
 ];
+
+describe("unpriced holdings", () => {
+  it("positive SHARES with MV = 0 is stale even with a price", () => {
+    expect(hasStalePrice({ shares: 10, mv: 0, price: 100 })).toBe(true);
+    expect(hasStalePrice({ shares: 10, mv: 1000, price: 100 })).toBe(false);
+  });
+  it("positive SHARES with a blank price is stale even with MV", () => {
+    for (const price of [null, undefined, "", "  "]) expect(hasStalePrice({ shares: 10, mv: 1000, price })).toBe(true);
+  });
+  it("zero-share rows are not unpriced positions", () => {
+    expect(hasStalePrice({ shares: 0, mv: 0, price: null })).toBe(false);
+    expect(hasStalePrice({ shares: -1, mv: 0, price: null })).toBe(false);
+  });
+  it("counts account positions, not tickers, without changing sheet headlines", () => {
+    const positions = [{ shares: 10, mv: 0, price: 100 }, { shares: 5, mv: 100, price: null }, { shares: 0, mv: 0, price: null }];
+    expect(unpricedPositionCount(positions)).toBe(2);
+    expect(parseHoldingsCashBlock(HOLDINGS_R56_R65_2026_10_25).aum).toBe(1462879.5770830067);
+  });
+});
 
 describe("canonical HOLDINGS cash block (25 Oct 2026)", () => {
   const block = parseHoldingsCashBlock(HOLDINGS_R56_R65_2026_10_25);
