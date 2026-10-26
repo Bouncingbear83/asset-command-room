@@ -1,3 +1,4 @@
+import { proxyWebhook, responseError } from "@/lib/ownerFunction";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,7 +45,6 @@ type SortField = "identifier" | "type" | "title" | "last_indexed";
 type ViewMode = "browse" | "search";
 
 const NOTE_TYPES: NoteType[] = ["all", "ticker", "session", "rule", "framework", "section", "layer", "trend", "spec"];
-const VAULT_SEARCH_URL = "https://bertbroad83.app.n8n.cloud/webhook/stellar-vault-search";
 const GITHUB_RAW_BASE = "https://github.com/Bouncingbear83/stellar-ops/blob/main";
 const deepDivePrompt = (id: string) => `Deep dive on ${id}. Pull current state from HOLDINGS / SCORES / DISRUPTION via Sheet Reader. Full reassessment.`;
 
@@ -461,13 +461,9 @@ export default function VaultTab() {
     setSearchLoading(true);
     setSearchError(null);
     try {
-      const res = await fetch(VAULT_SEARCH_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query.trim(), type: type || undefined, limit: 30 }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: VaultSearchResponse = await res.json();
+      const res = await proxyWebhook("stellar-vault-search", { query: query.trim(), type: type || undefined, limit: 30 });
+        if (!res.ok) throw await responseError(res);
+        const data: VaultSearchResponse = await res.json();
       setSearchResults(data);
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : "Search failed");

@@ -1,26 +1,15 @@
 import { parseCashLedger } from "@/lib/cashLedger";
 import { effectiveEarningsDate } from "@/lib/earningsDate";
-import { parseHoldingsCashBlock, HOLDINGS_CASH_RANGE, EMPTY_CASH_BLOCK, type CashBlock } from "@/lib/canonical";
+import { parseHoldingsCashBlock, EMPTY_CASH_BLOCK, type CashBlock } from "@/lib/canonical";
 
-const SHEET_ID = "1T2afEG3mLjxmonduDugHA5SlJ44-RBJmv0bxISfalNo";
+import { ownerFunctionResponse, responseError } from "@/lib/ownerFunction";
 
-export const GIDS = {
-  holdings: "408093485",
-  watchlist: "496665408",
-  layers: "547494965",
-  scores: "1674996535",
-  prices: "542365971",
-  cash: "356224071",
-  cashflow: "1642346013",
-  scoreLog: "1353977523",
-  monitor: "1097453724",
-  disruption: "1166534580",
-  performance: "7099973",
-  narrative: "457911094",
-  macroState: "448795117",
-  earningsCalendar: "559427839",
-  transactions: "1970586669",
-  jisaHoldings: "134287003",
+export interface SheetRange { range: string; values: unknown[][]; formatted: unknown[][] }
+export interface SheetBatch { status: "success"; fetched_at: string; ranges: Record<string, SheetRange>; errors: Record<string, string> }
+const SOURCE_KEYS = {
+  holdings: "HOLDINGS", holdingsCash: "HOLDINGS_CASH", watchlist: "WATCHLIST", layers: "LAYERS", scores: "SCORES",
+  scoreLog: "SCORE_LOG", monitor: "MONITOR", disruption: "DISRUPTION", performance: "PERFORMANCE", narrative: "NARRATIVE",
+  macroState: "MACRO_STATE", earningsCalendar: "EARNINGS_CALENDAR", cash: "CASH", transactions: "TRANSACTIONS", jisaHoldings: "JISA_HOLDINGS",
 } as const;
 
 /** Always treat numeric value as a fraction and scale by 100. For cumulative TWR fields where the sheet API always returns fractions (e.g. 1.294 = 129.4%). */
@@ -87,13 +76,6 @@ const KNOWN_COLS = [
   "bull_bear_at_date", "pre_reclass_modifier", "s3_transition_modifier",
 ];
 
-interface SheetFetchOptions {
-  gid?: string;
-  sheetName?: string;
-  range?: string;
-  headers?: number;
-}
-
 function normalizeToken(value: any): string {
   return String(value ?? "")
     .trim()
@@ -117,15 +99,6 @@ function humanizeKey(value: string) {
 
 function populatedCount(row: Record<string, any>) {
   return Object.values(row).filter((v) => v !== null && v !== undefined && String(v).trim() !== "").length;
-}
-
-function buildSheetUrl({ gid, sheetName, range, headers }: SheetFetchOptions) {
-  const params = new URLSearchParams({ tqx: "out:json" });
-  if (gid) params.set("gid", gid);
-  if (sheetName) params.set("sheet", sheetName);
-  if (range) params.set("range", range);
-  if (headers !== undefined) params.set("headers", String(headers));
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${params.toString()}`;
 }
 
 function resolveColumnLabel(label: string) {
@@ -189,32 +162,20 @@ function resolveColumnLabel(label: string) {
   return parts[parts.length - 1];
 }
 
-async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, any>[]> {
-  const url = buildSheetUrl(options);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text = await res.text();
-  const json = JSON.parse(text.substring(47, text.length - 2));
-  const cols: string[] = json.table.cols.map((column: any) => resolveColumnLabel(column.label ?? ""));
-
-  // Narrow `cell.f` fallback to the SCORES quartet columns only. gviz types
-  // these columns as 'number' but safeNum-guarded values (100/165) land as
-  // text with v=null, so we rescue them via the formatted display string.
-  // Applying the fallback globally bleeds formatted strings (currency, dates)
-  // into other sheets and breaks downstream parsers (e.g. WATCHLIST current).
-  const QUARTET_COLS = new Set([
-    "bull_base","bull_stretch","bear_thesis_weak","bear_substrate_fail","bull_bear_at_date",
-  ]);
-  const rawRows = (json.table.rows || []).map((row: any) => {
+export function sheetObjectRows(key: string, data: SheetRange): Record<string, any>[] {
+  // LAYERS starts at row 2, so its first returned row is data, not a header.
+  const layerHeaders = ["layer", "priority", "target %", "current %", "mv", "hex color", "key holdings", "gap / notes"];
+  const headers = key === "LAYERS" ? layerHeaders : (data.values[0] ?? []).map(v => resolveColumnLabel(String(v ?? "")));
+  const offset = key === "LAYERS" ? 0 : 1;
+  const QUARTET_COLS = new Set(["bull_base", "bull_stretch", "bear_thesis_weak", "bear_substrate_fail", "bull_bear_at_date"]);
+  const rawRows = data.values.slice(offset).map((cells, rowIndex) => {
     const next: Record<string, any> = {};
-    row.c?.forEach((cell: any, index: number) => {
-      const col = cols[index] || `col_${index}`;
-      const allowFallback = QUARTET_COLS.has(col.toLowerCase());
-      next[col] = cell?.v ?? (allowFallback ? cell?.f ?? null : null);
+    headers.forEach((label, index) => {
+      const col = label || `col_${index}`;
+      next[col] = cells[index] ?? (key === "SCORES" && QUARTET_COLS.has(col.toLowerCase()) ? data.formatted[rowIndex + offset]?.[index] ?? null : null);
     });
     return next;
   });
-
   const rowDecisions: Array<{ rowIndex: number; included: boolean; reason: string; ticker: string; name: string }> = [];
   const filtered = rawRows.filter((row: Record<string, any>, rowIndex: number) => {
     const values = Object.values(row);
@@ -252,7 +213,7 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
     return false;
   });
 
-  if (import.meta.env.DEV && options.gid === GIDS.watchlist) {
+  if (import.meta.env.DEV && key === "WATCHLIST") {
     console.debug(`[watchlist fetchSheet] raw=${rawRows.length} filtered=${filtered.length}`);
     (window as any).__watchlistDebug = {
       ...((window as any).__watchlistDebug ?? {}),
@@ -267,17 +228,9 @@ async function fetchSheet(options: SheetFetchOptions): Promise<Record<string, an
 
 }
 
-async function fetchSheetGrid(options: SheetFetchOptions): Promise<string[][]> {
-  const url = buildSheetUrl({ ...options, headers: options.headers ?? 0 });
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text = await res.text();
-  const json = JSON.parse(text.substring(47, text.length - 2));
-  const colCount = json.table.cols.length;
-
-  return (json.table.rows || []).map((row: any) =>
-    Array.from({ length: colCount }, (_, index) => stringifyValue(row.c?.[index]?.v ?? "")),
-  );
+export function sheetGrid(data: SheetRange): string[][] {
+  const width = Math.max(0, ...data.values.map(r => r.length));
+  return data.values.map(row => Array.from({ length: width }, (_, i) => stringifyValue(row[i])));
 }
 
 function parseMv(val: any): number {
@@ -368,7 +321,9 @@ function parseSheetDate(val: any): string {
     const match = val.match(/^Date\((\d+),(\d+),(\d+)\)$/);
     if (match) return `${match[1]}-${String(+match[2] + 1).padStart(2, "0")}-${match[3].padStart(2, "0")}`;
   }
-  return String(val ?? "");
+  const text = String(val ?? "").trim();
+  const uk = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s.*)?$/.exec(text);
+  return uk ? `${uk[3]}-${uk[2].padStart(2, "0")}-${uk[1].padStart(2, "0")}` : text;
 }
 
 function parseHoldings(rows: Record<string, any>[]) {
@@ -1083,40 +1038,29 @@ function isoToday() {
 
 /** Fetch every sheet once. Never throws: each source reports ok / error / empty. */
 export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
-  const today = isoToday();
   const sources = pendingSources();
-  const settle = async <T,>(key: SourceKey, p: Promise<T>, fallback: T): Promise<T> => {
+  let batch: SheetBatch | null = null;
+  let fetchError = "Sheet response unavailable";
+  try {
+    const response = await ownerFunctionResponse("sheet-read", { keys: [...Object.values(SOURCE_KEYS), "PRICES"] });
+    if (!response.ok) throw await responseError(response);
+    batch = await response.json() as SheetBatch;
+  } catch (e) { fetchError = e instanceof Error ? e.message : "Sheet fetch failed"; }
+  const stamp = batch?.ranges.PRICES?.values.flat().map(parseSheetDate).find(v => /^\d{4}-\d{2}-\d{2}/.test(v));
+  const today = stamp?.slice(0, 10) ?? batch?.fetched_at?.slice(0, 10) ?? isoToday();
+  const read = (source: SourceKey, grid = false): any[] => {
+    const key = SOURCE_KEYS[source];
+    const range = batch?.ranges[key];
+    const error = batch?.errors[key];
+    if (!range || error) { sources[source] = { status: "error", rows: 0, dataDate: null, error: error ?? fetchError }; return []; }
     try {
-      const v = await p;
-      sources[key] = { status: Array.isArray(v) && v.length === 0 ? "empty" : "ok", rows: Array.isArray(v) ? v.length : 1, dataDate: today };
-      return v;
-    } catch (e: any) {
-      console.error(`[portfolio] ${key} fetch failed:`, e);
-      sources[key] = { status: "error", rows: 0, dataDate: null, error: String(e?.message ?? e) };
-      return fallback;
-    }
+      const rows = grid ? sheetGrid(range) : sheetObjectRows(key, range);
+      const populated = rows.some(r => Object.values(r).some(v => v !== null && v !== undefined && String(v).trim() !== ""));
+      sources[source] = { status: populated ? "ok" : "empty", rows: rows.length, dataDate: populated ? today : null };
+      return rows;
+    } catch { sources[source] = { status: "error", rows: 0, dataDate: null, error: "Invalid sheet range" }; return []; }
   };
-
-  const [
-    holdingsRaw, holdingsCashGrid, watchlistRaw, layersRaw, scoresRaw, scoreLogRaw, monitorRaw, disruptionRaw,
-    performanceRaw, narrativeGrid, macroStateGrid, earningsCalendarRaw, cashGrid, transactionsRaw, jisaHoldingsRaw,
-  ] = await Promise.all([
-    settle("holdings", fetchSheet({ gid: GIDS.holdings, range: "A1:AM" }), [] as Record<string, any>[]),
-    settle("holdingsCash", fetchSheetGrid({ gid: GIDS.holdings, range: HOLDINGS_CASH_RANGE, headers: 0 }), [] as string[][]),
-    settle("watchlist", fetchSheet({ gid: GIDS.watchlist, range: "A1:AL5000" }), [] as Record<string, any>[]),
-    settle("layers", fetchSheet({ gid: GIDS.layers, range: "A2:H11" }), [] as Record<string, any>[]),
-    settle("scores", fetchSheet({ gid: GIDS.scores, range: "A1:AX" }), [] as Record<string, any>[]),
-    settle("scoreLog", fetchSheet({ gid: GIDS.scoreLog }), [] as Record<string, any>[]),
-    settle("monitor", fetchSheet({ gid: GIDS.monitor }), [] as Record<string, any>[]),
-    settle("disruption", fetchSheet({ gid: GIDS.disruption }), [] as Record<string, any>[]),
-    settle("performance", fetchSheet({ gid: GIDS.performance, range: "A1:AR" }), [] as Record<string, any>[]),
-    settle("narrative", fetchSheetGrid({ gid: GIDS.narrative, range: "A1:Z2" }), [] as string[][]),
-    settle("macroState", fetchSheetGrid({ gid: GIDS.macroState, range: "A1:G22" }), [] as string[][]),
-    settle("earningsCalendar", fetchSheet({ gid: GIDS.earningsCalendar, range: "A1:L500" }), [] as Record<string, any>[]),
-    settle("cash", fetchSheetGrid({ gid: GIDS.cash, range: "A1:C5000", headers: 0 }), [] as string[][]),
-    settle("transactions", fetchSheet({ gid: GIDS.transactions, range: "A1:O" }), [] as Record<string, any>[]),
-    settle("jisaHoldings", fetchSheetGrid({ gid: GIDS.jisaHoldings, range: "A1:AJ", headers: 0 }), [] as string[][]),
-  ]);
+  const holdingsRaw = read("holdings"), holdingsCashGrid = read("holdingsCash", true), watchlistRaw = read("watchlist"), layersRaw = read("layers"), scoresRaw = read("scores"), scoreLogRaw = read("scoreLog"), monitorRaw = read("monitor"), disruptionRaw = read("disruption"), performanceRaw = read("performance"), narrativeGrid = read("narrative", true), macroStateGrid = read("macroState", true), earningsCalendarRaw = read("earningsCalendar"), cashGrid = read("cash", true), transactionsRaw = read("transactions"), jisaHoldingsRaw = read("jisaHoldings", true);
 
   const allHoldings = parseHoldings(holdingsRaw);
   const sipp = allHoldings.filter((h) => h.account.toUpperCase() === "SIPP");
@@ -1171,6 +1115,6 @@ export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
     cashTotal: cashBlock.cashTotal ?? ledger.total,
     cashBlock,
     sources,
-    lastUpdated: new Date().toLocaleTimeString("en-GB"),
+    lastUpdated: batch?.fetched_at ?? null,
   };
 }
