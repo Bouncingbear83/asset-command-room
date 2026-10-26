@@ -9,3 +9,4 @@
 - Portfolio context identity persists in Vite hot data across Fast Refresh — prevents mounted providers and reloaded hooks from referencing different contexts.
 - Canonical price-completeness helpers drive holding badges and headline warnings; ingestion retains positive-share rows even at zero MV — missing prices must not disappear before validation.
 - Live-price consumers pass sheet currency and share pure symbol/currency safety rules with the edge function; Movers ranking uses tested pure thresholds — prevents foreign-listing quotes and unit mismatches from becoming ranked moves.
+- Earnings-engine verdict rows apply through n8n-proxy `apply-tracker`, which loads staged_payload server-side under the caller's session and enforces the cell allowlist in the pure apply-contract.ts shared with vitest — the browser never sends cell writes.
