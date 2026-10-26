@@ -163,10 +163,12 @@ function resolveColumnLabel(label: string) {
 }
 
 export function sheetObjectRows(key: string, data: SheetRange): Record<string, any>[] {
-  // LAYERS starts at row 2, so its first returned row is data, not a header.
-  const layerHeaders = ["layer", "priority", "target %", "current %", "mv", "hex color", "key holdings", "gap / notes"];
-  const headers = key === "LAYERS" ? layerHeaders : (data.values[0] ?? []).map(v => resolveColumnLabel(String(v ?? "")));
-  const offset = key === "LAYERS" ? 0 : 1;
+  // The live LAYERS range starts with its header on row 2; tolerate headerless fixtures too.
+  const layerHeaders = ["layer", "target %", "current %", "mv", "hex color", "key holdings", "gap / notes", "rag"];
+  const layerHasHeader = String(data.values[0]?.[0] ?? "").trim().toUpperCase() === "LAYER";
+  const headerlessLayers = key === "LAYERS" && !layerHasHeader;
+  const headers = headerlessLayers ? layerHeaders : (data.values[0] ?? []).map(v => resolveColumnLabel(String(v ?? "")));
+  const offset = headerlessLayers ? 0 : 1;
   const QUARTET_COLS = new Set(["bull_base", "bull_stretch", "bear_thesis_weak", "bear_substrate_fail", "bull_bear_at_date"]);
   const rawRows = data.values.slice(offset).map((cells, rowIndex) => {
     const next: Record<string, any> = {};

@@ -18,8 +18,12 @@ describe("Apps Script batch adapter", () => {
     expect(sheetObjectRows("WATCHLIST", r)[0].bull_base).toBeNull();
   });
   it("LAYERS row 2 remains data", () => {
-    const rows = sheetObjectRows("LAYERS", { range: "LAYERS!A2:H11", values: [["Core", 1, 0.2, 0.19, 100]], formatted: [] });
+    const rows = sheetObjectRows("LAYERS", { range: "LAYERS!A2:H11", values: [["Core", 0.2, 0.19, 100]], formatted: [] });
     expect(rows[0].layer).toBe("Core");
     expect(rows[0]["target %"]).toBe(0.2);
+  });
+  it("live LAYERS header is consumed without shifting columns", () => {
+    const rows = sheetObjectRows("LAYERS", { range: "LAYERS!A2:H11", values: [["LAYER", "TARGET %", "CURRENT %", "MV (£)"], ["Compute", 20, 24.3, 332598]], formatted: [] });
+    expect(rows).toEqual([{ layer: "Compute", "target %": 20, "current %": 24.3, "mv (£)": 332598 }]);
   });
 });
