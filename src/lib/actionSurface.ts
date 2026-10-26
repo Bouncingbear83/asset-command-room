@@ -500,13 +500,13 @@ export function buildSurface(a: BuildArgs): Surface {
     if (up(r.status) !== "OPEN") continue;
     const sp = r.staged_payload;
     if (sp?.kind === "EARNINGS_BRIEF") { briefs.push(r); continue; } // never a card
-    if (sp?.kind === "EARNINGS_VERDICT" && r.apply_target) {
+    if (sp?.kind === "EARNINGS_VERDICT") {
+      // Engine verdicts are never merged, superseded or dead-filtered; keyed by tracker id.
       const ticker = up(sp.ticker ?? r.ticker);
       const band = String(sp.grader?.band ?? "NOT GRADED").toUpperCase();
-      const d = sp.decision;
-      const state = !d ? "NEW" : d.action === "PLACED" ? "PLACED" : r.apply_target === "RC_QUEUE" ? "QUEUED" : r.apply_target === "TRADE_TICKET" ? "ACCEPTED_TICKET" : "NEW";
+      const state = verdictState(sp.decision, r.apply_target);
       const printDate = isoDate(sp.print_date) || null;
-      const key = `${ticker}:EARNINGS_VERDICT:${printDate ?? r.id}`;
+      const key = `verdict:${r.id}`;
       byKey.set(key, {
         key, ticker, trigger_type: "EARNINGS_VERDICT",
         title: state === "QUEUED" ? "Queued for session" : state === "PLACED" ? "Placed" : `Earnings verdict ${band}`,
