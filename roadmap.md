@@ -1,5 +1,5 @@
 - [x] Collapse RESET_ZONE and R3_LINT and sort Decide by review/fired dates.
-- [ ] Flag positive-share unpriced holdings in canonical logic, retain their rows, and mark AUM/DP incomplete; test and verify.
+- [x] Flag positive-share unpriced holdings in canonical logic, retain their rows, and mark AUM/DP incomplete; 15 tests pass and live UI shows 2 unpriced positions.
 - [x] Exclude NEAR from Parked and gate Watchlist debugging behind debug=1.
 - [x] Run regression tests and verify the live display.
 - [x] Merge OPEN AUTO R3LINT/RESET tracker rows into grouped cards and forward dedupe keys.
