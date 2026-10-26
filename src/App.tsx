@@ -10,7 +10,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthConsent from "./pages/OAuthConsent";
 import AuthGate from "./components/AuthGate";
-import { PortfolioProvider } from "./data/PortfolioProvider";
+import { PortfolioProvider } from "@/data/PortfolioProvider";
 
 const queryClient = new QueryClient();
 

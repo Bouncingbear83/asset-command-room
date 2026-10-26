@@ -6,3 +6,4 @@
 - MCP handlers preserve the SDK-verified OAuth subject and bearer through a shared caller-scoped database factory; never use service-role queries for MCP, so table RLS remains the authorization boundary.
 - Browser price/earnings endpoints share verified owner-or-ingest authentication and exact app-origin CORS; OAuth client administration independently checks the verified owner before using server credentials.
 - Browser portfolio and webhook calls use owner-only sheet-read and n8n-proxy; sheet-read caches Apps Script key batches for 60 seconds and the client adapts values at the existing parser boundary — keeps credentials server-only without changing canonical calculations.
+- Portfolio context identity persists in Vite hot data across Fast Refresh — prevents mounted providers and reloaded hooks from referencing different contexts.

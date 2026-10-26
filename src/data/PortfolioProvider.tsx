@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type Context, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPortfolio, EMPTY_SNAPSHOT, type PortfolioData, type SourceKey } from "@/hooks/usePortfolioData";
 
@@ -6,7 +6,11 @@ import { fetchPortfolio, EMPTY_SNAPSHOT, type PortfolioData, type SourceKey } fr
  * Single React Query instance of the portfolio sheets, mounted at app root.
  * Every component reads through usePortfolio(); nothing else fetches the sheets.
  */
-const PortfolioContext = createContext<PortfolioData | null>(null);
+// Fast Refresh may reload this mixed hook/component module before its mounted
+// provider. Keep the context identity across reloads so both use the same value.
+const hotData = import.meta.hot?.data as { portfolioContext?: Context<PortfolioData | null> } | undefined;
+const PortfolioContext = hotData?.portfolioContext ?? createContext<PortfolioData | null>(null);
+if (hotData) hotData.portfolioContext = PortfolioContext;
 
 export const PORTFOLIO_QUERY_KEY = ["portfolio"] as const;
 
