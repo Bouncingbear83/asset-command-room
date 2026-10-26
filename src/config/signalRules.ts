@@ -69,6 +69,11 @@ export const VERDICT_TOKENS = ["HOLD", "NO ADD", "COMMITTED", "CLOSED", "ARCHIVE
 
 /** R13 — automation prefixes: never events, only annotate WATCH. */
 export const AUTOMATION_PREFIXES = ["M_WL", "M_", "W_", "Q_REVIEW"] as const;
+/** R13 — text between [AUTO_EARN ...] and [/AUTO_EARN] (HOLDINGS AJ / WATCHLIST M) is automation: never an event, never an R12 verdict. */
+export const AUTO_EARN_SEGMENT = /\[AUTO_EARN\b[^\]]*\][\s\S]*?\[\/AUTO_EARN\]/gi;
+
+/** Earnings engine — staged verdict rows render in DECIDE in this band order (counted in DECIDE_CAP). */
+export const VERDICT_BAND_ORDER = ["KILL", "RED", "AMBER", "CONFIRM"] as const;
 
 /** R14 — earnings: held names only, this many days ahead, lane PREPARE. */
 export const EARNINGS_PREPARE_DAYS = 14;

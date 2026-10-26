@@ -29,6 +29,8 @@ import {
   APPROACHING_ADD_PCT,
   WATCH_WAKE_STATUSES,
   EXIT_RECLASS_TAG,
+  AUTO_EARN_SEGMENT,
+  VERDICT_BAND_ORDER,
 } from "@/config/signalRules";
 import { normBand } from "@/lib/watchlistBands";
 
@@ -51,6 +53,10 @@ export interface Candidate {
   verdict_at: string | null;
   next_review: string | null;
   layer?: string;
+  /** Earnings engine — staged EARNINGS_VERDICT row (DECIDE / PREPARE). */
+  verdict?: { id: string; apply_target: string; payload: any; band: string; state: "NEW" | "QUEUED" | "ACCEPTED_TICKET" | "PLACED" };
+  /** Earnings engine — EARNINGS_BRIEF row shown as an “Open brief” link on the PREPARE earnings card. */
+  brief?: { id: string; note_path: string | null; viewed: boolean; payload: any };
 }
 
 // ── Minimal input shapes (structural; Live* types satisfy them) ──
@@ -74,6 +80,7 @@ export interface TxnIn { ticker: string; account?: string; date: string; action:
 export interface TrackerRowIn {
   id: string; ticker: string | null; action_type: string; due_date: string; summary: string;
   status: string; priority?: string; layer?: string | null; source?: string | null; dedupe_key?: string | null;
+  apply_target?: string | null; staged_payload?: any;
 }
 
 // ── Dates ──
@@ -132,8 +139,12 @@ export function buildDeadSet(holdings: HoldingIn[], watchlist: WatchIn[], scores
 }
 
 // ── R13: automation notes ──
+/** Removes [AUTO_EARN ...]…[/AUTO_EARN] automation segments. */
+export function stripAutoEarn(note: string | null | undefined): string {
+  return String(note ?? "").replace(AUTO_EARN_SEGMENT, " ").replace(/\s{2,}/g, " ").trim();
+}
 export function isAutomationNote(note: string | null | undefined): boolean {
-  const s = String(note ?? "").trim();
+  const s = stripAutoEarn(note);
   if (!s) return true; // empty = nothing
   const u = s.toUpperCase();
   if ((AUTOMATION_PREFIXES as readonly string[]).some((p) => u.startsWith(p))) return true;
@@ -144,7 +155,7 @@ export function isAutomationNote(note: string | null | undefined): boolean {
 // ── R12: operator supersession ──
 /** Returns the verdict date (or "OPERATOR") if the note carries an operator verdict, else null. */
 export function findVerdict(note: string | null | undefined): string | null {
-  const s = String(note ?? "");
+  const s = stripAutoEarn(note);
   if (!s.trim()) return null;
   const tokens = (VERDICT_TOKENS as readonly string[]).map((t) => t.replace(/ /g, "\\s+")).join("|");
   const re = new RegExp(`(\\d{4}-\\d{2}-\\d{2})[^\\n]*?\\b(${tokens})\\b`, "i");
@@ -179,7 +190,8 @@ export function reconcileFill(
   h: Pick<HoldingIn, "price" | "shares" | "notes" | "deploy_note" | "trigger_review_note">,
   sharesBaseline?: number | null,
 ): LimitOrder | null {
-  for (const text of [h.deploy_note, h.trigger_review_note, h.notes]) {
+  for (const raw of [h.deploy_note, h.trigger_review_note, h.notes]) {
+    const text = stripAutoEarn(raw);
     const o = parseLimitOrder(text);
     if (!o) continue;
     if (String(text).toUpperCase().includes(FILLED_TOKEN)) return null;
@@ -257,6 +269,8 @@ export interface Surface {
   wakeWithin10: number;
   /** F8 — live names with nothing firing (held + live watchlist). */
   watchCount: number;
+  /** Brief rows whose verdict (same ticker + print date) exists → set CONFIRMED “superseded by verdict”. */
+  supersededBriefs: string[];
 }
 
 const SEV_RANK: Record<Severity, number> = { RED: 0, AMBER: 1, GREY: 2 };
@@ -312,7 +326,7 @@ export function buildSurface(a: BuildArgs): Surface {
   for (const h of a.holdings) {
     const t = up(h.ticker);
     if (!t || !h.price) continue;
-    const note = h.trigger_review_note || "";
+    const note = stripAutoEarn(h.trigger_review_note);
     const superseded = isSuperseded(note, h.trigger_review_date, today);
     const verdict = findVerdict(note);
     const nextReview = isoDate(h.trigger_review_date) || null;
@@ -376,7 +390,7 @@ export function buildSurface(a: BuildArgs): Surface {
     if (!t || dead.has(t) || heldSet.has(t)) continue;
     const st = up(w.status).replace(/\s+/g, "_");
     const band = normBand(w.band);
-    const note = w.triggerReviewNote || "";
+    const note = stripAutoEarn(w.triggerReviewNote);
     const superseded = isSuperseded(note, w.triggerReviewDate, today);
     const rd = isoDate(w.triggerReviewDate);
     if (rd && rd <= today) batchNames++;
@@ -435,9 +449,9 @@ export function buildSurface(a: BuildArgs): Surface {
   const holdingNotes = new Map<string, string>();
   for (const h of a.holdings) {
     const t = up(h.ticker);
-    holdingNotes.set(t, [holdingNotes.get(t), h.trigger_review_note, h.notes].filter(Boolean).join(" | "));
+    holdingNotes.set(t, [holdingNotes.get(t), stripAutoEarn(h.trigger_review_note), stripAutoEarn(h.notes)].filter(Boolean).join(" | "));
   }
-  const wlNotes = new Map(a.watchlist.map((w) => [up(w.ticker), w.triggerReviewNote || ""]));
+  const wlNotes = new Map(a.watchlist.map((w) => [up(w.ticker), stripAutoEarn(w.triggerReviewNote)]));
   for (const e of a.earnings) {
     const t = up(e.ticker);
     if (!heldSet.has(t)) continue;
@@ -476,8 +490,35 @@ export function buildSurface(a: BuildArgs): Surface {
   }
 
   // ── action_tracker (R17) ──
+  const briefs: TrackerRowIn[] = [];
+  const verdictKeys = new Set<string>();
+  for (const r of a.tracker ?? []) {
+    const sp = r.staged_payload;
+    if (sp?.kind === "EARNINGS_VERDICT") verdictKeys.add(`${up(sp.ticker ?? r.ticker)}|${isoDate(sp.print_date)}`);
+  }
   for (const r of a.tracker ?? []) {
     if (up(r.status) !== "OPEN") continue;
+    const sp = r.staged_payload;
+    if (sp?.kind === "EARNINGS_BRIEF") { briefs.push(r); continue; } // never a card
+    if (sp?.kind === "EARNINGS_VERDICT" && r.apply_target) {
+      const ticker = up(sp.ticker ?? r.ticker);
+      const band = String(sp.grader?.band ?? "NOT GRADED").toUpperCase();
+      const d = sp.decision;
+      const state = !d ? "NEW" : d.action === "PLACED" ? "PLACED" : r.apply_target === "RC_QUEUE" ? "QUEUED" : r.apply_target === "TRADE_TICKET" ? "ACCEPTED_TICKET" : "NEW";
+      const printDate = isoDate(sp.print_date) || null;
+      const key = `${ticker}:EARNINGS_VERDICT:${printDate ?? r.id}`;
+      byKey.set(key, {
+        key, ticker, trigger_type: "EARNINGS_VERDICT",
+        title: state === "QUEUED" ? "Queued for session" : state === "PLACED" ? "Placed" : `Earnings verdict ${band}`,
+        lane: state === "QUEUED" || state === "PLACED" ? "PREPARE" : "DECIDE",
+        severity: band === "KILL" || band === "RED" ? "RED" : band === "AMBER" ? "AMBER" : "GREY",
+        fired_at: printDate, source: "EARNINGS_ENGINE", source_ref: r.id, accounts: [], gate_test: null,
+        verdict_at: null, next_review: isoDate(sp.deadline) || isoDate(r.due_date) || null, layer: r.layer ?? undefined,
+        reasons: [String(sp.band_action ?? "")],
+        verdict: { id: r.id, apply_target: r.apply_target, payload: sp, band, state },
+      });
+      continue;
+    }
     const autoType = r.dedupe_key?.match(/^AUTO:[^:]+:(R3LINT|RESET):/)?.[1];
     if (autoType) {
       const ticker = up(r.ticker);
@@ -507,6 +548,16 @@ export function buildSurface(a: BuildArgs): Surface {
       next_review: isoDate(r.due_date) || null, layer: r.layer ?? undefined, reason: `Due ${isoDate(r.due_date)}` });
   }
 
+  // ── Earnings briefs → “Open brief” on the matching PREPARE earnings card ──
+  const supersededBriefs: string[] = [];
+  for (const r of briefs) {
+    const sp = r.staged_payload;
+    const ticker = up(sp.ticker ?? r.ticker);
+    if (verdictKeys.has(`${ticker}|${isoDate(sp.print_date)}`)) { supersededBriefs.push(r.id); continue; }
+    const card = byKey.get(`${ticker}:EARNINGS`) ?? byKey.get(`${ticker}:THESIS_CHECK`);
+    if (card) card.brief = { id: r.id, note_path: sp.note_path ?? null, viewed: !!sp.viewed_at, payload: sp };
+  }
+
   // ── Lanes + R18 cap ──
   const candidates = Array.from(byKey.values());
   const groupedTypes = new Set(["RESET_ZONE", "R3_LINT"]);
@@ -526,9 +577,10 @@ export function buildSurface(a: BuildArgs): Surface {
       fired_at: earliest(members.map((c) => c.fired_at)),
     });
   }
+  const bandRank = (c: Candidate) => c.verdict ? (VERDICT_BAND_ORDER as readonly string[]).indexOf(c.verdict.band) >>> 0 : 99;
   const byDate = (x: Candidate, y: Candidate) => String(x.next_review ?? "9").localeCompare(String(y.next_review ?? "9"));
   const decideAll = all.filter((c) => c.lane === "DECIDE").sort((x, y) =>
-    SEV_RANK[x.severity] - SEV_RANK[y.severity] || byDate(x, y)
+    SEV_RANK[x.severity] - SEV_RANK[y.severity] || bandRank(x) - bandRank(y) || byDate(x, y)
     || String(x.fired_at ?? "9").localeCompare(String(y.fired_at ?? "9"))
     || x.key.localeCompare(y.key));
   const decide = decideAll.slice(0, DECIDE_CAP);
@@ -542,6 +594,7 @@ export function buildSurface(a: BuildArgs): Surface {
     overflow: overflowItems.length,
     wakeWithin10,
     watchCount: countWatching(a, dead, heldSet, candidates),
+    supersededBriefs,
   };
 }
 

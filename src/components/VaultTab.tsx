@@ -418,7 +418,7 @@ export default function VaultTab() {
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<NoteType>("all");
   const [browseFilter, setBrowseFilter] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get("note"));
   const [sortField, setSortField] = useState<SortField>("identifier");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 

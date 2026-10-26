@@ -17,4 +17,4 @@
 - [x] Implement Step 5 revised Part A: owner-only sheet-read using Apps Script secrets and key-only requests; preserve canonical parsing and source states.
 - [x] Implement Step 5 Part B: owner-only n8n-proxy and replace browser webhook calls.
 - [x] Verify Step 5 contracts, signed-in tabs, canonical fixture, and no direct sheet/n8n browser calls; record remaining checks in docs/step5-acceptance.md.
-- [ ] Complete Step 5 release checks: published-bundle scan and published-site smoke checks require a publish request; direct Apps Script wrong-secret check requires operator execution; real non-owner JWT check requires an approved non-owner test account.
+- [ ] Complete Step 5 release checks: published-bundle scan and published-site smoke checks require a publish request; direct Apps Script wrong-secret check requires operator execution; real non-owner JWT check requires an approved non-owner test account.- [x] Earnings engine: staged verdict cards in Decide with Accept/Edit/Dismiss/Placed and Apply all
