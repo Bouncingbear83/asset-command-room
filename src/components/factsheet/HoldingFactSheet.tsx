@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/PriceChart";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { triggerWebhook } from "@/lib/webhooks";
-import { GIDS, type PortfolioData, type LiveHolding } from "@/hooks/usePortfolioData";
+import { type PortfolioData, type LiveHolding } from "@/hooks/usePortfolioData";
 import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
 import { formatRatio, type AsymmetryQuartet } from "@/lib/liveAsymmetry";
@@ -20,9 +20,6 @@ interface Props {
   priceData: PriceDataMap;
   onClose: () => void;
 }
-
-const SHEET_BASE = "https://docs.google.com/spreadsheets/d/1T2afEG3mLjxmonduDugHA5SlJ44-RBJmv0bxISfalNo";
-const SHEET_SCORES_URL = `${SHEET_BASE}/edit?gid=${GIDS.scores}`;
 
 const monoLabel: React.CSSProperties = {
   fontFamily: "var(--font-mono)",
@@ -910,7 +907,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 Deep dive: {tkr} ➜
               </ClaudePromptButton>
               <a
-                href={SHEET_SCORES_URL}
+                href={`?tab=intelligence&ticker=${encodeURIComponent(tkr)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -919,7 +916,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                   padding: "4px 12px", borderRadius: 2, textDecoration: "none",
                 }}
               >
-                View in Scores sheet ↗
+                View in Scores ↗
               </a>
               {data.earnings && (
                 <button

@@ -1,0 +1,11 @@
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { RequestSchema, SHEET_KEYS, cacheKey, upstreamFailure } from "./contract.ts";
+Deno.test("accepts exactly the sixteen known keys", () => assertEquals(RequestSchema.safeParse({ keys: [...SHEET_KEYS] }).success, true));
+Deno.test("unknown key rejected", () => assertEquals(RequestSchema.safeParse({ keys: ["PRIVATE"] }).success, false));
+Deno.test("at least one key", () => assertEquals(RequestSchema.safeParse({ keys: [] }).success, false));
+Deno.test("at most twenty keys", () => assertEquals(RequestSchema.safeParse({ keys: Array(21).fill("HOLDINGS") }).success, false));
+Deno.test("range payload rejected", () => assertEquals(RequestSchema.safeParse({ keys: ["HOLDINGS"], ranges: [] }).success, false));
+Deno.test("cache ignores order and duplicates", () => assertEquals(cacheKey(["SCORES", "HOLDINGS", "HOLDINGS"]), "HOLDINGS|SCORES"));
+Deno.test("unauthorised upstream is configuration error", () => assertEquals(upstreamFailure("UNAUTHORISED"), 500));
+Deno.test("unconfigured upstream is configuration error", () => assertEquals(upstreamFailure("NOT_CONFIGURED"), 500));
+Deno.test("other upstream errors are 502", () => assertEquals(upstreamFailure("FAILED"), 502));

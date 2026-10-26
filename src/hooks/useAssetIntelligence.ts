@@ -195,9 +195,9 @@ function parseUkDate(raw: unknown): Date | null {
   if (!raw) return null;
   const s = String(raw).trim();
   if (!s) return null;
-  const gviz = s.match(/^Date\((\d+),(\d+),(\d+)\)$/);
-  if (gviz) {
-    const d = new Date(+gviz[1], +gviz[2], +gviz[3]);
+  const legacyDate = s.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+  if (legacyDate) {
+    const d = new Date(+legacyDate[1], +legacyDate[2], +legacyDate[3]);
     return isNaN(d.getTime()) ? null : d;
   }
   const uk = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -209,7 +209,7 @@ function parseUkDate(raw: unknown): Date | null {
   return isNaN(iso.getTime()) ? null : iso;
 }
 
-/** Normalize anchor date input (sheet "YYYY-MM-DD", UK "DD/MM/YYYY", gviz "Date(y,m,d)") → ISO YYYY-MM-DD or null. */
+/** Normalize anchor date input (sheet "YYYY-MM-DD", UK "DD/MM/YYYY", legacy "Date(y,m,d)") → ISO YYYY-MM-DD or null. */
 function normalizeAnchorDate(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
   const s = String(raw).trim();

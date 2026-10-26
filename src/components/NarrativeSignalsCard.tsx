@@ -2,8 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useNarrativeSignals, NarrativeSignal } from "@/hooks/useNarrativeSignals";
 
-const RESEARCH_COMMIT_URL =
-  "https://bertbroad83.app.n8n.cloud/workflow/Qh4BzSYdf7jkZId5";
+import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 
 const card: React.CSSProperties = {
   background: "var(--panel)",
@@ -91,10 +90,7 @@ function SignalRow({
   };
 
   const handleResearch = () => {
-    openExternal(RESEARCH_COMMIT_URL);
-    toast.message(`Opening Research Commit for ${signal.ticker}`, {
-      description: "n8n workflow opened in a new tab.",
-    });
+    void openClaudeWithPrompt("dropdown_deep_dive", { ticker: signal.ticker }, (m) => toast(m));
   };
 
   const tag: React.CSSProperties = {
@@ -274,7 +270,7 @@ function SignalRow({
             border: "1px solid rgba(200,169,110,0.4)",
           }}
         >
-          Open in Research Commit ↗
+          Research in Claude ↗
         </button>
       </div>
     </div>

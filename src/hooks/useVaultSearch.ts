@@ -1,6 +1,6 @@
+import { proxyWebhook, responseError } from "@/lib/ownerFunction";
 import { useState, useCallback } from "react";
 
-const VAULT_SEARCH_URL = "https://bertbroad83.app.n8n.cloud/webhook/stellar-vault-search";
 
 export interface VaultSearchResult {
   path: string;
@@ -35,12 +35,8 @@ export function useVaultSearch() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(VAULT_SEARCH_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: query.trim(), type: type || undefined, limit }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await proxyWebhook("stellar-vault-search", { query: query.trim(), type: type || undefined, limit: limit });
+        if (!res.ok) throw await responseError(res);
         const data: VaultSearchResponse = await res.json();
         setResults(data);
       } catch (err) {

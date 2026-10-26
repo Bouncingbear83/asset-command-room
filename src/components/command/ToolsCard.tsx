@@ -68,8 +68,9 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
   const handleWebhook = async (endpoint: string, body: object, msg: string) => {
     setWebhookLoading(true);
     setWebhookFired("");
-    await triggerWebhook(endpoint, body, msg);
+    const succeeded = await triggerWebhook(endpoint, body, msg);
     setWebhookLoading(false);
+    if (!succeeded) return;
     setWebhookFired("✓ Fired");
     setWebhookTarget("");
     setTimeout(() => setWebhookFired(""), 3000);
