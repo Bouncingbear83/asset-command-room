@@ -9,27 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { appCorsHeaders, ownerOrIngest } from "../_shared/owner-access.ts";
 
-const FALLBACK_ALIASES: Record<string, string | null> = {
-  RSW: "RSW.L",
-  SGLD: "SGLD.L",
-  SLVP: "SLVP.L",
-  ONT: "ONT.L",
-  ROBG: "ROBG.L",
-  CNC: "CNC.L",
-  "HEXA-B": "HEXA-B.ST",
-  SIVE: "SIVE.ST",
-  RHM: "RHM.DE",
-  PRY: "PRY.MI",
-  ALFEN: "ALFEN.AS",
-  LYC: "LYC.AX",
-  DIM: "DIM.PA",
-  SPUT: "U-UN.TO",
-  ALM: "ALM.MC",
-  WINTON: null,
-  RUFFER: "RICA.L",
-  MOG: "MOG-A",
-  "KODT.ZA": "KODT.JO",
-};
+import { toYahooSymbol, currenciesMatch } from "./contract.ts";
 
 interface AliasRow {
   ticker: string;
@@ -38,6 +18,7 @@ interface AliasRow {
 }
 interface LiveQuote {
   price: number;
+  symbol: string;
   currency: string;
   marketTime: number;
   marketState: string;
@@ -104,25 +85,6 @@ async function loadSnapshotCloses(): Promise<Map<string, number>> {
     console.error("[live-prices] snapshot close load failed:", err);
   }
   return map;
-}
-
-function toYahooSymbol(
-  ticker: string,
-  aliases: Map<string, { yahoo: string | null; skip: boolean }>,
-): { symbol: string | null; skip: boolean } {
-  const upper = ticker.trim().toUpperCase();
-  const row = aliases.get(upper);
-  if (row) {
-    if (row.skip) return { symbol: null, skip: true };
-    if (row.yahoo) return { symbol: row.yahoo, skip: false };
-    return { symbol: upper, skip: false };
-  }
-  if (upper in FALLBACK_ALIASES) {
-    const fb = FALLBACK_ALIASES[upper];
-    return { symbol: fb, skip: fb === null };
-  }
-  if (upper.includes(".")) return { symbol: upper, skip: false };
-  return { symbol: upper, skip: false };
 }
 
 // ── Yahoo crumb + cookie auth ──
@@ -262,7 +224,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  let body: { tickers?: unknown };
+  let body: { tickers?: unknown; currencies?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -286,6 +248,14 @@ Deno.serve(async (req) => {
     });
   }
 
+  if (tickers.some((t) => typeof t !== "string" || !t.trim() || t.length > 64) ||
+      (body.currencies !== undefined && (body.currencies === null || typeof body.currencies !== "object" || Array.isArray(body.currencies) || Object.values(body.currencies).some((c) => typeof c !== "string" || c.length > 8)))) {
+    return new Response(JSON.stringify({ error: "Invalid tickers or currencies" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const currencies = (body.currencies ?? {}) as Record<string, string>;
+  const sheetCurrencies = new Map(Object.entries(currencies).map(([t, c]) => [t.trim().toUpperCase(), c]));
   const aliases = await loadAliases();
   const tickerToYahoo = new Map<string, string>();
   const skipped: string[] = [];
@@ -294,7 +264,7 @@ Deno.serve(async (req) => {
   for (const t of tickers) {
     const raw = String(t).trim().toUpperCase();
     if (!raw) continue;
-    const { symbol, skip } = toYahooSymbol(raw, aliases);
+    const { symbol, skip } = toYahooSymbol(raw, aliases, sheetCurrencies.get(raw));
     if (skip || symbol === null) {
       skipped.push(raw);
       continue;
@@ -318,16 +288,22 @@ Deno.serve(async (req) => {
   for (const [internal, yahoo] of tickerToYahoo) {
     const key = yahoo.toUpperCase();
     if (!yahooToInternal.has(key)) yahooToInternal.set(key, []);
-    yahooToInternal.get(key)!.push(internal);
+    yahooToInternal.get(key)?.push(internal);
   }
 
   const snapCloses = await loadSnapshotCloses();
   const prices: Record<string, LiveQuote> = {};
   for (const [yahooSym, q] of quotes) {
     for (const internal of yahooToInternal.get(yahooSym.toUpperCase()) ?? []) {
+      if (!currenciesMatch(q.currency, sheetCurrencies.get(internal))) {
+        skipped.push(internal);
+        errors.push(`Currency mismatch or missing sheet currency for ${internal} (${yahooSym})`);
+        continue;
+      }
       const snapClose = snapCloses.get(internal.toUpperCase());
       prices[internal] = {
         price: q.regularMarketPrice,
+        symbol: yahooSym,
         currency: q.currency ?? "USD",
         marketTime: q.regularMarketTime ?? 0,
         marketState: q.marketState ?? "UNKNOWN",

@@ -1,3 +1,4 @@
+- [x] Correct Movers aliases, fail-closed live quotes, currency labels, and suspect ranking; 36 Vitest and 3 owner-access tests pass; signed-in INR/AMG/GAM/ALM match sheet prices and day moves; live-prices deployed without snapshot/RLS changes.
 - [x] Collapse RESET_ZONE and R3_LINT and sort Decide by review/fired dates.
 - [x] Flag positive-share unpriced holdings in canonical logic, retain their rows, and mark AUM/DP incomplete; 15 tests pass and live UI shows 2 unpriced positions.
 - [x] Exclude NEAR from Parked and gate Watchlist debugging behind debug=1.
