@@ -12,6 +12,7 @@
 - [x] Restrict sign-in, client registration, MCP source, prices and earnings access to the owner or approved automation.
 - [x] Verify anonymous denial, all owner tabs, TEST action/review writes, tracker v1/v2 samples, and owner-boundary tests; report in docs/owner-lockdown-acceptance.md.
 - [ ] Republish and verify all four MCP tools through a real OAuth connector session. Blocked: app publication requires the user's publish request; existing published MCP anonymous reads are now denied.
-- [ ] Implement Step 5 revised Part A: owner-only sheet-read using Apps Script secrets and key-only requests; preserve canonical parsing and source states.
-- [ ] Implement Step 5 Part B: owner-only n8n-proxy and replace browser webhook calls.
-- [ ] Verify Step 5 contracts, signed-in tabs, canonical fixture, and no direct sheet/n8n browser calls; record any operator prerequisites.
+- [x] Implement Step 5 revised Part A: owner-only sheet-read using Apps Script secrets and key-only requests; preserve canonical parsing and source states.
+- [x] Implement Step 5 Part B: owner-only n8n-proxy and replace browser webhook calls.
+- [x] Verify Step 5 contracts, signed-in tabs, canonical fixture, and no direct sheet/n8n browser calls; record remaining checks in docs/step5-acceptance.md.
+- [ ] Complete Step 5 release checks: published-bundle scan and published-site smoke checks require a publish request; direct Apps Script wrong-secret check requires operator execution; real non-owner JWT check requires an approved non-owner test account.
