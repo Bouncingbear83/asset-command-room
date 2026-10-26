@@ -295,6 +295,31 @@ export function routeTrackerRow(r: TrackerRowIn, today: string, known?: Set<stri
   return "WATCH";
 }
 
+/** Dev-only diagnostic: names the rule that dropped/evicted a candidate. */
+function dropLog(rule: string, c: { ticker?: string; trigger_type: string; key?: string }) {
+  if (import.meta.env?.DEV && import.meta.env?.MODE !== "test") console.debug(`[actionSurface] dropped by ${rule}: ${c.ticker || "—"} ${c.trigger_type}${c.key ? ` (${c.key})` : ""}`);
+}
+
+/** Engine verdict state. PREPARE only on ACCEPT→RC_QUEUE or PLACED; apply.rc_queue alone means nothing. */
+export function verdictState(d: any, rowTarget?: string | null): "NEW" | "QUEUED" | "ACCEPTED_TICKET" | "PLACED" {
+  if (!d) return "NEW";
+  const action = up(d.action);
+  const target = up(d.apply_target ?? rowTarget);
+  if (action === "PLACED") return "PLACED";
+  if (action === "ACCEPT" && target === "RC_QUEUE") return "QUEUED";
+  if (action === "ACCEPT" && target === "TRADE_TICKET") return "ACCEPTED_TICKET";
+  return "NEW";
+}
+
+/** R18 — verdict cards are exempt; derived cards fill the remaining slots, evicting GREY then AMBER first. */
+export function applyDecideCap(sorted: Candidate[]): { decide: Candidate[]; evicted: Candidate[] } {
+  const verdicts = sorted.filter((c) => c.verdict);
+  const derived = sorted.filter((c) => !c.verdict);
+  const room = Math.max(0, DECIDE_CAP - verdicts.length);
+  const keep = new Set([...derived].sort((x, y) => SEV_RANK[x.severity] - SEV_RANK[y.severity]).slice(0, room));
+  return { decide: sorted.filter((c) => c.verdict || keep.has(c)), evicted: derived.filter((c) => !keep.has(c)) };
+}
+
 export function buildSurface(a: BuildArgs): Surface {
   const { today } = a;
   const dead = buildDeadSet(a.holdings, a.watchlist, a.scores);
@@ -307,7 +332,7 @@ export function buildSurface(a: BuildArgs): Surface {
 
   const emit = (c: Omit<Candidate, "key" | "accounts" | "reasons"> & { reason: string; account?: string }) => {
     const ticker = up(c.ticker);
-    if (ticker && dead.has(ticker)) return; // R10
+    if (ticker && dead.has(ticker)) { dropLog("R10 dead filter", c); return; }
     const key = `${ticker}:${c.trigger_type}`;
     const prev = byKey.get(key);
     if (prev) {
@@ -500,13 +525,13 @@ export function buildSurface(a: BuildArgs): Surface {
     if (up(r.status) !== "OPEN") continue;
     const sp = r.staged_payload;
     if (sp?.kind === "EARNINGS_BRIEF") { briefs.push(r); continue; } // never a card
-    if (sp?.kind === "EARNINGS_VERDICT" && r.apply_target) {
+    if (sp?.kind === "EARNINGS_VERDICT") {
+      // Engine verdicts are never merged, superseded or dead-filtered; keyed by tracker id.
       const ticker = up(sp.ticker ?? r.ticker);
       const band = String(sp.grader?.band ?? "NOT GRADED").toUpperCase();
-      const d = sp.decision;
-      const state = !d ? "NEW" : d.action === "PLACED" ? "PLACED" : r.apply_target === "RC_QUEUE" ? "QUEUED" : r.apply_target === "TRADE_TICKET" ? "ACCEPTED_TICKET" : "NEW";
+      const state = verdictState(sp.decision, r.apply_target);
       const printDate = isoDate(sp.print_date) || null;
-      const key = `${ticker}:EARNINGS_VERDICT:${printDate ?? r.id}`;
+      const key = `verdict:${r.id}`;
       byKey.set(key, {
         key, ticker, trigger_type: "EARNINGS_VERDICT",
         title: state === "QUEUED" ? "Queued for session" : state === "PLACED" ? "Placed" : `Earnings verdict ${band}`,
@@ -515,7 +540,7 @@ export function buildSurface(a: BuildArgs): Surface {
         fired_at: printDate, source: "EARNINGS_ENGINE", source_ref: r.id, accounts: [], gate_test: null,
         verdict_at: null, next_review: isoDate(sp.deadline) || isoDate(r.due_date) || null, layer: r.layer ?? undefined,
         reasons: [String(sp.band_action ?? "")],
-        verdict: { id: r.id, apply_target: r.apply_target, payload: sp, band, state },
+        verdict: { id: r.id, apply_target: r.apply_target ?? "", payload: sp, band, state },
       });
       continue;
     }
@@ -583,8 +608,9 @@ export function buildSurface(a: BuildArgs): Surface {
     SEV_RANK[x.severity] - SEV_RANK[y.severity] || bandRank(x) - bandRank(y) || byDate(x, y)
     || String(x.fired_at ?? "9").localeCompare(String(y.fired_at ?? "9"))
     || x.key.localeCompare(y.key));
-  const decide = decideAll.slice(0, DECIDE_CAP);
-  const overflowItems = decideAll.slice(DECIDE_CAP).map((c) => ({ ...c, lane: "WATCH" as Lane }));
+  const { decide, evicted } = applyDecideCap(decideAll);
+  const overflowItems = evicted.map((c) => ({ ...c, lane: "WATCH" as Lane }));
+  for (const c of evicted) dropLog("R18 DECIDE_CAP → WATCH", c);
   return {
     decide,
     prepare: all.filter((c) => c.lane === "PREPARE").sort(byDate),

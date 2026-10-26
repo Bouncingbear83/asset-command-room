@@ -243,3 +243,38 @@ describe("Decide ordering", () => {
     expect(s.decide.map((c) => c.ticker)).toEqual(["RED", "TIE_EARLY", "TIE_LATE", "LATE", "UNDATED"]);
   });
 });
+
+describe("Engine verdict invariants", () => {
+  const DHR_ID = "93652e61-515c-4785-8aa3-9fe09ad3fb4e";
+  const verdictRow = (o: Record<string, any> = {}) => ({
+    id: DHR_ID, ticker: "DHR", action_type: "MANUAL", status: "OPEN", due_date: "2026-10-28", summary: "verdict",
+    apply_target: "UPDATE_ROW", dedupe_key: "TEST:ENGINE:DHR:2026-10-26",
+    staged_payload: { kind: "EARNINGS_VERDICT", ticker: "DHR", print_date: "2026-10-21", grader: { band: "CONFIRM" }, decision: null,
+      apply: { rc_queue: null, update_row: { tab: "HOLDINGS" }, trade_ticket: null }, ...o },
+  }) as any;
+  const run = (holdings: HoldingIn[], tracker: any[], scores: any[] = []) => buildSurface({ holdings, watchlist: [], scores, earnings: [], today: TODAY, tracker });
+  it("DHR plus 12 derived cards keeps the verdict visible", () => {
+    const derived = Array.from({ length: 12 }, (_, i) => ({ ticker: `D${i}`, price: 100, alert_status: "STOP_BREACH" }) as HoldingIn);
+    const s = run(derived, [verdictRow()]);
+    expect(s.decide.some((c) => c.key === `verdict:${DHR_ID}`)).toBe(true);
+    expect(s.decide).toHaveLength(10);
+  });
+  it("apply.rc_queue set with decision null stays in DECIDE", () => {
+    const s = run([], [verdictRow({ apply: { rc_queue: { due: "2026-10-28" } } })]);
+    expect(s.decide.map((c) => c.key)).toContain(`verdict:${DHR_ID}`);
+    expect(s.prepare).toHaveLength(0);
+  });
+  it("moves to PREPARE only on ACCEPT→RC_QUEUE or PLACED", () => {
+    expect(run([], [verdictRow({ decision: { action: "ACCEPT", apply_target: "RC_QUEUE" } })]).prepare[0]?.key).toBe(`verdict:${DHR_ID}`);
+    expect(run([], [verdictRow({ decision: { action: "PLACED" } })]).prepare[0]?.key).toBe(`verdict:${DHR_ID}`);
+  });
+  it("a DHR derived hold-only / superseded card does not hide the verdict", () => {
+    const dhr: HoldingIn = { ticker: "DHR", price: 200, alert_status: "EXIT_ZONE", trigger_review_date: "2026-11-05", trigger_review_note: "2026-10-01 HOLD only through print" };
+    const s = run([dhr], [verdictRow()], [{ ticker: "DHR", irrBbSheet: 0.05 }]);
+    expect(s.decide.filter((c) => c.ticker === "DHR" && c.verdict)).toHaveLength(1);
+  });
+  it("verdict cards alone over 10 all show", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ ...verdictRow(), id: `v${i}` }));
+    expect(run([], rows).decide).toHaveLength(12);
+  });
+});
