@@ -53,6 +53,9 @@ export interface ActionItem {
   priority: ActionPriority;
   dedupe_key: string | null;
   persisted: boolean;
+  /** Earnings engine staging (read-only in the app except decision / viewed_at). */
+  apply_target?: string | null;
+  staged_payload?: any;
   /**
    * True for auto-generated staleness reviews.
    * False for event-driven items (sessions, manual, earnings, explicit triggers).
@@ -459,6 +462,8 @@ export function useActionTracker({
       resolved_at: r.resolved_at,
       priority: r.priority,
       dedupe_key: r.dedupe_key,
+      apply_target: r.apply_target ?? null,
+      staged_payload: r.staged_payload ?? null,
       persisted: true,
       // Supabase items from SESSION/MANUAL are never routine
       is_routine: false,
