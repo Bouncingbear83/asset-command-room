@@ -17,6 +17,7 @@ export type Database = {
       action_tracker: {
         Row: {
           action_type: string
+          apply_target: string | null
           context: string | null
           created_at: string
           dedupe_key: string | null
@@ -30,6 +31,7 @@ export type Database = {
           source: string | null
           source_ref: string | null
           source_session: string | null
+          staged_payload: Json | null
           status: string
           summary: string
           ticker: string | null
@@ -37,6 +39,7 @@ export type Database = {
         }
         Insert: {
           action_type: string
+          apply_target?: string | null
           context?: string | null
           created_at?: string
           dedupe_key?: string | null
@@ -50,6 +53,7 @@ export type Database = {
           source?: string | null
           source_ref?: string | null
           source_session?: string | null
+          staged_payload?: Json | null
           status?: string
           summary: string
           ticker?: string | null
@@ -57,6 +61,7 @@ export type Database = {
         }
         Update: {
           action_type?: string
+          apply_target?: string | null
           context?: string | null
           created_at?: string
           dedupe_key?: string | null
@@ -70,6 +75,7 @@ export type Database = {
           source?: string | null
           source_ref?: string | null
           source_session?: string | null
+          staged_payload?: Json | null
           status?: string
           summary?: string
           ticker?: string | null
