@@ -328,13 +328,14 @@ function parseSheetDate(val: any): string {
   return uk ? `${uk[3]}-${uk[2].padStart(2, "0")}-${uk[1].padStart(2, "0")}` : text;
 }
 
-function parseHoldings(rows: Record<string, any>[]) {
+export function parseHoldings(rows: Record<string, any>[]) {
   return rows
     .filter((row) => {
       const ticker = findCol(row, "TICKER", "ticker");
       const mvRaw = findCol(row, "MV (£)", "MV", "mv", "(£)");
       const mv = parseMv(mvRaw);
-      return ticker && String(ticker).trim() !== "" && mv > 0;
+      const shares = parseNum(findCol(row, "SHARES", "shares", "Shares"));
+      return ticker && String(ticker).trim() !== "" && (mv > 0 || (shares ?? 0) > 0);
     })
     .map((row) => ({
       ticker: String(findCol(row, "TICKER", "ticker") ?? ""),

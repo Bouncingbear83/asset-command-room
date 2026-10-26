@@ -31,6 +31,19 @@ export const EMPTY_CASH_BLOCK: CashBlock = {
 /** Range fetched for the HOLDINGS cash block. */
 export const HOLDINGS_CASH_RANGE = "A56:F65";
 
+interface HoldingPriceLike { shares?: number | null; mv?: number | null; price?: number | string | null }
+
+/** Positive-share positions missing a sheet valuation cannot make AUM/DP complete. */
+export function hasStalePrice(holding: HoldingPriceLike): boolean {
+  return (holding.shares ?? 0) > 0 &&
+    (holding.mv === 0 || holding.price == null || String(holding.price).trim() === "");
+}
+
+/** Count positions (account rows), not unique tickers. Does not alter sheet totals. */
+export function unpricedPositionCount(holdings: readonly HoldingPriceLike[]): number {
+  return holdings.filter(hasStalePrice).length;
+}
+
 function cellNum(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v !== "string") return null;

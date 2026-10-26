@@ -22,6 +22,7 @@ import VaultTab from "@/components/VaultTab";
 import AttributionTab from "@/components/AttributionTab";
 import BottleneckCoverageTab from "@/components/BottleneckCoverageTab";
 import FactSheetProvider from "@/components/factsheet/FactSheetProvider";
+import { unpricedPositionCount } from "@/lib/canonical";
 
 const TABS = [
   "Command", "Holdings", "Watchlist", "JISAs",
@@ -71,6 +72,7 @@ export default function Index() {
   const isaTotal = holdingsOk ? portfolio.isa.reduce((sum, h) => sum + (h.mv || 0), 0) + portfolio.cashIsa : null;
   // Header AUM = canonical HOLDINGS E60 (includes Bordier).
   const total = ok("holdingsCash") ? portfolio.cashBlock.aum : null;
+  const unpricedCount = ok("holdings") ? unpricedPositionCount(portfolio.holdings) : 0;
   const dataDate = portfolio.sources.holdingsCash?.dataDate ?? null;
   const k = (v: number | null) => (v == null ? "NO DATA" : `£${(v / 1000).toFixed(0)}k`);
   const gate = (keys: SourceKey[], label: string, node: React.ReactNode) =>
@@ -156,7 +158,7 @@ export default function Index() {
           <span style={s.sub}>Portfolio Command</span>
         </div>
         <div className="stellar-header-stats">
-          <div style={s.meta}>AUM<br /><span style={s.val}>{k(total)}</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}<span style={{ fontSize: 8, marginLeft: 6, opacity: 0.8 }}>· {dataDate ?? "no date"}</span></div>
+          <div style={s.meta}>AUM<br /><span style={s.val}>{k(total)}</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}<span style={{ fontSize: 8, marginLeft: 6, opacity: 0.8 }}>· {dataDate ?? "no date"}</span>{total != null && unpricedCount > 0 && <div style={{ color: "var(--amber)", fontSize: 9, letterSpacing: 0 }}>incomplete: {unpricedCount} positions unpriced</div>}</div>
           <div style={s.meta}>SIPP<br /><span style={s.val}>{k(sippTotal)}</span></div>
           <div style={s.meta}>ISA<br /><span style={s.val}>{k(isaTotal)}</span></div>
           <div style={s.meta}>TARGET<br /><span style={s.val}>15–20% PA</span></div>

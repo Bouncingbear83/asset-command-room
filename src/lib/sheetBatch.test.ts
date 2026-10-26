@@ -1,11 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { sheetGrid, sheetObjectRows, type SheetBatch } from "@/hooks/usePortfolioData";
+import { parseHoldings, sheetGrid, sheetObjectRows, type SheetBatch } from "@/hooks/usePortfolioData";
 import { parseHoldingsCashBlock } from "./canonical";
 const batch: SheetBatch = {
   status: "success", fetched_at: "2026-10-25T12:00:00.000Z", errors: {},
   ranges: { HOLDINGS_CASH: { range: "HOLDINGS!A56:F65", values: [[], [], ["CASH", "", "", "", 166677.05, 0.11393764231253767], [], ["", "", "", "", 1462879.5770830067, 1], [], ["CASH", "", "SIPP", "", 92299.83], ["", "", "ISA", "", 48300.22], ["", "", "Bordier", "", 26077], ["", "", "Total", "", 166677.05]], formatted: [] } },
 };
 describe("Apps Script batch adapter", () => {
+  it("keeps positive-share zero-MV positions instead of dropping unpriced rows", () => {
+    const rows = parseHoldings([{ ticker: "UNPRICED", shares: 10, "mv (£)": 0, price_local: null }, { ticker: "EMPTY", shares: 0, "mv (£)": 0 }]);
+    expect(rows.map(r => r.ticker)).toEqual(["UNPRICED"]);
+    expect(rows[0].price).toBeNull();
+  });
   it("HOLDINGS batch produces AUM £1,462,880", () => {
     expect(Math.round(parseHoldingsCashBlock(sheetGrid(batch.ranges.HOLDINGS_CASH)).aum ?? 0)).toBe(1462880);
   });

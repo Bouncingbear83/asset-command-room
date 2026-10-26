@@ -15,6 +15,7 @@ import BenchmarkStrip from "@/components/command/BenchmarkStrip";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
 import ScheduledReviewsCard from "@/components/ScheduledReviewsCard";
+import { unpricedPositionCount } from "@/lib/canonical";
 
 const SIGNAL_KEYS = ["VIX", "SP500_YTD_PCT", "GOLD_USD", "PAUSE_ACTIVE", "EARNINGS_BLACKOUT"] as const;
 const SIGNAL_LABELS: Record<(typeof SIGNAL_KEYS)[number], string> = {
@@ -189,6 +190,7 @@ export default function CommandTab() {
         cashGbp={cashGbp}
         aum={canonAum}
         dpPct={dpPct}
+        unpricedCount={sources.holdings.status === "ok" ? unpricedPositionCount(holdings) : 0}
         isMobile={isMobile}
       />
 

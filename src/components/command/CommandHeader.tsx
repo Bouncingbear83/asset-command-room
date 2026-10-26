@@ -37,6 +37,7 @@ interface Props {
   aum: number | null;
   /** Canonical HOLDINGS F58 as percent; null = source failed. */
   dpPct: number | null;
+  unpricedCount: number;
   isMobile: boolean;
 }
 
@@ -82,7 +83,7 @@ export function computeDpPct(layers: { name: string; mv: number }[], cashGbp: nu
   return (cashGbp / denom) * 100;
 }
 
-export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, isMobile }: Props) {
+export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, unpricedCount, isMobile }: Props) {
   const risk = deriveRiskCounts(riskControls);
   const macro = deriveMacroCounts(macroState);
 
@@ -161,6 +162,7 @@ export default function CommandHeader({ riskControls, macroState, cashGbp, aum, 
         {/* AUM + Cash */}
         <span style={{ ...chipBase, color: "var(--text-mid)", marginLeft: "auto" }}>
           {aum == null ? "NO DATA" : formatCurrency(aum)} AUM
+          {aum != null && unpricedCount > 0 && <span style={{ display: "block", color: "var(--amber)", whiteSpace: "normal", letterSpacing: 0 }}>incomplete: {unpricedCount} positions unpriced</span>}
         </span>
         <span style={{ ...chipBase, color: cashGbp == null ? "var(--red)" : cashGbp > 20_000 ? "var(--green)" : "var(--amber)" }}>
           {cashGbp == null ? "NO DATA" : formatCurrency(cashGbp)} cash
@@ -175,6 +177,7 @@ export default function CommandHeader({ riskControls, macroState, cashGbp, aum, 
               style={{ ...chipBase, color: inBand ? "var(--green)" : "var(--amber)", background: inBand ? "var(--green-dim)" : "var(--amber-dim)" }}
             >
               DP {dp.toFixed(1)}%
+              {unpricedCount > 0 && <span style={{ display: "block", whiteSpace: "normal", letterSpacing: 0 }}>incomplete: {unpricedCount} positions unpriced</span>}
             </span>
           );
         })()}
