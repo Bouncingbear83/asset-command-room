@@ -6,6 +6,7 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { currenciesMatch, isSuspectMove, moverCurrencySymbol } from "@/lib/moverSafety";
 import { shortName } from "@/components/shared/TickerLabel";
 
 type Period = "1D" | "1W" | "1M";
@@ -49,6 +50,9 @@ interface MoverRow {
   sparkPoints: { date: string; priceLocal: number; priceGbp: number }[] | null;
   sparkColor: "green" | "red" | "neutral";
   entry?: string;
+  suspect?: boolean;
+  liveSymbol?: string;
+  sheetPrice?: number | null;
 }
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
@@ -99,7 +103,8 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
     ].filter(Boolean))),
     [holdings, watchlistTickerList],
   );
-  const { prices: livePrices } = useLivePrices(allTickerList);
+  const currencies = useMemo(() => Object.fromEntries([...watchlist.map(w => [normaliseTicker(w.ticker), w.currency]), ...holdings.map(h => [normaliseTicker(h.ticker), h.currency])]), [holdings, watchlist]);
+  const { prices: livePrices } = useLivePrices(allTickerList, currencies);
 
   const earningsTickers = useMemo(() => {
     const set = new Set<string>();
@@ -123,14 +128,15 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         if (idx >= 0) out.splice(idx, 1);
       }
       seen.add(key);
-      const lp = livePrices[normaliseTicker(h.ticker)];
+      const quote = livePrices[normaliseTicker(h.ticker)];
+      const lp = quote && currenciesMatch(quote.currency, h.currency) ? quote : undefined;
       const displayPrice = lp?.price ?? h.price;
       if (lp == null && h.prevClose != null && h.price === h.prevClose) return;
 
       const isBordier = String(h.account || "").toUpperCase().replace(/[^A-Z]/g, "").startsWith("BORDIER");
       const pd = priceData?.get(normaliseTicker(h.ticker));
 
-      let change = lp?.changePercent ?? h.day ?? 0;
+      let change = lp?.changePercent ?? (h.prevClose != null && h.prevClose > 0 ? ((h.price - h.prevClose) / h.prevClose) * 100 : h.day ?? 0);
       if (period === "1W" && pd && pd.points.length >= 5) {
         const prev = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
         const latest = pd.points[pd.points.length - 1]?.priceLocal;
@@ -150,7 +156,7 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
 
       out.push({
         ticker: h.ticker, name: h.name || "", price: displayPrice, change, mv: h.mv || 0, currency: h.currency,
-        isWatchlist: false, isBordier, flags,
+        isWatchlist: false, isBordier, flags, liveSymbol: quote?.symbol, sheetPrice: h.price,
         sparkPoints: pd && pd.points.length >= 5 ? pd.points : null,
         sparkColor: pd?.sparklineColor ?? (change >= 0 ? "green" : "red"),
       });
@@ -166,7 +172,8 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       const traj = wlHistory[key];
 
       const sheetPrice = typeof w.current === "number" && w.current > 0 ? w.current : null;
-      const lp = livePrices[key];
+      const quote = livePrices[normaliseTicker(w.ticker)];
+      const lp = quote && currenciesMatch(quote.currency, w.currency) ? quote : undefined;
 
       // Latest history close: for WL items prefer watchlist_price_history (traj)
       // over daily_prices (pd), since pd may contain stale entries from when
@@ -226,11 +233,11 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
         mv: 0, currency: w.currency || "USD",
         isWatchlist: true, isBordier: false, flags, sparkPoints,
         sparkColor: pd?.sparklineColor ?? (change == null ? "neutral" : change >= 0 ? "green" : "red"),
-        entry: w.entry,
+        entry: w.entry, liveSymbol: quote?.symbol, sheetPrice,
       });
     });
 
-    return out;
+    return out.map(row => ({ ...row, suspect: isSuspectMove(row.change, period) }));
   }, [holdings, watchlist, priceData, wlHistory, livePrices, earningsTickers, period, ZONE_THRESHOLD]);
 
   // Apply scope + region filters
@@ -243,12 +250,13 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
   }, [rows, scope, region]);
 
   // Split into winners/losers/no-data, each sorted by absolute change desc
-  const winners = useMemo(() => filtered.filter((r) => r.change != null && r.change > 0).sort((a, b) => (b.change as number) - (a.change as number)), [filtered]);
-  const losers = useMemo(() => filtered.filter((r) => r.change != null && r.change <= 0).sort((a, b) => (a.change as number) - (b.change as number)), [filtered]);
+  const winners = useMemo(() => filtered.filter((r) => !r.suspect && r.change != null && r.change > 0).sort((a, b) => (b.change as number) - (a.change as number)), [filtered]);
+  const losers = useMemo(() => filtered.filter((r) => !r.suspect && r.change != null && r.change <= 0).sort((a, b) => (a.change as number) - (b.change as number)), [filtered]);
+  const suspects = useMemo(() => filtered.filter(r => r.suspect), [filtered]);
   const noData = useMemo(() => filtered.filter((r) => r.change == null), [filtered]);
 
-  const upCount = filtered.filter((r) => r.change != null && r.change > 0).length;
-  const downCount = filtered.filter((r) => r.change != null && r.change <= 0).length;
+  const upCount = filtered.filter((r) => !r.suspect && r.change != null && r.change > 0).length;
+  const downCount = filtered.filter((r) => !r.suspect && r.change != null && r.change <= 0).length;
 
   const segBase: React.CSSProperties = {
     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.1em",
@@ -260,8 +268,9 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
   };
 
 const renderRow = (m: MoverRow) => {
-    const sym = m.currency === "GBP" || m.currency === "GBX" ? "£" : m.currency === "EUR" ? "€" : m.currency === "SEK" ? "kr" : m.currency === "JPY" ? "¥" : "$";
+    const sym = moverCurrencySymbol(m.currency);
     const priceStr = `${sym}${m.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    const suspectBadge = m.suspect ? <span title={`Live symbol: ${m.liveSymbol ?? "none (sheet/history)"}; sheet price: ${sym}${m.sheetPrice ?? "—"}`} style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 8 }}>SUSPECT</span> : null;
     const hasSpark = !!m.sparkPoints;
     const isJpn = IS_NUMERIC.test(m.ticker) && m.name;
 
@@ -286,14 +295,15 @@ const renderRow = (m: MoverRow) => {
                 </span>
               )}
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
+              {suspectBadge}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)" }}>{priceStr}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", minWidth: 60, textAlign: "right" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.suspect || m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", minWidth: 60, textAlign: "right" }}>
                 {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
               </span>
-              {hasSpark && <Sparkline points={m.sparkPoints!} color={m.sparkColor} width={80} height={18} />}
+              {hasSpark && <Sparkline points={m.sparkPoints ?? []} color={m.sparkColor} width={80} height={18} />}
             </div>
           </>
         ) : (
@@ -308,13 +318,14 @@ const renderRow = (m: MoverRow) => {
                 </span>
               )}
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1, flexShrink: 0 }}>WL</span>}
+              {suspectBadge}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2, flexShrink: 0 }}>{s.label}</span> : null; })}
             </div>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>{priceStr}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: m.suspect || m.change == null ? "var(--text-dim)" : m.change >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", paddingRight: 10 }}>
               {m.change == null ? "—" : `${m.change >= 0 ? "+" : ""}${m.change.toFixed(2)}%`}
             </span>
-            {hasSpark ? <Sparkline points={m.sparkPoints!} color={m.sparkColor} width={90} height={22} /> : <span />}
+            {hasSpark ? <Sparkline points={m.sparkPoints ?? []} color={m.sparkColor} width={90} height={22} /> : <span />}
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {m.isWatchlist && m.entry ? `@ ${m.entry}` : m.mv > 0 ? formatCurrency(m.mv) : ""}
             </span>
@@ -386,6 +397,7 @@ const renderRow = (m: MoverRow) => {
                 {losers.map(renderRow)}
               </>
             )}
+            {suspects.length > 0 && <>{sectionLabel("Suspect", suspects.length, "var(--text-dim)")}{suspects.map(renderRow)}</>}
             {noData.length > 0 && (
               <>
                 {sectionLabel("No Δ data", noData.length, "var(--text-dim)")}

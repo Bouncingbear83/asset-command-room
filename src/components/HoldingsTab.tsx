@@ -288,7 +288,8 @@ function UnifiedView({
     () => Array.from(new Set(allHoldings.map(h => normaliseTicker(h.ticker)).filter(Boolean))),
     [allHoldings],
   );
-  const { prices: livePrices } = useLivePrices(holdingsTickers);
+  const holdingsCurrencies = useMemo(() => Object.fromEntries(allHoldings.map(h => [normaliseTicker(h.ticker), h.currency])), [allHoldings]);
+  const { prices: livePrices } = useLivePrices(holdingsTickers, holdingsCurrencies);
 
   // Case-insensitive score lookup
   const scoreByTicker = useMemo(() => {

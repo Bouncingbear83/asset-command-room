@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { currenciesMatch } from "@/lib/moverSafety";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface LivePrice {
   price: number;
+  symbol?: string;
   currency: string;
   marketTime: number;
   marketState: string;
@@ -26,7 +28,7 @@ let cacheRef: { key: string; ts: number; data: LivePriceMap; fetchedAt: string }
  * Fetches live prices for the given tickers via the live-prices edge function.
  * Client-side cache: 5 minutes. Skips fetch if tickers array is empty.
  */
-export function useLivePrices(tickers: string[]): State {
+export function useLivePrices(tickers: string[], currencies: Record<string, string> = {}): State {
   const [state, setState] = useState<State>({
     prices: {},
     loading: true,
@@ -35,7 +37,7 @@ export function useLivePrices(tickers: string[]): State {
   });
 
   const key = tickers
-    .map((t) => t.trim().toUpperCase())
+    .map((t) => `${t.trim().toUpperCase()}:${currencies[t.trim().toUpperCase()] ?? ""}`)
     .filter(Boolean)
     .sort()
     .join(",");
@@ -66,7 +68,9 @@ export function useLivePrices(tickers: string[]): State {
 
     (async () => {
       try {
-        const allTickers = key.split(",");
+        const entries = key.split(",").map((entry) => entry.split(":"));
+        const currencyMap = Object.fromEntries(entries);
+        const allTickers = entries.map(([ticker]) => ticker);
         const BATCH_SIZE = 20;
         const batches: string[][] = [];
         for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
@@ -76,7 +80,7 @@ export function useLivePrices(tickers: string[]): State {
         const results = await Promise.allSettled(
           batches.map(async (batch) => {
             try {
-              return await supabase.functions.invoke("live-prices", { body: { tickers: batch } });
+              return await supabase.functions.invoke("live-prices", { body: { tickers: batch, currencies: Object.fromEntries(batch.map(t => [t, currencyMap[t]])) } });
             } catch (e) {
               console.error("[useLivePrices] batch invoke threw:", e);
               return { data: null, error: e as any };
@@ -105,7 +109,7 @@ export function useLivePrices(tickers: string[]): State {
           }
           const prices: LivePriceMap = data?.prices ?? {};
           for (const [k, v] of Object.entries(prices)) {
-            normalised[k.toUpperCase()] = v as LivePrice;
+            if (currenciesMatch(v.currency, currencyMap[k.toUpperCase()])) normalised[k.toUpperCase()] = v as LivePrice;
           }
           if (data?.fetchedAt) fetchedAt = data.fetchedAt;
           if (data?.errors?.length) errors.push(...data.errors);
