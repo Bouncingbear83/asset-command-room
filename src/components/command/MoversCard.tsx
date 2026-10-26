@@ -6,7 +6,7 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 import { Sparkline } from "@/components/Sparkline";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { currenciesMatch, isSuspectMove, moverCurrencySymbol } from "@/lib/moverSafety";
+import { currenciesMatch, isSuspectMove, moverCurrencySymbol, holdingSheetQuote } from "@/lib/moverSafety";
 import { shortName } from "@/components/shared/TickerLabel";
 
 type Period = "1D" | "1W" | "1M";
@@ -130,13 +130,16 @@ export default function MoversCard({ holdings, watchlist, earnings }: Props) {
       seen.add(key);
       const quote = livePrices[normaliseTicker(h.ticker)];
       const lp = quote && currenciesMatch(quote.currency, h.currency) ? quote : undefined;
-      const displayPrice = lp?.price ?? h.price;
-      if (lp == null && h.prevClose != null && h.price === h.prevClose) return;
+      // Held prices/1D stay paired with HOLDINGS' own close; Yahoo snapshot anchors
+      // are intentionally untouched and may refer to a different sheet session.
+      const sheetQuote = holdingSheetQuote(h.price, h.prevClose, h.day ?? 0);
+      const displayPrice = sheetQuote.price;
+      if (lp == null && h.prevClose != null && h.price === h.prevClose && !["GAM", "WINTON"].includes(key)) return;
 
       const isBordier = String(h.account || "").toUpperCase().replace(/[^A-Z]/g, "").startsWith("BORDIER");
       const pd = priceData?.get(normaliseTicker(h.ticker));
 
-      let change = lp?.changePercent ?? (h.prevClose != null && h.prevClose > 0 ? ((h.price - h.prevClose) / h.prevClose) * 100 : h.day ?? 0);
+      let change = sheetQuote.change;
       if (period === "1W" && pd && pd.points.length >= 5) {
         const prev = pd.points[Math.max(0, pd.points.length - 6)]?.priceLocal;
         const latest = pd.points[pd.points.length - 1]?.priceLocal;

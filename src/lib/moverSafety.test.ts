@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toYahooSymbol } from "../../supabase/functions/live-prices/contract";
-import { currenciesMatch, isSuspectMove, moverCurrencySymbol } from "./moverSafety";
+import { currenciesMatch, isSuspectMove, moverCurrencySymbol, holdingSheetQuote } from "./moverSafety";
 
 describe("safe live symbol resolution", () => {
   it("resolves INR in AUD to the Australian listing", () => expect(toYahooSymbol("INR", new Map(), "AUD")).toEqual({ symbol: "INR.AX", skip: false }));
@@ -21,4 +21,10 @@ describe("suspect ranking boundaries", () => {
   it("1D excludes moves above 25%, not the boundary", () => { expect(isSuspectMove(25, "1D")).toBe(false); expect(isSuspectMove(-25.01, "1D")).toBe(true); });
   it("1W excludes moves above 40%, not the boundary", () => { expect(isSuspectMove(-40, "1W")).toBe(false); expect(isSuspectMove(40.01, "1W")).toBe(true); });
   it("1M excludes moves above 60%, not the boundary", () => { expect(isSuspectMove(60, "1M")).toBe(false); expect(isSuspectMove(-60.01, "1M")).toBe(true); });
+});
+describe("held prices stay aligned with the sheet", () => {
+  it("INR uses A$0.10 and +11.11% from the 0.09 sheet close", () => { const q = holdingSheetQuote(0.1, 0.09, 11.11); expect(q.price).toBe(0.1); expect(q.change).toBeCloseTo(11.111111); });
+  it("AMG uses EUR22.74 and a zero day move", () => expect(holdingSheetQuote(22.74, 22.74, 0)).toEqual({ price: 22.74, change: 0 }));
+  it("GAM uses GBP22.30 and a zero day move", () => expect(holdingSheetQuote(22.3, 22.3, 0)).toEqual({ price: 22.3, change: 0 }));
+  it("ALM uses USD8.86 and +1.257% from the 8.75 sheet close", () => { const q = holdingSheetQuote(8.86, 8.75, 1.257); expect(q.price).toBe(8.86); expect(q.change).toBeCloseTo(1.257142); });
 });

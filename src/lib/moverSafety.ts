@@ -2,6 +2,9 @@
 export { currenciesMatch, currencyUnit } from "../../supabase/functions/live-prices/contract";
 
 export type MoverPeriod = "1D" | "1W" | "1M";
+export function holdingSheetQuote(price: number, previousClose: number | null, day: number): { price: number; change: number } {
+  return { price, change: previousClose != null && previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : day };
+}
 export const SUSPECT_LIMITS: Record<MoverPeriod, number> = { "1D": 25, "1W": 40, "1M": 60 };
 export function isSuspectMove(change: number | null, period: MoverPeriod): boolean {
   return change != null && (!Number.isFinite(change) || Math.abs(change) > SUSPECT_LIMITS[period]);
