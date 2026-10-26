@@ -7,7 +7,29 @@ import {
   acceptPreview, adjacentBands, applyResultState, bandOf, buildAcceptRequest, DISMISS_BANDS, editBody,
   orderedLimbs, updateRowFor, validateEdit, type ApplyUiState,
 } from "@/lib/earningsVerdict";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useEffect } from "react";
+
+function Drawer({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div role="dialog" aria-modal="true" aria-label={title} style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", justifyContent: "flex-end" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(4,4,10,0.7)" }} />
+      <div style={{ position: "relative", width: "min(440px, 100vw)", height: "100%", background: "var(--panel)", borderLeft: "1px solid var(--rim)", overflowY: "auto", padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold)" }}>{title}</div>
+          <button aria-label="Close" onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 const mono = (size: number, color = "var(--text-mid)"): React.CSSProperties => ({ fontFamily: "var(--font-mono)", fontSize: size, color });
 const BAND_COLOR: Record<string, string> = { KILL: "var(--red)", RED: "var(--red)", AMBER: "var(--amber)", CONFIRM: "var(--green)" };
@@ -121,9 +143,7 @@ export default function EarningsVerdictCard({ c, heldShares, onChanged }: Props)
         )}
       </div>
 
-      <Sheet open={editOpen} onOpenChange={setEditOpen}>
-        <SheetContent style={{ background: "var(--panel)", borderLeft: "1px solid var(--rim)", overflowY: "auto" }}>
-          <SheetHeader><SheetTitle style={mono(12, "var(--gold)")}>Edit {c.ticker} · {staged}</SheetTitle></SheetHeader>
+      <Drawer open={editOpen} onClose={() => setEditOpen(false)} title={`Edit ${c.ticker} · ${staged}`}>
           <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
             <label style={mono(9, "var(--text-dim)")}>Band (one step)</label>
             <div style={{ display: "flex", gap: 6 }}>
@@ -151,12 +171,9 @@ export default function EarningsVerdictCard({ c, heldShares, onChanged }: Props)
               <button disabled={busy || !!editError || ui.acceptDisabled} onClick={() => void submitEdit()} style={btn("var(--green)")}>Apply edit</button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+      </Drawer>
 
-      <Sheet open={dismissOpen} onOpenChange={setDismissOpen}>
-        <SheetContent style={{ background: "var(--panel)", borderLeft: "1px solid var(--rim)" }}>
-          <SheetHeader><SheetTitle style={mono(12, "var(--gold)")}>Dismiss {c.ticker}</SheetTitle></SheetHeader>
+      <Drawer open={dismissOpen} onClose={() => setDismissOpen(false)} title={`Dismiss ${c.ticker}`}>
           <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
             <label style={mono(9, "var(--text-dim)")}>Final band</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -166,8 +183,7 @@ export default function EarningsVerdictCard({ c, heldShares, onChanged }: Props)
             <textarea value={dismiss.reason} onChange={(e) => setDismiss({ ...dismiss, reason: e.target.value })} style={{ ...field, minHeight: 60 }} />
             <button disabled={busy || !dismiss.reason.trim()} onClick={() => void submitDismiss()} style={{ ...btn("var(--text-dim)"), justifySelf: "end" }}>Dismiss</button>
           </div>
-        </SheetContent>
-      </Sheet>
+      </Drawer>
     </div>
   );
 }
