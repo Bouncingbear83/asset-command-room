@@ -135,10 +135,10 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
           <select style={selectStyle} value={deepDiveTarget} onChange={(e) => setDeepDiveTarget(e.target.value)}>
             <option value="">Select ticker…</option>
             <optgroup label="Holdings">
-              {tickers.map((t) => <option key={`h-${t}`} value={t}>{t}</option>)}
+              {tickers.map((t) => <option key={`h-${t}`} value={t}>{nameText(t)}</option>)}
             </optgroup>
             <optgroup label="Watchlist">
-              {watchlistTickers.filter((t) => !tickers.includes(t)).map((t) => <option key={`w-${t}`} value={t}>{t}</option>)}
+              {watchlistTickers.filter((t) => !tickers.includes(t)).map((t) => <option key={`w-${t}`} value={t}>{nameText(t)}</option>)}
             </optgroup>
           </select>
           <button disabled={!deepDiveTarget} onClick={handleDeepDive} style={{ ...fireStyle, background: "var(--accent)", opacity: deepDiveTarget ? 1 : 0.4 }}>Open</button>
