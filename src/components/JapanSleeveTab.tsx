@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
-import { TickerLabel } from "@/components/shared/TickerLabel";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import type { LiveHolding, LiveScore, LiveWatchItem } from "@/hooks/usePortfolioData";
 
 interface JapanSleeveTabProps {
@@ -143,7 +143,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
 
       {stalePositions.length > 0 && (
         <div style={s.staleBanner}>
-          ⚠ Manual price refresh required for {stalePositions.map((p) => p.ticker).join(", ")}
+          ⚠ Manual price refresh required for <NamedText text={stalePositions.map((p) => p.ticker).join(", ")} />
         </div>
       )}
 
@@ -272,7 +272,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                 <div style={{ marginTop: 6 }}>
                   {failingCriterion.length === 0
                     ? <span style={{ color: "var(--green)", fontFamily: "var(--font-mono)", fontSize: 11 }}>✓ All positions pass</span>
-                    : <span style={{ color: "var(--red)", fontFamily: "var(--font-mono)", fontSize: 11 }}>✗ Failing: {failingCriterion.map((p) => p.ticker).join(", ")}</span>}
+                    : <span style={{ color: "var(--red)", fontFamily: "var(--font-mono)", fontSize: 11 }}>✗ Failing: <NamedText text={failingCriterion.map((p) => p.ticker).join(", ")} /></span>}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

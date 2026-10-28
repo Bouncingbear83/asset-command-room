@@ -362,7 +362,7 @@ function RecentSessionRow({ note }: { note: VaultNote }) {
         </div>
         {tickers.length > 0 && (
           <div style={{ ...mono9, color: "var(--text-dim)", marginBottom: 4, marginLeft: 22 }}>
-            {tickers.join(" · ")}
+            <NamedText text={tickers.join(" · ")} />
           </div>
         )}
       </button>

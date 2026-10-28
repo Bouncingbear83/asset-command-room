@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { TickerLabel } from "@/components/shared/TickerLabel";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem } from "@/hooks/usePortfolioData";
@@ -1291,7 +1291,7 @@ export default function HoldingsTab({ sipp, isa, bordier = [], disruption = [], 
                   Pinned · {state.tickers.length} ticker{state.tickers.length > 1 ? "s" : ""}
                 </span>
                 <span style={{ color: "var(--text-mid)", textTransform: "none", letterSpacing: 0 }}>
-                  {state.tickers.slice(0, 8).join(", ")}
+                  <NamedText text={state.tickers.slice(0, 8).join(", ")} />
                   {state.tickers.length > 8 ? `, +${state.tickers.length - 8} more` : ""}
                 </span>
                 <button
