@@ -4,6 +4,7 @@ import {
   buildDeadSet, holdAlert, isAutomationNote, isSuperseded, routeTrackerRow, type Lane,
 } from "@/lib/actionSurface";
 import { EARNINGS_PREPARE_DAYS } from "@/config/signalRules";
+import { evaluateRoutine, BACKSTOP_DAYS, COVER_AHEAD_DAYS } from "@/lib/routineReview";
 import type {
   LiveHolding,
   LiveWatchItem,
@@ -226,6 +227,34 @@ export function useActionTracker({
     return m;
   }, [scores]);
 
+  // R15b inputs: every known print date per ticker (past and future) and the
+  // latest accepted earnings verdict per ticker.
+  const printDatesByTicker = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const e of earnings) {
+      const t = String(e.ticker ?? "").trim().toUpperCase();
+      if (!t) continue;
+      const arr = m.get(t) ?? [];
+      const d = toDateISO(e.nextEarningsDate);
+      if (d) arr.push(d);
+      m.set(t, arr);
+    }
+    return m;
+  }, [earnings]);
+
+  const acceptedVerdictByTicker = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) {
+      if (r.status !== "CONFIRMED" || !r.resolved_at) continue;
+      const k = String(r.dedupe_key ?? "");
+      if (!/^AUTO:[^:]+:VERDICT:/.test(k)) continue;
+      const t = String(r.ticker ?? "").trim().toUpperCase();
+      const d = String(r.resolved_at).slice(0, 10);
+      if (t && (!m.has(t) || d > m.get(t)!)) m.set(t, d);
+    }
+    return m;
+  }, [rows]);
+
   // ── Sheet-derived items (SELECTIVE) ──
   const sheetItems: ActionItem[] = useMemo(() => {
     const out: ActionItem[] = [];
@@ -261,12 +290,23 @@ export function useActionTracker({
 
       if (!lastReview) continue;
 
-      const daysSince = daysBetween(lastReview, today);
-      if (daysSince < cadence) continue; // not yet stale
+      // R15b: print-aware staleness (src/lib/routineReview.ts)
+      const rr = evaluateRoutine({
+        today,
+        cadence,
+        scoreDate: lastReview,
+        printDates: printDatesByTicker.get(ticker) ?? [],
+        hasCalendarRow: printDatesByTicker.has(ticker),
+        lastAcceptedVerdict: acceptedVerdictByTicker.get(ticker) ?? null,
+      });
+      if (rr.outcome !== "DUE" && rr.outcome !== "BACKSTOP") continue;
+      const isBackstop = rr.outcome === "BACKSTOP";
+      const reviewFrom = isBackstop ? lastReview : rr.lastReview ?? lastReview;
+      const daysSince = daysBetween(reviewFrom, today);
 
       // Compute when the review became due
-      const dueDate = new Date(lastReview);
-      dueDate.setDate(dueDate.getDate() + cadence);
+      const dueDate = new Date(reviewFrom);
+      dueDate.setDate(dueDate.getDate() + (isBackstop ? BACKSTOP_DAYS : cadence));
       const dueDateStr = dueDate.toISOString().slice(0, 10);
 
       // Dedup key by ticker + month (one routine review per ticker per month)
@@ -275,7 +315,8 @@ export function useActionTracker({
 
       const isHeld = held.has(ticker);
       const isVeryStale = daysSince > cadence * 2;
-      const priority: ActionPriority = isHeld && isVeryStale ? "HIGH" : isHeld ? "MEDIUM" : "LOW";
+      const priority: ActionPriority =
+        isBackstop || (isHeld && isVeryStale) ? "HIGH" : isHeld ? "MEDIUM" : "LOW";
 
       const scoreStr = sc.score != null ? `Score ${sc.score}/100. ` : "";
       const statusLabel = normStatus(status).replace(/([A-Z])/g, " $1").trim();
@@ -287,8 +328,12 @@ export function useActionTracker({
         layer: sc.layer || wl?.layer || null,
         action_type: "REVIEW_DUE",
         due_date: dueDateStr,
-        summary: `Routine review: last scored ${daysSince}d ago`,
-        context: `${scoreStr}${cadence}d cadence for ${statusLabel} names. Last review: ${lastReview}.`,
+        summary: isBackstop
+          ? `Backstop: score ${daysSince}d old (>${BACKSTOP_DAYS}d); full rescore owed`
+          : `Routine review: last reviewed ${daysSince}d ago`,
+        context: isBackstop
+          ? `${scoreStr}Score predates two prints. Rescore at the next print regardless of band (R15b).`
+          : `${scoreStr}${cadence}d cadence for ${statusLabel} names; no print within ${COVER_AHEAD_DAYS}d. Last review: ${reviewFrom}.`,
         source: "SCORES",
         source_ref: null,
         status: "OPEN",
@@ -428,7 +473,7 @@ export function useActionTracker({
     }
 
     return out;
-  }, [watchlist, holdings, earnings, held, scoreMap, watchMap, dead, scoreIrr]);
+  }, [watchlist, holdings, earnings, held, scoreMap, watchMap, dead, scoreIrr, printDatesByTicker, acceptedVerdictByTicker]);
 
   const knownTickers = useMemo(() => new Set<string>([
     ...holdings.map((h) => (h.ticker || "").toUpperCase()),
