@@ -34,8 +34,11 @@ export function TickerLabel({ ticker, name, clickable, plain, style }: TickerLab
   let label: JSX.Element;
   if (!isNumeric) {
     label = plain && !style ? <>{code}</> : <span style={baseStyle}>{code}</span>;
+  } else if (!resolved && names.size === 0) {
+    // Names not loaded yet: show the code without the warning dot.
+    label = <span style={baseStyle}>{code}</span>;
   } else if (!resolved) {
-    if (names.size > 0) warnMissingName(code);
+    warnMissingName(code);
     label = (
       <span style={baseStyle}>
         {code}
