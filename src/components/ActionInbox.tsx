@@ -183,7 +183,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
             {c.ticker && c.ticker !== "G(m)" ? (
               <TickerButton ticker={c.ticker} style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}><TickerLabel ticker={c.ticker} plain /></TickerButton>
             ) : (
-              <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker || "—"}</span>
+              <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker ? <TickerLabel ticker={c.ticker} plain /> : "—"}</span>
             )}
             {c.accounts.length > 0 && <span style={{ ...mono(8, "var(--text-dim)"), letterSpacing: "0.1em" }}>{c.accounts.join(" · ")}</span>}
           </div>
@@ -249,7 +249,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
                 return (
                   <div key={c.key} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "80px 70px 1fr", gap: 10, padding: "4px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", alignItems: "baseline" }}>
                     <span style={mono(10, "var(--text-dim)")}>{c.next_review ?? "—"}</span>
-                    <span style={{ ...mono(11, "var(--gold)"), fontWeight: 700 }}>{c.ticker || "—"}</span>
+                    <span style={{ ...mono(11, "var(--gold)"), fontWeight: 700 }}>{c.ticker ? <TickerLabel ticker={c.ticker} plain /> : "—"}</span>
                     <span style={mono(10)}>
                       <NamedText text={c.title} />
                       {needsTest && (c.gate_test
