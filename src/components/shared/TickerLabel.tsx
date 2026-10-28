@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { NUMERIC_TICKER, shortName } from "@/lib/tickerName";
-import { useTickerNames, warnMissingName } from "@/hooks/useTickerNames";
+import { useTickerNames, warnMissingName, withNames } from "@/hooks/useTickerNames";
 import { normaliseTicker } from "@/lib/tickerAlias";
 
 /** @deprecated import NUMERIC_TICKER from "@/lib/tickerName". */
@@ -58,3 +58,9 @@ export function TickerLabel({ ticker, name, clickable, plain, style }: TickerLab
 }
 
 export { shortName, IS_NUMERIC_TICKER };
+
+/** Free text with every bare numeric code rewritten to "Company (code)". */
+export function NamedText({ text }: { text: string | null | undefined }) {
+  const names = useTickerNames();
+  return <>{withNames(text, names)}</>;
+}
