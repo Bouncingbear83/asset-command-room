@@ -228,12 +228,12 @@ function BarTooltip({ active, payload }: any) {
       )}
       {d.top_contributor && (
         <div style={{ color: "var(--green)", marginTop: 2 }}>
-          Best: {d.top_contributor}
+          Best: <TickerLabel ticker={d.top_contributor} plain />
         </div>
       )}
       {d.bottom_contributor && (
         <div style={{ color: "var(--red)" }}>
-          Worst: {d.bottom_contributor}
+          Worst: <TickerLabel ticker={d.bottom_contributor} plain />
         </div>
       )}
     </div>
@@ -694,7 +694,7 @@ export default function AttributionTab() {
                           fontSize: 10,
                         }}
                       >
-                        {row.top_contributor || "\u2014"}
+                        {row.top_contributor ? <TickerLabel ticker={row.top_contributor} plain /> : "\u2014"}
                       </td>
                       <td
                         style={{
@@ -705,7 +705,7 @@ export default function AttributionTab() {
                           fontSize: 10,
                         }}
                       >
-                        {row.bottom_contributor || "\u2014"}
+                        {row.bottom_contributor ? <TickerLabel ticker={row.bottom_contributor} plain /> : "\u2014"}
                       </td>
                     </tr>
                   );
