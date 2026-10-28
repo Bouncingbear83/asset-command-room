@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TickerLabel } from "@/components/shared/TickerLabel";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { supabase } from "@/integrations/supabase/client";
 import { proxyWebhook } from "@/lib/ownerFunction";
 import { openVaultNote } from "@/lib/navigate";
@@ -119,7 +119,7 @@ export default function EarningsVerdictCard({ c, heldShares, onChanged }: Props)
         ))}
       </div>
 
-      {sp?.band_action && <div style={mono(11, "var(--text-mid)")}>{sp.band_action}</div>}
+      {sp?.band_action && <div style={mono(11, "var(--text-mid)")}><NamedText text={sp.band_action} /></div>}
       <div style={mono(10, "var(--text-dim)")}>What Accept does: <span style={{ color: "var(--text-mid)" }}>{acceptPreview({ id: v.id, apply_target: v.apply_target, staged_payload: sp })}</span></div>
 
       <div style={{ display: "flex", gap: 12, ...mono(9, "var(--gold)") }}>

@@ -3,6 +3,7 @@
  * Holdings inline view: ticker EVOLUTION via score_rationales (every score commit).
  */
 import { useState, useEffect, useMemo } from "react";
+import { NamedText } from "@/components/shared/TickerLabel";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useVaultNote, useVaultNotes, useVaultBacklinks, useVaultNotesByPaths, VaultNote,
@@ -148,7 +149,7 @@ function ScoreHistoryRow({ entry, prevScore }: { entry: ScoreHistoryEntry; prevS
           {entry.thesis_summary && (
             <div>
               <div style={{ ...mono9, color: "var(--text-dim)", marginBottom: 4 }}>THESIS AT TIME</div>
-              <div style={{ ...bodyText, fontSize: 10 }}>{tidyMarkdown(entry.thesis_summary)}</div>
+              <div style={{ ...bodyText, fontSize: 10 }}><NamedText text={tidyMarkdown(entry.thesis_summary)} /></div>
             </div>
           )}
           {entry.scored_by && (

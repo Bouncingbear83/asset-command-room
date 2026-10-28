@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { TickerLabel } from "@/components/shared/TickerLabel";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import type { ActionItem as Item } from "./useActionTracker";
 
@@ -142,7 +142,7 @@ export default function ActionItemRow({ item, onResolve, onSnooze, onReopen, onD
               minWidth: 0,
             }}
           >
-            {item.summary}
+            <NamedText text={item.summary} />
           </span>
           <span style={chipStyle(badge.color)}>{badge.label}</span>
           <span style={chipStyle(TYPE_COLORS[item.action_type] || "var(--text-dim)")}>
@@ -291,7 +291,7 @@ export default function ActionItemRow({ item, onResolve, onSnooze, onReopen, onD
               color: "var(--text-mid)",
             }}
           >
-            {item.context}
+            <NamedText text={item.context} />
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TickerLabel } from "@/components/shared/TickerLabel";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { toast } from "sonner";
 import { useNarrativeSignals, NarrativeSignal } from "@/hooks/useNarrativeSignals";
 
@@ -190,7 +190,7 @@ function SignalRow({
           }}
           title={signal.headline}
         >
-          {signal.headline}
+          <NamedText text={signal.headline} />
         </div>
       )}
 
@@ -221,7 +221,7 @@ function SignalRow({
                 borderRadius: 2,
               }}
             >
-              {signal.snippet}
+              <NamedText text={signal.snippet} />
             </div>
           )}
         </div>

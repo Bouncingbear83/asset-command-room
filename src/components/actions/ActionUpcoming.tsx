@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
-import { TickerLabel } from "@/components/shared/TickerLabel";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { usePortfolio } from "@/data/PortfolioProvider";
 import { useActionTracker } from "./useActionTracker";
 
@@ -169,7 +169,7 @@ export default function ActionUpcoming({ onNavigate }: Props) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {it.summary}
+                  <NamedText text={it.summary} />
                 </span>
 
                 {/* Type chip */}
