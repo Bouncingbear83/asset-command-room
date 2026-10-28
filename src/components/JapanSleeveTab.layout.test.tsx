@@ -65,6 +65,7 @@ const getStyleSheet = (): string => {
   // Component injects a single <style> block with all layout guards.
   const styles = Array.from(document.querySelectorAll("style"))
     .map((s) => s.textContent || "")
+    .filter((t) => t.includes(".js-main"))
     .join("\n");
   return styles.replace(/\s+/g, " ");
 };
@@ -119,7 +120,7 @@ describe("JapanSleeveTab — expanded-row overlap guards", () => {
   it("expanded row is wired with .js-expand-grid (the overlap-prone node)", () => {
     const { container } = renderTab();
     // Expand the HOYA row.
-    const tickerCell = screen.getByText("7741.T");
+    const tickerCell = screen.getAllByText("HOYA")[0];
     fireEvent.click(tickerCell);
     const expandGrid = container.querySelector(".js-expand-grid");
     expect(expandGrid).not.toBeNull();
