@@ -18,7 +18,8 @@ export function isNumericTicker(t: string | null | undefined): boolean {
 export function shortName(name: string): string {
   const stripped = name
     .replace(/\b(Corporation|Corp\.?|Co\.?\s*,?\s*Ltd\.?|Ltd\.?|Inc\.?|Holdings|Group|Industries|Incorporated|plc|PLC|AG|SE|SA|NV|KK|Co\.?\s*Ltd\.?)\b/gi, "")
-    .replace(/[,.]$/g, "")
+    .replace(/[,.]+/g, " ")
+    .replace(/\s+(Co|Inc|Ltd|Corp)\s*$/i, "")
     .trim();
   const words = stripped.split(/\s+/).filter(Boolean);
   if (words.length === 0) return name.split(/\s+/)[0] || name;
