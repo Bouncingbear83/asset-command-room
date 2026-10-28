@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
@@ -35,7 +36,7 @@ function deriveRegion(ticker: string, currency: string): "AMER" | "EUR" | "ASIA"
   return "AMER";
 }
 
-const IS_NUMERIC = /^\d{3,5}\.[A-Z]{1,2}$/;
+import { NUMERIC_TICKER as IS_NUMERIC } from "@/lib/tickerName";
 
 interface MoverRow {
   ticker: string;
@@ -290,7 +291,7 @@ const renderRow = (m: MoverRow) => {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
-                {m.ticker}
+                <TickerLabel ticker={m.ticker} plain />
               </TickerButton>
               {IS_NUMERIC.test(m.ticker) && m.name && (
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
@@ -313,7 +314,7 @@ const renderRow = (m: MoverRow) => {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", minWidth: 0 }}>
               <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", flexShrink: 0 }}>
-                {m.ticker}
+                <TickerLabel ticker={m.ticker} plain />
               </TickerButton>
               {isJpn && (
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>

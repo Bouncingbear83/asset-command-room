@@ -1,4 +1,5 @@
 import { type CSSProperties } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useTest5Warning, type Test5Row } from "@/hooks/useTest5Warning";
 
 // ── Styles (matches Stellar design system) ──
@@ -159,7 +160,7 @@ function Test5PositionRow({ row }: { row: Test5Row }) {
       {/* Left: ticker info */}
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={monoTicker}>{row.ticker}</span>
+          <span style={monoTicker}><TickerLabel ticker={row.ticker} plain /></span>
           <span
             style={{
               ...monoSm,
@@ -393,7 +394,7 @@ export default function Test5Panel() {
                         borderBottom: "1px solid var(--rim)",
                       }}
                     >
-                      {row.ticker}
+                      <TickerLabel ticker={row.ticker} plain />
                     </td>
                     <td
                       style={{

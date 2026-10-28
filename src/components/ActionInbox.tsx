@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import type { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem, LiveScore } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -180,7 +181,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
           <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: isMobile ? 0 : 90 }}>
             <span style={{ fontSize: 12 }}>{s.emoji}</span>
             {c.ticker && c.ticker !== "G(m)" ? (
-              <TickerButton ticker={c.ticker} style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker}</TickerButton>
+              <TickerButton ticker={c.ticker} style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}><TickerLabel ticker={c.ticker} plain /></TickerButton>
             ) : (
               <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker || "—"}</span>
             )}

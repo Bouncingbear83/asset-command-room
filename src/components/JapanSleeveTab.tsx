@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import type { LiveHolding, LiveScore, LiveWatchItem } from "@/hooks/usePortfolioData";
 
 interface JapanSleeveTabProps {
@@ -210,7 +211,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                 return (
                   <Fragment key={h.ticker}>
                     <tr style={{ cursor: "pointer" }} onClick={() => setExpanded(isOpen ? null : h.ticker)}>
-                      <td style={{ ...s.td, ...s.mono, color: "var(--gold)", fontWeight: 600 }}>{h.ticker}</td>
+                      <td style={{ ...s.td, ...s.mono, color: "var(--gold)", fontWeight: 600 }}><TickerLabel ticker={h.ticker} plain /></td>
                       <td style={s.td}>{h.name}</td>
                       <td style={{ ...s.td, ...s.mono, fontSize: 11, color: "var(--text-dim)" }}>{h.layer}</td>
                       <td style={{ ...s.td, ...s.mono, textAlign: "right" as const }}>{h.score ?? "—"}</td>
@@ -278,7 +279,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                 {enriched.filter((h) => LIQUIDITY_CAPPED.has(h.ticker)).map((h) => (
                   <div key={h.ticker}>
                     <span style={{ ...s.pill, color: "var(--amber)", borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}>
-                      Liquidity-capped · {h.ticker}
+                      Liquidity-capped · <TickerLabel ticker={h.ticker} plain />
                     </span>
                     <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>One tranche only. Thin TSE liquidity.</div>
                   </div>
@@ -286,7 +287,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                 {enriched.filter((h) => FEDERATION_RULE9.has(h.ticker)).map((h) => (
                   <div key={h.ticker}>
                     <span style={{ ...s.pill, color: "var(--gold)", borderColor: "rgba(201,168,76,0.3)", background: "rgba(201,168,76,0.06)" }}>
-                      Federation Rule #9 · {h.ticker}
+                      Federation Rule #9 · <TickerLabel ticker={h.ticker} plain />
                     </span>
                     <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>Conglomerate with pre-reclass IT segment leg.</div>
                   </div>
@@ -354,7 +355,7 @@ export default function JapanSleeveTab({ bordier, scores, watchlist, totalPortfo
                 const dist = (w.current && entryNum) ? ((w.current - entryNum) / entryNum) * 100 : null;
                 return (
                   <tr key={w.ticker}>
-                    <td style={{ ...s.td, ...s.mono, color: "var(--gold)" }}>{w.ticker}</td>
+                    <td style={{ ...s.td, ...s.mono, color: "var(--gold)" }}><TickerLabel ticker={w.ticker} plain /></td>
                     <td style={s.td}>{w.name}</td>
                     <td style={{ ...s.td, ...s.mono, textAlign: "right" as const }}>{sc?.score ?? "—"}</td>
                     <td style={{ ...s.td, ...s.mono, textAlign: "right" as const, color: "var(--text-dim)" }}>{w.entry || "—"}</td>

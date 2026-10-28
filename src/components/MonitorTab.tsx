@@ -1,4 +1,5 @@
 import { LiveMonitor, LiveWeeklyTrigger, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { triggerWebhook } from "@/lib/webhooks";
@@ -339,7 +340,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers, earningsCalend
                     const dateStr = isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
                     return (
                       <tr key={`${item.ticker}-${item.nextEarningsDate}`} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                        <td style={{ padding: "10px 12px" }}><TickerButton ticker={item.ticker} style={{ color: "var(--gold)", fontWeight: 700 }}>{item.ticker}</TickerButton></td>
+                        <td style={{ padding: "10px 12px" }}><TickerButton ticker={item.ticker} style={{ color: "var(--gold)", fontWeight: 700 }}><TickerLabel ticker={item.ticker} plain /></TickerButton></td>
                         <td style={{ padding: "10px 12px", color: "var(--text)" }}>{dateStr}</td>
                         <td style={{ padding: "10px 12px" }}>
                           <span style={{ color: urgColor, background: urgBg, padding: "2px 8px", borderRadius: 2, fontSize: 9, letterSpacing: "0.1em", border: `1px solid color-mix(in srgb, ${urgColor} 30%, transparent)` }}>

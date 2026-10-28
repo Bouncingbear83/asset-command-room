@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import {
   LineChart,
   Line,
@@ -844,7 +845,7 @@ function MoverCard({
                   >
                     {i + 1}
                   </span>
-                  <span style={monoTicker}>{row.ticker}</span>
+                  <span style={monoTicker}><TickerLabel ticker={row.ticker} plain /></span>
                   <span
                     style={{
                       ...monoSm,
@@ -929,7 +930,7 @@ function HeatCell({ row }: { row: RollingWindowRow }) {
       title={`${row.ticker}: ${fmtPct(ret)} (price return)${isFlow ? `\n\u26a0 Capital flow: ${fmtGbp(row.net_capital_flow_gbp)} (${row.trade_count} trades)` : ""}\n${row.layer} \u00b7 ${row.return_profile ?? "\u2014"}`}
     >
       <div style={{ ...monoTicker, fontSize: 9 }}>
-        {row.ticker}{isFlow ? " \u2691" : ""}
+        <TickerLabel ticker={row.ticker} plain />{isFlow ? " \u2691" : ""}
       </div>
       <div
         style={{

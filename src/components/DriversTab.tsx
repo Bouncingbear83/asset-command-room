@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import { FACTOR_GROUP_COLORS, FACTOR_GROUP_VALUES, DriverChip, StackBadge } from "@/components/holdings/DriverChip";
 import type { LiveHolding } from "@/hooks/usePortfolioData";
@@ -610,7 +611,7 @@ function DriverHoldingsRow({
               <tbody>
                 {positions.map((h) => (
                   <tr key={`${h.ticker}-${(h as any).account ?? ""}`} style={{ borderTop: "1px solid var(--rim)" }}>
-                    <td style={td}>{h.ticker}</td>
+                    <td style={td}><TickerLabel ticker={h.ticker} plain /></td>
                     <td style={{ ...td, color: "var(--text-mid)" }}>{(h as any).name ?? ""}</td>
                     <td style={{ ...td, textAlign: "right", color: "var(--gold)" }}>{Number((h as any).aum_pct ?? 0).toFixed(2)}%</td>
                     <td style={td}><StackBadge value={(h as any).stack_layer} /></td>

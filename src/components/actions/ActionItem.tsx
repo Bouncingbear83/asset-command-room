@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import type { ActionItem as Item } from "./useActionTracker";
 
@@ -128,7 +129,7 @@ export default function ActionItemRow({ item, onResolve, onSnooze, onReopen, onD
                 letterSpacing: "0.05em",
               }}
             >
-              {item.ticker}
+              <TickerLabel ticker={item.ticker} plain />
             </span>
           )}
           <span

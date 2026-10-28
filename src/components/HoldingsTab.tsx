@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronDown, Microscope } from "lucide-react";
 import { LiveHolding, LiveDisruption, LiveTransaction, LiveScore, type LiveLayer, type LiveWatchItem } from "@/hooks/usePortfolioData";
@@ -487,7 +488,7 @@ function UnifiedView({
                       {/* Line 1: ticker · score badge · alert · flag · chevron */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
                         <TickerButton ticker={h.ticker} style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)", letterSpacing: "0.04em" }}>
-                          {h.ticker}
+                          <TickerLabel ticker={h.ticker} plain />
                         </TickerButton>
                         <StalePriceBadge holding={h} />
                         {summary && (() => {
@@ -670,7 +671,7 @@ function UnifiedView({
                             <TooltipProvider delayDuration={200}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <TickerButton ticker={h.ticker}>{h.ticker}</TickerButton>
+                                  <TickerButton ticker={h.ticker}><TickerLabel ticker={h.ticker} plain /></TickerButton>
                                 </TooltipTrigger>
                                 {(() => {
                                   const summary = getSummary(h.ticker);
@@ -881,7 +882,7 @@ function PriceMapView({ allHoldings, priceData }: { allHoldings: LiveHolding[]; 
                 <div key={h.ticker || h.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(28,28,48,0.25)" }}>
                   <div style={{ width: 140, flexShrink: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <TickerButton ticker={h.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</TickerButton>
+                      <TickerButton ticker={h.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}><TickerLabel ticker={h.ticker} plain /></TickerButton>
                       <HoldStatusBadge status={h.alert_status} />
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.name}</div>

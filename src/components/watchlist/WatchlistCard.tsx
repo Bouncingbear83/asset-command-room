@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem } from "@/hooks/usePortfolioData";
@@ -538,7 +539,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
               textUnderlineOffset: 3, textDecorationColor: "rgba(200,169,110,0.4)",
             }}
           >
-            {item.ticker}
+            <TickerLabel ticker={item.ticker} plain />
           </button>
           <BrokerGatedBadge gated={item.brokerGated} />
           <ActionBadge count={actionCount ?? 0} ticker={item.ticker} onClick={onActionClick} />
@@ -667,7 +668,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
             textUnderlineOffset: 3, textDecorationColor: "rgba(200,169,110,0.4)",
           }}
         >
-          {item.ticker}
+          <TickerLabel ticker={item.ticker} plain />
         </button>
         <BrokerGatedBadge gated={item.brokerGated} />
         <ActionBadge count={actionCount ?? 0} ticker={item.ticker} onClick={onActionClick} />

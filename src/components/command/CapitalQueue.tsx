@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { DP_MIN_PCT, QUEUE_BLOCK_ACTIONS, QUEUE_MIN_GBP } from "@/config/signalRules";
 import { buildDeadSet, parseZone } from "@/lib/actionSurface";
 import { LiveHolding, LiveWatchItem, LiveLayer, LiveMacroStateRow } from "@/hooks/usePortfolioData";
@@ -190,7 +191,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", width: 14 }}>{i + 1}.</span>
                     <TickerButton ticker={d.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
-                      {d.ticker}
+                      <TickerLabel ticker={d.ticker} plain />
                     </TickerButton>
                     <span style={{
                       fontFamily: "var(--font-mono)",
@@ -221,7 +222,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
               <div key={`${d.ticker}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", width: 14 }}>{i + 1}.</span>
                 <TickerButton ticker={d.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 50 }}>
-                  {d.ticker}
+                  <TickerLabel ticker={d.ticker} plain />
                 </TickerButton>
                 <span style={{
                   fontFamily: "var(--font-mono)",
@@ -255,7 +256,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
             </button>
             {gapsOpen && gaps.map((g) => (
               <div key={`gap-${g.ticker}-${g.isWatchlist}`} style={{ display: "flex", gap: 10, padding: "4px 0", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
-                <span style={{ minWidth: 60, color: "var(--text-mid)" }}>{g.ticker}</span>
+                <span style={{ minWidth: 60, color: "var(--text-mid)" }}><TickerLabel ticker={g.ticker} plain /></span>
                 <span style={{ minWidth: 60 }}>{formatCurrency(g.amount)}</span>
                 <span style={{ minWidth: 60 }}>{g.layer}</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.context}</span>

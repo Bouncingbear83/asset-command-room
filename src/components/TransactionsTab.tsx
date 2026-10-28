@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveTransaction, LiveScore, LiveLayer, LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcTickerReturns } from "@/lib/xirr";
@@ -189,7 +190,7 @@ export default function TransactionsTab({ transactions, scores, layers, holdings
           {filtered.map((t, i) => (
             <div key={i} style={{ background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)", cursor: "pointer" }} onClick={() => setDrillTicker(t.ticker)}>{t.ticker}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)", cursor: "pointer" }} onClick={() => setDrillTicker(t.ticker)}><TickerLabel ticker={t.ticker} plain /></span>
                 <span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span>
               </div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -247,7 +248,7 @@ export default function TransactionsTab({ transactions, scores, layers, holdings
                     style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", position: "relative" }}
                   >
                     <td style={{ padding: "7px 6px", color: "var(--text-dim)" }}>{t.date}</td>
-                    <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)", cursor: "pointer" }} onClick={() => setDrillTicker(t.ticker)}>{t.ticker}</td>
+                    <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)", cursor: "pointer" }} onClick={() => setDrillTicker(t.ticker)}><TickerLabel ticker={t.ticker} plain /></td>
                     <td style={{ padding: "7px 6px" }}><span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span></td>
                     <td style={{ padding: "7px 6px", textAlign: "right", color: t.shares !== null && t.shares < 0 ? "var(--red)" : "var(--text)" }}>{t.shares ?? "—"}</td>
                     <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{formatPrice(t.price, t.currency)}</td>

@@ -1,72 +1,60 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import TickerButton from "@/components/factsheet/TickerButton";
+import { NUMERIC_TICKER, shortName } from "@/lib/tickerName";
+import { useTickerNames, warnMissingName } from "@/hooks/useTickerNames";
+import { normaliseTicker } from "@/lib/tickerAlias";
 
-/** Regex for numeric-prefix tickers (Japanese: 4175.T, 6268.T, etc.) */
-const IS_NUMERIC_TICKER = /^\d{3,5}\.[A-Z]{1,2}$/;
-
-/** Abbreviate a company name to a short label: first word, or first two if first is <4 chars.
- *  Strips common suffixes (Corporation, Corp, Co, Ltd, Inc, Holdings, Group, Industries).
- *  "Stella Chemifa Corporation" → "Stella Chemifa"
- *  "Tokai Carbon Co Ltd" → "Tokai Carbon"
- *  "Shin-Etsu Chemical" → "Shin-Etsu"
- */
-function shortName(name: string): string {
-  const stripped = name
-    .replace(/\b(Corporation|Corp\.?|Co\.?\s*,?\s*Ltd\.?|Ltd\.?|Inc\.?|Holdings|Group|Industries|Incorporated|plc|PLC|AG|SE|SA|NV|KK|Co\.?\s*Ltd\.?)\b/gi, "")
-    .replace(/[,.]$/g, "")
-    .trim();
-  const words = stripped.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return name.split(/\s+/)[0] || name;
-  if (words.length === 1) return words[0];
-  // If first word is short (e.g. "NTT", "SGL"), include second word
-  if (words[0].length <= 3 && words.length >= 2) return `${words[0]} ${words[1]}`;
-  // If second word adds useful context and total is reasonable, include it
-  if (words[0].length + words[1].length <= 16) return `${words[0]} ${words[1]}`;
-  return words[0];
-}
+/** @deprecated import NUMERIC_TICKER from "@/lib/tickerName". */
+const IS_NUMERIC_TICKER = NUMERIC_TICKER;
 
 interface TickerLabelProps {
   ticker: string;
   name?: string | null;
-  /** @deprecated Two-line mode removed. All numeric tickers now render as "4109.T (Stella)". */
+  /** @deprecated Two-line mode removed. */
   compact?: boolean;
   /** Wrap in TickerButton for factsheet click-through. */
   clickable?: boolean;
+  /** Inherit all styling from the parent (used to replace raw {x.ticker} text). */
+  plain?: boolean;
   style?: CSSProperties;
 }
 
 /**
- * Smart ticker display that resolves numeric tickers (Japanese stocks)
- * to their company name.
- *
- * Numeric tickers: "4109.T (Stella Chemifa)" — ticker first, short name in parens.
- * Alpha tickers: "NVDA" — just the code.
+ * The only way a ticker renders. Numeric tickers show "JEOL (6951.T)";
+ * alphabetic tickers show the code. A numeric ticker with no known name
+ * shows the code with a small amber "no name" dot.
  */
-export function TickerLabel({ ticker, name, compact, clickable, style }: TickerLabelProps) {
-  const isNumeric = IS_NUMERIC_TICKER.test(ticker);
-  const showName = isNumeric && name;
+export function TickerLabel({ ticker, name, clickable, plain, style }: TickerLabelProps) {
+  const names = useTickerNames();
+  const code = String(ticker ?? "");
+  const isNumeric = NUMERIC_TICKER.test(code.trim());
+  const resolved = isNumeric ? ((name && String(name).trim()) || names.get(normaliseTicker(code)) || "") : "";
+  const baseStyle: CSSProperties = plain ? { ...style } : { fontFamily: "var(--font-mono)", fontWeight: 700, ...style };
 
-  if (!showName) {
-    // Alpha ticker: just show the code
-    const el = (
-      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, ...style }}>
-        {ticker}
+  let label: JSX.Element;
+  if (!isNumeric) {
+    label = plain && !style ? <>{code}</> : <span style={baseStyle}>{code}</span>;
+  } else if (!resolved) {
+    if (names.size > 0) warnMissingName(code);
+    label = (
+      <span style={baseStyle}>
+        {code}
+        <span
+          title="No company name found for this code"
+          aria-label="no name"
+          style={{ display: "inline-block", width: 5, height: 5, borderRadius: "50%", background: "var(--amber)", marginLeft: 4, verticalAlign: "middle" }}
+        />
       </span>
     );
-    return clickable ? <TickerButton ticker={ticker} style={style}>{ticker}</TickerButton> : el;
+  } else {
+    label = (
+      <span style={baseStyle}>
+        {shortName(resolved)}
+        <span style={{ fontSize: "0.85em", opacity: 0.7, marginLeft: 4, fontWeight: "inherit" }}>({code})</span>
+      </span>
+    );
   }
-
-  // Numeric ticker: "4109.T (Stella Chemifa)"
-  const abbrev = shortName(name);
-  const label = (
-    <span style={{ fontFamily: "var(--font-mono)", ...style }}>
-      <span style={{ fontWeight: 700 }}>{ticker}</span>
-      <span style={{ fontSize: "0.85em", color: "var(--text-dim)", marginLeft: 4 }}>({abbrev})</span>
-    </span>
-  );
-  return clickable
-    ? <TickerButton ticker={ticker} style={style}>{label}</TickerButton>
-    : label;
+  return clickable ? <TickerButton ticker={code} style={style}>{label}</TickerButton> : label;
 }
 
 export { shortName, IS_NUMERIC_TICKER };

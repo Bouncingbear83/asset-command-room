@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { supabase } from "@/integrations/supabase/client";
 import { proxyWebhook } from "@/lib/ownerFunction";
 import { openVaultNote } from "@/lib/navigate";
@@ -102,7 +103,7 @@ export default function EarningsVerdictCard({ c, heldShares, onChanged }: Props)
   return (
     <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderLeft: `3px solid ${color}`, borderRadius: 2, padding: "10px 14px", display: "grid", gap: 8 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker}</span>
+        <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}><TickerLabel ticker={c.ticker} plain /></span>
         <span style={mono(9, "var(--text-dim)")}>print {sp?.print_date ?? "—"}{sp?.fiscal_period ? ` · ${sp.fiscal_period}` : ""}</span>
         <span style={{ ...mono(8, color), letterSpacing: "0.12em", padding: "2px 8px", border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, borderRadius: 2 }}>{staged}</span>
         {v.state === "ACCEPTED_TICKET" && <span style={mono(8, "var(--amber)")}>ACCEPTED · PLACE ORDER</span>}
