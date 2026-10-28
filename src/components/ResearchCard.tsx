@@ -4,6 +4,7 @@
  * Clicking opens the FactSheet via context.
  */
 import type { ResearchIndexEntry } from "@/hooks/useResearchIndex";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 
 interface Props {
   entry: ResearchIndexEntry;
@@ -62,7 +63,7 @@ export default function ResearchCard({ entry, onClick }: Props) {
       {/* Header row */}
       <div className="rcard-header">
         <div className="rcard-left">
-          <span className="rcard-ticker">{ticker}</span>
+          <span className="rcard-ticker"><TickerLabel ticker={ticker} plain /></span>
           {score != null && (
             <span className="rcard-score" style={{ color: scoreColor(score) }}>
               {score}

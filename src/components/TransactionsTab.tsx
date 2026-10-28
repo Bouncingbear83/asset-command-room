@@ -409,7 +409,7 @@ function TickerDrillDown({ ticker, transactions, scores, holdings, layerHexMap, 
 
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 700, color: "var(--gold)", display: "flex", alignItems: "center", gap: 10 }}>
-          {ticker} {name && <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-dim)" }}>— {name}</span>}
+          <TickerLabel ticker={ticker} name={name} plain /> {name && <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-dim)" }}>— {name}</span>}
           {returns.isClosed && (
             <span style={{ ...badge, background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", fontSize: 9 }}>CLOSED</span>
           )}
