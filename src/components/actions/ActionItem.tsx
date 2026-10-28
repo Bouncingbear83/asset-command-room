@@ -129,7 +129,7 @@ export default function ActionItemRow({ item, onResolve, onSnooze, onReopen, onD
                 letterSpacing: "0.05em",
               }}
             >
-              <TickerLabel ticker={item.ticker} plain />
+              <TickerLabel ticker={item.ticker} name={item.name} plain />
             </span>
           )}
           <span
