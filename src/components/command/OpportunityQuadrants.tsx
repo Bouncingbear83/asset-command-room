@@ -8,7 +8,7 @@ import { PROFILE_PALETTE } from "@/components/intelligence/profileChips";
 import { normaliseTicker } from "@/lib/tickerAlias";
 import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { IS_NUMERIC_TICKER } from "@/hooks/useIrrBb";
+import { IS_NUMERIC_TICKER, shortName } from "@/lib/tickerName";
 
 // ── Types ──
 interface Entry {
@@ -148,7 +148,7 @@ export default function OpportunityQuadrants({ scores, holdings, watchlist }: Pr
       const asymClamped = Math.min(asym.baseRatio, 10);
 
       const isNumeric = IS_NUMERIC_TICKER.test(entry.ticker);
-      const label = isNumeric && entry.name ? entry.name : entry.ticker;
+      const label = isNumeric && entry.name ? `${shortName(entry.name)} (${entry.ticker})` : entry.ticker;
 
       const prof = profileMap.get(t);
       let profileKey = "UNKNOWN";

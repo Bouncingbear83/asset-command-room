@@ -12,7 +12,7 @@ import { PROFILE_PALETTE } from "@/components/intelligence/profileChips";
 import { normaliseTicker } from "@/lib/tickerAlias";
 import { useFactSheet } from "@/components/factsheet/FactSheetProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { IS_NUMERIC_TICKER } from "@/hooks/useIrrBb";
+import { IS_NUMERIC_TICKER, shortName } from "@/lib/tickerName";
 
 const card: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--rim)", marginBottom: 16 };
 
@@ -453,7 +453,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
       const aumPct = totalAum > 0 ? ((aumByTicker.get(t) || 0) / totalAum) * 100 : 0;
 
       const isNumeric = IS_NUMERIC_TICKER.test(entry.ticker);
-      const label = isNumeric && entry.name ? entry.name : entry.ticker;
+      const label = isNumeric && entry.name ? `${shortName(entry.name)} (${entry.ticker})` : entry.ticker;
 
       // Resolve profile
       const prof = profileMap.get(t);
