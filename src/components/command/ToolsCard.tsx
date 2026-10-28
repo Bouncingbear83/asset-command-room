@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useWithNames } from "@/hooks/useTickerNames";
 import { LiveHolding, LiveWatchItem, LiveLayer } from "@/hooks/usePortfolioData";
 import { buildPrompt, type PromptTemplateKey } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export default function ToolsCard({ holdings, watchlist, layers }: Props) {
+  const nameText = useWithNames();
   const isMobile = useIsMobile();
   const [deepDiveTarget, setDeepDiveTarget] = useState("");
   const [webhookTarget, setWebhookTarget] = useState("");
@@ -149,7 +151,7 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 70, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
             <select style={selectStyle} value={webhookTarget} onChange={(e) => setWebhookTarget(e.target.value)}>
               <option value="">Select ticker…</option>
-              {tickers.map((t) => <option key={t} value={t}>{t}</option>)}
+              {tickers.map((t) => <option key={t} value={t}>{nameText(t)}</option>)}
             </select>
             <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-earnings-prep", { ticker: webhookTarget }, `Earnings prep triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>{webhookLoading ? "…" : "Fire"}</button>
           </div>

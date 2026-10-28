@@ -1,4 +1,5 @@
 import { EVENT_ACTION_TYPES } from "@/config/signalRules";
+import { useWithNames } from "@/hooks/useTickerNames";
 const isEventItem = (i: { action_type: string; source?: string | null; persisted?: boolean }) =>
   (EVENT_ACTION_TYPES as readonly string[]).includes(String(i.action_type).toUpperCase()) ||
   (!!i.persisted && String(i.source ?? "").toUpperCase() === "SESSION");
@@ -56,6 +57,7 @@ function groupByTime(items: ActionItem[]): Group[] {
 }
 
 export default function ActionsTab() {
+  const nameText = useWithNames();
   const { watchlist, holdings, earningsCalendar, scores } = usePortfolio();
   const { items, loading, error: actionError, resolve, snooze, reopen, addManual, remove, updateNote } =
     useActionTracker({
@@ -340,9 +342,7 @@ export default function ActionsTab() {
           >
             <option value="">All tickers</option>
             {tickerOptions.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
+              <option key={t} value={t}>{nameText(t)}</option>
             ))}
           </select>
 
