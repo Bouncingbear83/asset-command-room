@@ -1,4 +1,5 @@
 import React from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useScheduledReviews, ScheduledReview } from "@/hooks/useScheduledReviews";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -160,7 +161,7 @@ export default function ScheduledReviewsCard() {
                 >
                   {review.title}
                   {review.ticker && (
-                    <span style={{ color: "var(--accent)", marginLeft: 6 }}>{review.ticker}</span>
+                    <span style={{ color: "var(--accent)", marginLeft: 6 }}><TickerLabel ticker={review.ticker} plain /></span>
                   )}
                 </div>
                 {review.notes && !isMobile && (

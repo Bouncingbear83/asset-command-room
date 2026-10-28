@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import type { LiveScore, LiveHolding, LiveWatchItem } from "@/hooks/usePortfolioData";
 import { buildFrameworkIndex } from "@/utils/frameworkDetection";
 import TickerButton from "@/components/factsheet/TickerButton";
@@ -278,7 +279,7 @@ function PopoverSection({
                 color: "var(--text)",
               }}
             >
-              {r.ticker}
+              <TickerLabel ticker={r.ticker} plain />
             </TickerButton>
             <span style={{ textAlign: "right", color: "var(--text-dim)" }}>
               {r.score != null ? r.score.toFixed(1) : "—"}

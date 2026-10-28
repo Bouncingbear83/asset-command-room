@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveJisaHolding, LiveJisaTotals, LiveTransaction, LiveLayer, LivePerformance } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcHoldingReturns, HoldingReturns } from "@/lib/xirr";
@@ -294,7 +295,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                   return (
                     <div key={i} onClick={() => toggleExpand(rowKey, h.ticker)} style={{ cursor: "pointer", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)", border: "1px solid var(--rim)", borderRadius: 6, padding: 12, marginBottom: 4 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>{h.ticker}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}><TickerLabel ticker={h.ticker} plain /></span>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           {hasReturns && r!.daysHeld >= 365 && (
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: r!.annualisedReturn >= 0 ? "var(--green)" : "var(--red)" }}>
@@ -406,7 +407,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                           <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                               <span style={{ fontSize: 8, color: "var(--text-dim)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0)", display: "inline-block" }}>▼</span>
-                              {h.ticker}
+                              <TickerLabel ticker={h.ticker} plain />
                             </span>
                           </td>
                           <td style={{ padding: "7px 6px", color: "var(--text)" }}>{h.name}</td>
@@ -504,7 +505,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                 <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", display: "flex", flexWrap: "wrap", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <span>{t.date}</span>
                   <span>{t.account.replace("JISA-", "")}</span>
-                  <span style={{ color: "var(--gold)", fontWeight: 700 }}>{t.ticker}</span>
+                  <span style={{ color: "var(--gold)", fontWeight: 700 }}><TickerLabel ticker={t.ticker} plain /></span>
                   <span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span>
                   <span>{t.shares ?? "—"}</span>
                   <span>{formatCurrency(t.valueGbp)}</span>
@@ -528,7 +529,7 @@ export default function JisasTab({ jisaHoldings, jisaTotals, transactions, layer
                   <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)" }}>
                     <td style={{ padding: "7px 6px", color: "var(--text-dim)" }}>{t.date}</td>
                     <td style={{ padding: "7px 6px", color: "var(--text)" }}>{t.account.replace("JISA-", "")}</td>
-                    <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}>{t.ticker}</td>
+                    <td style={{ padding: "7px 6px", fontWeight: 700, color: "var(--gold)" }}><TickerLabel ticker={t.ticker} plain /></td>
                     <td style={{ padding: "7px 6px" }}><span style={{ ...badge, ...actionBadgeStyle(t.action) }}>{t.action}</span></td>
                     <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{t.shares ?? "—"}</td>
                     <td style={{ padding: "7px 6px", textAlign: "right", color: "var(--text)" }}>{formatCurrency(t.valueGbp)}</td>

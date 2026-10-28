@@ -15,7 +15,7 @@ export interface IrrBbEntry {
 }
 
 /** Regex for numeric-prefix tickers (Japanese: 4175.T, 6268.T etc.) */
-export const IS_NUMERIC_TICKER = /^\d{3,5}\.[A-Z]{1,2}$/;
+export { IS_NUMERIC_TICKER } from "@/lib/tickerName";
 
 interface UseIrrBbReturn {
   /** IRR-BB results keyed by normalised uppercase ticker. */

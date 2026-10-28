@@ -1,4 +1,5 @@
 import { AssetExpansion } from "@/components/intelligence/AssetExpansion";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useAssetIntelligence } from "@/hooks/useAssetIntelligence";
 
 interface Props {
@@ -61,7 +62,7 @@ export function HoldingsExpansionRow({ ticker, colSpan, mode = "table" }: Props)
       }}>
         <strong style={{ color: "var(--amber)", letterSpacing: "0.14em" }}>NO RESEARCH RECORD</strong>
         <div style={{ marginTop: 6 }}>
-          {ticker} has no entry in SCORES. Open a Research Commit to add it.
+          <TickerLabel ticker={ticker} plain /> has no entry in SCORES. Open a Research Commit to add it.
         </div>
       </div>
     );

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -172,7 +173,7 @@ function ResearchRow({ row }: { row: DerivedRow }) {
     <div style={{ padding: "10px 18px 8px", borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <TickerButton ticker={item.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
-          {item.ticker}
+          <TickerLabel ticker={item.ticker} plain />
         </TickerButton>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
           {item.name}
@@ -1437,7 +1438,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
                 }}
               >
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: "var(--text)", minWidth: 60 }}>
-                  {r.item.ticker}
+                  <TickerLabel ticker={r.item.ticker} plain />
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: "1 1 200px" }}>
                   {r.item.name}

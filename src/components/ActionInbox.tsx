@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import type { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem, LiveScore } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -180,16 +181,16 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
           <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: isMobile ? 0 : 90 }}>
             <span style={{ fontSize: 12 }}>{s.emoji}</span>
             {c.ticker && c.ticker !== "G(m)" ? (
-              <TickerButton ticker={c.ticker} style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker}</TickerButton>
+              <TickerButton ticker={c.ticker} style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}><TickerLabel ticker={c.ticker} plain /></TickerButton>
             ) : (
-              <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker || "—"}</span>
+              <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker ? <TickerLabel ticker={c.ticker} plain /> : "—"}</span>
             )}
             {c.accounts.length > 0 && <span style={{ ...mono(8, "var(--text-dim)"), letterSpacing: "0.1em" }}>{c.accounts.join(" · ")}</span>}
           </div>
           <span style={{ ...mono(8, s.color), letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid color-mix(in srgb, ${s.color} 30%, transparent)`, borderRadius: 2, whiteSpace: "nowrap", justifySelf: "start" }}>
-            {c.title}
+            <NamedText text={c.title} />
           </span>
-          <span style={{ ...mono(10), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{c.reasons[0]}</span>
+          <span style={{ ...mono(10), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}><NamedText text={c.reasons[0]} /></span>
           {c.ticker && c.ticker !== "G(m)" ? (
             <div onClick={(e) => e.stopPropagation()}>
               <ClaudePromptButton templateKey="holdings_deep_dive" context={deepDiveContext(c.ticker)} stopPropagation />
@@ -198,7 +199,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
         </div>
         {isOpen && (
           <div style={{ borderTop: "1px solid var(--rim)", padding: "12px 16px", display: "grid", gap: 6 }}>
-            {c.reasons.map((r, i) => <div key={i} style={mono(11)}>• {r}</div>)}
+            {c.reasons.map((r, i) => <div key={i} style={mono(11)}>• <NamedText text={r} /></div>)}
             <div style={mono(9, "var(--text-dim)")}>
               Source {c.source}{c.fired_at ? ` · fired ${c.fired_at}` : ""}{c.verdict_at ? ` · verdict ${c.verdict_at}` : ""}{c.next_review ? ` · next ${c.next_review}` : ""}
             </div>
@@ -248,9 +249,9 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
                 return (
                   <div key={c.key} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "80px 70px 1fr", gap: 10, padding: "4px 0", borderBottom: "1px solid rgba(28,28,48,0.4)", alignItems: "baseline" }}>
                     <span style={mono(10, "var(--text-dim)")}>{c.next_review ?? "—"}</span>
-                    <span style={{ ...mono(11, "var(--gold)"), fontWeight: 700 }}>{c.ticker || "—"}</span>
+                    <span style={{ ...mono(11, "var(--gold)"), fontWeight: 700 }}>{c.ticker ? <TickerLabel ticker={c.ticker} plain /> : "—"}</span>
                     <span style={mono(10)}>
-                      {c.title}
+                      <NamedText text={c.title} />
                       {needsTest && (c.gate_test
                         ? <span style={{ color: "var(--text-dim)" }}> · test: {c.gate_test.slice(0, 120)}</span>
                         : <span style={{ marginLeft: 8, color: "var(--amber)", fontSize: 8, letterSpacing: "0.1em", border: "1px solid var(--amber)", padding: "0 4px", borderRadius: 2 }}>⚠️ NO TEST</span>)}

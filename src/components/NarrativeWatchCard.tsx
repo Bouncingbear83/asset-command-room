@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useNarrativeWatchAll, CATEGORY_LABELS, CATEGORY_COLORS } from "@/hooks/useNarrativeWatch";
 import type { NarrativeWatchItem, WatchCategory } from "@/hooks/useNarrativeWatch";
 import TickerButton from "@/components/factsheet/TickerButton";
@@ -88,7 +89,7 @@ function WatchItem({ item }: { item: NarrativeWatchItem }) {
               letterSpacing: "0.05em",
             }}
           >
-            {item.ticker}
+            <TickerLabel ticker={item.ticker} plain />
           </TickerButton>
         ) : item.layer ? (
           <span

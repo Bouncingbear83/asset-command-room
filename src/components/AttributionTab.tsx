@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import {
   LineChart,
   Line,
@@ -227,12 +228,12 @@ function BarTooltip({ active, payload }: any) {
       )}
       {d.top_contributor && (
         <div style={{ color: "var(--green)", marginTop: 2 }}>
-          Best: {d.top_contributor}
+          Best: <TickerLabel ticker={d.top_contributor} plain />
         </div>
       )}
       {d.bottom_contributor && (
         <div style={{ color: "var(--red)" }}>
-          Worst: {d.bottom_contributor}
+          Worst: <TickerLabel ticker={d.bottom_contributor} plain />
         </div>
       )}
     </div>
@@ -693,7 +694,7 @@ export default function AttributionTab() {
                           fontSize: 10,
                         }}
                       >
-                        {row.top_contributor || "\u2014"}
+                        {row.top_contributor ? <TickerLabel ticker={row.top_contributor} plain /> : "\u2014"}
                       </td>
                       <td
                         style={{
@@ -704,7 +705,7 @@ export default function AttributionTab() {
                           fontSize: 10,
                         }}
                       >
-                        {row.bottom_contributor || "\u2014"}
+                        {row.bottom_contributor ? <TickerLabel ticker={row.bottom_contributor} plain /> : "\u2014"}
                       </td>
                     </tr>
                   );
@@ -844,7 +845,7 @@ function MoverCard({
                   >
                     {i + 1}
                   </span>
-                  <span style={monoTicker}>{row.ticker}</span>
+                  <span style={monoTicker}><TickerLabel ticker={row.ticker} plain /></span>
                   <span
                     style={{
                       ...monoSm,
@@ -929,7 +930,7 @@ function HeatCell({ row }: { row: RollingWindowRow }) {
       title={`${row.ticker}: ${fmtPct(ret)} (price return)${isFlow ? `\n\u26a0 Capital flow: ${fmtGbp(row.net_capital_flow_gbp)} (${row.trade_count} trades)` : ""}\n${row.layer} \u00b7 ${row.return_profile ?? "\u2014"}`}
     >
       <div style={{ ...monoTicker, fontSize: 9 }}>
-        {row.ticker}{isFlow ? " \u2691" : ""}
+        <TickerLabel ticker={row.ticker} plain />{isFlow ? " \u2691" : ""}
       </div>
       <div
         style={{

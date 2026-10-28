@@ -1,4 +1,5 @@
 import { LiveLayer, LiveNarrativeData, LiveWatchItem, LiveHolding, LiveScore } from "@/hooks/usePortfolioData";
+import { NamedText } from "@/components/shared/TickerLabel";
 import { VaultLayerNote } from "@/components/vault/VaultIntegrations";
 import React, { useMemo } from "react";
 import { triggerWebhook } from "@/lib/webhooks";
@@ -119,7 +120,7 @@ export default function LayersTab({
               <div key={`detail-${i}`} style={{ padding: "10px 0", borderBottom: "1px solid rgba(28,28,48,0.3)" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 80px 60px", gap: 8, alignItems: "center" }}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{layer.name}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings || "—"}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>{layer.keyHoldings ? <NamedText text={layer.keyHoldings} /> : "—"}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text)", textAlign: "right" }}>{layer.mv > 0 ? `£${(layer.mv / 1000).toFixed(1)}k` : "—"}</div>
                   {!isCashRow && (
                     <button

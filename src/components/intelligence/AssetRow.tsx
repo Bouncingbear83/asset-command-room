@@ -1,4 +1,5 @@
 import { CSSProperties, KeyboardEvent } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import type { AssetIntelligence, BuyDistance, HeldStatus, Layer, ScoreTrend } from "@/types/intelligence";
 import { AssetExpansion } from "./AssetExpansion";
@@ -450,7 +451,7 @@ export function AssetRow({ asset, expanded, onToggle, actionCount, onActionClick
         }}
       >
         <div className="asset-row-mobile-line1">
-          <span className="asset-row-mobile-ticker">{asset.ticker}</span>
+          <span className="asset-row-mobile-ticker"><TickerLabel ticker={asset.ticker} plain /></span>
           <ActionBadge count={actionCount ?? 0} ticker={asset.ticker} onClick={onActionClick} />
           <StatusChipInline status={asset.held_status} />
           <span className="asset-row-mobile-score" style={{ color: scoreColor(asset.score) }}>
@@ -527,7 +528,7 @@ export function AssetRow({ asset, expanded, onToggle, actionCount, onActionClick
         {/* Ticker + name + dual-account badge */}
         <div style={{ width: COL.ticker, minWidth: COL.ticker, maxWidth: COL.ticker, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 4 }}>
-            {asset.ticker}
+            <TickerLabel ticker={asset.ticker} plain />
             {asset.framing?.china_exposure_flag && <ChinaRiskChip flag={asset.framing.china_exposure_flag} />}
             <ActionBadge count={actionCount ?? 0} ticker={asset.ticker} onClick={onActionClick} />
           </span>

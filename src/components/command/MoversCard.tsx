@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveHolding, LiveWatchItem, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { useDailyPrices, normaliseTicker } from "@/hooks/useDailyPrices";
 import { useWatchlistHistory } from "@/hooks/useWatchlistHistory";
@@ -35,7 +36,7 @@ function deriveRegion(ticker: string, currency: string): "AMER" | "EUR" | "ASIA"
   return "AMER";
 }
 
-const IS_NUMERIC = /^\d{3,5}\.[A-Z]{1,2}$/;
+import { NUMERIC_TICKER as IS_NUMERIC } from "@/lib/tickerName";
 
 interface MoverRow {
   ticker: string;
@@ -275,7 +276,6 @@ const renderRow = (m: MoverRow) => {
     const priceStr = `${sym}${m.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
     const suspectBadge = m.suspect ? <span title={`Live symbol: ${m.liveSymbol ?? "none (sheet/history)"}; sheet price: ${sym}${m.sheetPrice ?? "—"}`} style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 8 }}>SUSPECT</span> : null;
     const hasSpark = !!m.sparkPoints;
-    const isJpn = IS_NUMERIC.test(m.ticker) && m.name;
 
     return (
       <div key={m.ticker} style={{
@@ -290,13 +290,8 @@ const renderRow = (m: MoverRow) => {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
-                {m.ticker}
+                <TickerLabel ticker={m.ticker} name={m.name} plain />
               </TickerButton>
-              {IS_NUMERIC.test(m.ticker) && m.name && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
-                  {shortName(m.name)}
-                </span>
-              )}
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1 }}>WL</span>}
               {suspectBadge}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2 }}>{s.label}</span> : null; })}
@@ -313,13 +308,8 @@ const renderRow = (m: MoverRow) => {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", minWidth: 0 }}>
               <TickerButton ticker={m.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)", flexShrink: 0 }}>
-                {m.ticker}
+                <TickerLabel ticker={m.ticker} name={m.name} plain />
               </TickerButton>
-              {isJpn && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>
-                  {shortName(m.name)}
-                </span>
-              )}
               {m.isWatchlist && <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "var(--text-dim)", border: "1px solid var(--rim)", padding: "0 3px", borderRadius: 1, flexShrink: 0 }}>WL</span>}
               {suspectBadge}
               {m.flags.map((f) => { const s = FLAG_STYLE[f]; return s ? <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 7, padding: "1px 4px", borderRadius: 2, color: s.color, background: s.bg, marginLeft: 2, flexShrink: 0 }}>{s.label}</span> : null; })}

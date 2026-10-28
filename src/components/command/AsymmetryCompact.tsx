@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveHolding, LiveWatchItem, LiveScore } from "@/hooks/usePortfolioData";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
 import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
@@ -144,7 +145,7 @@ export default function AsymmetryCompact({ scores, holdings, watchlist }: Props)
               return (
                 <tr key={r.ticker}>
                   <td style={{ ...tdStyle, textAlign: "left" }}>
-                    <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{r.ticker}</TickerButton>
+                    <TickerButton ticker={r.ticker} style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}><TickerLabel ticker={r.ticker} plain /></TickerButton>
                   </td>
                   {!isMobile && (
                     <td style={{ ...tdStyle, textAlign: "center" }}>

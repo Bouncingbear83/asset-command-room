@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { NamedText } from "@/components/shared/TickerLabel";
 import { useSearchParams } from "react-router-dom";
 import { AssetRow } from "@/components/intelligence/AssetRow";
 import { IntelligenceFilters } from "@/components/intelligence/IntelligenceFilters";
@@ -507,7 +508,7 @@ export default function IntelligenceTab() {
             </div>
             {rationaleCoverage.missing.length > 0 && (
               <div style={{ marginTop: 4, fontSize: 10, color: "var(--text-dim)" }}>
-                Tickers missing: {rationaleCoverage.missing.join(", ")}
+                Tickers missing: <NamedText text={rationaleCoverage.missing.join(", ")} />
               </div>
             )}
           </div>

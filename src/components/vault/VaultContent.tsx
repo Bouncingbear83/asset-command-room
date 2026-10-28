@@ -1,4 +1,5 @@
 import { VaultNote } from "@/hooks/useVaultContent";
+import { NamedText } from "@/components/shared/TickerLabel";
 
 const mono9: React.CSSProperties = {
   fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase",
@@ -44,7 +45,7 @@ export function VaultSections({
         {found.map((s) => (
           <div key={s}>
             <div style={sectionHeader}>{s}</div>
-            <div style={bodyText}>{maybeTruncate(note.body_sections![s], maxLines)}</div>
+            <div style={bodyText}><NamedText text={maybeTruncate(note.body_sections![s], maxLines)} /></div>
           </div>
         ))}
       </div>
@@ -52,7 +53,7 @@ export function VaultSections({
   }
 
   // Full body
-  return <div style={bodyText}>{maybeTruncate(note.body ?? "", maxLines)}</div>;
+  return <div style={bodyText}><NamedText text={maybeTruncate(note.body ?? "", maxLines)} /></div>;
 }
 
 /**
@@ -132,7 +133,7 @@ export function VaultSessionList({ notes }: { notes: VaultNote[] }) {
             </div>
             {fm.tickers_touched && (
               <div style={{ ...mono9, color: "var(--text-dim)", marginBottom: 4 }}>
-                {String(fm.tickers_touched).split(",").map((t: string) => t.trim()).join(" · ")}
+                <NamedText text={String(fm.tickers_touched).split(",").map((t: string) => t.trim()).join(" · ")} />
               </div>
             )}
             {n.body && (

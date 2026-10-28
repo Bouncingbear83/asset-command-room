@@ -59,3 +59,8 @@ export function useSourceOk(...keys: SourceKey[]): boolean {
   const { sources } = usePortfolio();
   return keys.every((k) => sources[k]?.status === "ok");
 }
+
+/** Same as usePortfolio but returns null outside the provider (for shared display helpers). */
+export function usePortfolioOptional(): PortfolioData | null {
+  return useContext(PortfolioContext);
+}

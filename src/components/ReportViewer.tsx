@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -162,7 +163,7 @@ export default function ReportViewer({ reportId, onBack }: Props) {
               color: "var(--text-dim)",
             }}
           >
-            <span style={{ color: "var(--gold)" }}>{report.ticker}</span>
+            <span style={{ color: "var(--gold)" }}><TickerLabel ticker={report.ticker} plain /></span>
             {report.name && <span>· {report.name}</span>}
             <span>· {report.report_date}</span>
 

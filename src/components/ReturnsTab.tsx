@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveHolding, LivePerformance } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -449,7 +450,7 @@ export default function ReturnsTab({ sipp, isa, bordier = [], performance, cashS
                   const val = holding[key] ?? 0;
                   return (
                     <tr key={holding.ticker + key} style={{ borderBottom: "1px solid rgba(28,28,48,0.4)" }}>
-                      <td style={{ padding: "10px 14px", color: "var(--gold)", fontWeight: 700 }}>{holding.ticker}</td>
+                      <td style={{ padding: "10px 14px", color: "var(--gold)", fontWeight: 700 }}><TickerLabel ticker={holding.ticker} plain /></td>
                       <td style={{ padding: "10px 14px", color: "var(--text)", fontSize: 10 }}>{holding.name}</td>
                       <td
                         style={{
