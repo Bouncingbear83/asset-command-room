@@ -17,6 +17,8 @@ export interface WatchlistTrajectory {
   firstDate?: string | null;
   lastDate?: string | null;
   rowCount?: number;
+  /** From price_symbol_map: PRIVATE / UNRESOLVED names explain an empty sparkline. */
+  symbolStatus?: SymbolStatus;
 }
 
 export type SymbolStatus = "ACTIVE" | "PRIVATE" | "UNRESOLVED";
@@ -108,6 +110,7 @@ export function useWatchlistHistory(tickers: string[]): State {
         if (missing.length > 0) console.warn("[useWatchlistHistory] no price history (data gap):", missing.join(", "));
         const status: Record<string, SymbolStatus> = {};
         if (!map.error) for (const r of map.data ?? []) status[String(r.ticker).trim().toUpperCase()] = r.status as SymbolStatus;
+        for (const t of Object.keys(byTicker)) if (status[t]) byTicker[t] = { ...byTicker[t], symbolStatus: status[t] };
         if (cancelled) return;
         cacheRef = { key, ts: Date.now(), data: byTicker, status };
         setState({ byTicker, symbolStatus: status, loading: false, error: null });
