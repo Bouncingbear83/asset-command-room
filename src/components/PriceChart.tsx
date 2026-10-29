@@ -136,7 +136,7 @@ export function PriceChart({ points, loading, height = 140, milestones, buyZone,
     borderRadius: 3, transition: "all 0.15s ease",
   });
 
-  const rangeRow = (
+  const rangeRow = externalRange ? null : (
     <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
       {RANGE_KEYS.map(k => (
         <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>
