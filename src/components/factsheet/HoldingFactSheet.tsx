@@ -431,6 +431,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                   ? <span style={monoLabel}>{data.errors.prices || "No price history available"}</span>
                   : <PriceChart
                       points={chartPoints}
+                      externalRange
                       height={160}
                       milestones={milestones}
                       buyZone={data.score ? { low: (data.score as any).buyLow ?? null, high: (data.score as any).buyHigh ?? null } : null}
