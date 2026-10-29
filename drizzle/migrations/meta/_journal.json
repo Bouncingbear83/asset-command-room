@@ -29,6 +29,13 @@
       "when": 1793295896682,
       "tag": "0003_price_history_aggregation",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793295914937,
+      "tag": "0004_price_series_no_temp",
+      "breakpoints": true
     }
   ]
 }
