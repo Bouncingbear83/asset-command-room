@@ -36,6 +36,13 @@
       "when": 1793295914937,
       "tag": "0004_price_series_no_temp",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793296151006,
+      "tag": "0005_price_trajectories_fast",
+      "breakpoints": true
     }
   ]
 }
