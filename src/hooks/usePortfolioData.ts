@@ -1,6 +1,7 @@
 import { parseCashLedger } from "@/lib/cashLedger";
 import { effectiveEarningsDate } from "@/lib/earningsDate";
 import { parseHoldingsCashBlock, EMPTY_CASH_BLOCK, type CashBlock } from "@/lib/canonical";
+import { currencyUnit } from "@/lib/moverSafety";
 
 import { ownerFunctionResponse, responseError } from "@/lib/ownerFunction";
 
@@ -881,10 +882,11 @@ function parseJisaHoldings(grid: string[][]): JisaParseResult {
   }
 
   const fxToGbp = (ccy: string): number => {
-    const c = ccy.toUpperCase().trim();
-    if (!c || c === "GBP") return 1;
-    if (c === "GBX" || c === "GBP-PENCE") return 0.01;
-    return fxRates[c] ?? 1;
+    const unit = currencyUnit(ccy);
+    // Pence BEFORE pounds: "GBp".toUpperCase() === "GBP", so a pounds-first test misreads pence 100x.
+    if (unit === "GBX") return 0.01;
+    if (!unit || unit === "GBP") return 1;
+    return fxRates[unit] ?? 1;
   };
 
   // Extract authoritative totals from FIXED rows in JISA_HOLDINGS sheet:

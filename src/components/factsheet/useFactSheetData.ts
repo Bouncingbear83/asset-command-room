@@ -5,6 +5,7 @@ import type { PortfolioData, LiveHolding, LiveScore, LiveWatchItem, LiveEarnings
 import type { PriceDataMap, DailyPricePoint } from "@/hooks/useDailyPrices";
 import type { ScoreRationale, DisruptionRationale } from "@/hooks/useRationales";
 import { useScoresSnapshot } from "@/hooks/useScoresSnapshot";
+import { currencyUnit } from "@/lib/moverSafety";
 
 export interface DisruptionRow {
   ticker: string;
@@ -223,12 +224,12 @@ export function useFactSheetData(
           };
           const toGbp = (price: number, ccy: string | null, date: string): number => {
             if (!ccy || !isFinite(price)) return NaN;
-            const c = String(ccy).trim();
-            const upper = c.toUpperCase();
-            if (upper === "GBP") return price;
-            if (upper === "GBX" || c === "GBp" || upper === "GBP_PENCE") return price / 100;
-            if (!/^[A-Z]{3}$/.test(upper)) return NaN; // junk like "25000"
-            const rate = rateOn(upper, date);
+            const unit = currencyUnit(ccy);
+            // Pence BEFORE pounds: "GBp".toUpperCase() === "GBP", so a pounds-first test misreads pence 100x.
+            if (unit === "GBX") return price / 100;
+            if (unit === "GBP") return price;
+            if (!/^[A-Z]{3}$/.test(unit)) return NaN; // junk like "25000"
+            const rate = rateOn(unit, date);
             if (!rate || !isFinite(rate) || rate === 0) return NaN;
             return price / rate;
           };

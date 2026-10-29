@@ -12,7 +12,9 @@ export const FALLBACK_ALIASES: Record<string, string | null> = {
 
 export function currencyUnit(raw: string | undefined): string {
   const value = (raw ?? "").trim();
-  return value === "GBp" || value.toUpperCase() === "GBX" ? "GBX" : value.toUpperCase();
+  const upper = value.toUpperCase();
+  // Pence BEFORE pounds: "GBp".toUpperCase() === "GBP", so any pounds-first test misreads pence 100x.
+  return value === "GBp" || upper === "GBX" || upper === "GBP_PENCE" || upper === "GBP-PENCE" ? "GBX" : upper;
 }
 
 export function currenciesMatch(quote: string | undefined, sheet: string | undefined): boolean {
