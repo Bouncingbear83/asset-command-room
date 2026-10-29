@@ -1,4 +1,4 @@
-import { ALLOWED, buildReadRequest } from './contract.ts';
+import { ALLOWED, buildReadRequest, buildRpcRead } from './contract.ts';
 function equal(a: unknown,b: unknown) {if(JSON.stringify(a)!==JSON.stringify(b))throw new Error(`${JSON.stringify(a)} != ${JSON.stringify(b)}`);}
 function rejects(body:unknown,message:string) {try{buildReadRequest(body);}catch(e){equal((e as Error).message,message);return;}throw new Error('Expected rejection');}
 Deno.test('Exact 17-table v2 allowlist',()=>equal(ALLOWED,['score_rationales','disruption_rationales','scores_snapshot','themes_history','action_tracker','scheduled_reviews','layer_review_schedule','narrative_watch','bottleneck_map','vault_notes_meta','watchlist_price_history','holdings_snapshot','layer_weights_snapshot','factor_group_weights','macro_snapshot','v_price_history_coverage','price_symbol_map']));
