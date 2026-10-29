@@ -11,3 +11,4 @@
 - Live-price consumers pass sheet currency and share pure symbol/currency safety rules with the edge function; Movers ranking uses tested pure thresholds — prevents foreign-listing quotes and unit mismatches from becoming ranked moves.
 - Earnings-engine verdict rows apply through n8n-proxy `apply-tracker`, which loads staged_payload server-side under the caller's session and enforces the cell allowlist in the pure apply-contract.ts shared with vitest — the browser never sends cell writes.
 - Tickers render only through TickerLabel (codes) or NamedText/withNames (free text), using the single numeric-ticker pattern in src/lib/tickerName.ts; a vitest guard blocks bare {x.ticker} JSX — numeric Asian codes must always appear with their company name.
+- Watchlist price history is read only through server-side aggregation RPCs (get_price_trajectories, get_price_series ≤500 points), never paged raw rows — payload must scale with ticker count, not history length.

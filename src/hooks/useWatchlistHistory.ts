@@ -14,45 +14,84 @@ export interface WatchlistTrajectory {
   price30dAgo: number | null;
   high52w: number | null;
   low52w: number | null;
+  firstDate?: string | null;
+  lastDate?: string | null;
+  rowCount?: number;
+  /** From price_symbol_map: PRIVATE / UNRESOLVED names explain an empty sparkline. */
+  symbolStatus?: SymbolStatus;
 }
+
+export type SymbolStatus = "ACTIVE" | "PRIVATE" | "UNRESOLVED";
 
 interface State {
   byTicker: Record<string, WatchlistTrajectory>;
+  symbolStatus: Record<string, SymbolStatus>;
   loading: boolean;
   error: string | null;
 }
 
+interface TrajectoryRow {
+  ticker: string;
+  spark30d: unknown;
+  current_close: number | null;
+  price_7d_ago: number | null;
+  price_30d_ago: number | null;
+  high_52w: number | null;
+  low_52w: number | null;
+  first_date: string | null;
+  last_date: string | null;
+  row_count: number | null;
+}
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const cache: { key: string; ts: number; data: Record<string, WatchlistTrajectory> } | null = null;
-let cacheRef: typeof cache = null;
+let cacheRef: { key: string; ts: number; data: Record<string, WatchlistTrajectory>; status: Record<string, SymbolStatus> } | null = null;
+
+const num = (v: unknown): number | null => (v == null || !Number.isFinite(Number(v)) ? null : Number(v));
+
+export const emptyTrajectory = (ticker: string): WatchlistTrajectory => ({
+  ticker, spark30d: [], currentClose: null, price7dAgo: null, price30dAgo: null, high52w: null, low52w: null,
+});
+
+/** Pure mapping from get_price_trajectories rows; every requested ticker gets an entry. */
+export function mapTrajectories(requested: string[], rows: TrajectoryRow[]): { byTicker: Record<string, WatchlistTrajectory>; missing: string[] } {
+  const byTicker: Record<string, WatchlistTrajectory> = {};
+  for (const r of rows) {
+    const t = String(r.ticker).trim().toUpperCase();
+    const spark = Array.isArray(r.spark30d) ? (r.spark30d as { date: string; close: unknown }[]) : [];
+    byTicker[t] = {
+      ticker: t,
+      spark30d: spark.map((p) => ({ date: String(p.date), close: Number(p.close) })).filter((p) => Number.isFinite(p.close)),
+      currentClose: num(r.current_close),
+      price7dAgo: num(r.price_7d_ago),
+      price30dAgo: num(r.price_30d_ago),
+      high52w: num(r.high_52w),
+      low52w: num(r.low_52w),
+      firstDate: r.first_date,
+      lastDate: r.last_date,
+      rowCount: r.row_count ?? 0,
+    };
+  }
+  const missing = requested.filter((t) => !byTicker[t]);
+  for (const t of missing) byTicker[t] = emptyTrajectory(t);
+  return { byTicker, missing };
+}
 
 /**
- * Batched fetch of ~1y of daily closes for the given watchlist tickers, then
- * derives sparkline (last 30d) and trajectory anchors (7d ago, 30d ago, 52w
- * high/low) client-side.
- *
- * Why one query instead of N: PostgREST `in.()` lets us pull every ticker
- * in a single round-trip. The 1000-row PostgREST cap is handled with paging.
+ * One server-side aggregation call: payload scales with ticker count, never history length.
+ * The symbol map (PRIVATE / UNRESOLVED names) is a separate small select.
  */
 export function useWatchlistHistory(tickers: string[]): State {
-  const [state, setState] = useState<State>({ byTicker: {}, loading: true, error: null });
+  const [state, setState] = useState<State>({ byTicker: {}, symbolStatus: {}, loading: true, error: null });
 
-  // Stable cache key
-  const key = tickers
-    .map((t) => t.trim().toUpperCase())
-    .filter(Boolean)
-    .sort()
-    .join(",");
+  const key = Array.from(new Set(tickers.map((t) => t.trim().toUpperCase()).filter(Boolean))).sort().join(",");
 
   useEffect(() => {
     if (!key) {
-      setState({ byTicker: {}, loading: false, error: null });
+      setState({ byTicker: {}, symbolStatus: {}, loading: false, error: null });
       return;
     }
-
-    // 5-min cache
     if (cacheRef && cacheRef.key === key && Date.now() - cacheRef.ts < CACHE_TTL_MS) {
-      setState({ byTicker: cacheRef.data, loading: false, error: null });
+      setState({ byTicker: cacheRef.data, symbolStatus: cacheRef.status, loading: false, error: null });
       return;
     }
 
@@ -61,117 +100,24 @@ export function useWatchlistHistory(tickers: string[]): State {
 
     (async () => {
       try {
-        const upper = key.split(",");
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 380); // ~1y + buffer
-        const cutoffStr = cutoff.toISOString().slice(0, 10);
-
-        // Page through; PostgREST hard-caps at 1000 rows per request
-        let allRows: { ticker: string; snapshot_date: string; close_price: number }[] = [];
-        let from = 0;
-        const PAGE = 1000;
-
-        // Safety: max ~10k rows (≈ 25 tickers × 380 days)
-        for (let i = 0; i < 12; i++) {
-          const { data, error } = await supabase
-            .from("watchlist_price_history")
-            .select("ticker, snapshot_date, close_price")
-            .in("ticker", upper)
-            .gte("snapshot_date", cutoffStr)
-            .order("ticker", { ascending: true })
-            .order("snapshot_date", { ascending: true })
-            .range(from, from + PAGE - 1);
-
-          if (error) throw error;
-          if (!data || data.length === 0) break;
-          allRows = allRows.concat(
-            data.map((r) => ({
-              ticker: String(r.ticker).toUpperCase(),
-              snapshot_date: r.snapshot_date,
-              close_price: Number(r.close_price),
-            })),
-          );
-          if (data.length < PAGE) break;
-          from += PAGE;
-        }
-
-        const byTicker: Record<string, WatchlistTrajectory> = {};
-        const today = new Date();
-        const d7 = new Date(today);
-        d7.setDate(today.getDate() - 7);
-        const d30 = new Date(today);
-        d30.setDate(today.getDate() - 30);
-        const d7Str = d7.toISOString().slice(0, 10);
-        const d30Str = d30.toISOString().slice(0, 10);
-        const dSparkStr = d30Str; // sparkline window = 30d
-
-        // Group by ticker
-        const groups: Record<string, typeof allRows> = {};
-        for (const r of allRows) {
-          (groups[r.ticker] ||= []).push(r);
-        }
-
-        for (const t of upper) {
-          const rows = groups[t] ?? [];
-          if (rows.length === 0) {
-            byTicker[t] = {
-              ticker: t,
-              spark30d: [],
-              currentClose: null,
-              price7dAgo: null,
-              price30dAgo: null,
-              high52w: null,
-              low52w: null,
-            };
-            continue;
-          }
-
-          // Already sorted ascending by snapshot_date
-          const last = rows[rows.length - 1];
-          const currentClose = last.close_price;
-
-          // Latest close on or before d7Str / d30Str
-          const findOnOrBefore = (cutoff: string) => {
-            for (let i = rows.length - 1; i >= 0; i--) {
-              if (rows[i].snapshot_date <= cutoff) return rows[i].close_price;
-            }
-            return null;
-          };
-
-          const price7dAgo = findOnOrBefore(d7Str);
-          const price30dAgo = findOnOrBefore(d30Str);
-
-          // 52w high/low across all returned rows (cutoff was 380d so this is fine)
-          let high52w = -Infinity;
-          let low52w = Infinity;
-          for (const r of rows) {
-            if (r.close_price > high52w) high52w = r.close_price;
-            if (r.close_price < low52w) low52w = r.close_price;
-          }
-
-          // 30d sparkline
-          const spark30d: SparkPoint[] = rows
-            .filter((r) => r.snapshot_date >= dSparkStr)
-            .map((r) => ({ date: r.snapshot_date, close: r.close_price }));
-
-          byTicker[t] = {
-            ticker: t,
-            spark30d,
-            currentClose,
-            price7dAgo,
-            price30dAgo,
-            high52w: Number.isFinite(high52w) ? high52w : null,
-            low52w: Number.isFinite(low52w) ? low52w : null,
-          };
-        }
-
+        const requested = key.split(",");
+        const [traj, map] = await Promise.all([
+          supabase.rpc("get_price_trajectories", { p_tickers: requested }),
+          supabase.from("price_symbol_map").select("ticker, status"),
+        ]);
+        if (traj.error) throw traj.error;
+        const { byTicker, missing } = mapTrajectories(requested, (traj.data ?? []) as TrajectoryRow[]);
+        if (missing.length > 0) console.warn("[useWatchlistHistory] no price history (data gap):", missing.join(", "));
+        const status: Record<string, SymbolStatus> = {};
+        if (!map.error) for (const r of map.data ?? []) status[String(r.ticker).trim().toUpperCase()] = r.status as SymbolStatus;
+        for (const t of Object.keys(byTicker)) if (status[t]) byTicker[t] = { ...byTicker[t], symbolStatus: status[t] };
         if (cancelled) return;
-        cacheRef = { key, ts: Date.now(), data: byTicker };
-        setState({ byTicker, loading: false, error: null });
+        cacheRef = { key, ts: Date.now(), data: byTicker, status };
+        setState({ byTicker, symbolStatus: status, loading: false, error: null });
       } catch (err: any) {
         if (cancelled) return;
         console.error("[useWatchlistHistory] fetch failed:", err);
-        setState({ byTicker: {}, loading: false, error: err.message ?? "fetch failed" });
+        setState({ byTicker: {}, symbolStatus: {}, loading: false, error: err.message ?? "fetch failed" });
       }
     })();
 

@@ -9,6 +9,8 @@ export type PriceMilestone = {
 };
 
 interface PriceChartProps {
+  /** Parent already chose the window (e.g. server-bucketed series); show all points, hide own range buttons. */
+  externalRange?: boolean;
   points: DailyPricePoint[];
   loading?: boolean;
   height?: number;
@@ -86,13 +88,13 @@ function buildXLabels(data: DailyPricePoint[], range: RangeKey, toPct: (i: numbe
   return labels.map(l => ({ ...l, pct: Math.min(l.pct, 95) }));
 }
 
-export function PriceChart({ points, loading, height = 140, milestones, buyZone }: PriceChartProps) {
+export function PriceChart({ points, loading, height = 140, milestones, buyZone, externalRange = false }: PriceChartProps) {
   const [range, setRange] = useState<RangeKey>("1Y");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const sliceCount = RANGE_DAYS[range];
-  const data = sliceCount === Infinity ? points : points.slice(-sliceCount);
+  const data = externalRange || sliceCount === Infinity ? points : points.slice(-sliceCount);
 
   // Percentages for padding within the chart area
   const padLeft = 1; // % 
@@ -134,7 +136,7 @@ export function PriceChart({ points, loading, height = 140, milestones, buyZone 
     borderRadius: 3, transition: "all 0.15s ease",
   });
 
-  const rangeRow = (
+  const rangeRow = externalRange ? null : (
     <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
       {RANGE_KEYS.map(k => (
         <button key={k} onClick={(e) => { e.stopPropagation(); setRange(k); }} style={btnStyle(range === k)}>{k}</button>

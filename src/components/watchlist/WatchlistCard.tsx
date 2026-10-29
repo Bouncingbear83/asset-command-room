@@ -584,7 +584,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
           })()}
           {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
           {row.irrBbResult && <IrrBbPill result={row.irrBbResult} />}
-          <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={28} mood={mood} />
+          <WatchlistSparkline points={trajectory?.spark30d ?? []} symbolStatus={trajectory?.symbolStatus} zone={zone} width={sparkW} height={28} mood={mood} />
 
           {daysSinceReview != null && (
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: row.isOverdue ? "var(--red)" : "var(--text-dim)" }}>
@@ -748,7 +748,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
 
       {/* Body — sparkline + stats */}
       <div style={{ display: "flex", gap: isMobile ? 10 : 18, alignItems: "center", flexWrap: "wrap" }}>
-        <WatchlistSparkline points={trajectory?.spark30d ?? []} zone={zone} width={sparkW} height={sparkH} mood={mood} />
+        <WatchlistSparkline points={trajectory?.spark30d ?? []} symbolStatus={trajectory?.symbolStatus} zone={zone} width={sparkW} height={sparkH} mood={mood} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 2, fontFamily: "var(--font-mono)", fontSize: 10, minWidth: 180 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>

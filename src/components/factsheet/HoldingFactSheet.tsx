@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/PriceChart";
+import { LONG_RANGES, fetchPriceSeries, type LongRangeLabel } from "@/lib/priceSeries";
+import type { DailyPricePoint } from "@/hooks/useDailyPrices";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { triggerWebhook } from "@/lib/webhooks";
 import { type PortfolioData, type LiveHolding } from "@/hooks/usePortfolioData";
@@ -166,7 +168,18 @@ function SectionSkeleton({ rows = 2 }: { rows?: number }) {
 
 export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose }: Props) {
   const data = useFactSheetData(ticker, portfolio, priceData);
-  const [chartRange, setChartRange] = useState<30 | 90 | 180 | 365>(90);
+  const [chartRange, setChartRange] = useState<30 | 90 | 180 | LongRangeLabel>(90);
+  const [longSeries, setLongSeries] = useState<{ key: string; points: DailyPricePoint[]; error: string | null } | null>(null);
+  const longDays = typeof chartRange === "string" ? LONG_RANGES.find((r) => r.label === chartRange)!.days : null;
+  useEffect(() => {
+    if (longDays == null || !ticker) return;
+    const key = `${ticker}:${longDays}`;
+    let cancelled = false;
+    fetchPriceSeries(ticker, longDays)
+      .then((points) => { if (!cancelled) setLongSeries({ key, points, error: null }); })
+      .catch((e) => { if (!cancelled) setLongSeries({ key, points: [], error: e?.message ?? "fetch failed" }); });
+    return () => { cancelled = true; };
+  }, [ticker, longDays]);
 
   const banners = useMemo(() => computeBanners(data), [data]);
 
@@ -202,7 +215,11 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
   const isStale = livePrice === null;
 
 
-  const chartPoints = data.pricePoints.slice(-chartRange);
+  const longKey = longDays == null ? null : `${ticker}:${longDays}`;
+  const longReady = longKey != null && longSeries?.key === longKey;
+  const chartPoints = typeof chartRange === "number"
+    ? data.pricePoints.slice(-chartRange)
+    : longReady ? longSeries!.points : [];
 
   // Assemble milestone markers from already-loaded data (no extra fetches).
   const milestones = useMemo(() => {
@@ -391,7 +408,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={sectionTitle}>Price History</span>
                 <div style={{ display: "flex", gap: 4 }}>
-                  {([30, 90, 180, 365] as const).map((d) => (
+                  {([30, 90, 180, ...LONG_RANGES.map((r) => r.label)] as const).map((d) => (
                     <button
                       key={d}
                       onClick={() => setChartRange(d)}
@@ -402,16 +419,19 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                         color: chartRange === d ? "var(--gold)" : "var(--text-dim)",
                         cursor: "pointer", borderRadius: 2,
                       }}
-                    >{d === 365 ? "1Y" : `${d}D`}</button>
+                    >{typeof d === "string" ? d : `${d}D`}</button>
                   ))}
                 </div>
               </div>
-              {!readyHeavy || (data.loading && data.pricePoints.length === 0)
+              {!readyHeavy || (data.loading && data.pricePoints.length === 0) || (longKey != null && !longReady)
                 ? <SectionSkeleton rows={4} />
+                : longKey != null && chartPoints.length === 0
+                  ? <span style={monoLabel}>{longSeries?.error || "No price history available"}</span>
                 : data.pricePoints.length === 0
                   ? <span style={monoLabel}>{data.errors.prices || "No price history available"}</span>
                   : <PriceChart
                       points={chartPoints}
+                      externalRange
                       height={160}
                       milestones={milestones}
                       buyZone={data.score ? { low: (data.score as any).buyLow ?? null, high: (data.score as any).buyHigh ?? null } : null}

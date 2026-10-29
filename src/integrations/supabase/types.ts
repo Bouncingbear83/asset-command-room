@@ -800,6 +800,30 @@ export type Database = {
         }
         Relationships: []
       }
+      price_symbol_map: {
+        Row: {
+          note: string | null
+          status: string
+          ticker: string
+          updated_at: string | null
+          yahoo_symbol: string | null
+        }
+        Insert: {
+          note?: string | null
+          status?: string
+          ticker: string
+          updated_at?: string | null
+          yahoo_symbol?: string | null
+        }
+        Update: {
+          note?: string | null
+          status?: string
+          ticker?: string
+          updated_at?: string | null
+          yahoo_symbol?: string | null
+        }
+        Relationships: []
+      }
       research_reports: {
         Row: {
           created_at: string | null
@@ -1437,6 +1461,17 @@ export type Database = {
         }
         Relationships: []
       }
+      v_price_history_coverage: {
+        Row: {
+          first_date: string | null
+          last_date: string | null
+          row_count: number | null
+          stale_days: number | null
+          status: string | null
+          ticker: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       capital_flows_by_dimension: {
@@ -1454,6 +1489,29 @@ export type Database = {
       get_missing_watchlist_tickers: {
         Args: { tickers: string[] }
         Returns: string[]
+      }
+      get_price_series: {
+        Args: { p_days?: number; p_max_points?: number; p_ticker: string }
+        Returns: {
+          close: number
+          date: string
+        }[]
+      }
+      get_price_trajectories: {
+        Args: { p_tickers: string[] }
+        Returns: {
+          currency: string
+          current_close: number
+          first_date: string
+          high_52w: number
+          last_date: string
+          low_52w: number
+          price_30d_ago: number
+          price_7d_ago: number
+          row_count: number
+          spark30d: Json
+          ticker: string
+        }[]
       }
       perf_by_dimension_window: {
         Args: { p_dimension: string; p_window: number }

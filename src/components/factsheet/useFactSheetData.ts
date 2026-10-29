@@ -151,7 +151,18 @@ export function useFactSheetData(
       supabase.from("disruption_rationales").select("*").in("ticker", variants).order("scored_at", { ascending: false }).limit(1),
       supabase.from("disruption_snapshot").select("*").in("ticker", variants).order("snapshot_date", { ascending: false }).limit(1),
       supabase.from("daily_prices").select("snapshot_date, price_local, price_gbp").in("ticker", variants).gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(600),
-      supabase.from("watchlist_price_history").select("snapshot_date, close_price, currency").in("ticker", variants).gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(600),
+      // Server-side series (weekends excluded, bucketed to ≤500 points) + one-row currency lookup.
+      Promise.all([
+        supabase.rpc("get_price_series", { p_ticker: ticker, p_days: 600, p_max_points: 500 }),
+        supabase.from("watchlist_price_history").select("currency").in("ticker", variants).order("snapshot_date", { ascending: false }).limit(1),
+      ]).then(([series, cur]) => ({
+        error: series.error ?? cur.error,
+        data: (series.data ?? []).map((r: { date: string; close: number }) => ({
+          snapshot_date: r.date,
+          close_price: r.close,
+          currency: cur.data?.[0]?.currency ?? null,
+        })),
+      })),
       supabase.from("fx_rates").select("snapshot_date, pair, rate").gte("snapshot_date", cutoffStr).order("snapshot_date", { ascending: true }).limit(1000),
       supabase.from("narrative_signals").select("id, ticker, strength, signal_class, source_table, matched_keywords, headline, url, snippet, published_date, review_status, created_at").in("ticker", variants).order("created_at", { ascending: false }).limit(5),
       supabase.from("alerts_log").select("id, ticker, alert_type, previous_status, new_status, trigger_value, threshold, note, triggered_at").in("ticker", variants).order("triggered_at", { ascending: false }).limit(5),

@@ -1,4 +1,4 @@
-import type { SparkPoint } from "@/hooks/useWatchlistHistory";
+import type { SparkPoint, SymbolStatus } from "@/hooks/useWatchlistHistory";
 import type { EntryZone } from "@/lib/parseEntryTarget";
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   height?: number;
   /** colour mood: 'good' = price moving toward entry; 'bad' = away */
   mood?: "good" | "bad" | "neutral";
+  symbolStatus?: SymbolStatus;
 }
 
 const STROKE = {
@@ -28,6 +29,7 @@ export function WatchlistSparkline({
   width = 180,
   height = 50,
   mood = "neutral",
+  symbolStatus,
 }: Props) {
   if (!points || points.length < 2) {
     return (
@@ -46,7 +48,7 @@ export function WatchlistSparkline({
           borderRadius: 2,
         }}
       >
-        No price history yet
+        {emptyLabel(symbolStatus)}
       </div>
     );
   }
@@ -122,4 +124,11 @@ export function WatchlistSparkline({
       <circle cx={lastX} cy={lastY} r={2.5} fill={DOT[mood]} />
     </svg>
   );
+}
+
+/** Why a sparkline is empty: private companies have no listing; unresolved need a symbol. */
+export function emptyLabel(status: SymbolStatus | undefined): string {
+  if (status === "PRIVATE") return "PRIVATE";
+  if (status === "UNRESOLVED") return "SYMBOL?";
+  return "No price history yet";
 }
