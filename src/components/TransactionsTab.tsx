@@ -3,6 +3,7 @@ import { TickerLabel } from "@/components/shared/TickerLabel";
 import { LiveTransaction, LiveScore, LiveLayer, LiveHolding } from "@/hooks/usePortfolioData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { calcTickerReturns } from "@/lib/xirr";
+import { currencyUnit } from "@/lib/moverSafety";
 
 interface Props {
   transactions: LiveTransaction[];
@@ -42,8 +43,9 @@ const CCY_SYMBOLS: Record<string, string> = {
 
 function formatPrice(val: number | null, ccy: string): string {
   if (val === null) return "—";
+  // Pence BEFORE pounds: "GBp".toUpperCase() === "GBP", so a pounds-first test misreads pence.
+  if (currencyUnit(ccy) === "GBX") return `${val.toFixed(2)}p`;
   const sym = CCY_SYMBOLS[(ccy || "").toUpperCase()] ?? "$";
-  if ((ccy || "").toUpperCase() === "GBX") return `${val.toFixed(2)}p`;
   return `${sym}${val.toFixed(2)}`;
 }
 

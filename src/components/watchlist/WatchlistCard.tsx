@@ -3,6 +3,7 @@ import { TickerLabel } from "@/components/shared/TickerLabel";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LiveWatchItem } from "@/hooks/usePortfolioData";
+import { currencyUnit } from "@/lib/moverSafety";
 import { WatchlistSparkline } from "./WatchlistSparkline";
 import type { WatchlistTrajectory } from "@/hooks/useWatchlistHistory";
 import type { WatchlistScoreEntry } from "@/hooks/useWatchlistScores";
@@ -189,7 +190,8 @@ function formatPrice(n: number | null | undefined, currency?: string, ticker?: s
   if (c === "EUR") prefix = "€";
   else if (c === "JPY") prefix = "¥";
   else if (c === "GBP") prefix = "£";
-  else if (c === "GBX" || c === "GBP_PENCE" || c === "GBP".toUpperCase() + "P") { prefix = ""; suffix = "p"; }
+  // Pence BEFORE pounds: "GBp".toUpperCase() === "GBP", so test the raw sheet currency for pence first.
+  else if (currencyUnit(currency) === "GBX" || c === "GBX") { prefix = ""; suffix = "p"; }
   else if (c === "SEK" || c === "DKK" || c === "NOK") { prefix = ""; suffix = " kr"; }
   else if (c === "CAD") prefix = "C$";
   else if (c === "AUD") prefix = "A$";

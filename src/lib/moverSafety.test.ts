@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toYahooSymbol } from "../../supabase/functions/live-prices/contract";
-import { currenciesMatch, isSuspectMove, moverCurrencySymbol, holdingSheetQuote } from "./moverSafety";
+import { currenciesMatch, currencyUnit, isSuspectMove, moverCurrencySymbol, holdingSheetQuote } from "./moverSafety";
 
 describe("safe live symbol resolution", () => {
   it("resolves INR in AUD to the Australian listing", () => expect(toYahooSymbol("INR", new Map(), "AUD")).toEqual({ symbol: "INR.AX", skip: false }));
@@ -15,6 +15,9 @@ describe("currency units", () => {
   it("rejects USD quotes for EUR prices", () => expect(currenciesMatch("USD", "EUR")).toBe(false));
   it("treats GBp and GBX as the same pence unit", () => expect(currenciesMatch("GBp", "GBX")).toBe(true));
   it("does not compare pounds with pence without conversion", () => expect(currenciesMatch("GBP", "GBX")).toBe(false));
+  // "GBp".toUpperCase() === "GBP": pence must be detected before any pounds test or prices are read 100x large.
+  it.each(["GBp", "GBX", "gbx", "GBP_PENCE", "GBP-PENCE"])("reads %s as pence, never pounds", c => expect(currencyUnit(c)).toBe("GBX"));
+  it("reads GBP as pounds", () => expect(currencyUnit("GBP")).toBe("GBP"));
   it.each([["USD", "$"], ["GBP", "£"], ["GBX", "p"], ["EUR", "€"], ["JPY", "¥"], ["AUD", "A$"], ["CAD", "C$"], ["NOK", "kr"], ["CHF", "CHF"]])("labels %s as %s", (currency, symbol) => expect(moverCurrencySymbol(currency)).toBe(symbol));
 });
 describe("suspect ranking boundaries", () => {
