@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { DP_MIN_PCT, QUEUE_BLOCK_ACTIONS, QUEUE_MIN_GBP } from "@/config/signalRules";
-import { buildDeadSet, parseZone } from "@/lib/actionSurface";
+import { buildDeadSet, parseZone, sleeveOf } from "@/lib/actionSurface";
 import { LiveHolding, LiveWatchItem, LiveLayer, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -50,6 +50,8 @@ interface QueueItem {
   layerGap: number; // negative = underweight (higher priority)
   isWatchlist: boolean;
   tier: number | null;
+  /** Why the row is not Armed (R24 stale quartet / R29 sleeve floor). */
+  badge?: string;
 }
 
 const ACTION_STYLE: Record<string, { color: string; bg: string }> = {
@@ -70,9 +72,16 @@ interface Props {
   /** Gross dry powder % of AUM (R21) — Armed requires the DP gate to pass. */
   dpPct?: number | null;
   scores?: { ticker: string; heldStatus?: string }[];
+  /** R24 — STALE_HIGH tickers → quartet age (days); never Armed. */
+  staleQuartets?: Record<string, number>;
+  /** R29 — sleeves below the cash floor; holdings rows in these sleeves are never Armed. */
+  blockedSleeves?: string[];
 }
 
-export default function CapitalQueue({ holdings, watchlist, layers, macroState, dpPct = null, scores = [] }: Props) {
+const NO_STALE: Record<string, number> = {};
+const NO_SLEEVES: string[] = [];
+
+export default function CapitalQueue({ holdings, watchlist, layers, macroState, dpPct = null, scores = [], staleQuartets = NO_STALE, blockedSleeves = NO_SLEEVES }: Props) {
   const [gapsOpen, setGapsOpen] = useState(false);
   const dpGate = dpPct == null || dpPct > DP_MIN_PCT;
   const dead = useMemo(() => buildDeadSet(holdings, watchlist, scores), [holdings, watchlist, scores]);
@@ -116,8 +125,12 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
       const triggerMet = h.alert_status.toUpperCase() === "ADD_ZONE" || (add > 0 && h.price > 0 && h.price <= add);
       const blk = blocked(act) || blocked(h.deploy_note || "") || blocked(h.notes || "");
       const row: QueueItem = { ticker: h.ticker, action, amount, layer: h.layer, context, price: h.price, priority, layerGap, isWatchlist: false, tier: null };
-      if (triggerMet && !blk && dpGate) items.push(row);
-      else gapItems.push({ ...row, action: "GAP" });
+      const age = staleQuartets[h.ticker.toUpperCase()];
+      const sleeve = sleeveOf(h.account);
+      const sleeveBlocked = !!sleeve && blockedSleeves.includes(sleeve);
+      const badge = age != null ? `STALE QUARTET ${age}d` : sleeveBlocked ? `${sleeve} FLOOR` : undefined;
+      if (triggerMet && !blk && dpGate && !badge) items.push(row);
+      else gapItems.push({ ...row, action: "GAP", badge });
     });
 
     watchlist.forEach((w) => {
@@ -135,8 +148,10 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
       const px = typeof w.current === "number" ? w.current : 0;
       const edge = w.triggerPriceNumeric && w.triggerPriceNumeric > 0 ? w.triggerPriceNumeric : parseZone(w.entry)?.high ?? 0;
       const row: QueueItem = { ticker: w.ticker, action, amount, layer: w.layer, context, price: px, priority, layerGap, isWatchlist: true, tier };
-      if (px > 0 && edge > 0 && px <= edge && dpGate) items.push(row);
-      else gapItems.push({ ...row, action: "GAP" });
+      const age = staleQuartets[w.ticker.toUpperCase()];
+      const badge = age != null ? `STALE QUARTET ${age}d` : undefined;
+      if (px > 0 && edge > 0 && px <= edge && dpGate && !badge) items.push(row);
+      else gapItems.push({ ...row, action: "GAP", badge });
     });
 
     const sorter = (a: QueueItem, b: QueueItem) => {
@@ -147,13 +162,13 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
     items.sort(sorter);
     gapItems.sort((a, b) => b.amount - a.amount);
     return { queue: items, gaps: gapItems };
-  }, [holdings, watchlist, layerGapMap, holdingsTickers, dead, dpGate]);
+  }, [holdings, watchlist, layerGapMap, holdingsTickers, dead, dpGate, staleQuartets, blockedSleeves]);
 
   const deployTotal = queue.reduce((sum, d) => sum + d.amount, 0);
   const mp = isMobile ? "10px 12px" : "10px 16px";
 
   return (
-    <div style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}` }}>
+    <div id="capital-queue" style={{ ...card, borderLeft: `3px solid ${isPaused ? "var(--amber)" : "var(--green)"}`, scrollMarginTop: 80 }}>
       <div style={cardHeader}>
         <span style={cardTitle}>Capital Queue · Armed {isPaused ? "(paused)" : ""}</span>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)" }}>
@@ -259,6 +274,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
                 <span style={{ minWidth: 60, color: "var(--text-mid)" }}><TickerLabel ticker={g.ticker} plain /></span>
                 <span style={{ minWidth: 60 }}>{formatCurrency(g.amount)}</span>
                 <span style={{ minWidth: 60 }}>{g.layer}</span>
+                {g.badge && <span style={{ color: "var(--amber)", fontSize: 8, letterSpacing: "0.08em", border: "1px solid var(--amber)", padding: "0 4px", borderRadius: 2, whiteSpace: "nowrap" }}>{g.badge}</span>}
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.context}</span>
               </div>
             ))}
