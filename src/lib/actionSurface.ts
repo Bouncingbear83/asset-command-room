@@ -877,3 +877,66 @@ function countWatching(a: BuildArgs, dead: Set<string>, held: Set<string>, all: 
   }
   return names.size;
 }
+
+// ── Doctrine strip (Command, under CommandHeader) ──
+export type Rag = "GREEN" | "AMBER" | "RED" | "GREY";
+export interface DoctrineLink { tab: string; params?: Record<string, string>; anchor?: string }
+export interface DoctrineChip { id: string; label: string; rag: Rag; detail: string; link: DoctrineLink }
+export interface DoctrineInput {
+  gm: GmState | null;
+  dpPct: number | null;
+  /** null until the surface has been built (chips show GREY / no data). */
+  surface: Pick<Surface, "decide" | "watch" | "hygiene" | "staleQuartets" | "sleeveFloors" | "cashRecon"> | null;
+  /** DriversTab caps (Rule #13) counts; null = no data. */
+  driverCaps: { breach: number; warn: number; ok: number } | null;
+}
+/** One RAG chip per doctrine check. GREY = not evaluated (counts as not green). */
+export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
+  const chips: DoctrineChip[] = [];
+  const sf = i.surface;
+  chips.push(i.gm == null
+    ? { id: "gm", label: "G(m)", rag: "GREY", detail: "No data", link: { tab: "command", anchor: "gm-exposure" } }
+    : { id: "gm", label: "G(m)", rag: i.gm.level === "BREACH" ? "RED" : i.gm.level === "SOFT" ? "AMBER" : "GREEN",
+        detail: i.gm.level === "OK" ? "Within caps" : i.gm.label, link: { tab: "command", anchor: "gm-exposure" } });
+  chips.push(i.dpPct == null
+    ? { id: "dp", label: "DP", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
+    : { id: "dp", label: `DP ${i.dpPct.toFixed(1)}%`, rag: i.dpPct >= DP_MIN_PCT && i.dpPct <= DP_MAX_PCT ? "GREEN" : "AMBER",
+        detail: `Posture ${DP_MIN_PCT}–${DP_MAX_PCT}%`, link: { tab: "holdings" } });
+  if (!sf) {
+    for (const [id, label, link] of [
+      ["irrbb", "IRR-BB held", { tab: "command", anchor: "action-inbox" }],
+      ["quartets", "Stale quartets", { tab: "intelligence" }],
+      ["sleeves", "Sleeve floors", { tab: "command", anchor: "capital-queue" }],
+      ["cash", "Cash recon", { tab: "holdings" }],
+      ["hygiene", "Tracker hygiene", { tab: "actions", params: { view: "hygiene" } }],
+    ] as [string, string, DoctrineLink][]) chips.push({ id, label, rag: "GREY", detail: "No data", link });
+  } else {
+    const irr = [...sf.decide, ...sf.watch].filter((c) => c.trigger_type === "IRRBB_LOW_HELD" && c.lane === "DECIDE");
+    const red = irr.filter((c) => c.severity === "RED").length, amber = irr.filter((c) => c.severity === "AMBER").length;
+    const dataChecks = sf.decide.filter((c) => c.trigger_type === "IRRBB_DATA_CHECK").length;
+    chips.push({ id: "irrbb", label: `IRR-BB held${red + amber ? ` ${red + amber}` : ""}`, rag: red ? "RED" : amber || dataChecks ? "AMBER" : "GREEN",
+      detail: red + amber + dataChecks ? `${red} red · ${amber} amber${dataChecks ? ` · ${dataChecks} data check` : ""} (< ${IRRBB_HURDLE_PCT}% hurdle)` : `All held ≥ ${IRRBB_HURDLE_PCT}%`,
+      link: { tab: "command", anchor: "action-inbox" } });
+    const sq = Object.entries(sf.staleQuartets);
+    chips.push({ id: "quartets", label: `Stale quartets${sq.length ? ` ${sq.length}` : ""}`, rag: sq.length ? "AMBER" : "GREEN",
+      detail: sq.length ? sq.map(([t, d]) => `${t} ${d}d`).join(", ") : `None > ${QUARTET_STALE_DAYS}d with IRR-BB > ${QUARTET_STALE_IRR_PCT}%`, link: { tab: "intelligence" } });
+    const below = (sf.sleeveFloors ?? []).filter((f) => f.below);
+    chips.push(sf.sleeveFloors == null
+      ? { id: "sleeves", label: "Sleeve floors", rag: "GREY", detail: "No data", link: { tab: "command", anchor: "capital-queue" } }
+      : { id: "sleeves", label: `Sleeve floors${below.length ? ` ${below.length}` : ""}`, rag: below.length ? "AMBER" : "GREEN",
+          detail: below.length ? below.map((f) => `${f.sleeve} ${f.pct.toFixed(1)}%`).join(", ") + ` < ${SLEEVE_FLOOR_PCT}%` : `All sleeves ≥ ${SLEEVE_FLOOR_PCT}% cash`,
+          link: { tab: "command", anchor: "capital-queue" } });
+    chips.push(sf.cashRecon == null
+      ? { id: "cash", label: "Cash recon", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
+      : { id: "cash", label: "Cash recon", rag: sf.cashRecon.red ? "RED" : "GREEN",
+          detail: `Δ £${sf.cashRecon.delta.toLocaleString("en-GB", { maximumFractionDigits: 2 })} (tolerance £${CASH_RECON_TOLERANCE_GBP})`, link: { tab: "holdings" } });
+    chips.push({ id: "hygiene", label: `Tracker hygiene${sf.hygiene.length ? ` ${sf.hygiene.length}` : ""}`, rag: sf.hygiene.length ? "AMBER" : "GREEN",
+      detail: sf.hygiene.length ? `${sf.hygiene.length} OPEN rows on dead names` : "No OPEN rows on dead names", link: { tab: "actions", params: { view: "hygiene" } } });
+  }
+  const dc = i.driverCaps;
+  chips.push(dc == null
+    ? { id: "drivers", label: "Driver caps", rag: "GREY", detail: "No data", link: { tab: "drivers" } }
+    : { id: "drivers", label: "Driver caps", rag: dc.breach ? "RED" : dc.warn ? "AMBER" : "GREEN",
+        detail: `${dc.breach} breach · ${dc.warn} warn · ${dc.ok} ok`, link: { tab: "drivers" } });
+  return chips;
+}

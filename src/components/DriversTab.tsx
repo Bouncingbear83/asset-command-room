@@ -8,17 +8,7 @@ interface Props {
   holdings: LiveHolding[];
 }
 
-// Rule #13: per-group caps. AI_INFRA is tighter (OB v3.13).
-const DEFAULT_WARN_PCT = 35;
-const DEFAULT_BREACH_PCT = 40;
-const AI_INFRA_WARN_PCT = 30;
-const AI_INFRA_BREACH_PCT = 35;
-
-function capsForGroup(group: string): { warn: number; breach: number } {
-  return group === "AI_INFRA"
-    ? { warn: AI_INFRA_WARN_PCT, breach: AI_INFRA_BREACH_PCT }
-    : { warn: DEFAULT_WARN_PCT, breach: DEFAULT_BREACH_PCT };
-}
+import { capsForGroup, priorityFor, DEFAULT_WARN_PCT, DEFAULT_BREACH_PCT, AI_INFRA_WARN_PCT, AI_INFRA_BREACH_PCT } from "@/lib/driverCaps";
 
 const WARN_PCT = DEFAULT_WARN_PCT; // retained for non-group-specific UI text
 const BREACH_PCT = DEFAULT_BREACH_PCT;
@@ -57,15 +47,6 @@ const monoSm: React.CSSProperties = {
   fontSize: 10,
   color: "var(--text-dim)",
 };
-
-function priorityFor(pct: number, raw: string | null, group?: string): "OK" | "WARN" | "BREACH" {
-  const u = String(raw ?? "").trim().toUpperCase();
-  if (u === "BREACH" || u === "WARN" || u === "OK") return u as any;
-  const caps = group ? capsForGroup(group) : { warn: DEFAULT_WARN_PCT, breach: DEFAULT_BREACH_PCT };
-  if (pct >= caps.breach) return "BREACH";
-  if (pct >= caps.warn) return "WARN";
-  return "OK";
-}
 
 function priorityIcon(p: "OK" | "WARN" | "BREACH") {
   return p === "BREACH" ? "🔴" : p === "WARN" ? "🟡" : "✅";
