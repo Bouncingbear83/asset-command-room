@@ -137,3 +137,10 @@ Never change any score, band or IRR-BB value.
 **Test fixture.** STALE_HIGH: AMG (129 days, 53.1%), ALB (122 days, 30.3%). Not stale: 4109.T (112 days, 52.9%).
 
 **R30 test fixture:** ledger where the latest row per account (SIPP, ISA, BORDIER_GIA; JISA* excluded) sums to 138,914.20.
+
+## §11 Oversight P1 fixes (D1–D4)
+
+- **R30 CASH_RECON (replaces ledger compare).** E62:E64 are XLOOKUPs of the CASH ledger, so four internal checks run instead; any failure is RED and the chip names the failed check: (1) E65 = E62+E63+E64 ± £1; (2) F58 = E58/E60 ± 0.05pp; (3) LAYERS Cash = E65 ± £100; (4) every DP % quoted in NARRATIVE or MACRO_STATE within 0.5pp of F58 (ranges like “DP 7–8%” ignored). Checks whose inputs are missing are not evaluated.
+- **Tracker routing.** Rows due today or inside the 3-day missed window reach DECIDE only when priority is HIGH or action_type is EARNINGS_GATE, KILL_CHECK or DEPLOY (others → PREPARE). MANUAL and DATA_FIX not HIGH → BACKLOG. CATALYST_WATCH not HIGH → PREPARE (WATCH beyond the horizon).
+- **IRR-BB chip.** Counts every R23 LOW row, superseded included: “IRR-BB held N · X decide / Y superseded”. SCORES rows with RETURN_PROFILE HEDGE or VEHICLE never fire R23 (OB §3.4.0).
+- **Stale-quartet chip.** Only HELD and live WATCHLIST names; rows tripping the R23 artefact guard excluded. Label “Stale quartets N held · M total”.
