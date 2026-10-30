@@ -1,0 +1,2 @@
+ALTER TABLE public.price_symbol_map DROP CONSTRAINT price_symbol_map_status_check;
+ALTER TABLE public.price_symbol_map ADD CONSTRAINT price_symbol_map_status_check CHECK (status IN ('ACTIVE', 'PRIVATE', 'UNRESOLVED', 'NO_FEED'));

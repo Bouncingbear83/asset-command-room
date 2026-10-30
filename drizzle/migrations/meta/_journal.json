@@ -43,6 +43,13 @@
       "when": 1793296151006,
       "tag": "0005_price_trajectories_fast",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793350417742,
+      "tag": "0006_price_symbol_map_no_feed",
+      "breakpoints": true
     }
   ]
 }
