@@ -510,6 +510,10 @@ function parseScores(rows: Record<string, any>[]) {
       divYield: parseNum(findCol(row, "DIV_YIELD", "div_yield", "Div_Yield")),
       // Live IRR-BB formula output (col AU) — display/gating only
       irrBbSheet: parseNum(findCol(row, "IRR_BB", "irr_bb", "IRR-BB", "IRR BB", "Irr_Bb", "IRR_BB_PCT", "irr_bb_pct")),
+      // Raw AU cell (R23 parses strictly: blank, #N/A or text = not evaluated)
+      irrBbRaw: findCol(row, "IRR_BB", "irr_bb", "IRR-BB", "IRR BB", "Irr_Bb", "IRR_BB_PCT", "irr_bb_pct") as unknown,
+      // LIVE_PRICE (col AT) — R23 card text only
+      livePrice: parseNum(findCol(row, "LIVE_PRICE", "live_price", "Live_Price", "LIVE PRICE")),
       // Live asymmetry formula output (col AV) — canonical
       asymSheet: parseNum(findCol(row, "ASYM", "asym", "Asym")),
       rowType: String(findCol(row, "row_type", "Row_Type", "ROW_TYPE") ?? "data").trim().toLowerCase(),
@@ -1009,6 +1013,8 @@ export interface PortfolioData {
   cashTotal: number;
   /** Canonical HOLDINGS cash block (rows 58–65). */
   cashBlock: CashBlock;
+  /** CASH ledger: latest row per account, JISA excluded (R30 reconciliation). */
+  cashLedger: { byAccount: Record<string, number>; total: number };
   sources: SourceMap;
   lastUpdated: string | null;
   loading: boolean;
@@ -1033,7 +1039,7 @@ export const EMPTY_SNAPSHOT: PortfolioSnapshot = {
   macroStateRows: [], macroBanner: null, riskControls: [], weeklyTriggers: [], earningsCalendar: [],
   transactions: [], jisaHoldings: [],
   jisaTotals: { Bear: { mv: 0, cash: 0, portfolio: 0 }, Alfie: { mv: 0, cash: 0, portfolio: 0 }, Edie: { mv: 0, cash: 0, portfolio: 0 } },
-  cashSipp: 0, cashIsa: 0, cashTotal: 0, cashBlock: EMPTY_CASH_BLOCK, sources: pendingSources(), lastUpdated: null,
+  cashSipp: 0, cashIsa: 0, cashTotal: 0, cashBlock: EMPTY_CASH_BLOCK, cashLedger: { byAccount: {}, total: 0 }, sources: pendingSources(), lastUpdated: null,
 };
 
 function isoToday() {
@@ -1119,6 +1125,7 @@ export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
     cashIsa: cashBlock.cashBySleeve.ISA ?? ledger.byAccount["ISA"] ?? 0,
     cashTotal: cashBlock.cashTotal ?? ledger.total,
     cashBlock,
+    cashLedger: ledger,
     sources,
     lastUpdated: batch?.fetched_at ?? null,
   };
