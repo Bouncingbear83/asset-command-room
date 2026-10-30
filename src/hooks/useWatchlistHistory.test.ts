@@ -20,6 +20,9 @@ describe("mapTrajectories", () => {
 });
 
 describe("emptyLabel", () => {
+  it("distinguishes an unavailable feed from an unresolved symbol", () => {
+    expect(emptyLabel("NO_FEED")).toBe("NO FEED");
+  });
   it("PRIVATE / SYMBOL? / default", () => {
     expect(emptyLabel("PRIVATE")).toBe("PRIVATE");
     expect(emptyLabel("UNRESOLVED")).toBe("SYMBOL?");

@@ -17,11 +17,11 @@ export interface WatchlistTrajectory {
   firstDate?: string | null;
   lastDate?: string | null;
   rowCount?: number;
-  /** From price_symbol_map: PRIVATE / UNRESOLVED names explain an empty sparkline. */
+  /** From price_symbol_map: PRIVATE / UNRESOLVED / NO_FEED explain an empty sparkline. */
   symbolStatus?: SymbolStatus;
 }
 
-export type SymbolStatus = "ACTIVE" | "PRIVATE" | "UNRESOLVED";
+export type SymbolStatus = "ACTIVE" | "PRIVATE" | "UNRESOLVED" | "NO_FEED";
 
 interface State {
   byTicker: Record<string, WatchlistTrajectory>;

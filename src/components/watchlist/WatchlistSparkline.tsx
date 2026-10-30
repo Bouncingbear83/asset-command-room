@@ -129,6 +129,7 @@ export function WatchlistSparkline({
 /** Why a sparkline is empty: private companies have no listing; unresolved need a symbol. */
 export function emptyLabel(status: SymbolStatus | undefined): string {
   if (status === "PRIVATE") return "PRIVATE";
+  if (status === "NO_FEED") return "NO FEED";
   if (status === "UNRESOLVED") return "SYMBOL?";
   return "No price history yet";
 }
