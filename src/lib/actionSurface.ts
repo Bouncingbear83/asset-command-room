@@ -31,6 +31,20 @@ import {
   EXIT_RECLASS_TAG,
   AUTO_EARN_SEGMENT,
   VERDICT_BAND_ORDER,
+  IRRBB_HURDLE_PCT,
+  IRRBB_RED_PCT,
+  IRRBB_ARTEFACT_LOW,
+  IRRBB_ARTEFACT_HIGH,
+  IRRBB_RED_EXIT_TOKENS,
+  QUARTET_STALE_DAYS,
+  QUARTET_STALE_IRR_PCT,
+  SLEEVE_FLOOR_PCT,
+  SLEEVES,
+  CASH_RECON_TOLERANCE_GBP,
+  MISSED_HIGH_PRIORITY,
+  HYGIENE_EXEMPT_ON_ARCHIVE,
+  DP_MIN_PCT,
+  DP_MAX_PCT,
 } from "@/config/signalRules";
 import { normBand } from "@/lib/watchlistBands";
 
@@ -57,6 +71,8 @@ export interface Candidate {
   verdict?: { id: string; apply_target: string; payload: any; band: string; state: "NEW" | "QUEUED" | "ACCEPTED_TICKET" | "PLACED" };
   /** Earnings engine — EARNINGS_BRIEF row shown as an “Open brief” link on the PREPARE earnings card. */
   brief?: { id: string; note_path: string | null; viewed: boolean; payload: any };
+  /** Small label shown with the card (e.g. R24 “STALE QUARTET 129d”). */
+  badge?: string;
 }
 
 // ── Minimal input shapes (structural; Live* types satisfy them) ──
@@ -66,6 +82,8 @@ export interface HoldingIn {
   trigger_price_add?: string; trigger_price_exit?: string;
   trigger_review_date?: string; trigger_review_note?: string;
   deploy_note?: string; notes?: string; action?: string; currency?: string;
+  /** Market value in GBP (R29 sleeve value). */
+  mv?: number;
 }
 export interface WatchIn {
   ticker: string; layer?: string; status: string; current: number | string | null;
@@ -74,7 +92,13 @@ export interface WatchIn {
   /** WATCHLIST col AL — single source of truth for price bands. */
   band?: string;
 }
-export interface ScoreIn { ticker: string; heldStatus?: string; irrBbSheet?: number | null; score?: number | null }
+export interface ScoreIn {
+  ticker: string; heldStatus?: string; irrBbSheet?: number | null; score?: number | null;
+  /** SCORES AU raw cell (R23 strict parse). Falls back to irrBbSheet (sheet fraction) when absent. */
+  irrBbRaw?: unknown;
+  /** AK bull_base · AO BULL_BEAR_AT_DATE · AR BB_TARGET_DATE · AT LIVE_PRICE — card text / R24 age only. */
+  bullBase?: number | null; bullBearAtDate?: string | null; bbTargetDate?: string | null; livePrice?: number | null;
+}
 export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; fiscalPeriod?: string; confirmed?: boolean }
 export interface TxnIn { ticker: string; account?: string; date: string; action: string }
 export interface TrackerRowIn {
@@ -257,6 +281,10 @@ export interface BuildArgs {
   sharesBaseline?: Record<string, number>;
   /** F4 v2 — TRANSACTIONS rows; a same-side row on/after the order date clears R16. */
   transactions?: TxnIn[];
+  /** R29 — HOLDINGS cash block E62:E64; null/absent = not evaluated. */
+  cashBySleeve?: { SIPP: number | null; ISA: number | null; Bordier: number | null } | null;
+  /** R30 — HOLDINGS E65 and CASH ledger total (latest per account, JISA excluded); absent = not evaluated. */
+  cashRecon?: { e65: number | null; ledgerTotal: number | null } | null;
 }
 
 export interface Surface {
@@ -271,6 +299,14 @@ export interface Surface {
   watchCount: number;
   /** Brief rows whose verdict (same ticker + print date) exists → set CONFIRMED “superseded by verdict”. */
   supersededBriefs: string[];
+  /** R32 — OPEN tracker rows on dead tickers (Actions “Hygiene” filter). */
+  hygiene: Candidate[];
+  /** R24 — STALE_HIGH names → quartet age in days. */
+  staleQuartets: Record<string, number>;
+  /** R29 — per-sleeve floor check; null when the cash block was not supplied. */
+  sleeveFloors: SleeveFloor[] | null;
+  /** R30 — cash reconciliation; null when either side is missing. */
+  cashRecon: CashRecon | null;
 }
 
 const SEV_RANK: Record<Severity, number> = { RED: 0, AMBER: 1, GREY: 2 };
@@ -289,7 +325,7 @@ export function routeTrackerRow(r: TrackerRowIn, today: string, known?: Set<stri
   const due = isoDate(r.due_date);
   if (!due) return "WATCH";
   const d = daysFrom(today, due);
-  if (d < -MISSED_AFTER_DAYS) return "MISSED";
+  if (d < -MISSED_AFTER_DAYS) return up(r.priority) === MISSED_HIGH_PRIORITY ? "DECIDE" : "MISSED"; // R31
   if (d <= 0) return "DECIDE";
   if (d <= PREPARE_HORIZON_DAYS) return "PREPARE";
   return "WATCH";
