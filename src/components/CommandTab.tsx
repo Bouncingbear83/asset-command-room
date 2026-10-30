@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { LiveMacroStateRow } from "@/hooks/usePortfolioData";
 import { usePortfolio } from "@/data/PortfolioProvider";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -9,8 +9,11 @@ import CapitalQueue from "@/components/command/CapitalQueue";
 import OpportunityRank from "@/components/OpportunityRank";
 import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
-import NarrativeWatchCard from "@/components/NarrativeWatchCard";
-import GmExposureChip from "@/components/command/GmExposureChip";
+import GmExposureChip, { computeGmStats } from "@/components/command/GmExposureChip";
+import DoctrineStrip from "@/components/command/DoctrineStrip";
+import { doctrineChecks, gmStatus, type Surface } from "@/lib/actionSurface";
+import { driverCapCounts } from "@/lib/driverCaps";
+import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import BenchmarkStrip from "@/components/command/BenchmarkStrip";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
@@ -96,8 +99,10 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashBlock, sources, transactions } =
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashBlock, cashLedger, sources, transactions } =
     usePortfolio();
+  const [surface, setSurface] = useState<Surface | null>(null);
+  const factorWeights = useFactorGroupWeights();
   const isMobile = useIsMobile();
 
   const cardHeader: React.CSSProperties = { ...cardHeaderBase, padding: isMobile ? "10px 12px" : "12px 14px" };
@@ -107,6 +112,28 @@ export default function CommandTab() {
   const cashGbp = cashOk ? cashBlock.cashTotal : null;
   const canonAum = cashOk ? cashBlock.aum : null;
   const dpPct = cashOk && cashBlock.grossDp != null ? cashBlock.grossDp * 100 : null;
+
+  // R29 / R30 inputs — null when a source failed (not evaluated, never zero).
+  const cashBySleeve = useMemo(() => (cashOk && sources.holdings.status === "ok" ? cashBlock.cashBySleeve : null), [cashOk, sources.holdings.status, cashBlock]);
+  const cashRecon = useMemo(
+    () => (cashOk && sources.cash.status === "ok" ? { e65: cashBlock.cashTotal, ledgerTotal: cashLedger.total } : null),
+    [cashOk, sources.cash.status, cashBlock, cashLedger],
+  );
+
+  // Doctrine strip (display only).
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const gmState = useMemo(() => {
+    const s = computeGmStats(scores, holdings, watchlist);
+    return s.total > 0 ? gmStatus(s.aggregatePct, s.deployed.length, todayIso) : null;
+  }, [scores, holdings, watchlist, todayIso]);
+  const doctrine = useMemo(
+    () => doctrineChecks({
+      gm: gmState, dpPct, surface,
+      driverCaps: factorWeights.loading || factorWeights.error || factorWeights.latest.length === 0 ? null : driverCapCounts(factorWeights.latest),
+    }),
+    [gmState, dpPct, surface, factorWeights.loading, factorWeights.error, factorWeights.latest],
+  );
+  const blockedSleeves = useMemo(() => (surface?.sleeveFloors ?? []).filter((f) => f.below).map((f) => f.sleeve), [surface]);
 
   // Narrative derived data
   const priorityNarratives = [
@@ -194,6 +221,9 @@ export default function CommandTab() {
         isMobile={isMobile}
       />
 
+      {/* ── DOCTRINE STRIP ── */}
+      <DoctrineStrip chips={doctrine} isMobile={isMobile} />
+
       {/* ── BENCHMARK CONTEXT ── */}
       <BenchmarkStrip />
 
@@ -201,15 +231,17 @@ export default function CommandTab() {
       <MoversCard holdings={holdings} watchlist={activeWatchlist} earnings={earningsCalendar} />
 
       {/* ── G(m) MICRO-CAP EXPOSURE ── */}
-      <div style={{ padding: "0 var(--app-px, 40px)", marginBottom: 4 }}>
+      <div id="gm-exposure" style={{ padding: "0 var(--app-px, 40px)", marginBottom: 4, scrollMarginTop: 80 }}>
         <GmExposureChip scores={scores} holdings={holdings} watchlist={watchlist} />
       </div>
 
       {/* ── CARD 2: ACTION INBOX ── */}
-      <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} transactions={transactions} />
+      <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} transactions={transactions}
+        cashBySleeve={cashBySleeve} cashRecon={cashRecon} onSurface={setSurface} />
 
       {/* ── CARD 3: CAPITAL QUEUE ── */}
-      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={dpPct} scores={scores} />
+      <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={dpPct} scores={scores}
+        staleQuartets={surface?.staleQuartets} blockedSleeves={blockedSleeves} />
 
       {/* ── CARD 4: OPPORTUNITY MAP (scatter, desktop only) ── */}
       <OpportunityScatter
@@ -225,9 +257,6 @@ export default function CommandTab() {
 
       {/* ── CARD 5: OPPORTUNITY RANK ── */}
       <OpportunityRank scores={scores} holdings={holdings} watchlist={watchlist} />
-
-      {/* ── CARD 5: NARRATIVE WATCH ── */}
-      <NarrativeWatchCard />
 
       {/* ── LAYER REVIEW CALENDAR ── */}
       <LayerReviewCalendar />

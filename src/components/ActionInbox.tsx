@@ -7,7 +7,7 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useActionTracker } from "@/components/actions/useActionTracker";
 import { computeGmStats } from "@/components/command/GmExposureChip";
-import { buildSurface, type Candidate, type Severity } from "@/lib/actionSurface";
+import { buildSurface, type Candidate, type Severity, type Surface } from "@/lib/actionSurface";
 import { DECIDE_CAP, WATCH_WAKE_PCT } from "@/config/signalRules";
 import EarningsVerdictCard from "@/components/EarningsVerdictCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,9 +46,15 @@ interface Props {
   earnings: LiveEarningsCalendarItem[];
   scores?: LiveScore[];
   transactions?: { ticker: string; account?: string; date: string; action: string }[];
+  /** R29 — HOLDINGS E62:E64; null = cash block failed (not evaluated). */
+  cashBySleeve?: { SIPP: number | null; ISA: number | null; Bordier: number | null } | null;
+  /** R30 — HOLDINGS E65 vs CASH ledger; null = a source failed (not evaluated). */
+  cashRecon?: { e65: number | null; ledgerTotal: number | null } | null;
+  /** Lets the Command tab feed the Doctrine strip from the same surface. */
+  onSurface?: (s: Surface) => void;
 }
 
-export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [] }: Props) {
+export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [], cashBySleeve = null, cashRecon = null, onSurface }: Props) {
   const isMobile = useIsMobile();
   const today = todayISO();
   const tracker = useActionTracker({ watchlist, holdings, earnings, scores });
@@ -74,9 +80,10 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   );
 
   const surface = useMemo(
-    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions }),
-    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions],
+    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions, cashBySleeve, cashRecon }),
+    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions, cashBySleeve, cashRecon],
   );
+  useEffect(() => { onSurface?.(surface); }, [surface, onSurface]);
 
   useEffect(() => {
     const next = { ...baseline };
@@ -213,7 +220,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   };
 
   return (
-    <div style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderLeft: `3px solid ${decide.length ? "var(--gold)" : "var(--green)"}`, marginBottom: 16 }}>
+    <div id="action-inbox" style={{ background: "var(--panel)", border: "1px solid var(--rim)", borderLeft: `3px solid ${decide.length ? "var(--gold)" : "var(--green)"}`, marginBottom: 16, scrollMarginTop: 80 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: mp, borderBottom: "1px solid var(--rim)", flexWrap: "wrap", gap: 8 }}>
         <span style={{ ...mono(10, decide.length ? "var(--gold)" : "var(--green)"), fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase" }}>
           {decide.length ? "⚡ Decide" : "✅ Nothing to decide"}
@@ -272,6 +279,12 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
         <div style={{ ...mono(9, "var(--text-dim)"), letterSpacing: "0.1em", padding: "4px 2px" }}>
           👁 {surface.watchCount} watching, {surface.wakeWithin10} wake within {WATCH_WAKE_PCT}%
         </div>
+        {surface.hygiene.length > 0 && (
+          <a href="?tab=actions&view=hygiene" onClick={(e) => { e.preventDefault(); const p = new URLSearchParams(window.location.search); p.set("tab", "actions"); p.set("view", "hygiene"); window.history.pushState({}, "", `${window.location.pathname}?${p}`); window.dispatchEvent(new PopStateEvent("popstate")); }}
+            style={{ ...mono(9, "var(--amber)"), letterSpacing: "0.1em", padding: "2px", textDecoration: "none" }}>
+            🧹 {surface.hygiene.length} tracker row{surface.hygiene.length === 1 ? "" : "s"} on dead names → Actions · Hygiene
+          </a>
+        )}
         {missed.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, ...mono(9, "var(--amber)"), letterSpacing: "0.1em", padding: "2px" }}>
             ⏱ {missed.length} missed (&gt;3 days past due, no verdict)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  buildDeadSet, holdAlert, isAutomationNote, isSuperseded, routeTrackerRow, type Lane,
+  buildDeadSet, holdAlert, isAutomationNote, isSuperseded, routeTrackerRow, isTrackerHygiene, type Lane,
 } from "@/lib/actionSurface";
 import { EARNINGS_PREPARE_DAYS } from "@/config/signalRules";
 import { evaluateRoutine, BACKSTOP_DAYS, COVER_AHEAD_DAYS } from "@/lib/routineReview";
@@ -65,6 +65,8 @@ export interface ActionItem {
   is_routine: boolean;
   /** Spec v1 lane (R17). BACKLOG items never appear on the Command tab. */
   lane: Lane;
+  /** R32 — OPEN tracker row on a dead ticker (Actions “Hygiene” filter). */
+  hygiene?: boolean;
 }
 
 interface Args {
@@ -220,6 +222,10 @@ export function useActionTracker({
   const dead = useMemo(
     () => buildDeadSet(holdings, watchlist, scores as any),
     [holdings, watchlist, scores],
+  );
+  const watchStatus = useMemo(
+    () => new Map(watchlist.map((w) => [(w.ticker || "").toUpperCase(), String(w.status ?? "").toUpperCase()])),
+    [watchlist],
   );
   const scoreIrr = useMemo(() => {
     const m = new Map<string, number | null>();
@@ -513,6 +519,7 @@ export function useActionTracker({
       // Supabase items from SESSION/MANUAL are never routine
       is_routine: false,
       lane: routeTrackerRow(r, todayISO(), knownTickers, dead), // F7
+      hygiene: isTrackerHygiene(r, dead, watchStatus), // R32
     }));
 
     for (const s of supaItems) {
@@ -532,7 +539,7 @@ export function useActionTracker({
     }
 
     return Array.from(byKey.values());
-  }, [sheetItems, rows, knownTickers, dead]);
+  }, [sheetItems, rows, knownTickers, dead, watchStatus]);
 
   // ── CRUD ──
 

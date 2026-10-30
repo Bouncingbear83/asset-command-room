@@ -92,3 +92,48 @@ Kill criteria: DECIDE > 10 on a normal day, or any card requires reading an oper
 ## 7. Lovable prompt (paste)
 
 > Implement docs/action-surface-spec-v1.md. Extend src/config/signalRules.ts with R10 to R22. Refactor ActionInbox and useActionTracker to emit candidates with dedupe key ticker+trigger_type and route them to lanes DECIDE / PREPARE / WATCH / BACKLOG / MISSED. Command tab shows DECIDE (max 10) and a collapsed PREPARE list; WATCH and MISSED as one-line counters; BACKLOG moves to the Actions tab as its own filter. Add RECONCILE FILL (R16), G(m) soft-cap acknowledgement (R20) and a DP chip (R21). Split Capital Queue into Armed and Gaps (R19). Keep all display logic out of score and IRR-BB maths. Add unit tests for R11, R12, R13, R16 using the section 5 fixtures. Then publish the build.
+
+## 8. Oversight P1 additions (R29–R32, Doctrine strip)
+
+| ID | Rule |
+|---|---|
+| R29 | **SLEEVE_FLOOR.** Sleeve cash (HOLDINGS E62:E64) / sleeve value (holdings MV in that account + sleeve cash) < `SLEEVE_FLOOR_PCT` 3% → AMBER DECIDE card. Capital Queue Armed rows in that sleeve go to Gaps with a "<SLEEVE> FLOOR" badge. |
+| R30 | **CASH_RECON.** HOLDINGS E65 vs CASH ledger sum (latest row per account, JISA* excluded). RED DECIDE card when \|delta\| > `CASH_RECON_TOLERANCE_GBP` £100. |
+| R31 | **MISSED_HIGH.** action_tracker priority HIGH, OPEN, > 3 days past due → DECIDE RED (not MISSED). |
+| R32 | **TRACKER_ON_DEAD.** OPEN tracker rows on dead tickers (R10 dead set: REJECTED / EXITED / ARCHIVED …) are listed in the Actions "Hygiene" filter and counted on Command; never hidden. Exception: CATALYST_WATCH on ARCHIVE watchlist names routes normally. |
+
+**Doctrine strip** (under CommandHeader): one RAG chip per check — G(m), DP, IRR-BB held, stale quartets, sleeve floors, cash recon, tracker hygiene, driver caps (DriversTab Rule #13 caps). Collapsed to "N/M green" when all green. GREY = not evaluated (source failed). Each chip deep-links to its source.
+
+## 9. R23 IRRBB_LOW_HELD
+
+**Source:** SCORES only. Columns: A Held_Status, B ticker, AU IRR_BB, AK bull_base, AO BULL_BEAR_AT_DATE, AR BB_TARGET_DATE, AT LIVE_PRICE.
+
+**Fires** when Held_Status = HELD and AU parses to a number below `IRRBB_HURDLE_PCT` 15.
+
+**Parsing:** strip % and commas. Blank, #N/A or text means not evaluated. (A bare numeric cell is the canonical sheet fraction, 0.15 = 15%.)
+
+**Artefact guard:** if AU < `IRRBB_ARTEFACT_LOW` -50 or AU > `IRRBB_ARTEFACT_HIGH` 150, emit IRRBB_DATA_CHECK (GREY) instead.
+
+**Severity:** RED if AU < `IRRBB_RED_PCT` 5; AMBER if 5 ≤ AU < 15.
+
+**Dedupe key:** ticker + IRRBB_LOW_HELD. Accounts merge into one card.
+
+**Supersession:** R12 applies to AMBER cards. A RED card stays in DECIDE until the HOLDINGS AJ verdict contains TRIM, SELL, EXIT, HOLD-ONLY or EXIT TEST.
+
+**Lane:** DECIDE. RED ranks above AMBER.
+
+**Card text:** `IRR-BB {AU} < 15% hurdle · spot {AT} vs BB {AK} @ {AR} · quartet {AO}`.
+
+**Test fixture (AU values).** RED: RGEN 0.4, TWST 0.6, ILMN 1.0, ONT 1.1. AMBER: TEM 6.2, 4047.T 6.7, CRPR 7.5, RSW 7.9, 6268.T 10.0, FCX 11.0, 6920.T 11.7, VEEV 11.9. No card: HELD names with blank AU, and a WATCHLIST name at -11.5.
+
+## 10. R24 QUARTET_STALE_HIGH
+
+**Definition:** age = today minus AO. If AO is blank, do not evaluate. STALE_HIGH when age > `QUARTET_STALE_DAYS` 120 days and IRR_BB > `QUARTET_STALE_IRR_PCT` 25%.
+
+**Effect:** suppress the name from R15 wake cards and from Capital Queue Armed. Send it to WATCH with the badge "STALE QUARTET {age}d".
+
+Never change any score, band or IRR-BB value.
+
+**Test fixture.** STALE_HIGH: AMG (129 days, 53.1%), ALB (122 days, 30.3%). Not stale: 4109.T (112 days, 52.9%).
+
+**R30 test fixture:** ledger where the latest row per account (SIPP, ISA, BORDIER_GIA; JISA* excluded) sums to 138,914.20.
