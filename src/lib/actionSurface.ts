@@ -396,9 +396,11 @@ const gbp = (n: number) => `£${n.toLocaleString("en-GB", { minimumFractionDigit
 /** DP % figures in free text: “DP 11.4%”, “dry powder at 11.39%”. Ranges such as “DP 7–8%” are ignored. */
 export function extractDpMentions(narrative: Record<string, string> | null, macroRows: { key: string; currentValue: string; note?: string }[] | null): DpMention[] {
   const out: DpMention[] = [];
-  const re = /\b(?:gross\s+)?(?:DP|dry[\s_-]*powder)\b[^\d%\n]{0,20}?(\d{1,2}(?:\.\d+)?)\s*%/gi;
+  const re = /\b(?:gross\s+)?(?:DP|dry[\s_-]*powder)\b([^\d%\n]{0,20}?)(\d{1,2}(?:\.\d+)?)\s*%/gi;
+  // Conditions and thresholds (“DP net >= 7%”, “DP floor 3%”) are not quoted figures.
+  const condition = /[<>=≥≤]|&[lg]t;|\b(floor|target|min|max|minimum|maximum|threshold|posture|above|below|under|over)\b/i;
   const scan = (source: string, text: string) => {
-    for (const m of String(text ?? "").matchAll(re)) out.push({ source, pct: parseFloat(m[1]) });
+    for (const m of String(text ?? "").matchAll(re)) if (!condition.test(m[1])) out.push({ source, pct: parseFloat(m[2]) });
   };
   for (const [k, v] of Object.entries(narrative ?? {})) scan(`NARRATIVE ${k}`, v);
   for (const r of macroRows ?? []) {

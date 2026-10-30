@@ -171,7 +171,7 @@ describe("R30 CASH_RECON — four internal checks", () => {
     expect(cashRecon({ ...ok, layersCash: 138_700 })!.failed.map((c) => c.id)).toEqual(["LAYERS"]);
   });
   it("a quoted DP more than 0.5pp from F58 → RED; ranges like “DP 7–8%” are ignored", () => {
-    const m = extractDpMentions({ posture_rationale: "Gross DP 12.1% after trims; posture DP 7–8%" }, [{ key: "DRY_POWDER_PCT", currentValue: "11.2%" }]);
+    const m = extractDpMentions({ posture_rationale: "Gross DP 12.1% after trims; posture DP 7–8%; only if DP net >= 7% post-trade; DP floor 3%" }, [{ key: "DRY_POWDER_PCT", currentValue: "11.2%" }]);
     expect(m.map((x) => x.pct)).toEqual([12.1, 11.2]);
     const r = cashRecon({ ...ok, dpMentions: m })!;
     expect(r.failed.map((c) => c.id)).toEqual(["TEXT"]);
