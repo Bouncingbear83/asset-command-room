@@ -188,7 +188,7 @@ describe("D2 tracker routing", () => {
   });
   it("DATA_FIX not HIGH → BACKLOG; HIGH MANUAL due today → DECIDE", () => {
     expect(routeTrackerRow(row({ action_type: "DATA_FIX", priority: "MEDIUM", due_date: daysAgo(2) }), TODAY)).toBe("BACKLOG");
-    expect(routeTrackerRow(row({ priority: "HIGH" }), TODAY)).toBe("DECIDE");
+    expect(routeTrackerRow(row({ ticker: "LHX", priority: "HIGH" }), TODAY)).toBe("DECIDE");
   });
   it("CATALYST_WATCH not HIGH due today → PREPARE; EARNINGS_GATE / KILL_CHECK / DEPLOY → DECIDE", () => {
     expect(routeTrackerRow(row({ action_type: "CATALYST_WATCH", priority: "MEDIUM" }), TODAY)).toBe("PREPARE");
