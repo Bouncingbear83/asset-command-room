@@ -10,7 +10,7 @@ import ActionItemRow from "./ActionItem";
 import ActionAddModal from "./ActionAddModal";
 
 type FilterMode = "ALL" | "OPEN" | "RESOLVED";
-type ViewMode = "EVENTS" | "ROUTINE" | "BACKLOG" | "ALL_ITEMS";
+type ViewMode = "EVENTS" | "ROUTINE" | "BACKLOG" | "HYGIENE" | "ALL_ITEMS";
 
 function daysUntil(due: string): number {
   const d = new Date(due);
@@ -82,6 +82,7 @@ export default function ActionsTab() {
     const l = params.get("layer") || "";
     const tp = params.get("type") || "";
     const fk = params.get("action") || "";
+    if ((params.get("view") || "").toLowerCase() === "hygiene") setView("HYGIENE");
     if (t) setTickerFilter(t.toUpperCase());
     if (l) setLayerFilter(l);
     if (tp) setTypeFilter(tp);
@@ -133,11 +134,13 @@ export default function ActionsTab() {
 
   // ── Split items into event-driven vs routine ──
   // F6 — Events = EARNINGS_GATE / CATALYST_WATCH / DEPLOY / KILL_CHECK and session rows only.
-  const eventItems = useMemo(() => items.filter((i) => !i.is_routine && i.lane !== "BACKLOG" && isEventItem(i)), [items]);
+  const eventItems = useMemo(() => items.filter((i) => !i.hygiene && !i.is_routine && i.lane !== "BACKLOG" && isEventItem(i)), [items]);
+  // R32 — OPEN tracker rows on dead tickers: shown here, never hidden.
+  const hygieneItems = useMemo(() => items.filter((i) => i.hygiene), [items]);
   // R17 — INFRA / DOCTRINE / SOURCING / RESEARCH / ticker-less MANUAL rows.
-  const backlogItems = useMemo(() => items.filter((i) => i.lane === "BACKLOG"), [items]);
+  const backlogItems = useMemo(() => items.filter((i) => !i.hygiene && i.lane === "BACKLOG"), [items]);
   const backlogOpenCount = backlogItems.filter((i) => i.status === "OPEN").length;
-  const routineItems = useMemo(() => items.filter((i) => i.is_routine || (i.lane !== "BACKLOG" && !isEventItem(i) && (i.source === "WATCHLIST" || i.source === "SCORES"))), [items]);
+  const routineItems = useMemo(() => items.filter((i) => !i.hygiene && (i.is_routine || (i.lane !== "BACKLOG" && !isEventItem(i) && (i.source === "WATCHLIST" || i.source === "SCORES")))), [items]);
 
   const activeItems =
     view === "EVENTS"
@@ -146,7 +149,9 @@ export default function ActionsTab() {
         ? routineItems
         : view === "BACKLOG"
           ? backlogItems
-          : items;
+          : view === "HYGIENE"
+            ? hygieneItems
+            : items;
 
   const openCount = useMemo(
     () => items.filter((i) => i.status === "OPEN").length,
@@ -264,6 +269,13 @@ export default function ActionsTab() {
           onClick={() => setView("BACKLOG")}
         >
           Backlog{backlogOpenCount > 0 ? ` (${backlogOpenCount})` : ""}
+        </button>
+        <button
+          style={viewChipStyle(view === "HYGIENE", "var(--amber)")}
+          onClick={() => setView("HYGIENE")}
+          title="OPEN tracker rows on rejected, exited or archived names"
+        >
+          Hygiene{hygieneItems.length > 0 ? ` (${hygieneItems.length})` : ""}
         </button>
         <button
           style={viewChipStyle(view === "ALL_ITEMS")}
