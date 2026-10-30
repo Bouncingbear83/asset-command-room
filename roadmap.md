@@ -20,4 +20,4 @@
 - [x] Verify Step 5 contracts, signed-in tabs, canonical fixture, and no direct sheet/n8n browser calls; record remaining checks in docs/step5-acceptance.md.
 - [ ] Complete Step 5 release checks: published-bundle scan and published-site smoke checks require a publish request; direct Apps Script wrong-secret check requires operator execution; real non-owner JWT check requires an approved non-owner test account.- [x] Earnings engine: staged verdict cards in Decide with Accept/Edit/Dismiss/Placed and Apply all
 - [x] Oversight P1: R23 IRRBB_LOW_HELD, R24 QUARTET_STALE_HIGH (user definitions committed as spec §9/§10), R29–R32, Doctrine strip; TARGET header item and NarrativeWatchCard removed; 175 tests pass.
-- [ ] Publish Oversight P1 build.
+- [x] Publish Oversight P1 build (requested after 175 tests passed and a clean basic security scan).
