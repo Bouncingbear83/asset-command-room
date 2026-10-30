@@ -40,7 +40,14 @@ import {
   QUARTET_STALE_IRR_PCT,
   SLEEVE_FLOOR_PCT,
   SLEEVES,
-  CASH_RECON_TOLERANCE_GBP,
+  CASH_RECON_SUM_TOL_GBP,
+  CASH_RECON_DP_TOL_PP,
+  CASH_RECON_LAYERS_TOL_GBP,
+  CASH_RECON_TEXT_DP_TOL_PP,
+  IRRBB_EXEMPT_PROFILES,
+  TRACKER_DECIDE_TYPES,
+  TRACKER_BACKLOG_UNLESS_HIGH,
+  TRACKER_PREPARE_UNLESS_HIGH,
   MISSED_HIGH_PRIORITY,
   HYGIENE_EXEMPT_ON_ARCHIVE,
   DP_MIN_PCT,
@@ -98,6 +105,8 @@ export interface ScoreIn {
   irrBbRaw?: unknown;
   /** AK bull_base · AO BULL_BEAR_AT_DATE · AR BB_TARGET_DATE · AT LIVE_PRICE — card text / R24 age only. */
   bullBase?: number | null; bullBearAtDate?: string | null; bbTargetDate?: string | null; livePrice?: number | null;
+  /** SCORES RETURN_PROFILE — HEDGE / VEHICLE are exempt from R23. */
+  returnProfile?: string;
 }
 export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; fiscalPeriod?: string; confirmed?: boolean }
 export interface TxnIn { ticker: string; account?: string; date: string; action: string }
@@ -298,6 +307,7 @@ export function irrbbLowHeld(scores: ScoreIn[]): IrrBbLow[] {
   for (const s of scores) {
     const t = up(s.ticker);
     if (!t || seen.has(t) || up(s.heldStatus) !== "HELD") continue;
+    if ((IRRBB_EXEMPT_PROFILES as readonly string[]).includes(up(s.returnProfile))) continue; // OB §3.4.0
     const irr = scoreIrrPct(s);
     if (irr == null) continue;
     if (irr < IRRBB_ARTEFACT_LOW || irr > IRRBB_ARTEFACT_HIGH) {
@@ -322,16 +332,21 @@ export function hasRedExitVerdict(note: string | null | undefined): boolean {
 }
 
 // ── R24: QUARTET_STALE_HIGH ──
-/** age = today − AO (blank AO → not evaluated). STALE_HIGH when age > QUARTET_STALE_DAYS and IRR-BB > QUARTET_STALE_IRR_PCT. */
-export function staleQuartets(scores: ScoreIn[], today: string): Map<string, { age: number; irr: number; ao: string }> {
+/**
+ * age = today − AO (blank AO → not evaluated). STALE_HIGH when age > QUARTET_STALE_DAYS and IRR-BB > QUARTET_STALE_IRR_PCT.
+ * D4 — rows tripping the R23 artefact guard are excluded; `eligible` (when given) limits to HELD / live WATCHLIST names.
+ */
+export function staleQuartets(scores: ScoreIn[], today: string, eligible?: (t: string, s: ScoreIn) => boolean): Map<string, { age: number; irr: number; ao: string }> {
   const out = new Map<string, { age: number; irr: number; ao: string }>();
   for (const s of scores) {
     const t = up(s.ticker);
     const ao = isoDate(s.bullBearAtDate);
     if (!t || !ao || out.has(t)) continue;
+    if (eligible && !eligible(t, s)) continue;
     const irr = scoreIrrPct(s);
+    if (irr == null || irr < IRRBB_ARTEFACT_LOW || irr > IRRBB_ARTEFACT_HIGH) continue;
     const age = daysFrom(ao, today);
-    if (irr != null && age > QUARTET_STALE_DAYS && irr > QUARTET_STALE_IRR_PCT) out.set(t, { age, irr, ao });
+    if (age > QUARTET_STALE_DAYS && irr > QUARTET_STALE_IRR_PCT) out.set(t, { age, irr, ao });
   }
   return out;
 }
@@ -360,12 +375,77 @@ export function sleeveFloors(holdings: HoldingIn[], cashBySleeve: { SIPP: number
   return out;
 }
 
-// ── R30: CASH_RECON ──
-export interface CashRecon { e65: number; ledgerTotal: number; delta: number; red: boolean }
-export function cashRecon(e65: number | null | undefined, ledgerTotal: number | null | undefined): CashRecon | null {
-  if (e65 == null || ledgerTotal == null || !Number.isFinite(e65) || !Number.isFinite(ledgerTotal)) return null;
-  const delta = Math.round((e65 - ledgerTotal) * 100) / 100;
-  return { e65, ledgerTotal, delta, red: Math.abs(delta) > CASH_RECON_TOLERANCE_GBP };
+// ── R30: CASH_RECON (four internal checks; any failure → RED) ──
+export interface DpMention { source: string; pct: number }
+export interface CashReconIn {
+  /** HOLDINGS cash block; null = source failed. */
+  block: { cashHead: number | null; aum: number | null; cashTotal: number | null; grossDp: number | null;
+    cashBySleeve: { SIPP: number | null; ISA: number | null; Bordier: number | null } } | null;
+  /** LAYERS "Cash" row MV; null = not available. */
+  layersCash: number | null;
+  /** DP % figures quoted in NARRATIVE / MACRO_STATE; null = sources failed. */
+  dpMentions: DpMention[] | null;
+}
+export type CashCheckId = "SUM" | "DP" | "LAYERS" | "TEXT";
+export interface CashCheck { id: CashCheckId; label: string; ok: boolean; detail: string }
+export interface CashRecon { checks: CashCheck[]; failed: CashCheck[]; red: boolean }
+
+const fin = (n: number | null | undefined): n is number => n != null && Number.isFinite(n);
+const gbp = (n: number) => `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** DP % figures in free text: “DP 11.4%”, “dry powder at 11.39%”. Ranges such as “DP 7–8%” are ignored. */
+export function extractDpMentions(narrative: Record<string, string> | null, macroRows: { key: string; currentValue: string; note?: string }[] | null): DpMention[] {
+  const out: DpMention[] = [];
+  const re = /\b(?:gross\s+)?(?:DP|dry[\s_-]*powder)\b([^\d%\n]{0,20}?)(\d{1,2}(?:\.\d+)?)\s*%/gi;
+  // Conditions and thresholds (“DP net >= 7%”, “DP floor 3%”) are not quoted figures.
+  const condition = /[<>=≥≤]|&[lg]t;|\b(floor|target|min|max|minimum|maximum|threshold|posture|above|below|under|over)\b/i;
+  const scan = (source: string, text: string) => {
+    for (const m of String(text ?? "").matchAll(re)) if (!condition.test(m[1])) out.push({ source, pct: parseFloat(m[2]) });
+  };
+  for (const [k, v] of Object.entries(narrative ?? {})) scan(`NARRATIVE ${k}`, v);
+  for (const r of macroRows ?? []) {
+    const key = up(r.key);
+    if (/(^|_)(DP|DRY_?POWDER)(_|$)/.test(key.replace(/[\s%]+/g, "_"))) {
+      const raw = String(r.currentValue ?? "").trim();
+      const n = parseFloat(raw.replace(/[%,\s£]/g, ""));
+      if (Number.isFinite(n) && !/[£]/.test(raw)) out.push({ source: `MACRO_STATE ${r.key}`, pct: raw.includes("%") || Math.abs(n) > 1.5 ? n : n * 100 });
+    } else scan(`MACRO_STATE ${r.key}`, `${r.currentValue ?? ""}`);
+    if (r.note) scan(`MACRO_STATE ${r.key} note`, r.note);
+  }
+  return out;
+}
+
+export function cashRecon(i: CashReconIn | null | undefined): CashRecon | null {
+  if (!i) return null;
+  const checks: CashCheck[] = [];
+  const b = i.block;
+  const { SIPP, ISA, Bordier } = b?.cashBySleeve ?? { SIPP: null, ISA: null, Bordier: null };
+  if (b && fin(b.cashTotal) && fin(SIPP) && fin(ISA) && fin(Bordier)) {
+    const sum = SIPP + ISA + Bordier, d = b.cashTotal - sum;
+    checks.push({ id: "SUM", label: "E65 = E62+E63+E64", ok: Math.abs(d) <= CASH_RECON_SUM_TOL_GBP,
+      detail: `E65 ${gbp(b.cashTotal)} vs E62+E63+E64 ${gbp(sum)} (Δ ${gbp(d)}, tol £${CASH_RECON_SUM_TOL_GBP})` });
+  }
+  if (b && fin(b.grossDp) && fin(b.cashHead) && fin(b.aum) && b.aum > 0) {
+    const f58 = b.grossDp * 100, calc = (b.cashHead / b.aum) * 100;
+    checks.push({ id: "DP", label: "F58 = E58/E60", ok: Math.abs(f58 - calc) <= CASH_RECON_DP_TOL_PP + 1e-9,
+      detail: `F58 ${f58.toFixed(2)}% vs E58/E60 ${calc.toFixed(2)}% (tol ${CASH_RECON_DP_TOL_PP}pp)` });
+  }
+  if (b && fin(b.cashTotal) && fin(i.layersCash)) {
+    const d = i.layersCash - b.cashTotal;
+    checks.push({ id: "LAYERS", label: "LAYERS Cash = E65", ok: Math.abs(d) <= CASH_RECON_LAYERS_TOL_GBP,
+      detail: `LAYERS Cash ${gbp(i.layersCash)} vs E65 ${gbp(b.cashTotal)} (Δ ${gbp(d)}, tol £${CASH_RECON_LAYERS_TOL_GBP})` });
+  }
+  if (b && fin(b.grossDp) && i.dpMentions && i.dpMentions.length) {
+    const f58 = b.grossDp * 100;
+    const off = i.dpMentions.filter((m) => Math.abs(m.pct - f58) > CASH_RECON_TEXT_DP_TOL_PP + 1e-9);
+    checks.push({ id: "TEXT", label: "Quoted DP = F58", ok: off.length === 0,
+      detail: off.length
+        ? `${off.map((m) => `${m.source} ${m.pct}%`).join(", ")} vs F58 ${f58.toFixed(2)}% (tol ${CASH_RECON_TEXT_DP_TOL_PP}pp)`
+        : `${i.dpMentions.length} quoted DP figure${i.dpMentions.length === 1 ? "" : "s"} within ${CASH_RECON_TEXT_DP_TOL_PP}pp of F58` });
+  }
+  if (!checks.length) return null;
+  const failed = checks.filter((c) => !c.ok);
+  return { checks, failed, red: failed.length > 0 };
 }
 
 // ── R31 / R32: tracker ──
@@ -398,8 +478,8 @@ export interface BuildArgs {
   transactions?: TxnIn[];
   /** R29 — HOLDINGS cash block E62:E64; null/absent = not evaluated. */
   cashBySleeve?: { SIPP: number | null; ISA: number | null; Bordier: number | null } | null;
-  /** R30 — HOLDINGS E65 and CASH ledger total (latest per account, JISA excluded); absent = not evaluated. */
-  cashRecon?: { e65: number | null; ledgerTotal: number | null } | null;
+  /** R30 — inputs for the four cash checks; absent = not evaluated. */
+  cashRecon?: CashReconIn | null;
 }
 
 export interface Surface {
@@ -416,8 +496,12 @@ export interface Surface {
   supersededBriefs: string[];
   /** R32 — OPEN tracker rows on dead tickers (Actions “Hygiene” filter). */
   hygiene: Candidate[];
-  /** R24 — STALE_HIGH names → quartet age in days. */
+  /** R24 — STALE_HIGH names → quartet age in days (HELD + live WATCHLIST only, artefacts excluded). */
   staleQuartets: Record<string, number>;
+  /** R24 — the HELD subset of staleQuartets. */
+  staleQuartetsHeld: string[];
+  /** R23 — every LOW row (pre-cap), with whether R12 / a RED exit verdict superseded it. */
+  irrbbLow: { ticker: string; severity: Severity; superseded: boolean }[];
   /** R29 — per-sleeve floor check; null when the cash block was not supplied. */
   sleeveFloors: SleeveFloor[] | null;
   /** R30 — cash reconciliation; null when either side is missing. */
@@ -437,11 +521,18 @@ export function routeTrackerRow(r: TrackerRowIn, today: string, known?: Set<stri
   if ((BACKLOG_ACTION_TYPES as readonly string[]).includes(t)) return "BACKLOG";
   if (t === "MANUAL" && (!hasTicker || dead?.has(tk))) return "BACKLOG";
   if (tk && !hasTicker) return "BACKLOG"; // unknown ticker (e.g. INFRA) = not a position event
+  const high = up(r.priority) === MISSED_HIGH_PRIORITY;
+  if (!high && (TRACKER_BACKLOG_UNLESS_HIGH as readonly string[]).includes(t)) return "BACKLOG"; // D2
   const due = isoDate(r.due_date);
   if (!due) return "WATCH";
   const d = daysFrom(today, due);
-  if (d < -MISSED_AFTER_DAYS) return up(r.priority) === MISSED_HIGH_PRIORITY ? "DECIDE" : "MISSED"; // R31
-  if (d <= 0) return "DECIDE";
+  if (d < -MISSED_AFTER_DAYS) return high ? "DECIDE" : "MISSED"; // R31
+  if (d <= 0) {
+    // D2 — due today / inside the missed window: DECIDE only for HIGH or a decision-type row.
+    if (high || (TRACKER_DECIDE_TYPES as readonly string[]).includes(t)) return "DECIDE";
+    return "PREPARE";
+  }
+  if (!high && (TRACKER_PREPARE_UNLESS_HIGH as readonly string[]).includes(t)) return d <= PREPARE_HORIZON_DAYS ? "PREPARE" : "WATCH";
   if (d <= PREPARE_HORIZON_DAYS) return "PREPARE";
   return "WATCH";
 }
@@ -556,12 +647,14 @@ export function buildSurface(a: BuildArgs): Surface {
   }
 
   // ── R23 IRRBB_LOW_HELD (SCORES only) ──
+  const irrbbLow: Surface["irrbbLow"] = [];
   for (const r of irrbbLowHeld(a.scores)) {
     const rows = a.holdings.filter((h) => up(h.ticker) === r.ticker);
     let lane: Lane = "DECIDE";
     if (r.kind === "LOW" && r.severity === "AMBER"
       && rows.some((h) => isSuperseded(stripAutoEarn(h.trigger_review_note), h.trigger_review_date, today))) lane = "WATCH"; // R12
     if (r.kind === "LOW" && r.severity === "RED" && rows.some((h) => hasRedExitVerdict(h.trigger_review_note))) lane = "WATCH";
+    if (r.kind === "LOW") irrbbLow.push({ ticker: r.ticker, severity: r.severity, superseded: lane !== "DECIDE" });
     const verdict = rows.map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).find(Boolean) ?? null;
     const nextReview = rows.map((h) => isoDate(h.trigger_review_date)).filter(Boolean).sort()[0] || null;
     const base = {
@@ -575,7 +668,11 @@ export function buildSurface(a: BuildArgs): Surface {
   }
 
   // ── R24 QUARTET_STALE_HIGH → WATCH with badge ──
-  const stale = staleQuartets(a.scores, today);
+  const liveWl = new Set(a.watchlist.map((w) => up(w.ticker)).filter((t) => t && !dead.has(t)));
+  const isHeldName = (t: string, s: ScoreIn) => heldSet.has(t) || up(s.heldStatus) === "HELD";
+  const stale = staleQuartets(a.scores, today, (t, s) =>
+    isHeldName(t, s) || (up(s.heldStatus) === "WATCHLIST" && !dead.has(t) && (liveWl.size === 0 || liveWl.has(t))));
+  const staleHeld = [...stale.keys()].filter((t) => isHeldName(t, scoreBy.get(t) ?? { ticker: t }));
   for (const [t, q] of stale) {
     emit({ ticker: t, trigger_type: "QUARTET_STALE", title: `STALE QUARTET ${q.age}d`, badge: `STALE QUARTET ${q.age}d`, lane: "WATCH", severity: "GREY",
       fired_at: today, source: "SCORES", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
@@ -592,11 +689,11 @@ export function buildSurface(a: BuildArgs): Surface {
   }
 
   // ── R30 CASH_RECON ──
-  const recon = a.cashRecon ? cashRecon(a.cashRecon.e65, a.cashRecon.ledgerTotal) : null;
+  const recon = cashRecon(a.cashRecon);
   if (recon?.red) {
-    emit({ ticker: "", trigger_type: "CASH_RECON", title: "Cash reconcile: HOLDINGS E65 vs CASH ledger", lane: "DECIDE", severity: "RED",
+    emit({ ticker: "", trigger_type: "CASH_RECON", title: `Cash check failed: ${recon.failed.map((c) => c.label).join(" · ")}`, lane: "DECIDE", severity: "RED",
       fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
-      reason: `E65 £${recon.e65.toLocaleString("en-GB", { maximumFractionDigits: 2 })} vs ledger £${recon.ledgerTotal.toLocaleString("en-GB", { maximumFractionDigits: 2 })} (Δ £${recon.delta.toLocaleString("en-GB", { maximumFractionDigits: 2 })} > £${CASH_RECON_TOLERANCE_GBP})` });
+      reason: recon.failed.map((c) => c.detail).join("; ") });
   }
 
   // ── WATCHLIST (R15) — BAND (col AL) drives IN_ZONE / APPROACHING_ZONE ──
@@ -830,6 +927,8 @@ export function buildSurface(a: BuildArgs): Surface {
     supersededBriefs,
     hygiene,
     staleQuartets: Object.fromEntries([...stale].map(([t, q]) => [t, q.age])),
+    staleQuartetsHeld: staleHeld,
+    irrbbLow,
     sleeveFloors: floors,
     cashRecon: recon,
   };
@@ -886,7 +985,7 @@ export interface DoctrineInput {
   gm: GmState | null;
   dpPct: number | null;
   /** null until the surface has been built (chips show GREY / no data). */
-  surface: Pick<Surface, "decide" | "watch" | "hygiene" | "staleQuartets" | "sleeveFloors" | "cashRecon"> | null;
+  surface: Pick<Surface, "decide" | "watch" | "hygiene" | "staleQuartets" | "staleQuartetsHeld" | "irrbbLow" | "sleeveFloors" | "cashRecon"> | null;
   /** DriversTab caps (Rule #13) counts; null = no data. */
   driverCaps: { breach: number; warn: number; ok: number } | null;
 }
@@ -911,14 +1010,22 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
       ["hygiene", "Tracker hygiene", { tab: "actions", params: { view: "hygiene" } }],
     ] as [string, string, DoctrineLink][]) chips.push({ id, label, rag: "GREY", detail: "No data", link });
   } else {
-    const irr = [...sf.decide, ...sf.watch].filter((c) => c.trigger_type === "IRRBB_LOW_HELD" && c.lane === "DECIDE");
-    const red = irr.filter((c) => c.severity === "RED").length, amber = irr.filter((c) => c.severity === "AMBER").length;
-    const dataChecks = sf.decide.filter((c) => c.trigger_type === "IRRBB_DATA_CHECK").length;
-    chips.push({ id: "irrbb", label: `IRR-BB held${red + amber ? ` ${red + amber}` : ""}`, rag: red ? "RED" : amber || dataChecks ? "AMBER" : "GREEN",
-      detail: red + amber + dataChecks ? `${red} red · ${amber} amber${dataChecks ? ` · ${dataChecks} data check` : ""} (< ${IRRBB_HURDLE_PCT}% hurdle)` : `All held ≥ ${IRRBB_HURDLE_PCT}%`,
+    // D3 — every R23 LOW row counts, superseded ones included.
+    const low = sf.irrbbLow ?? [];
+    const live = low.filter((r) => !r.superseded);
+    const sup = low.length - live.length;
+    const red = live.filter((r) => r.severity === "RED").length, amber = live.length - red;
+    const dataChecks = [...sf.decide, ...sf.watch].filter((c) => c.trigger_type === "IRRBB_DATA_CHECK").length;
+    chips.push({ id: "irrbb", label: low.length ? `IRR-BB held ${low.length} · ${live.length} decide / ${sup} superseded` : "IRR-BB held",
+      rag: red ? "RED" : amber || dataChecks ? "AMBER" : "GREEN",
+      detail: low.length + dataChecks
+        ? `${red} red · ${amber} amber · ${sup} superseded${dataChecks ? ` · ${dataChecks} data check` : ""} (< ${IRRBB_HURDLE_PCT}% hurdle; HEDGE/VEHICLE exempt)`
+        : `All held ≥ ${IRRBB_HURDLE_PCT}%`,
       link: { tab: "command", anchor: "action-inbox" } });
+    // D4 — HELD + live WATCHLIST only; artefact rows excluded.
     const sq = Object.entries(sf.staleQuartets);
-    chips.push({ id: "quartets", label: `Stale quartets${sq.length ? ` ${sq.length}` : ""}`, rag: sq.length ? "AMBER" : "GREEN",
+    const sqHeld = (sf.staleQuartetsHeld ?? []).length;
+    chips.push({ id: "quartets", label: sq.length ? `Stale quartets ${sqHeld} held · ${sq.length} total` : "Stale quartets", rag: sq.length ? "AMBER" : "GREEN",
       detail: sq.length ? sq.map(([t, d]) => `${t} ${d}d`).join(", ") : `None > ${QUARTET_STALE_DAYS}d with IRR-BB > ${QUARTET_STALE_IRR_PCT}%`, link: { tab: "intelligence" } });
     const below = (sf.sleeveFloors ?? []).filter((f) => f.below);
     chips.push(sf.sleeveFloors == null
@@ -928,8 +1035,11 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
           link: { tab: "command", anchor: "capital-queue" } });
     chips.push(sf.cashRecon == null
       ? { id: "cash", label: "Cash recon", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
-      : { id: "cash", label: "Cash recon", rag: sf.cashRecon.red ? "RED" : "GREEN",
-          detail: `Δ £${sf.cashRecon.delta.toLocaleString("en-GB", { maximumFractionDigits: 2 })} (tolerance £${CASH_RECON_TOLERANCE_GBP})`, link: { tab: "holdings" } });
+      : { id: "cash", label: sf.cashRecon.red ? `Cash recon ${sf.cashRecon.failed.length} failed` : "Cash recon", rag: sf.cashRecon.red ? "RED" : "GREEN",
+          detail: sf.cashRecon.red
+            ? `Failed: ${sf.cashRecon.failed.map((c) => `${c.label} (${c.detail})`).join("; ")}`
+            : `${sf.cashRecon.checks.length}/4 checks pass: ${sf.cashRecon.checks.map((c) => c.label).join(", ")}`,
+          link: { tab: "holdings" } });
     chips.push({ id: "hygiene", label: `Tracker hygiene${sf.hygiene.length ? ` ${sf.hygiene.length}` : ""}`, rag: sf.hygiene.length ? "AMBER" : "GREEN",
       detail: sf.hygiene.length ? `${sf.hygiene.length} OPEN rows on dead names` : "No OPEN rows on dead names", link: { tab: "actions", params: { view: "hygiene" } } });
   }

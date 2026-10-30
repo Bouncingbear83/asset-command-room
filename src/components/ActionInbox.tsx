@@ -7,7 +7,7 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useActionTracker } from "@/components/actions/useActionTracker";
 import { computeGmStats } from "@/components/command/GmExposureChip";
-import { buildSurface, type Candidate, type Severity, type Surface } from "@/lib/actionSurface";
+import { buildSurface, type Candidate, type CashReconIn, type Severity, type Surface } from "@/lib/actionSurface";
 import { DECIDE_CAP, WATCH_WAKE_PCT } from "@/config/signalRules";
 import EarningsVerdictCard from "@/components/EarningsVerdictCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,8 +48,8 @@ interface Props {
   transactions?: { ticker: string; account?: string; date: string; action: string }[];
   /** R29 — HOLDINGS E62:E64; null = cash block failed (not evaluated). */
   cashBySleeve?: { SIPP: number | null; ISA: number | null; Bordier: number | null } | null;
-  /** R30 — HOLDINGS E65 vs CASH ledger; null = a source failed (not evaluated). */
-  cashRecon?: { e65: number | null; ledgerTotal: number | null } | null;
+  /** R30 — inputs for the four internal cash checks; null = a source failed (not evaluated). */
+  cashRecon?: CashReconIn | null;
   /** Lets the Command tab feed the Doctrine strip from the same surface. */
   onSurface?: (s: Surface) => void;
 }

@@ -11,7 +11,7 @@ import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import GmExposureChip, { computeGmStats } from "@/components/command/GmExposureChip";
 import DoctrineStrip from "@/components/command/DoctrineStrip";
-import { doctrineChecks, gmStatus, type Surface } from "@/lib/actionSurface";
+import { doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
 import { driverCapCounts } from "@/lib/driverCaps";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import BenchmarkStrip from "@/components/command/BenchmarkStrip";
@@ -99,7 +99,7 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashBlock, cashLedger, sources, transactions } =
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashBlock, sources, transactions } =
     usePortfolio();
   const [surface, setSurface] = useState<Surface | null>(null);
   const factorWeights = useFactorGroupWeights();
@@ -115,10 +115,19 @@ export default function CommandTab() {
 
   // R29 / R30 inputs — null when a source failed (not evaluated, never zero).
   const cashBySleeve = useMemo(() => (cashOk && sources.holdings.status === "ok" ? cashBlock.cashBySleeve : null), [cashOk, sources.holdings.status, cashBlock]);
-  const cashRecon = useMemo(
-    () => (cashOk && sources.cash.status === "ok" ? { e65: cashBlock.cashTotal, ledgerTotal: cashLedger.total } : null),
-    [cashOk, sources.cash.status, cashBlock, cashLedger],
-  );
+  // R30 — four internal cash checks (E62:E64 are ledger XLOOKUPs, so the ledger itself is not compared).
+  const cashRecon = useMemo(() => {
+    if (!cashOk) return null;
+    const cashLayer = sources.layers.status === "ok" ? layers.find((l) => l.name.trim().toUpperCase() === "CASH") : undefined;
+    const narrativeOk = sources.narrative.status === "ok", macroOk = sources.macroState.status === "ok";
+    return {
+      block: cashBlock,
+      layersCash: cashLayer && Number.isFinite(cashLayer.mv) ? cashLayer.mv : null,
+      dpMentions: narrativeOk || macroOk
+        ? extractDpMentions(narrativeOk ? (narrativeData as Record<string, string>) : null, macroOk ? Object.values(macroState) : null)
+        : null,
+    };
+  }, [cashOk, cashBlock, sources.layers.status, sources.narrative.status, sources.macroState.status, layers, narrativeData, macroState]);
 
   // Doctrine strip (display only).
   const todayIso = new Date().toISOString().slice(0, 10);

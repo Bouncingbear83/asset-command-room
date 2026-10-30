@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildSurface, irrbbLowHeld, parseIrrBbCell, staleQuartets, sleeveFloors, cashRecon, isTrackerHygiene,
-  doctrineChecks, routeTrackerRow, type ScoreIn, type HoldingIn, type TrackerRowIn, type WatchIn,
+  doctrineChecks, routeTrackerRow, extractDpMentions, type ScoreIn, type HoldingIn, type TrackerRowIn, type WatchIn,
 } from "./actionSurface";
 import { parseCashLedger } from "./cashLedger";
 
@@ -134,13 +134,91 @@ describe("R30 CASH_RECON", () => {
   it("ledger fixture sums the latest row per account to 138,914.20", () => {
     expect(parseCashLedger(grid).total).toBeCloseTo(138_914.2, 2);
   });
-  it("RED only when |E65 − ledger| > £100", () => {
-    const ledger = parseCashLedger(grid).total;
-    expect(cashRecon(138_914.2, ledger)?.red).toBe(false);
-    expect(cashRecon(139_014.2, ledger)?.red).toBe(false); // exactly £100
-    expect(cashRecon(139_100, ledger)?.red).toBe(true);
-    const s = buildSurface({ ...base, scores: [], cashRecon: { e65: 139_100, ledgerTotal: ledger } });
+});
+
+describe("R30 CASH_RECON — four internal checks", () => {
+  // Cash block fixture: SIPP 82,410.55 + ISA 41,203.40 + Bordier 15,300.25 = 138,914.20; AUM 1,219,600 → DP 11.39%.
+  const block = (over: Partial<{ cashTotal: number; cashHead: number; aum: number; grossDp: number }> = {}) => ({
+    cashHead: 138_914.2, aum: 1_219_600, cashTotal: 138_914.2, grossDp: 138_914.2 / 1_219_600,
+    cashBySleeve: { SIPP: 82_410.55, ISA: 41_203.4, Bordier: 15_300.25 }, ...over,
+  });
+  const ok = { block: block(), layersCash: 138_900, dpMentions: [{ source: "NARRATIVE posture_rationale", pct: 11.4 }] };
+
+  it("all four checks pass on a consistent block", () => {
+    const r = cashRecon(ok)!;
+    expect(r.checks.map((c) => c.id)).toEqual(["SUM", "DP", "LAYERS", "TEXT"]);
+    expect(r.red).toBe(false);
+  });
+  it("Bordier row missing from E65 → RED, and the chip names the SUM check", () => {
+    const input = { ...ok, block: block({ cashTotal: 82_410.55 + 41_203.4 }) };
+    const r = cashRecon(input)!;
+    expect(r.red).toBe(true);
+    expect(r.failed.map((c) => c.id)).toContain("SUM");
+    const s = buildSurface({ ...base, scores: [], cashRecon: input });
     expect(s.decide.find((c) => c.trigger_type === "CASH_RECON")?.severity).toBe("RED");
+    const chip = doctrineChecks({ gm: null, dpPct: null, surface: s, driverCaps: null }).find((c) => c.id === "cash")!;
+    expect(chip.rag).toBe("RED");
+    expect(chip.detail).toContain("E65 = E62+E63+E64");
+  });
+  it("E65 within £1 of the sleeve sum passes", () => {
+    expect(cashRecon({ ...ok, block: block({ cashTotal: 138_915.1 }), layersCash: 138_915 })!.failed.map((c) => c.id)).not.toContain("SUM");
+  });
+  it("F58 off E58/E60 by more than 0.05pp → RED", () => {
+    const r = cashRecon({ ...ok, block: block({ grossDp: 0.1145 }), dpMentions: null })!;
+    expect(r.failed.map((c) => c.id)).toEqual(["DP"]);
+  });
+  it("LAYERS Cash more than £100 from E65 → RED", () => {
+    expect(cashRecon({ ...ok, layersCash: 138_700 })!.failed.map((c) => c.id)).toEqual(["LAYERS"]);
+  });
+  it("a quoted DP more than 0.5pp from F58 → RED; ranges like “DP 7–8%” are ignored", () => {
+    const m = extractDpMentions({ posture_rationale: "Gross DP 12.1% after trims; posture DP 7–8%; only if DP net >= 7% post-trade; DP floor 3%" }, [{ key: "DRY_POWDER_PCT", currentValue: "11.2%" }]);
+    expect(m.map((x) => x.pct)).toEqual([12.1, 11.2]);
+    const r = cashRecon({ ...ok, dpMentions: m })!;
+    expect(r.failed.map((c) => c.id)).toEqual(["TEXT"]);
+    expect(r.failed[0].detail).toContain("NARRATIVE posture_rationale 12.1%");
+  });
+});
+
+describe("D2 tracker routing", () => {
+  const row = (p: Partial<TrackerRowIn>): TrackerRowIn => ({ id: "r", ticker: "", action_type: "MANUAL", due_date: TODAY, summary: "x", status: "OPEN", ...p });
+  it("a MANUAL LOW row due today lands in BACKLOG", () => {
+    const s = buildSurface({ ...base, scores: [], tracker: [row({ id: "m", priority: "LOW" })] });
+    expect(s.backlog.some((c) => c.source_ref === "m")).toBe(true);
+    expect(s.decide.some((c) => c.source_ref === "m")).toBe(false);
+  });
+  it("DATA_FIX not HIGH → BACKLOG; HIGH MANUAL due today → DECIDE", () => {
+    expect(routeTrackerRow(row({ action_type: "DATA_FIX", priority: "MEDIUM", due_date: daysAgo(2) }), TODAY)).toBe("BACKLOG");
+    expect(routeTrackerRow(row({ ticker: "LHX", priority: "HIGH" }), TODAY)).toBe("DECIDE");
+  });
+  it("CATALYST_WATCH not HIGH due today → PREPARE; EARNINGS_GATE / KILL_CHECK / DEPLOY → DECIDE", () => {
+    expect(routeTrackerRow(row({ action_type: "CATALYST_WATCH", priority: "MEDIUM" }), TODAY)).toBe("PREPARE");
+    for (const t of ["EARNINGS_GATE", "KILL_CHECK", "DEPLOY"]) expect(routeTrackerRow(row({ action_type: t, priority: "LOW", due_date: daysAgo(1) }), TODAY)).toBe("DECIDE");
+  });
+});
+
+describe("D3 IRR-BB chip and D4 stale-quartet chip", () => {
+  it("SPUT (VEHICLE, 14.9%) gives no card; HEDGE is exempt too", () => {
+    const r = irrbbLowHeld([held("SPUT", "14.9%", { returnProfile: "VEHICLE" }), held("GLD", "2%", { returnProfile: "HEDGE" }), held("FCX", "11%")]);
+    expect(r.map((x) => x.ticker)).toEqual(["FCX"]);
+  });
+  it("counts superseded LOW rows: “IRR-BB held N · X decide / Y superseded”", () => {
+    const holdings: HoldingIn[] = [{ ticker: "FCX", account: "SIPP", price: 40, trigger_review_date: "2026-11-20", trigger_review_note: "2026-10-20 HOLD through Q3" }];
+    const s = buildSurface({ ...base, holdings, scores: [held("FCX", "11%"), held("RGEN", "0.4%"), held("TEM", "6.2%")] });
+    const chip = doctrineChecks({ gm: null, dpPct: null, surface: s, driverCaps: null }).find((c) => c.id === "irrbb")!;
+    expect(chip.label).toBe("IRR-BB held 3 · 2 decide / 1 superseded");
+  });
+  it("CLF (DORMANT) and NSISB.CO (163.7%) are excluded; label “Stale quartets N held · M total”", () => {
+    const scores: ScoreIn[] = [
+      { ticker: "AMG", heldStatus: "HELD", irrBbRaw: "53.1%", bullBearAtDate: daysAgo(129) },
+      { ticker: "ALB", heldStatus: "WATCHLIST", irrBbRaw: "30.3%", bullBearAtDate: daysAgo(122) },
+      { ticker: "CLF", heldStatus: "DORMANT", irrBbRaw: "40%", bullBearAtDate: daysAgo(200) },
+      { ticker: "NSISB.CO", heldStatus: "WATCHLIST", irrBbRaw: "163.7%", bullBearAtDate: daysAgo(200) },
+    ];
+    const watchlist: WatchIn[] = [{ ticker: "ALB", status: "WAIT_PRICE", current: 1 }, { ticker: "NSISB.CO", status: "WAIT_PRICE", current: 1 }];
+    const s = buildSurface({ ...base, watchlist, scores });
+    expect(Object.keys(s.staleQuartets).sort()).toEqual(["ALB", "AMG"]);
+    const chip = doctrineChecks({ gm: null, dpPct: null, surface: s, driverCaps: null }).find((c) => c.id === "quartets")!;
+    expect(chip.label).toBe("Stale quartets 1 held · 2 total");
   });
 });
 
@@ -177,7 +255,8 @@ describe("R31 MISSED_HIGH and R32 TRACKER_ON_DEAD", () => {
 describe("Doctrine strip", () => {
   it("one chip per check; all green when nothing fires", () => {
     const s = buildSurface({ ...base, holdings: [{ ticker: "A", account: "SIPP", price: 1, mv: 100 }], scores: [],
-      cashBySleeve: { SIPP: 10, ISA: null, Bordier: null }, cashRecon: { e65: 100, ledgerTotal: 100 } });
+      cashBySleeve: { SIPP: 10, ISA: null, Bordier: null },
+      cashRecon: { block: { cashHead: 10, aum: 110, cashTotal: 10, grossDp: 10 / 110, cashBySleeve: { SIPP: 10, ISA: 0, Bordier: 0 } }, layersCash: 10, dpMentions: [] } });
     const chips = doctrineChecks({ gm: { level: "OK", label: "", frozen: false, ackActive: false }, dpPct: 7.5, surface: s, driverCaps: { breach: 0, warn: 0, ok: 5 } });
     expect(chips.map((c) => c.id)).toEqual(["gm", "dp", "irrbb", "quartets", "sleeves", "cash", "hygiene", "drivers"]);
     expect(chips.every((c) => c.rag === "GREEN")).toBe(true);
