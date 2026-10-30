@@ -124,3 +124,41 @@ export const WATCH_WAKE_STATUSES = ["WAIT_PRICE", "DEPLOY"] as const;
 export const EXIT_RECLASS_TAG = "[EXIT_RECLASS]";
 /** F6 — the only action types shown as Events on the Actions tab (plus SESSION rows). */
 export const EVENT_ACTION_TYPES = ["EARNINGS_GATE", "CATALYST_WATCH", "DEPLOY", "KILL_CHECK"] as const;
+
+// ═══════════════════════════════════════════════════════════════════
+// Oversight P1 — R23, R24, R29–R32 (docs/action-surface-spec-v1.md §9, §10)
+// Display/routing only. Never changes any score, band or IRR-BB value.
+// ═══════════════════════════════════════════════════════════════════
+
+/** R23 — IRR-BB hurdle (percent) for HELD names; below it fires IRRBB_LOW_HELD. */
+export const IRRBB_HURDLE_PCT = 15;
+/** R23 — below this (percent) the card is RED; between RED and HURDLE it is AMBER. */
+export const IRRBB_RED_PCT = 5;
+/** R23 — artefact guard: AU outside [LOW, HIGH] emits IRRBB_DATA_CHECK (GREY) instead. */
+export const IRRBB_ARTEFACT_LOW = -50;
+export const IRRBB_ARTEFACT_HIGH = 150;
+/** R23 — a RED card leaves DECIDE only when the HOLDINGS AJ verdict contains one of these. */
+export const IRRBB_RED_EXIT_TOKENS = ["TRIM", "SELL", "EXIT TEST", "EXIT", "HOLD-ONLY"] as const;
+
+/** R24 — quartet (SCORES AO) older than this many days … */
+export const QUARTET_STALE_DAYS = 120;
+/** R24 — … with IRR-BB above this percent is STALE_HIGH: no wake cards, never Armed, WATCH. */
+export const QUARTET_STALE_IRR_PCT = 25;
+
+/** R29 — sleeve cash / sleeve value (holdings MV + cash) below this percent → AMBER, blocks Armed in that sleeve. */
+export const SLEEVE_FLOOR_PCT = 3;
+/** R29 — sleeves checked; HOLDINGS account → cash-block label. */
+export const SLEEVES = ["SIPP", "ISA", "BORDIER"] as const;
+
+/** R30 — |HOLDINGS E65 − CASH ledger (latest per account, JISA excluded)| above this (GBP) → RED. */
+export const CASH_RECON_TOLERANCE_GBP = 100;
+
+/** R31 — OPEN action_tracker rows with this priority more than MISSED_AFTER_DAYS past due → DECIDE RED, not MISSED. */
+export const MISSED_HIGH_PRIORITY = "HIGH";
+
+/**
+ * R32 — OPEN tracker rows on dead tickers (R10 dead set: REJECTED / EXITED / ARCHIVED …)
+ * are shown in the Actions "Hygiene" filter and counted on Command, never hidden.
+ * Exception: these action types on ARCHIVE watchlist names route normally.
+ */
+export const HYGIENE_EXEMPT_ON_ARCHIVE = ["CATALYST_WATCH"] as const;
