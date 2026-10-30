@@ -269,6 +269,121 @@ export function parseZone(entry: string | undefined): { low: number; high: numbe
   return null;
 }
 
+// ── R23: IRRBB_LOW_HELD ──
+/**
+ * SCORES AU cell → percent. Strips % and commas; blank, #N/A or text → null (not evaluated).
+ * Text with “%” is already percent; a bare number is the canonical sheet fraction (0.15 = 15%).
+ */
+export function parseIrrBbCell(raw: unknown): number | null {
+  if (raw == null) return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw * 100 : null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const clean = s.replace(/[%,\s]/g, "");
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(clean)) return null;
+  const n = parseFloat(clean);
+  return s.includes("%") ? n : n * 100;
+}
+/** IRR-BB percent for a SCORES row (read as-is; never computed here). */
+export function scoreIrrPct(s: ScoreIn): number | null {
+  if (s.irrBbRaw !== undefined) return parseIrrBbCell(s.irrBbRaw);
+  return s.irrBbSheet == null || !Number.isFinite(s.irrBbSheet) ? null : s.irrBbSheet * 100;
+}
+const fmtNum = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? "—" : String(+n.toFixed(4)));
+export interface IrrBbLow { ticker: string; kind: "LOW" | "DATA_CHECK"; severity: Severity; irr: number; text: string }
+/** R23 — SCORES only: HELD rows whose AU parses below the hurdle (artefacts → DATA_CHECK). One per ticker. */
+export function irrbbLowHeld(scores: ScoreIn[]): IrrBbLow[] {
+  const out: IrrBbLow[] = [];
+  const seen = new Set<string>();
+  for (const s of scores) {
+    const t = up(s.ticker);
+    if (!t || seen.has(t) || up(s.heldStatus) !== "HELD") continue;
+    const irr = scoreIrrPct(s);
+    if (irr == null) continue;
+    if (irr < IRRBB_ARTEFACT_LOW || irr > IRRBB_ARTEFACT_HIGH) {
+      seen.add(t);
+      out.push({ ticker: t, kind: "DATA_CHECK", severity: "GREY", irr,
+        text: `IRR-BB ${irr.toFixed(1)}% outside ${IRRBB_ARTEFACT_LOW}…${IRRBB_ARTEFACT_HIGH}%: check SCORES AU` });
+      continue;
+    }
+    if (irr >= IRRBB_HURDLE_PCT) continue;
+    seen.add(t);
+    out.push({ ticker: t, kind: "LOW", severity: irr < IRRBB_RED_PCT ? "RED" : "AMBER", irr,
+      text: `IRR-BB ${irr.toFixed(1)}% < ${IRRBB_HURDLE_PCT}% hurdle · spot ${fmtNum(s.livePrice)} vs BB ${fmtNum(s.bullBase)} @ ${isoDate(s.bbTargetDate) || "—"} · quartet ${isoDate(s.bullBearAtDate) || "—"}` });
+  }
+  return out;
+}
+/** R23 — a RED card leaves DECIDE only once the HOLDINGS AJ verdict contains TRIM / SELL / EXIT / HOLD-ONLY / EXIT TEST. */
+export function hasRedExitVerdict(note: string | null | undefined): boolean {
+  const s = stripAutoEarn(note);
+  if (isAutomationNote(s)) return false;
+  const alts = [...IRRBB_RED_EXIT_TOKENS].sort((a, b) => b.length - a.length).map((t) => t.replace(/[-\s]/g, "[-\\s]?")).join("|");
+  return new RegExp(`(^|[^A-Z_])(${alts})(?![A-Z_])`, "i").test(s);
+}
+
+// ── R24: QUARTET_STALE_HIGH ──
+/** age = today − AO (blank AO → not evaluated). STALE_HIGH when age > QUARTET_STALE_DAYS and IRR-BB > QUARTET_STALE_IRR_PCT. */
+export function staleQuartets(scores: ScoreIn[], today: string): Map<string, { age: number; irr: number; ao: string }> {
+  const out = new Map<string, { age: number; irr: number; ao: string }>();
+  for (const s of scores) {
+    const t = up(s.ticker);
+    const ao = isoDate(s.bullBearAtDate);
+    if (!t || !ao || out.has(t)) continue;
+    const irr = scoreIrrPct(s);
+    const age = daysFrom(ao, today);
+    if (irr != null && age > QUARTET_STALE_DAYS && irr > QUARTET_STALE_IRR_PCT) out.set(t, { age, irr, ao });
+  }
+  return out;
+}
+
+// ── R29: SLEEVE_FLOOR ──
+export type Sleeve = (typeof SLEEVES)[number];
+export interface SleeveFloor { sleeve: Sleeve; cash: number; value: number; pct: number; below: boolean }
+export function sleeveOf(account: string | null | undefined): Sleeve | null {
+  const a = up(account).replace(/[^A-Z]/g, "");
+  if (a.startsWith("BORDIER")) return "BORDIER";
+  return (SLEEVES as readonly string[]).includes(a) ? (a as Sleeve) : null;
+}
+/** Sleeve value = holdings MV in that account + sleeve cash. Sleeves with no cash cell are not evaluated. */
+export function sleeveFloors(holdings: HoldingIn[], cashBySleeve: { SIPP: number | null; ISA: number | null; Bordier: number | null }): SleeveFloor[] {
+  const cashFor: Record<Sleeve, number | null> = { SIPP: cashBySleeve.SIPP, ISA: cashBySleeve.ISA, BORDIER: cashBySleeve.Bordier };
+  const out: SleeveFloor[] = [];
+  for (const sleeve of SLEEVES) {
+    const cash = cashFor[sleeve];
+    if (cash == null || !Number.isFinite(cash)) continue;
+    const mv = holdings.filter((h) => sleeveOf(h.account) === sleeve).reduce((sum, h) => sum + (Number.isFinite(h.mv) ? (h.mv as number) : 0), 0);
+    const value = mv + cash;
+    if (!(value > 0)) continue;
+    const pct = (cash / value) * 100;
+    out.push({ sleeve, cash, value, pct, below: pct < SLEEVE_FLOOR_PCT });
+  }
+  return out;
+}
+
+// ── R30: CASH_RECON ──
+export interface CashRecon { e65: number; ledgerTotal: number; delta: number; red: boolean }
+export function cashRecon(e65: number | null | undefined, ledgerTotal: number | null | undefined): CashRecon | null {
+  if (e65 == null || ledgerTotal == null || !Number.isFinite(e65) || !Number.isFinite(ledgerTotal)) return null;
+  const delta = Math.round((e65 - ledgerTotal) * 100) / 100;
+  return { e65, ledgerTotal, delta, red: Math.abs(delta) > CASH_RECON_TOLERANCE_GBP };
+}
+
+// ── R31 / R32: tracker ──
+/** R31 — OPEN, priority HIGH, more than MISSED_AFTER_DAYS past due. */
+export function isMissedHigh(r: Pick<TrackerRowIn, "status" | "priority" | "due_date">, today: string): boolean {
+  const due = isoDate(r.due_date);
+  return up(r.status) === "OPEN" && up(r.priority) === MISSED_HIGH_PRIORITY && !!due && daysFrom(today, due) < -MISSED_AFTER_DAYS;
+}
+/** R32 — OPEN row on a dead ticker, except CATALYST_WATCH on an ARCHIVE watchlist name. */
+export function isTrackerHygiene(r: Pick<TrackerRowIn, "status" | "ticker" | "action_type">, dead: Set<string>, watchStatus: Map<string, string>): boolean {
+  const t = up(r.ticker);
+  if (up(r.status) !== "OPEN" || !t || !dead.has(t)) return false;
+  return !isHygieneExempt(r, watchStatus);
+}
+function isHygieneExempt(r: Pick<TrackerRowIn, "ticker" | "action_type">, watchStatus: Map<string, string>): boolean {
+  return (HYGIENE_EXEMPT_ON_ARCHIVE as readonly string[]).includes(up(r.action_type)) && up(watchStatus.get(up(r.ticker))).startsWith("ARCHIVE");
+}
+
 // ── Builder ──
 export interface BuildArgs {
   holdings: HoldingIn[];
@@ -366,9 +481,9 @@ export function buildSurface(a: BuildArgs): Surface {
   const byKey = new Map<string, Candidate>();
   let wakeWithin10 = 0;
 
-  const emit = (c: Omit<Candidate, "key" | "accounts" | "reasons"> & { reason: string; account?: string }) => {
+  const emit = (c: Omit<Candidate, "key" | "accounts" | "reasons"> & { reason: string; account?: string; allowDead?: boolean }) => {
     const ticker = up(c.ticker);
-    if (ticker && dead.has(ticker)) { dropLog("R10 dead filter", c); return; }
+    if (ticker && dead.has(ticker) && !c.allowDead) { dropLog("R10 dead filter", c); return; }
     const key = `${ticker}:${c.trigger_type}`;
     const prev = byKey.get(key);
     if (prev) {
@@ -379,7 +494,7 @@ export function buildSurface(a: BuildArgs): Surface {
       if (laneRank[c.lane] < laneRank[prev.lane]) prev.lane = c.lane;
       return;
     }
-    const { reason, account, ...rest } = c;
+    const { reason, account, allowDead: _allowDead, ...rest } = c;
     byKey.set(key, { ...rest, ticker, key, reasons: [reason], accounts: account ? [account] : [] });
   };
 
@@ -440,6 +555,50 @@ export function buildSurface(a: BuildArgs): Surface {
     }
   }
 
+  // ── R23 IRRBB_LOW_HELD (SCORES only) ──
+  for (const r of irrbbLowHeld(a.scores)) {
+    const rows = a.holdings.filter((h) => up(h.ticker) === r.ticker);
+    let lane: Lane = "DECIDE";
+    if (r.kind === "LOW" && r.severity === "AMBER"
+      && rows.some((h) => isSuperseded(stripAutoEarn(h.trigger_review_note), h.trigger_review_date, today))) lane = "WATCH"; // R12
+    if (r.kind === "LOW" && r.severity === "RED" && rows.some((h) => hasRedExitVerdict(h.trigger_review_note))) lane = "WATCH";
+    const verdict = rows.map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).find(Boolean) ?? null;
+    const nextReview = rows.map((h) => isoDate(h.trigger_review_date)).filter(Boolean).sort()[0] || null;
+    const base = {
+      ticker: r.ticker, trigger_type: r.kind === "LOW" ? "IRRBB_LOW_HELD" : "IRRBB_DATA_CHECK",
+      title: r.kind === "LOW" ? "IRR-BB below hurdle" : "IRR-BB data check", lane, severity: r.severity,
+      fired_at: today, source: "SCORES", source_ref: null, gate_test: null, verdict_at: verdict, next_review: nextReview,
+      layer: rows[0]?.layer, reason: r.text,
+    };
+    if (rows.length === 0) emit(base);
+    for (const h of rows) emit({ ...base, account: h.account || undefined });
+  }
+
+  // ── R24 QUARTET_STALE_HIGH → WATCH with badge ──
+  const stale = staleQuartets(a.scores, today);
+  for (const [t, q] of stale) {
+    emit({ ticker: t, trigger_type: "QUARTET_STALE", title: `STALE QUARTET ${q.age}d`, badge: `STALE QUARTET ${q.age}d`, lane: "WATCH", severity: "GREY",
+      fired_at: today, source: "SCORES", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
+      reason: `Quartet ${q.ao} (${q.age}d > ${QUARTET_STALE_DAYS}d) · IRR-BB ${q.irr.toFixed(1)}% > ${QUARTET_STALE_IRR_PCT}%: re-run quartet before acting` });
+  }
+
+  // ── R29 SLEEVE_FLOOR ──
+  const floors = a.cashBySleeve ? sleeveFloors(a.holdings, a.cashBySleeve) : null;
+  for (const f of floors ?? []) {
+    if (!f.below) continue;
+    emit({ ticker: "", trigger_type: `SLEEVE_FLOOR_${f.sleeve}`, title: `Sleeve floor: ${f.sleeve} cash ${f.pct.toFixed(1)}% < ${SLEEVE_FLOOR_PCT}%`,
+      lane: "DECIDE", severity: "AMBER", fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
+      reason: `Cash £${Math.round(f.cash).toLocaleString("en-GB")} of £${Math.round(f.value).toLocaleString("en-GB")} sleeve value; Capital Queue Armed rows in ${f.sleeve} blocked` });
+  }
+
+  // ── R30 CASH_RECON ──
+  const recon = a.cashRecon ? cashRecon(a.cashRecon.e65, a.cashRecon.ledgerTotal) : null;
+  if (recon?.red) {
+    emit({ ticker: "", trigger_type: "CASH_RECON", title: "Cash reconcile: HOLDINGS E65 vs CASH ledger", lane: "DECIDE", severity: "RED",
+      fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
+      reason: `E65 £${recon.e65.toLocaleString("en-GB", { maximumFractionDigits: 2 })} vs ledger £${recon.ledgerTotal.toLocaleString("en-GB", { maximumFractionDigits: 2 })} (Δ £${recon.delta.toLocaleString("en-GB", { maximumFractionDigits: 2 })} > £${CASH_RECON_TOLERANCE_GBP})` });
+  }
+
   // ── WATCHLIST (R15) — BAND (col AL) drives IN_ZONE / APPROACHING_ZONE ──
   let batchNames = 0;
   const bandError = a.watchlist.some((w) => normBand(w.band) === "ERROR");
@@ -470,6 +629,7 @@ export function buildSurface(a: BuildArgs): Surface {
       continue;
     }
     if (!(WATCH_WAKE_STATUSES as readonly string[]).some((x) => st.startsWith(x))) continue; // F3
+    if (stale.has(t)) { dropLog("R24 QUARTET_STALE_HIGH (wake suppressed)", { ticker: t, trigger_type: "WAKE" }); continue; }
     if (px == null || px <= 0) continue;
     const zone = parseZone(w.entry);
     if (zone && px < zone.low && st.startsWith("WAIT_PRICE")) {
@@ -552,6 +712,8 @@ export function buildSurface(a: BuildArgs): Surface {
 
   // ── action_tracker (R17) ──
   const briefs: TrackerRowIn[] = [];
+  const hygiene: Candidate[] = [];
+  const watchStatus = new Map(a.watchlist.map((w) => [up(w.ticker), up(w.status)]));
   const verdictKeys = new Set<string>();
   for (const r of a.tracker ?? []) {
     const sp = r.staged_payload;
@@ -601,12 +763,21 @@ export function buildSurface(a: BuildArgs): Surface {
       }
       continue; // AUTO lint/reset rows contribute to the group, never standalone tracker cards.
     }
-    const lane = routeTrackerRow(r, today, known, dead);
     const t = up(r.ticker);
-    emit({ ticker: t, trigger_type: `TRACKER_${up(r.action_type)}`, title: r.summary.slice(0, 120), lane,
-      severity: lane === "MISSED" ? "GREY" : up(r.priority) === "HIGH" ? "AMBER" : "GREY",
+    if (isTrackerHygiene(r, dead, watchStatus)) { // R32 — shown in Hygiene, never hidden
+      hygiene.push({ key: `hygiene:${r.id}`, ticker: t, trigger_type: `TRACKER_${up(r.action_type)}`, title: r.summary.slice(0, 120), lane: "BACKLOG",
+        severity: "GREY", fired_at: isoDate(r.due_date) || null, source: r.source || "TRACKER", source_ref: r.id, reasons: [`OPEN on dead ticker (${watchStatus.get(t) || scoreBy.get(t)?.heldStatus || "dead"})`],
+        accounts: [], gate_test: null, verdict_at: null, next_review: isoDate(r.due_date) || null, layer: r.layer ?? undefined });
+      continue;
+    }
+    const exempt = dead.has(t) && isHygieneExempt(r, watchStatus);
+    const lane = exempt ? routeTrackerRow(r, today, known) : routeTrackerRow(r, today, known, dead);
+    const missedHigh = lane === "DECIDE" && isMissedHigh(r, today); // R31
+    emit({ ticker: t, trigger_type: `TRACKER_${up(r.action_type)}`, title: `${missedHigh ? "Missed (HIGH): " : ""}${r.summary}`.slice(0, 120), lane,
+      severity: missedHigh ? "RED" : lane === "MISSED" ? "GREY" : up(r.priority) === "HIGH" ? "AMBER" : "GREY",
       fired_at: isoDate(r.due_date) || null, source: r.source || "TRACKER", source_ref: r.id, gate_test: null, verdict_at: null,
-      next_review: isoDate(r.due_date) || null, layer: r.layer ?? undefined, reason: `Due ${isoDate(r.due_date)}` });
+      next_review: isoDate(r.due_date) || null, layer: r.layer ?? undefined,
+      reason: missedHigh ? `Due ${isoDate(r.due_date)} · ${-daysFrom(today, isoDate(r.due_date))} days past due` : `Due ${isoDate(r.due_date)}`, allowDead: exempt });
   }
 
   // ── Earnings briefs → “Open brief” on the matching PREPARE earnings card ──
@@ -657,6 +828,10 @@ export function buildSurface(a: BuildArgs): Surface {
     wakeWithin10,
     watchCount: countWatching(a, dead, heldSet, candidates),
     supersededBriefs,
+    hygiene,
+    staleQuartets: Object.fromEntries([...stale].map(([t, q]) => [t, q.age])),
+    sleeveFloors: floors,
+    cashRecon: recon,
   };
 }
 
