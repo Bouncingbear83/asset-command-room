@@ -150,8 +150,29 @@ export const SLEEVE_FLOOR_PCT = 3;
 /** R29 — sleeves checked; HOLDINGS account → cash-block label. */
 export const SLEEVES = ["SIPP", "ISA", "BORDIER"] as const;
 
-/** R30 — |HOLDINGS E65 − CASH ledger (latest per account, JISA excluded)| above this (GBP) → RED. */
-export const CASH_RECON_TOLERANCE_GBP = 100;
+/**
+ * R30 — cash integrity. E62:E64 are XLOOKUPs of the CASH ledger, so comparing them with the
+ * ledger proves nothing. Four internal checks instead; any failure → RED:
+ *   SUM     E65 = E62 + E63 + E64            (± CASH_RECON_SUM_TOL_GBP)
+ *   DP      F58 = E58 / E60                  (± CASH_RECON_DP_TOL_PP percentage points)
+ *   LAYERS  LAYERS "Cash" MV = E65           (± CASH_RECON_LAYERS_TOL_GBP)
+ *   TEXT    every DP % in NARRATIVE / MACRO_STATE within CASH_RECON_TEXT_DP_TOL_PP of F58
+ */
+export const CASH_RECON_SUM_TOL_GBP = 1;
+export const CASH_RECON_DP_TOL_PP = 0.05;
+export const CASH_RECON_LAYERS_TOL_GBP = 100;
+export const CASH_RECON_TEXT_DP_TOL_PP = 0.5;
+
+/** R23 — SCORES RETURN_PROFILE values excluded from IRR-BB hurdle cards (OB §3.4.0). */
+export const IRRBB_EXEMPT_PROFILES = ["HEDGE", "VEHICLE"] as const;
+
+/**
+ * D2 — tracker rows due today or within the MISSED window reach DECIDE only when priority is HIGH
+ * or the action type is one of these. Otherwise MANUAL / DATA_FIX → BACKLOG, CATALYST_WATCH → PREPARE.
+ */
+export const TRACKER_DECIDE_TYPES = ["EARNINGS_GATE", "KILL_CHECK", "DEPLOY"] as const;
+export const TRACKER_BACKLOG_UNLESS_HIGH = ["MANUAL", "DATA_FIX"] as const;
+export const TRACKER_PREPARE_UNLESS_HIGH = ["CATALYST_WATCH"] as const;
 
 /** R31 — OPEN action_tracker rows with this priority more than MISSED_AFTER_DAYS past due → DECIDE RED, not MISSED. */
 export const MISSED_HIGH_PRIORITY = "HIGH";

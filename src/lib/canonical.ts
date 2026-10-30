@@ -17,6 +17,8 @@ import { computeIrrBb, type IrrBbResult, type IrrBbBand } from "@/lib/computeIrr
 import type { AsymmetryQuartet, LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 
 export interface CashBlock {
+  /** HOLDINGS E58 — cash on the CASH header row (numerator of F58). */
+  cashHead: number | null;
   aum: number | null;
   cashTotal: number | null;
   cashBySleeve: { SIPP: number | null; ISA: number | null; Bordier: number | null };
@@ -25,7 +27,7 @@ export interface CashBlock {
 }
 
 export const EMPTY_CASH_BLOCK: CashBlock = {
-  aum: null, cashTotal: null, cashBySleeve: { SIPP: null, ISA: null, Bordier: null }, grossDp: null,
+  cashHead: null, aum: null, cashTotal: null, cashBySleeve: { SIPP: null, ISA: null, Bordier: null }, grossDp: null,
 };
 
 /** Range fetched for the HOLDINGS cash block. */
@@ -67,6 +69,7 @@ export function parseHoldingsCashBlock(grid: unknown[][]): CashBlock {
   const rows = (grid || []).filter((r) => Array.isArray(r));
   const headIdx = rows.findIndex((r) => txt(r[0]) === "CASH" && !txt(r[2]) && cellNum(r[4]) !== null);
   if (headIdx < 0) return out;
+  out.cashHead = cellNum(rows[headIdx][4]);
   out.grossDp = cellNum(rows[headIdx][5]);
   for (let i = headIdx + 1; i < rows.length; i++) {
     const r = rows[i];
