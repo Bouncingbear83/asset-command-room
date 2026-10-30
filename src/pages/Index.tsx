@@ -161,7 +161,6 @@ export default function Index() {
           <div style={s.meta}>AUM<br /><span style={s.val}>{k(total)}</span>{dailyChangePct !== null && <span style={{ fontSize: 9, color: changeColor, marginLeft: 4 }}>{changeArrow} {dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(1)}%</span>}<span style={{ fontSize: 8, marginLeft: 6, opacity: 0.8 }}>· {dataDate ?? "no date"}</span>{total != null && unpricedCount > 0 && <div style={{ color: "var(--amber)", fontSize: 9, letterSpacing: 0 }}>incomplete: {unpricedCount} positions unpriced</div>}</div>
           <div style={s.meta}>SIPP<br /><span style={s.val}>{k(sippTotal)}</span></div>
           <div style={s.meta}>ISA<br /><span style={s.val}>{k(isaTotal)}</span></div>
-          <div style={s.meta}>TARGET<br /><span style={s.val}>15–20% PA</span></div>
         </div>
       </header>
 
