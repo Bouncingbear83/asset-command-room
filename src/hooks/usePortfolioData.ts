@@ -999,6 +999,8 @@ export interface PortfolioData {
   disruption: LiveDisruption[];
   performance: LivePerformance[];
   narrativeData: LiveNarrativeData;
+  /** NARRATIVE B2 — stamp date for the narrative figures (ISO), null when absent. */
+  narrativeStamp: string | null;
   macroState: LiveMacroState;
   macroStateRows: LiveMacroStateRow[];
   macroBanner: LiveMacroBanner | null;
@@ -1035,7 +1037,7 @@ export function pendingSources(): SourceMap {
 
 export const EMPTY_SNAPSHOT: PortfolioSnapshot = {
   holdings: [], sipp: [], isa: [], bordier: [], watchlist: [], layers: [], scores: [], scoreLog: [],
-  monitor: [], disruption: [], performance: [], narrativeData: createEmptyNarrativeData(), macroState: {},
+  monitor: [], disruption: [], performance: [], narrativeData: createEmptyNarrativeData(), narrativeStamp: null, macroState: {},
   macroStateRows: [], macroBanner: null, riskControls: [], weeklyTriggers: [], earningsCalendar: [],
   transactions: [], jisaHoldings: [],
   jisaTotals: { Bear: { mv: 0, cash: 0, portfolio: 0 }, Alfie: { mv: 0, cash: 0, portfolio: 0 }, Edie: { mv: 0, cash: 0, portfolio: 0 } },
@@ -1114,6 +1116,7 @@ export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
     disruption: parseDisruption(disruptionRaw),
     performance: parsePerformance(performanceRaw),
     narrativeData, macroState, macroStateRows,
+    narrativeStamp: /^\d{4}-\d{2}-\d{2}/.test(parseSheetDate(narrativeGrid?.[1]?.[1])) ? parseSheetDate(narrativeGrid[1][1]).slice(0, 10) : null,
     macroBanner: parseMacroBanner(macroState, narrativeData),
     riskControls: parseRiskControls(macroState),
     weeklyTriggers: parseWeeklyTriggers(macroStateRows),
