@@ -7,9 +7,10 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useActionTracker } from "@/components/actions/useActionTracker";
 import { computeGmStats } from "@/components/command/GmExposureChip";
-import { buildSurface, type Candidate, type CashReconIn, type Severity, type Surface } from "@/lib/actionSurface";
+import { buildSurface, decideMembers, type Candidate, type CashReconIn, type Severity, type Surface } from "@/lib/actionSurface";
 import { DECIDE_CAP, WATCH_WAKE_PCT } from "@/config/signalRules";
 import EarningsVerdictCard from "@/components/EarningsVerdictCard";
+import ConfirmVerdictsCard from "@/components/ConfirmVerdictsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { proxyWebhook } from "@/lib/ownerFunction";
 import { openVaultNote } from "@/lib/navigate";
@@ -88,7 +89,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   useEffect(() => {
     const next = { ...baseline };
     let changed = false;
-    for (const c of surface.decide) {
+    for (const c of decideMembers(surface.decide)) {
       if (c.trigger_type !== "RECONCILE_FILL" || c.ticker in next) continue;
       const shares = holdings.filter((h) => h.ticker.toUpperCase() === c.ticker).reduce((s, h) => s + (h.shares || 0), 0);
       next[c.ticker] = shares; changed = true;
@@ -112,7 +113,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   };
 
   const [applyAllMsg, setApplyAllMsg] = useState<string | null>(null);
-  const applyAllIds = () => surface.decide.filter((c) => c.verdict && c.verdict.apply_target === "UPDATE_ROW" && c.verdict.state === "NEW").map((c) => c.verdict!.id);
+  const applyAllIds = () => decideMembers(surface.decide).filter((c) => c.verdict && c.verdict.apply_target === "UPDATE_ROW" && c.verdict.state === "NEW").map((c) => c.verdict!.id);
   const applyAll = async () => {
     const ids = applyAllIds();
     if (!ids.length || !window.confirm(`Apply ${ids.length} staged verdicts to the sheet?`)) return;
@@ -131,7 +132,8 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
     }
     return set;
   }, [tracker.items]);
-  const isDone = (c: Candidate) => !!pendingDone[c.key] || doneKeys.has(surfaceKey(c));
+  const isDone = (c: Candidate): boolean => !!pendingDone[c.key]
+    || (c.members?.length ? c.members.every((m) => isDone(m)) : doneKeys.has(surfaceKey(c)));
   const decide = surface.decide.filter((c) => !isDone(c));
   const missed = surface.missed.filter((c) => !isDone(c));
 
@@ -148,7 +150,12 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
       dedupe_key: surfaceKey(c), persisted: false, is_routine: false,
     } as any, status, note);
   };
-  const markDone = (c: Candidate) => resolveCard(c, "CONFIRMED", `Marked done from Command · ${c.title}`);
+  const markDone = async (c: Candidate) => {
+    if (!c.members?.length) return resolveCard(c, "CONFIRMED", `Marked done from Command · ${c.title}`);
+    setPendingDone((m) => ({ ...m, [c.key]: true }));
+    // Merged card: resolve every stacked trigger except the staged verdict (Accept / Dismiss own that row).
+    for (const m of c.members) if (!m.verdict) await resolveCard(m, "CONFIRMED", `Marked done from Command · ${m.title}`);
+  };
 
   const closeAllMissed = async () => {
     for (const c of missed) await resolveCard(c, "DISMISSED", "Closed as missed");
@@ -239,7 +246,9 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
 
       <div style={{ padding: mp, display: "grid", gap: 6 }}>
         {applyAllMsg && <div style={mono(10, "var(--amber)")}>{applyAllMsg}</div>}
-        {decide.map((c) => c.verdict
+        {decide.map((c) => c.trigger_type === "CONFIRM_VERDICTS"
+          ? <ConfirmVerdictsCard key={c.key} c={c} onChanged={() => void tracker.refresh()} />
+          : c.verdict
           ? <EarningsVerdictCard key={c.key} c={c} heldShares={heldShares(c.ticker)} onChanged={() => void tracker.refresh()} />
           : renderCard(c))}
 
