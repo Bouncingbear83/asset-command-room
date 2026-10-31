@@ -120,6 +120,16 @@ export default function EarningsVerdictCard({ c, heldShares, onChanged }: Props)
       </div>
 
       {sp?.band_action && <div style={mono(11, "var(--text-mid)")}><NamedText text={sp.band_action} /></div>}
+      {(c.members?.length ?? 0) > 1 && (
+        <div style={{ display: "grid", gap: 2, borderTop: "1px solid var(--rim)", paddingTop: 6 }}>
+          <span style={{ ...mono(8, "var(--text-dim)"), letterSpacing: "0.12em", textTransform: "uppercase" }}>Also on this name</span>
+          {c.members!.filter((m) => !m.verdict).map((m) => (
+            <div key={m.key} style={mono(10, m.severity === "RED" ? "var(--red)" : m.severity === "AMBER" ? "var(--amber)" : "var(--text-mid)")}>
+              • <NamedText text={`${m.title}: ${m.reasons.filter(Boolean).join("; ")}`} />
+            </div>
+          ))}
+        </div>
+      )}
       <div style={mono(10, "var(--text-dim)")}>What Accept does: <span style={{ color: "var(--text-mid)" }}>{acceptPreview({ id: v.id, apply_target: v.apply_target, staged_payload: sp })}</span></div>
 
       <div style={{ display: "flex", gap: 12, ...mono(9, "var(--gold)") }}>
