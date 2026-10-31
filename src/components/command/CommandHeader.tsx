@@ -38,6 +38,8 @@ interface Props {
   /** Canonical HOLDINGS F58 as percent; null = source failed. */
   dpPct: number | null;
   unpricedCount: number;
+  /** DECIDE card count vs the R18 cap; null until the action surface has been built. */
+  decide?: { count: number; cap: number; overflow: number; breach: boolean } | null;
   isMobile: boolean;
 }
 
@@ -83,7 +85,7 @@ export function computeDpPct(layers: { name: string; mv: number }[], cashGbp: nu
   return (cashGbp / denom) * 100;
 }
 
-export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, unpricedCount, isMobile }: Props) {
+export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, unpricedCount, decide = null, isMobile }: Props) {
   const risk = deriveRiskCounts(riskControls);
   const macro = deriveMacroCounts(macroState);
 
@@ -158,6 +160,17 @@ export default function CommandHeader({ riskControls, macroState, cashGbp, aum, 
           {macro.amber > 0 && <span style={{ ...chipBase, color: "var(--amber)", background: "var(--amber-dim)" }}>{macro.amber}⚠</span>}
           {macro.red > 0 && <span style={{ ...chipBase, color: "var(--red)", background: "var(--red-dim)", fontWeight: 700 }}>{macro.red}✗</span>}
         </div>
+
+        {/* DECIDE load (R18 cap) */}
+        <span
+          data-testid="header-decide-count"
+          title={decide == null ? "Decide not built yet"
+            : `${decide.count} card${decide.count === 1 ? "" : "s"} in Decide (cap ${decide.cap})${decide.overflow ? `; ${decide.overflow} moved to Watch by the cap` : ""}`}
+          style={{ ...chipBase, color: decide == null ? "var(--text-dim)" : decide.breach ? "var(--red)" : "var(--text-mid)",
+            background: decide?.breach ? "var(--red-dim)" : undefined, fontWeight: decide?.breach ? 700 : undefined }}
+        >
+          DECIDE {decide == null ? "—" : `${decide.count}/${decide.cap}`}{decide?.overflow ? ` +${decide.overflow} over cap` : ""}
+        </span>
 
         {/* AUM + Cash */}
         <span style={{ ...chipBase, color: "var(--text-mid)", marginLeft: "auto" }}>

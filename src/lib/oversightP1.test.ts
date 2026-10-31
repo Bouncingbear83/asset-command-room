@@ -4,6 +4,7 @@ import {
   doctrineChecks, routeTrackerRow, extractDpMentions, type ScoreIn, type HoldingIn, type TrackerRowIn, type WatchIn,
 } from "./actionSurface";
 import { parseCashLedger } from "./cashLedger";
+import { cashReconChip, decideLoad } from "./actionSurface";
 
 const TODAY = "2026-10-30";
 const daysAgo = (n: number) => new Date(Date.parse(TODAY + "T00:00:00Z") - n * 86400000).toISOString().slice(0, 10);
@@ -145,8 +146,9 @@ describe("R30 CASH_RECON — four internal checks", () => {
   const ok = { block: block(), layersCash: 138_900, dpMentions: [{ source: "NARRATIVE posture_rationale", pct: 11.4 }] };
 
   it("all four checks pass on a consistent block", () => {
-    const r = cashRecon(ok)!;
+    const r = cashRecon(ok, TODAY)!;
     expect(r.checks.map((c) => c.id)).toEqual(["SUM", "DP", "LAYERS", "TEXT"]);
+    expect(r.rag).toBe("GREEN");
     expect(r.red).toBe(false);
   });
   it("Bordier row missing from E65 → RED, and the chip names the SUM check", () => {
@@ -171,9 +173,10 @@ describe("R30 CASH_RECON — four internal checks", () => {
     expect(cashRecon({ ...ok, layersCash: 138_700 })!.failed.map((c) => c.id)).toEqual(["LAYERS"]);
   });
   it("a quoted DP more than 0.5pp from F58 → RED; ranges like “DP 7–8%” are ignored", () => {
-    const m = extractDpMentions({ posture_rationale: "Gross DP 12.1% after trims; posture DP 7–8%; only if DP net >= 7% post-trade; DP floor 3%" }, [{ key: "DRY_POWDER_PCT", currentValue: "11.2%" }]);
+    const m = extractDpMentions({ posture_rationale: "Gross DP 12.1% after trims; posture DP 7–8%; only if DP net >= 7% post-trade; DP floor 3%" },
+      [{ key: "DRY_POWDER_PCT", currentValue: "11.2%", lastUpdated: TODAY }], TODAY);
     expect(m.map((x) => x.pct)).toEqual([12.1, 11.2]);
-    const r = cashRecon({ ...ok, dpMentions: m })!;
+    const r = cashRecon({ ...ok, dpMentions: m }, TODAY)!;
     expect(r.failed.map((c) => c.id)).toEqual(["TEXT"]);
     expect(r.failed[0].detail).toContain("NARRATIVE posture_rationale 12.1%");
   });
@@ -256,7 +259,9 @@ describe("Doctrine strip", () => {
   it("one chip per check; all green when nothing fires", () => {
     const s = buildSurface({ ...base, holdings: [{ ticker: "A", account: "SIPP", price: 1, mv: 100 }], scores: [],
       cashBySleeve: { SIPP: 10, ISA: null, Bordier: null },
-      cashRecon: { block: { cashHead: 10, aum: 110, cashTotal: 10, grossDp: 10 / 110, cashBySleeve: { SIPP: 10, ISA: 0, Bordier: 0 } }, layersCash: 10, dpMentions: [] } });
+      // All four checks must run for the chip to be green (fewer → GREY).
+      cashRecon: { block: { cashHead: 10, aum: 110, cashTotal: 10, grossDp: 10 / 110, cashBySleeve: { SIPP: 10, ISA: 0, Bordier: 0 } }, layersCash: 10,
+        dpMentions: [{ source: "NARRATIVE posture_rationale", pct: 9.1, stamp: TODAY }] } });
     const chips = doctrineChecks({ gm: { level: "OK", label: "", frozen: false, ackActive: false }, dpPct: 7.5, surface: s, driverCaps: { breach: 0, warn: 0, ok: 5 } });
     expect(chips.map((c) => c.id)).toEqual(["gm", "dp", "irrbb", "quartets", "sleeves", "cash", "hygiene", "drivers"]);
     expect(chips.every((c) => c.rag === "GREEN")).toBe(true);
@@ -267,5 +272,53 @@ describe("Doctrine strip", () => {
     expect(chips.find((c) => c.id === "irrbb")?.rag).toBe("RED");
     expect(chips.find((c) => c.id === "gm")?.rag).toBe("GREY");
     expect(chips.find((c) => c.id === "hygiene")?.link).toEqual({ tab: "actions", params: { view: "hygiene" } });
+  });
+});
+
+describe("R30 cash recon — stamp-aware DP quotes and partial runs", () => {
+  // Live F58 12.99%: cash 129,900 of AUM 1,000,000; sleeves 80,000 + 35,000 + 14,900.
+  const block = { cashHead: 129_900, aum: 1_000_000, cashTotal: 129_900, grossDp: 0.1299,
+    cashBySleeve: { SIPP: 80_000, ISA: 35_000, Bordier: 14_900 } };
+  const macro = (stamp: string) => [{ key: "DRY_POWDER_PCT", currentValue: "11.4%", lastUpdated: stamp }];
+  const input = (stamp: string) => ({ block, layersCash: 129_900, dpMentions: extractDpMentions(null, macro(stamp), null) });
+
+  it("MACRO_STATE 11.4% stamped 2026-10-25 vs live 12.99% → AMBER chip, no DECIDE card", () => {
+    const r = cashRecon(input("2026-10-25"), TODAY)!;
+    expect(r.red).toBe(false);
+    expect(r.rag).toBe("AMBER");
+    expect(r.stale[0].label).toBe("Stale DP quote: MACRO_STATE DRY_POWDER_PCT 11.4% stamped 2026-10-25; live F58 12.99%");
+    const s = buildSurface({ ...base, scores: [], cashRecon: input("2026-10-25") });
+    expect(s.decide.some((c) => c.trigger_type === "CASH_RECON")).toBe(false);
+    const chip = cashReconChip(s.cashRecon);
+    expect(chip.rag).toBe("AMBER");
+    expect(chip.detail).toContain("stamped 2026-10-25");
+  });
+  it("the same values stamped today → RED and a DECIDE card", () => {
+    const r = cashRecon(input(TODAY), TODAY)!;
+    expect(r.rag).toBe("RED");
+    expect(r.failed.map((c) => c.id)).toEqual(["TEXT"]);
+    const s = buildSurface({ ...base, scores: [], cashRecon: input(TODAY) });
+    expect(s.decide.find((c) => c.trigger_type === "CASH_RECON")?.severity).toBe("RED");
+  });
+  it("LAYERS missing → GREY “Cash recon 3/4 run”, never green", () => {
+    const r = cashRecon({ ...input(TODAY), layersCash: null, dpMentions: [{ source: "NARRATIVE x", pct: 12.9, stamp: TODAY }] }, TODAY)!;
+    expect(r.checks).toHaveLength(3);
+    const chip = cashReconChip(r);
+    expect(chip.rag).toBe("GREY");
+    expect(chip.label).toBe("Cash recon 3/4 run");
+    expect(chip.detail).toContain("Skipped: LAYERS Cash = E65");
+  });
+  it("NARRATIVE quotes take their stamp from B2", () => {
+    const m = extractDpMentions({ posture_rationale: "DP 11.4% today" }, null, "2026-10-25");
+    expect(m[0].stamp).toBe("2026-10-25");
+  });
+});
+
+describe("Command header DECIDE count", () => {
+  it("flags a breach when verdicts push DECIDE past the cap", () => {
+    const decide = Array.from({ length: 12 }, () => ({} as never));
+    expect(decideLoad({ decide, overflow: 0 })).toEqual({ count: 12, cap: 10, overflow: 0, breach: true });
+    expect(decideLoad({ decide: decide.slice(0, 10), overflow: 3 })!.breach).toBe(true);
+    expect(decideLoad({ decide: decide.slice(0, 4), overflow: 0 })!.breach).toBe(false);
   });
 });

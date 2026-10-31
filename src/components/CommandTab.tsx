@@ -11,7 +11,7 @@ import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import GmExposureChip, { computeGmStats } from "@/components/command/GmExposureChip";
 import DoctrineStrip from "@/components/command/DoctrineStrip";
-import { doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
+import { decideLoad, doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
 import { driverCapCounts } from "@/lib/driverCaps";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import BenchmarkStrip from "@/components/command/BenchmarkStrip";
@@ -99,7 +99,7 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, earningsCalendar, cashBlock, sources, transactions } =
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, narrativeStamp, earningsCalendar, cashBlock, sources, transactions } =
     usePortfolio();
   const [surface, setSurface] = useState<Surface | null>(null);
   const factorWeights = useFactorGroupWeights();
@@ -124,10 +124,10 @@ export default function CommandTab() {
       block: cashBlock,
       layersCash: cashLayer && Number.isFinite(cashLayer.mv) ? cashLayer.mv : null,
       dpMentions: narrativeOk || macroOk
-        ? extractDpMentions(narrativeOk ? (narrativeData as Record<string, string>) : null, macroOk ? Object.values(macroState) : null)
+        ? extractDpMentions(narrativeOk ? (narrativeData as Record<string, string>) : null, macroOk ? Object.values(macroState) : null, narrativeStamp)
         : null,
     };
-  }, [cashOk, cashBlock, sources.layers.status, sources.narrative.status, sources.macroState.status, layers, narrativeData, macroState]);
+  }, [cashOk, cashBlock, sources.layers.status, sources.narrative.status, sources.macroState.status, layers, narrativeData, narrativeStamp, macroState]);
 
   // Doctrine strip (display only).
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -227,6 +227,7 @@ export default function CommandTab() {
         aum={canonAum}
         dpPct={dpPct}
         unpricedCount={sources.holdings.status === "ok" ? unpricedPositionCount(holdings) : 0}
+        decide={decideLoad(surface)}
         isMobile={isMobile}
       />
 

@@ -44,6 +44,7 @@ import {
   CASH_RECON_DP_TOL_PP,
   CASH_RECON_LAYERS_TOL_GBP,
   CASH_RECON_TEXT_DP_TOL_PP,
+  CASH_RECON_CHECK_COUNT,
   IRRBB_EXEMPT_PROFILES,
   TRACKER_DECIDE_TYPES,
   TRACKER_BACKLOG_UNLESS_HIGH,
@@ -376,7 +377,8 @@ export function sleeveFloors(holdings: HoldingIn[], cashBySleeve: { SIPP: number
 }
 
 // ── R30: CASH_RECON (four internal checks; any failure → RED) ──
-export interface DpMention { source: string; pct: number }
+/** stamp = ISO date the figure was stamped (MACRO_STATE col F / NARRATIVE B2); null = undated. */
+export interface DpMention { source: string; pct: number; stamp?: string | null }
 export interface CashReconIn {
   /** HOLDINGS cash block; null = source failed. */
   block: { cashHead: number | null; aum: number | null; cashTotal: number | null; grossDp: number | null;
@@ -388,64 +390,100 @@ export interface CashReconIn {
 }
 export type CashCheckId = "SUM" | "DP" | "LAYERS" | "TEXT";
 export interface CashCheck { id: CashCheckId; label: string; ok: boolean; detail: string }
-export interface CashRecon { checks: CashCheck[]; failed: CashCheck[]; red: boolean }
+export interface StaleDpQuote { source: string; pct: number; stamp: string | null; f58: number; label: string }
+export interface CashRecon {
+  checks: CashCheck[]; failed: CashCheck[]; red: boolean;
+  /** Checks that could not run (inputs missing) — labels. */
+  skipped: string[];
+  /** Quotes stamped before today that differ from F58 — AMBER chip only. */
+  stale: StaleDpQuote[];
+  rag: "RED" | "GREY" | "AMBER" | "GREEN";
+}
 
 const fin = (n: number | null | undefined): n is number => n != null && Number.isFinite(n);
 const gbp = (n: number) => `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const stampIso = (s: string | null | undefined): string | null => {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(s ?? "").trim());
+  return m ? m[1] : null;
+};
 
 /** DP % figures in free text: “DP 11.4%”, “dry powder at 11.39%”. Ranges such as “DP 7–8%” are ignored. */
-export function extractDpMentions(narrative: Record<string, string> | null, macroRows: { key: string; currentValue: string; note?: string }[] | null): DpMention[] {
+export function extractDpMentions(
+  narrative: Record<string, string> | null,
+  macroRows: { key: string; currentValue: string; note?: string; lastUpdated?: string }[] | null,
+  /** NARRATIVE B2 — stamp for every NARRATIVE quote. */
+  narrativeStamp?: string | null,
+): DpMention[] {
   const out: DpMention[] = [];
   const re = /\b(?:gross\s+)?(?:DP|dry[\s_-]*powder)\b([^\d%\n]{0,20}?)(\d{1,2}(?:\.\d+)?)\s*%/gi;
   // Conditions and thresholds (“DP net >= 7%”, “DP floor 3%”) are not quoted figures.
   const condition = /[<>=≥≤]|&[lg]t;|\b(floor|target|min|max|minimum|maximum|threshold|posture|above|below|under|over)\b/i;
-  const scan = (source: string, text: string) => {
-    for (const m of String(text ?? "").matchAll(re)) if (!condition.test(m[1])) out.push({ source, pct: parseFloat(m[2]) });
+  const scan = (source: string, text: string, stamp: string | null) => {
+    for (const m of String(text ?? "").matchAll(re)) if (!condition.test(m[1])) out.push({ source, pct: parseFloat(m[2]), stamp });
   };
-  for (const [k, v] of Object.entries(narrative ?? {})) scan(`NARRATIVE ${k}`, v);
+  const nStamp = stampIso(narrativeStamp);
+  for (const [k, v] of Object.entries(narrative ?? {})) if (k !== "last_updated") scan(`NARRATIVE ${k}`, v, nStamp);
   for (const r of macroRows ?? []) {
     const key = up(r.key);
+    const stamp = stampIso(r.lastUpdated);
     if (/(^|_)(DP|DRY_?POWDER)(_|$)/.test(key.replace(/[\s%]+/g, "_"))) {
       const raw = String(r.currentValue ?? "").trim();
       const n = parseFloat(raw.replace(/[%,\s£]/g, ""));
-      if (Number.isFinite(n) && !/[£]/.test(raw)) out.push({ source: `MACRO_STATE ${r.key}`, pct: raw.includes("%") || Math.abs(n) > 1.5 ? n : n * 100 });
-    } else scan(`MACRO_STATE ${r.key}`, `${r.currentValue ?? ""}`);
-    if (r.note) scan(`MACRO_STATE ${r.key} note`, r.note);
+      if (Number.isFinite(n) && !/[£]/.test(raw)) out.push({ source: `MACRO_STATE ${r.key}`, pct: raw.includes("%") || Math.abs(n) > 1.5 ? n : n * 100, stamp });
+    } else scan(`MACRO_STATE ${r.key}`, `${r.currentValue ?? ""}`, stamp);
+    if (r.note) scan(`MACRO_STATE ${r.key} note`, r.note, stamp);
   }
   return out;
 }
 
-export function cashRecon(i: CashReconIn | null | undefined): CashRecon | null {
+const CHECK_LABELS: Record<CashCheckId, string> = {
+  SUM: "E65 = E62+E63+E64", DP: "F58 = E58/E60", LAYERS: "LAYERS Cash = E65", TEXT: "Quoted DP = F58",
+};
+
+/** R30. `today` (ISO) decides whether a quoted DP figure is current (can fail) or stale (AMBER only). */
+export function cashRecon(i: CashReconIn | null | undefined, today: string = new Date().toISOString().slice(0, 10)): CashRecon | null {
   if (!i) return null;
   const checks: CashCheck[] = [];
+  const stale: StaleDpQuote[] = [];
   const b = i.block;
   const { SIPP, ISA, Bordier } = b?.cashBySleeve ?? { SIPP: null, ISA: null, Bordier: null };
   if (b && fin(b.cashTotal) && fin(SIPP) && fin(ISA) && fin(Bordier)) {
     const sum = SIPP + ISA + Bordier, d = b.cashTotal - sum;
-    checks.push({ id: "SUM", label: "E65 = E62+E63+E64", ok: Math.abs(d) <= CASH_RECON_SUM_TOL_GBP,
+    checks.push({ id: "SUM", label: CHECK_LABELS.SUM, ok: Math.abs(d) <= CASH_RECON_SUM_TOL_GBP,
       detail: `E65 ${gbp(b.cashTotal)} vs E62+E63+E64 ${gbp(sum)} (Δ ${gbp(d)}, tol £${CASH_RECON_SUM_TOL_GBP})` });
   }
   if (b && fin(b.grossDp) && fin(b.cashHead) && fin(b.aum) && b.aum > 0) {
     const f58 = b.grossDp * 100, calc = (b.cashHead / b.aum) * 100;
-    checks.push({ id: "DP", label: "F58 = E58/E60", ok: Math.abs(f58 - calc) <= CASH_RECON_DP_TOL_PP + 1e-9,
+    checks.push({ id: "DP", label: CHECK_LABELS.DP, ok: Math.abs(f58 - calc) <= CASH_RECON_DP_TOL_PP + 1e-9,
       detail: `F58 ${f58.toFixed(2)}% vs E58/E60 ${calc.toFixed(2)}% (tol ${CASH_RECON_DP_TOL_PP}pp)` });
   }
   if (b && fin(b.cashTotal) && fin(i.layersCash)) {
     const d = i.layersCash - b.cashTotal;
-    checks.push({ id: "LAYERS", label: "LAYERS Cash = E65", ok: Math.abs(d) <= CASH_RECON_LAYERS_TOL_GBP,
+    checks.push({ id: "LAYERS", label: CHECK_LABELS.LAYERS, ok: Math.abs(d) <= CASH_RECON_LAYERS_TOL_GBP,
       detail: `LAYERS Cash ${gbp(i.layersCash)} vs E65 ${gbp(b.cashTotal)} (Δ ${gbp(d)}, tol £${CASH_RECON_LAYERS_TOL_GBP})` });
   }
   if (b && fin(b.grossDp) && i.dpMentions && i.dpMentions.length) {
     const f58 = b.grossDp * 100;
-    const off = i.dpMentions.filter((m) => Math.abs(m.pct - f58) > CASH_RECON_TEXT_DP_TOL_PP + 1e-9);
-    checks.push({ id: "TEXT", label: "Quoted DP = F58", ok: off.length === 0,
+    const offAll = i.dpMentions.filter((m) => Math.abs(m.pct - f58) > CASH_RECON_TEXT_DP_TOL_PP + 1e-9);
+    // Only a figure stamped today can fail; older (or undated) quotes are stale, not wrong.
+    const off = offAll.filter((m) => stampIso(m.stamp) === today);
+    for (const m of offAll) {
+      if (stampIso(m.stamp) === today) continue;
+      const stamp = stampIso(m.stamp);
+      stale.push({ source: m.source, pct: m.pct, stamp, f58,
+        label: `Stale DP quote: ${m.source} ${m.pct}% stamped ${stamp ?? "undated"}; live F58 ${f58.toFixed(2)}%` });
+    }
+    checks.push({ id: "TEXT", label: CHECK_LABELS.TEXT, ok: off.length === 0,
       detail: off.length
-        ? `${off.map((m) => `${m.source} ${m.pct}%`).join(", ")} vs F58 ${f58.toFixed(2)}% (tol ${CASH_RECON_TEXT_DP_TOL_PP}pp)`
-        : `${i.dpMentions.length} quoted DP figure${i.dpMentions.length === 1 ? "" : "s"} within ${CASH_RECON_TEXT_DP_TOL_PP}pp of F58` });
+        ? `${off.map((m) => `${m.source} ${m.pct}% stamped ${today}`).join(", ")} vs F58 ${f58.toFixed(2)}% (tol ${CASH_RECON_TEXT_DP_TOL_PP}pp)`
+        : `${i.dpMentions.length - stale.length} current quoted DP figure${i.dpMentions.length - stale.length === 1 ? "" : "s"} within ${CASH_RECON_TEXT_DP_TOL_PP}pp of F58${stale.length ? `; ${stale.length} stale` : ""}` });
   }
-  if (!checks.length) return null;
+  const ran = new Set(checks.map((c) => c.id));
+  const skipped = (Object.keys(CHECK_LABELS) as CashCheckId[]).filter((id) => !ran.has(id)).map((id) => CHECK_LABELS[id]);
   const failed = checks.filter((c) => !c.ok);
-  return { checks, failed, red: failed.length > 0 };
+  const red = failed.length > 0;
+  const rag = red ? "RED" : checks.length < CASH_RECON_CHECK_COUNT ? "GREY" : stale.length ? "AMBER" : "GREEN";
+  return { checks, failed, red, skipped, stale, rag };
 }
 
 // ── R31 / R32: tracker ──
@@ -689,7 +727,8 @@ export function buildSurface(a: BuildArgs): Surface {
   }
 
   // ── R30 CASH_RECON ──
-  const recon = cashRecon(a.cashRecon);
+  // Stale DP quotes are chip-only; only failed checks (red) become a DECIDE card.
+  const recon = cashRecon(a.cashRecon, today);
   if (recon?.red) {
     emit({ ticker: "", trigger_type: "CASH_RECON", title: `Cash check failed: ${recon.failed.map((c) => c.label).join(" · ")}`, lane: "DECIDE", severity: "RED",
       fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
@@ -1033,13 +1072,7 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
       : { id: "sleeves", label: `Sleeve floors${below.length ? ` ${below.length}` : ""}`, rag: below.length ? "AMBER" : "GREEN",
           detail: below.length ? below.map((f) => `${f.sleeve} ${f.pct.toFixed(1)}%`).join(", ") + ` < ${SLEEVE_FLOOR_PCT}%` : `All sleeves ≥ ${SLEEVE_FLOOR_PCT}% cash`,
           link: { tab: "command", anchor: "capital-queue" } });
-    chips.push(sf.cashRecon == null
-      ? { id: "cash", label: "Cash recon", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
-      : { id: "cash", label: sf.cashRecon.red ? `Cash recon ${sf.cashRecon.failed.length} failed` : "Cash recon", rag: sf.cashRecon.red ? "RED" : "GREEN",
-          detail: sf.cashRecon.red
-            ? `Failed: ${sf.cashRecon.failed.map((c) => `${c.label} (${c.detail})`).join("; ")}`
-            : `${sf.cashRecon.checks.length}/4 checks pass: ${sf.cashRecon.checks.map((c) => c.label).join(", ")}`,
-          link: { tab: "holdings" } });
+    chips.push(cashReconChip(sf.cashRecon));
     chips.push({ id: "hygiene", label: `Tracker hygiene${sf.hygiene.length ? ` ${sf.hygiene.length}` : ""}`, rag: sf.hygiene.length ? "AMBER" : "GREEN",
       detail: sf.hygiene.length ? `${sf.hygiene.length} OPEN rows on dead names` : "No OPEN rows on dead names", link: { tab: "actions", params: { view: "hygiene" } } });
   }
@@ -1049,4 +1082,32 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
     : { id: "drivers", label: "Driver caps", rag: dc.breach ? "RED" : dc.warn ? "AMBER" : "GREEN",
         detail: `${dc.breach} breach · ${dc.warn} warn · ${dc.ok} ok`, link: { tab: "drivers" } });
   return chips;
+}
+
+/** R30 chip. RED on any failed check; GREY when fewer than 4 ran (never green); AMBER for stale DP quotes. */
+export function cashReconChip(r: CashRecon | null): DoctrineChip {
+  const link: DoctrineLink = { tab: "holdings" };
+  if (r == null) return { id: "cash", label: "Cash recon", rag: "GREY", detail: "No data", link };
+  const n = r.checks.length, of = CASH_RECON_CHECK_COUNT;
+  const staleTxt = r.stale.map((s) => s.label).join("; ");
+  if (r.rag === "RED") {
+    return { id: "cash", label: `Cash recon ${r.failed.length} failed`, rag: "RED", link,
+      detail: [`Failed: ${r.failed.map((c) => `${c.label} (${c.detail})`).join("; ")}`, r.skipped.length ? `Skipped: ${r.skipped.join(", ")}` : "", staleTxt]
+        .filter(Boolean).join(" · ") };
+  }
+  if (r.rag === "GREY") {
+    return { id: "cash", label: `Cash recon ${n}/${of} run`, rag: "GREY", link,
+      detail: [`Skipped: ${r.skipped.join(", ")}`, n ? `Passed: ${r.checks.map((c) => c.label).join(", ")}` : "", staleTxt].filter(Boolean).join(" · ") };
+  }
+  if (r.rag === "AMBER") {
+    return { id: "cash", label: `Cash recon · ${r.stale.length} stale DP quote${r.stale.length === 1 ? "" : "s"}`, rag: "AMBER", link, detail: staleTxt };
+  }
+  return { id: "cash", label: "Cash recon", rag: "GREEN", link, detail: `${n}/${of} checks pass: ${r.checks.map((c) => c.label).join(", ")}` };
+}
+
+/** Command header: DECIDE card count against the R18 cap. Over = verdicts beyond the cap or cards pushed to WATCH. */
+export function decideLoad(s: Pick<Surface, "decide" | "overflow"> | null): { count: number; cap: number; overflow: number; breach: boolean } | null {
+  if (!s) return null;
+  const count = s.decide.length;
+  return { count, cap: DECIDE_CAP, overflow: s.overflow, breach: count > DECIDE_CAP || s.overflow > 0 };
 }
