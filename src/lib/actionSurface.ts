@@ -595,13 +595,111 @@ export function verdictState(d: any, rowTarget?: string | null): "NEW" | "QUEUED
   return "NEW";
 }
 
-/** R18 — verdict cards are exempt; derived cards fill the remaining slots, evicting GREY then AMBER first. */
+/** R33 — a verdict whose brief is NO DATA (or which has no grade yet) is not a decision. */
+export function verdictNoData(sp: any): boolean {
+  const vals = [sp?.grader?.band, sp?.brief_status, sp?.brief?.status, sp?.data_status, sp?.grader?.status].map((x) => up(x).replace(/_/g, " "));
+  return vals.includes("NO DATA");
+}
+
+/**
+ * R33 verdict lanes. Queued / placed / NO DATA / not graded → PREPARE.
+ * A verdict on a name that is not held → PREPARE unless the band is KILL or RED.
+ */
+export function verdictLane(sp: any, band: string, state: ReturnType<typeof verdictState>, held: boolean): Lane {
+  if (state === "QUEUED" || state === "PLACED") return "PREPARE";
+  if (verdictNoData(sp) || !band || band === "NOT GRADED") return "PREPARE";
+  if (!held && !(VERDICT_RED_BANDS as readonly string[]).includes(band)) return "PREPARE";
+  return "DECIDE";
+}
+
+const isTickerCard = (c: Candidate) => !!c.ticker && c.ticker !== "G(M)";
+const isRedVerdict = (c: Candidate) => !!c.verdict && (VERDICT_RED_BANDS as readonly string[]).includes(c.verdict.band);
+const bandRank = (c: Candidate) => c.verdict ? (VERDICT_BAND_ORDER as readonly string[]).indexOf(c.verdict.band) >>> 0 : 99;
+
+/** R33 overflow order: 0 RED doctrine · 1 KILL/RED verdict · 2 other RED · 3 AMBER · 4 GREY. */
+export function decideTier(c: Candidate): number {
+  const one = (m: Candidate) => m.doctrine && m.severity === "RED" ? 0 : isRedVerdict(m) ? 1 : m.severity === "RED" ? 2 : m.severity === "AMBER" ? 3 : 4;
+  return Math.min(...(c.members?.length ? c.members : [c]).map(one));
+}
+
+const earliestOf = (dates: (string | null | undefined)[]) => dates.filter((d): d is string => !!d).sort()[0] ?? null;
+const memberLine = (m: Candidate) => {
+  const r = m.reasons.filter(Boolean).join("; ");
+  return r ? `${m.title}: ${r}` : m.title;
+};
+
+/**
+ * R33 — one DECIDE card per ticker (highest severity; every trigger stacked in reasons[]).
+ * Ticker-less cards (cash, sleeve floor, G(m), grouped watchlist cards) keep their own keys.
+ * Lone CONFIRM verdicts collapse into one “Apply N confirms” card.
+ */
+export function mergeDecide(cards: Candidate[]): Candidate[] {
+  const out: Candidate[] = [];
+  const byTicker = new Map<string, Candidate[]>();
+  for (const c of cards) {
+    if (!isTickerCard(c)) { out.push(c); continue; }
+    const list = byTicker.get(c.ticker) ?? [];
+    list.push(c);
+    byTicker.set(c.ticker, list);
+  }
+  const confirms: Candidate[] = [];
+  for (const [ticker, list] of byTicker) {
+    if (list.length === 1) {
+      const c = list[0];
+      if (c.verdict && c.verdict.band === "CONFIRM" && c.verdict.state === "NEW") confirms.push(c);
+      else out.push(c);
+      continue;
+    }
+    const ranked = [...list].sort((x, y) => decideTier(x) - decideTier(y) || SEV_RANK[x.severity] - SEV_RANK[y.severity] || bandRank(x) - bandRank(y));
+    const primary = ranked[0];
+    const verdictCard = ranked.find((m) => m.verdict);
+    out.push({
+      ...primary,
+      key: `${ticker}:MERGED`,
+      severity: ranked.map((m) => m.severity).sort((x, y) => SEV_RANK[x] - SEV_RANK[y])[0],
+      reasons: ranked.map(memberLine),
+      accounts: [...new Set(ranked.flatMap((m) => m.accounts))],
+      doctrine: ranked.some((m) => m.doctrine),
+      verdict: verdictCard?.verdict,
+      source_ref: verdictCard?.source_ref ?? primary.source_ref,
+      next_review: earliestOf(ranked.map((m) => m.next_review)),
+      fired_at: earliestOf(ranked.map((m) => m.fired_at)),
+      gate_test: ranked.map((m) => m.gate_test).find(Boolean) ?? null,
+      verdict_at: ranked.map((m) => m.verdict_at).find(Boolean) ?? null,
+      members: ranked,
+    });
+  }
+  if (confirms.length) {
+    confirms.sort((x, y) => x.ticker.localeCompare(y.ticker));
+    out.push({
+      key: ":CONFIRM_VERDICTS", ticker: "", trigger_type: "CONFIRM_VERDICTS",
+      title: `Apply ${confirms.length} confirm${confirms.length === 1 ? "" : "s"}`,
+      lane: "DECIDE", severity: "GREY", source: "EARNINGS_ENGINE", source_ref: null, accounts: [], gate_test: null, verdict_at: null,
+      fired_at: earliestOf(confirms.map((c) => c.fired_at)), next_review: earliestOf(confirms.map((c) => c.next_review)),
+      reasons: confirms.map((c) => `${c.ticker}: ${c.reasons.filter(Boolean).join("; ") || "CONFIRM"}`),
+      members: confirms,
+    });
+  }
+  return out;
+}
+
+/** R33 — DECIDE order: tier (overflow order), severity, verdict band, next review, fired, key. */
+export function sortDecide(cards: Candidate[]): Candidate[] {
+  return [...cards].sort((x, y) =>
+    decideTier(x) - decideTier(y) || SEV_RANK[x.severity] - SEV_RANK[y.severity] || bandRank(x) - bandRank(y)
+    || String(x.next_review ?? "9").localeCompare(String(y.next_review ?? "9"))
+    || String(x.fired_at ?? "9").localeCompare(String(y.fired_at ?? "9"))
+    || x.key.localeCompare(y.key));
+}
+
+/** R18 + R33 — verdicts count toward the cap; the first DECIDE_CAP cards in R33 order stay, the rest overflow to WATCH. */
 export function applyDecideCap(sorted: Candidate[]): { decide: Candidate[]; evicted: Candidate[] } {
-  const verdicts = sorted.filter((c) => c.verdict);
-  const derived = sorted.filter((c) => !c.verdict);
-  const room = Math.max(0, DECIDE_CAP - verdicts.length);
-  const keep = new Set([...derived].sort((x, y) => SEV_RANK[x.severity] - SEV_RANK[y.severity]).slice(0, room));
-  return { decide: sorted.filter((c) => c.verdict || keep.has(c)), evicted: derived.filter((c) => !keep.has(c)) };
+  return { decide: sorted.slice(0, DECIDE_CAP), evicted: sorted.slice(DECIDE_CAP) };
+}
+
+/** Every trigger behind the DECIDE cards (merged / confirm members flattened). */
+export function decideMembers(cards: Candidate[]): Candidate[] {
+  return cards.flatMap((c) => c.members?.length ? c.members : [c]);
 }
 
 export function buildSurface(a: BuildArgs): Surface {
