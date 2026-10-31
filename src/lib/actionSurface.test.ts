@@ -252,29 +252,33 @@ describe("Engine verdict invariants", () => {
     staged_payload: { kind: "EARNINGS_VERDICT", ticker: "DHR", print_date: "2026-10-21", grader: { band: "CONFIRM" }, decision: null,
       apply: { rc_queue: null, update_row: { tab: "HOLDINGS" }, trade_ticket: null }, ...o },
   }) as any;
+  const DHR_HELD: HoldingIn = { ticker: "DHR", price: 200, alert_status: "CLEAR" };
   const run = (holdings: HoldingIn[], tracker: any[], scores: any[] = []) => buildSurface({ holdings, watchlist: [], scores, earnings: [], today: TODAY, tracker });
-  it("DHR plus 12 derived cards keeps the verdict visible", () => {
-    const derived = Array.from({ length: 12 }, (_, i) => ({ ticker: `D${i}`, price: 100, alert_status: "STOP_BREACH" }) as HoldingIn);
-    const s = run(derived, [verdictRow()]);
-    expect(s.decide.some((c) => c.key === `verdict:${DHR_ID}`)).toBe(true);
+  const keys = (cs: { key: string; members?: { key: string }[] }[]) => cs.flatMap((c) => c.members?.length ? c.members.map((m) => m.key) : [c.key]);
+  it("a RED verdict plus 12 AMBER derived cards ranks above every AMBER card", () => {
+    const derived = Array.from({ length: 12 }, (_, i) => ({ ticker: `D${i}`, price: 100, alert_status: "EXIT_ZONE" }) as HoldingIn);
+    const s = run([...derived, DHR_HELD], [verdictRow({ grader: { band: "RED" } })]);
+    expect(s.decide[0].key).toBe(`verdict:${DHR_ID}`);
     expect(s.decide).toHaveLength(10);
   });
   it("apply.rc_queue set with decision null stays in DECIDE", () => {
-    const s = run([], [verdictRow({ apply: { rc_queue: { due: "2026-10-28" } } })]);
-    expect(s.decide.map((c) => c.key)).toContain(`verdict:${DHR_ID}`);
+    const s = run([DHR_HELD], [verdictRow({ apply: { rc_queue: { due: "2026-10-28" } } })]);
+    expect(keys(s.decide)).toContain(`verdict:${DHR_ID}`);
     expect(s.prepare).toHaveLength(0);
   });
   it("moves to PREPARE only on ACCEPT→RC_QUEUE or PLACED", () => {
-    expect(run([], [verdictRow({ decision: { action: "ACCEPT", apply_target: "RC_QUEUE" } })]).prepare[0]?.key).toBe(`verdict:${DHR_ID}`);
-    expect(run([], [verdictRow({ decision: { action: "PLACED" } })]).prepare[0]?.key).toBe(`verdict:${DHR_ID}`);
+    expect(run([DHR_HELD], [verdictRow({ decision: { action: "ACCEPT", apply_target: "RC_QUEUE" } })]).prepare[0]?.key).toBe(`verdict:${DHR_ID}`);
+    expect(run([DHR_HELD], [verdictRow({ decision: { action: "PLACED" } })]).prepare[0]?.key).toBe(`verdict:${DHR_ID}`);
   });
   it("a DHR derived hold-only / superseded card does not hide the verdict", () => {
     const dhr: HoldingIn = { ticker: "DHR", price: 200, alert_status: "EXIT_ZONE", trigger_review_date: "2026-11-05", trigger_review_note: "2026-10-01 HOLD only through print" };
     const s = run([dhr], [verdictRow()], [{ ticker: "DHR", irrBbSheet: 0.05 }]);
-    expect(s.decide.filter((c) => c.ticker === "DHR" && c.verdict)).toHaveLength(1);
+    expect(keys(s.decide)).toContain(`verdict:${DHR_ID}`);
   });
-  it("verdict cards alone over 10 all show", () => {
-    const rows = Array.from({ length: 12 }, (_, i) => ({ ...verdictRow(), id: `v${i}` }));
-    expect(run([], rows).decide).toHaveLength(12);
+  it("verdicts count toward the cap of 10", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ ...verdictRow({ ticker: `V${i}`, grader: { band: "AMBER" } }), id: `v${i}`, ticker: `V${i}` }));
+    const s = run(rows.map((r) => ({ ticker: r.ticker, price: 10, alert_status: "CLEAR" })), rows);
+    expect(s.decide).toHaveLength(10);
+    expect(s.overflow).toBe(2);
   });
 });

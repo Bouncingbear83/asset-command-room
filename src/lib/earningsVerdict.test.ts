@@ -57,9 +57,10 @@ describe("Earnings engine DECIDE cards", () => {
       staged_payload: { ...YAR.staged_payload, ticker: t, grader: { band } } });
     const brief = { id: "b1", ticker: "AAA", action_type: "EARNINGS_GATE", due_date: "2026-10-26", summary: "b", status: "OPEN", apply_target: "NONE", dedupe_key: "AUTO:AAA:BRIEF:2026-10-23",
       staged_payload: { v: 1, kind: "EARNINGS_BRIEF", ticker: "AAA", print_date: "2026-10-23" } };
-    const s = buildSurface({ holdings: [], watchlist: [], scores: [], earnings: [], today: "2026-10-26",
+    const held = ["AAA", "BBB", "CCC", "DDD"].map((ticker) => ({ ticker, price: 10, alert_status: "CLEAR" }));
+    const s = buildSurface({ holdings: held, watchlist: [], scores: [], earnings: [], today: "2026-10-26",
       tracker: [mk("1", "AAA", "CONFIRM"), mk("2", "BBB", "RED"), mk("3", "CCC", "KILL"), mk("4", "DDD", "AMBER"), brief] });
-    expect(s.decide.map((c) => c.verdict?.band)).toEqual(["KILL", "RED", "AMBER", "CONFIRM"]);
+    expect(s.decide.map((c) => c.verdict?.band ?? c.trigger_type)).toEqual(["KILL", "RED", "AMBER", "CONFIRM_VERDICTS"]);
     expect(s.supersededBriefs).toEqual(["b1"]);
     expect([...s.decide, ...s.prepare, ...s.watch].some((c) => c.source_ref === "b1")).toBe(false);
   });
