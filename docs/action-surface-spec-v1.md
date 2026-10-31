@@ -144,3 +144,12 @@ Never change any score, band or IRR-BB value.
 - **Tracker routing.** Rows due today or inside the 3-day missed window reach DECIDE only when priority is HIGH or action_type is EARNINGS_GATE, KILL_CHECK or DEPLOY (others → PREPARE). MANUAL and DATA_FIX not HIGH → BACKLOG. CATALYST_WATCH not HIGH → PREPARE (WATCH beyond the horizon).
 - **IRR-BB chip.** Counts every R23 LOW row, superseded included: “IRR-BB held N · X decide / Y superseded”. SCORES rows with RETURN_PROFILE HEDGE or VEHICLE never fire R23 (OB §3.4.0).
 - **Stale-quartet chip.** Only HELD and live WATCHLIST names; rows tripping the R23 artefact guard excluded. Label “Stale quartets N held · M total”.
+
+### §11.1 R30 cash recon — stamp-aware quotes and partial runs (31 Oct 2026)
+
+- **Quoted DP = F58** uses the date each figure was stamped: MACRO_STATE column F for that row, NARRATIVE B2 for every narrative figure.
+  - Stamped today and more than 0.5pp from F58 → check fails → RED (DECIDE card).
+  - Stamped before today (or undated) and more than 0.5pp from F58 → AMBER chip "Stale DP quote: {source} {value} stamped {date}; live F58 {x}%". Chip only, never a DECIDE card.
+- Fewer than 4 checks ran → GREY chip "Cash recon {n}/4 run", listing the skipped checks. Never green.
+- Chip precedence: RED > GREY > AMBER > GREEN.
+- Command header shows "DECIDE n/10" (red when n > 10 or cards were pushed to WATCH by the cap, with "+k over cap").
