@@ -74,6 +74,13 @@ export const AUTO_EARN_SEGMENT = /\[AUTO_EARN\b[^\]]*\][\s\S]*?\[\/AUTO_EARN\]/g
 
 /** Earnings engine — staged verdict rows render in DECIDE in this band order (counted in DECIDE_CAP). */
 export const VERDICT_BAND_ORDER = ["KILL", "RED", "AMBER", "CONFIRM"] as const;
+/**
+ * R33 — KILL / RED verdicts: individual DECIDE cards ranked above every AMBER card, and the only
+ * bands that reach DECIDE on a name that is not held. AMBER = individual card; CONFIRM verdicts
+ * collapse into one “Apply N confirms” card. NO DATA / not graded verdicts go to PREPARE.
+ * DECIDE overflow order: RED doctrine → KILL/RED verdicts → other RED → AMBER → GREY.
+ */
+export const VERDICT_RED_BANDS = ["KILL", "RED"] as const;
 
 /** R14 — earnings: held names only, this many days ahead, lane PREPARE. */
 export const EARNINGS_PREPARE_DAYS = 14;
