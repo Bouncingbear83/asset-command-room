@@ -81,6 +81,10 @@ export interface Candidate {
   brief?: { id: string; note_path: string | null; viewed: boolean; payload: any };
   /** Small label shown with the card (e.g. R24 “STALE QUARTET 129d”). */
   badge?: string;
+  /** R33 overflow order — RED doctrine card (R23 RED, CASH_RECON RED, KILL_CHECK HIGH, stop breach). */
+  doctrine?: boolean;
+  /** R33 — the triggers stacked into a one-per-ticker card, or the verdicts in the “Apply N confirms” card. */
+  members?: Candidate[];
 }
 
 // ── Minimal input shapes (structural; Live* types satisfy them) ──
