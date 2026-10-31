@@ -11,7 +11,7 @@ import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import GmExposureChip, { computeGmStats } from "@/components/command/GmExposureChip";
 import DoctrineStrip from "@/components/command/DoctrineStrip";
-import { doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
+import { decideLoad, doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
 import { driverCapCounts } from "@/lib/driverCaps";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import BenchmarkStrip from "@/components/command/BenchmarkStrip";
