@@ -44,6 +44,7 @@ import {
   CASH_RECON_DP_TOL_PP,
   CASH_RECON_LAYERS_TOL_GBP,
   CASH_RECON_TEXT_DP_TOL_PP,
+  CASH_RECON_CHECK_COUNT,
   IRRBB_EXEMPT_PROFILES,
   TRACKER_DECIDE_TYPES,
   TRACKER_BACKLOG_UNLESS_HIGH,
@@ -1081,4 +1082,32 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
     : { id: "drivers", label: "Driver caps", rag: dc.breach ? "RED" : dc.warn ? "AMBER" : "GREEN",
         detail: `${dc.breach} breach · ${dc.warn} warn · ${dc.ok} ok`, link: { tab: "drivers" } });
   return chips;
+}
+
+/** R30 chip. RED on any failed check; GREY when fewer than 4 ran (never green); AMBER for stale DP quotes. */
+export function cashReconChip(r: CashRecon | null): DoctrineChip {
+  const link: DoctrineLink = { tab: "holdings" };
+  if (r == null) return { id: "cash", label: "Cash recon", rag: "GREY", detail: "No data", link };
+  const n = r.checks.length, of = CASH_RECON_CHECK_COUNT;
+  const staleTxt = r.stale.map((s) => s.label).join("; ");
+  if (r.rag === "RED") {
+    return { id: "cash", label: `Cash recon ${r.failed.length} failed`, rag: "RED", link,
+      detail: [`Failed: ${r.failed.map((c) => `${c.label} (${c.detail})`).join("; ")}`, r.skipped.length ? `Skipped: ${r.skipped.join(", ")}` : "", staleTxt]
+        .filter(Boolean).join(" · ") };
+  }
+  if (r.rag === "GREY") {
+    return { id: "cash", label: `Cash recon ${n}/${of} run`, rag: "GREY", link,
+      detail: [`Skipped: ${r.skipped.join(", ")}`, n ? `Passed: ${r.checks.map((c) => c.label).join(", ")}` : "", staleTxt].filter(Boolean).join(" · ") };
+  }
+  if (r.rag === "AMBER") {
+    return { id: "cash", label: `Cash recon · ${r.stale.length} stale DP quote${r.stale.length === 1 ? "" : "s"}`, rag: "AMBER", link, detail: staleTxt };
+  }
+  return { id: "cash", label: "Cash recon", rag: "GREEN", link, detail: `${n}/${of} checks pass: ${r.checks.map((c) => c.label).join(", ")}` };
+}
+
+/** Command header: DECIDE card count against the R18 cap. Over = verdicts beyond the cap or cards pushed to WATCH. */
+export function decideLoad(s: Pick<Surface, "decide" | "overflow"> | null): { count: number; cap: number; overflow: number; breach: boolean } | null {
+  if (!s) return null;
+  const count = s.decide.length;
+  return { count, cap: DECIDE_CAP, overflow: s.overflow, breach: count > DECIDE_CAP || s.overflow > 0 };
 }
