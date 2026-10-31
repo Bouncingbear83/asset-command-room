@@ -153,3 +153,10 @@ Never change any score, band or IRR-BB value.
 - Fewer than 4 checks ran → GREY chip "Cash recon {n}/4 run", listing the skipped checks. Never green.
 - Chip precedence: RED > GREY > AMBER > GREEN.
 - Command header shows "DECIDE n/10" (red when n > 10 or cards were pushed to WATCH by the cap, with "+k over cap").
+
+## §12 R33 DECIDE overflow (one card per ticker)
+
+- **Merge:** DECIDE candidates sharing a ticker become one card. Severity = highest member; every trigger is stacked in `reasons[]` as `title: reason`. Ticker-less cards (cash recon, sleeve floor, G(m), grouped watchlist cards) keep their own keys.
+- **Verdicts count toward the cap of 10.** KILL / RED verdicts are individual cards ranked above every AMBER card; AMBER verdicts are individual cards; CONFIRM verdicts (not merged with other triggers on the same name) collapse into one card "Apply N confirms" with Apply all.
+- **Verdict → PREPARE:** brief NO DATA, no grade yet, accepted to RC queue, placed, or a not-held (watchlist) name unless the band is KILL or RED.
+- **Overflow order:** RED doctrine (R23 RED, CASH_RECON RED, KILL_CHECK HIGH, stop breach) → KILL / RED verdicts → other RED → AMBER → GREY; then severity, verdict band, next review, fired date. Cards past 10 overflow to WATCH. A KILL_CHECK tracker row with priority HIGH is RED.
