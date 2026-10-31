@@ -259,7 +259,9 @@ describe("Doctrine strip", () => {
   it("one chip per check; all green when nothing fires", () => {
     const s = buildSurface({ ...base, holdings: [{ ticker: "A", account: "SIPP", price: 1, mv: 100 }], scores: [],
       cashBySleeve: { SIPP: 10, ISA: null, Bordier: null },
-      cashRecon: { block: { cashHead: 10, aum: 110, cashTotal: 10, grossDp: 10 / 110, cashBySleeve: { SIPP: 10, ISA: 0, Bordier: 0 } }, layersCash: 10, dpMentions: [] } });
+      // All four checks must run for the chip to be green (fewer → GREY).
+      cashRecon: { block: { cashHead: 10, aum: 110, cashTotal: 10, grossDp: 10 / 110, cashBySleeve: { SIPP: 10, ISA: 0, Bordier: 0 } }, layersCash: 10,
+        dpMentions: [{ source: "NARRATIVE posture_rationale", pct: 9.1, stamp: TODAY }] } });
     const chips = doctrineChecks({ gm: { level: "OK", label: "", frozen: false, ackActive: false }, dpPct: 7.5, surface: s, driverCaps: { breach: 0, warn: 0, ok: 5 } });
     expect(chips.map((c) => c.id)).toEqual(["gm", "dp", "irrbb", "quartets", "sleeves", "cash", "hygiene", "drivers"]);
     expect(chips.every((c) => c.rag === "GREEN")).toBe(true);
