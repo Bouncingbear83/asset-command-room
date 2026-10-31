@@ -1071,13 +1071,7 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
       : { id: "sleeves", label: `Sleeve floors${below.length ? ` ${below.length}` : ""}`, rag: below.length ? "AMBER" : "GREEN",
           detail: below.length ? below.map((f) => `${f.sleeve} ${f.pct.toFixed(1)}%`).join(", ") + ` < ${SLEEVE_FLOOR_PCT}%` : `All sleeves ≥ ${SLEEVE_FLOOR_PCT}% cash`,
           link: { tab: "command", anchor: "capital-queue" } });
-    chips.push(sf.cashRecon == null
-      ? { id: "cash", label: "Cash recon", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
-      : { id: "cash", label: sf.cashRecon.red ? `Cash recon ${sf.cashRecon.failed.length} failed` : "Cash recon", rag: sf.cashRecon.red ? "RED" : "GREEN",
-          detail: sf.cashRecon.red
-            ? `Failed: ${sf.cashRecon.failed.map((c) => `${c.label} (${c.detail})`).join("; ")}`
-            : `${sf.cashRecon.checks.length}/4 checks pass: ${sf.cashRecon.checks.map((c) => c.label).join(", ")}`,
-          link: { tab: "holdings" } });
+    chips.push(cashReconChip(sf.cashRecon));
     chips.push({ id: "hygiene", label: `Tracker hygiene${sf.hygiene.length ? ` ${sf.hygiene.length}` : ""}`, rag: sf.hygiene.length ? "AMBER" : "GREEN",
       detail: sf.hygiene.length ? `${sf.hygiene.length} OPEN rows on dead names` : "No OPEN rows on dead names", link: { tab: "actions", params: { view: "hygiene" } } });
   }
