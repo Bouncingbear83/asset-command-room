@@ -157,7 +157,12 @@ export const SLEEVES = ["SIPP", "ISA", "BORDIER"] as const;
  *   DP      F58 = E58 / E60                  (± CASH_RECON_DP_TOL_PP percentage points)
  *   LAYERS  LAYERS "Cash" MV = E65           (± CASH_RECON_LAYERS_TOL_GBP)
  *   TEXT    every DP % in NARRATIVE / MACRO_STATE within CASH_RECON_TEXT_DP_TOL_PP of F58
+ *           — stamp-aware: the stamp is MACRO_STATE col F for that row, NARRATIVE B2. Only a quote
+ *           stamped today can fail (RED). A quote stamped before today (or undated) that is off by
+ *           more than the tolerance is AMBER "Stale DP quote" — chip only, never a DECIDE card.
+ * Fewer than CASH_RECON_CHECK_COUNT checks run (missing inputs) → GREY "Cash recon n/4 run"; never green.
  */
+export const CASH_RECON_CHECK_COUNT = 4;
 export const CASH_RECON_SUM_TOL_GBP = 1;
 export const CASH_RECON_DP_TOL_PP = 0.05;
 export const CASH_RECON_LAYERS_TOL_GBP = 100;
