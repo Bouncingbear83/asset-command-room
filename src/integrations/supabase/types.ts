@@ -1166,6 +1166,48 @@ export type Database = {
         }
         Relationships: []
       }
+      themes_history: {
+        Row: {
+          created_at: string
+          from_stage: string | null
+          id: string
+          note: string | null
+          session_ref: string | null
+          sheet_row: number | null
+          source: string
+          theme_id: string
+          to_stage: string
+          transition: string
+          transitioned_on: string
+        }
+        Insert: {
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          session_ref?: string | null
+          sheet_row?: number | null
+          source?: string
+          theme_id: string
+          to_stage: string
+          transition: string
+          transitioned_on: string
+        }
+        Update: {
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          session_ref?: string | null
+          sheet_row?: number | null
+          source?: string
+          theme_id?: string
+          to_stage?: string
+          transition?: string
+          transitioned_on?: string
+        }
+        Relationships: []
+      }
       ticker_aliases: {
         Row: {
           created_at: string

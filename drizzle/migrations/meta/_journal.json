@@ -50,6 +50,13 @@
       "when": 1793350417742,
       "tag": "0006_price_symbol_map_no_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794076824393,
+      "tag": "0007_themes_history",
+      "breakpoints": true
     }
   ]
 }

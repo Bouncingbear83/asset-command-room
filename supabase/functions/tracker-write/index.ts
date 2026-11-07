@@ -1,10 +1,23 @@
 import { createTrackerHandler, json, responseBody, serviceHeaders } from "../_shared/tracker-http.ts";
 import { buildWriteRequests } from "./contract.ts";
-import { buildVaultRows, buildPositionArgs } from './v2-contract.ts';
+import { buildVaultRows, buildPositionArgs, buildThemesHistoryRows } from './v2-contract.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 export const handler = createTrackerHandler(async (body, root, key) => {
   const newMode = String(body?.mode || '').toUpperCase();
+  if (newMode === 'THEMES_HISTORY_INSERT') {
+    let payload;
+    try { payload = buildThemesHistoryRows(body); }
+    catch (error) { return json({ status: 'error', error: error instanceof Error ? error.message : String(error) }, 400); }
+    const client = createClient(root, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await client.from('themes_history')
+      .upsert(payload, { onConflict: 'theme_id,to_stage,transition,transitioned_on', ignoreDuplicates: true })
+      .select('id,theme_id,from_stage,to_stage,transition,transitioned_on');
+    if (error) return json({ status: 'error', mode: newMode, postgrest: error }, 502);
+    const rows = data ?? [];
+    return json({ status: 'success', mode: newMode, requested: payload.length, affected: rows.length, rows,
+      note: 'affected < requested means duplicates ignored (theme_id+to_stage+transition+date already exists)' });
+  }
   if (newMode === 'VAULT_META_UPSERT' || newMode === 'POSITION_REF') {
     let payload;
     try { payload = newMode === 'VAULT_META_UPSERT' ? buildVaultRows(body) : buildPositionArgs(body); }

@@ -24,6 +24,36 @@ export function buildVaultRows(input: unknown) {
   });
 }
 
+const STAGES = ['SIGNAL', 'FORMING', 'MAPPED', 'ACTIVE', 'RETIRE'];
+const TRANSITIONS = ['SEED', 'TP1', 'TP2', 'TP3', 'TP4', 'TP5', 'NOPIPE', 'REOPEN', 'DEMOTE'];
+const SOURCES = ['SESSION', 'AUTO', 'BACKFILL'];
+function oneOf(value: unknown, label: string, allowed: string[]): string {
+  if (typeof value !== 'string' || !allowed.includes(value)) throw new Error(`${label} must be ${allowed.join('|')}`);
+  return value;
+}
+export function buildThemesHistoryRows(input: unknown) {
+  const body = object(input, 'body');
+  if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 50) throw new Error('THEMES_HISTORY_INSERT needs 1-50 rows');
+  return body.rows.map((value, index) => {
+    const row = object(value, `row ${index}`);
+    const result: Record<string, unknown> = {
+      theme_id: text(row.theme_id, 'theme_id', 80, 1),
+      to_stage: oneOf(row.to_stage, 'to_stage', STAGES),
+      transition: oneOf(row.transition, 'transition', TRANSITIONS),
+      transitioned_on: isoDate(row.transitioned_on, 'transitioned_on'),
+      source: row.source === undefined ? 'SESSION' : oneOf(row.source, 'source', SOURCES),
+    };
+    if (row.transition === 'SEED' && row.from_stage != null) throw new Error(`row ${index}: SEED has no from_stage`);
+    optionalFields(row, result, {
+      from_stage: value => oneOf(value, 'from_stage', STAGES),
+      session_ref: value => text(value, 'session_ref', 60),
+      sheet_row: value => { const n = number(value, 'sheet_row'); if (!Number.isInteger(n) || n < 2) throw new Error('sheet_row must be an integer >= 2'); return n; },
+      note: value => text(value, 'note', 500),
+    });
+    return result;
+  });
+}
+
 export function buildPositionArgs(input: unknown) {
   const body = object(input, 'body');
   const args = object(body.args, 'args');
