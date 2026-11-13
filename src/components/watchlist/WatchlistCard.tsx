@@ -1,3 +1,4 @@
+import EarningsBriefButton from "@/components/EarningsBriefButton";
 import { useState, type CSSProperties } from "react";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Clock } from "lucide-react";
@@ -8,7 +9,6 @@ import { WatchlistSparkline } from "./WatchlistSparkline";
 import type { WatchlistTrajectory } from "@/hooks/useWatchlistHistory";
 import type { WatchlistScoreEntry } from "@/hooks/useWatchlistScores";
 import type { EntryZone } from "@/lib/parseEntryTarget";
-import { triggerWebhook } from "@/lib/webhooks";
 import { openClaudeWithPrompt } from "@/lib/claudePromptUrl";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 import { VaultWatchlistSnippet } from "@/components/vault/VaultIntegrations";
@@ -430,11 +430,6 @@ function TrajectoryArrow({ pct }: { pct: number | null }) {
 }
 
 function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.MouseEvent) => void }) {
-  const handleEarnings = (e: React.MouseEvent) => {
-    stop(e);
-    triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}`);
-  };
-
   const btn: CSSProperties = {
     background: "none",
     border: "1px solid var(--rim)",
@@ -450,7 +445,7 @@ function ActionButtons({ item, stop }: { item: LiveWatchItem; stop: (e: React.Mo
 
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <button onClick={handleEarnings} style={btn}>📋 Earnings Prep</button>
+      <EarningsBriefButton ticker={item.ticker} style={btn} />
       <ClaudePromptButton
         templateKey="watchlist_review"
         context={{

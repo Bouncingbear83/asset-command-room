@@ -1,8 +1,8 @@
+import EarningsBriefButton from "@/components/EarningsBriefButton";
 import { LiveMonitor, LiveWeeklyTrigger, LiveEarningsCalendarItem } from "@/hooks/usePortfolioData";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import TickerButton from "@/components/factsheet/TickerButton";
-import { triggerWebhook } from "@/lib/webhooks";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
 
 interface Props {
@@ -355,7 +355,7 @@ export default function MonitorTab({ monitorData, weeklyTriggers, earningsCalend
                         </td>
                         <td style={{ padding: "10px 8px" }}>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: item.ticker }, `Earnings prep triggered for ${item.ticker}`)} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", cursor: "pointer", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" }}>📋 Prep</button>
+                            <EarningsBriefButton ticker={item.ticker} style={{ background: "none", border: "1px solid var(--rim)", color: "var(--text-dim)", padding: "3px 8px", borderRadius: 2, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" }} />
                             <ClaudePromptButton templateKey="earnings_post" context={{ ticker: item.ticker, fiscal_period: item.fiscalPeriod || "—", earnings_date: item.nextEarningsDate || "—" }} style={{ border: "1px solid var(--accent)", color: "var(--accent)", padding: "3px 8px", fontSize: 9 }}>🔬 Post</ClaudePromptButton>
                           </div>
                         </td>

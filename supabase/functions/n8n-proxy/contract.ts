@@ -1,5 +1,5 @@
 import { z } from "npm:zod@3";
-const WebhookSchema = z.object({ endpoint: z.enum(["stellar-earnings-prep", "stellar-layer-scan", "stellar-vault-search"]), body: z.record(z.unknown()) }).strict();
+const WebhookSchema = z.object({ endpoint: z.enum(["stellar-layer-scan", "stellar-vault-search"]), body: z.record(z.unknown()) }).strict();
 export const ApplyBodySchema = z.object({
   tracker_id: z.string().uuid().optional(),
   op: z.enum(["accept", "edit", "placed", "apply_all"]).default("accept"),

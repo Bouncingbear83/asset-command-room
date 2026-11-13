@@ -133,3 +133,44 @@ export function useVaultNotesByPaths(paths: string[]) {
 
   return { notes, loading };
 }
+
+export function earningsSlug(ticker: string) {
+  return ticker.toLowerCase().replace(/\./g, "-");
+}
+
+/** Latest earnings/{slug}-*.md note plus whether an OPEN AUTO:{TICKER}:VERDICT tracker row exists. */
+export function useLatestEarningsNote(ticker: string | null) {
+  const [note, setNote] = useState<VaultNote | null>(null);
+  const [verdictOpen, setVerdictOpen] = useState(false);
+  const [loading, setLoading] = useState<boolean>(!!ticker);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!ticker) { setNote(null); setVerdictOpen(false); setLoading(false); return; }
+    setLoading(true);
+    (async () => {
+      const [n, v] = await Promise.all([
+        (supabase as any)
+          .from("vault_notes_meta")
+          .select("*")
+          .like("path", `earnings/${earningsSlug(ticker)}-%`)
+          .order("last_indexed", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        (supabase as any)
+          .from("action_tracker")
+          .select("id")
+          .ilike("dedupe_key", `AUTO:${ticker}:VERDICT%`)
+          .eq("status", "OPEN")
+          .limit(1),
+      ]);
+      if (cancelled) return;
+      setNote(n.data ? rowToNote(n.data) : null);
+      setVerdictOpen(Array.isArray(v.data) && v.data.length > 0);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [ticker]);
+
+  return { note, verdictOpen, loading };
+}

@@ -148,14 +148,6 @@ export default function ToolsCard({ holdings, watchlist, layers }: Props) {
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-dim)", marginBottom: 8 }}>Webhook Actions</div>
         <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 70, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>📋 Prep</span>
-            <select style={selectStyle} value={webhookTarget} onChange={(e) => setWebhookTarget(e.target.value)}>
-              <option value="">Select ticker…</option>
-              {tickers.map((t) => <option key={t} value={t}>{nameText(t)}</option>)}
-            </select>
-            <button disabled={!webhookTarget || webhookLoading} onClick={() => handleWebhook("stellar-earnings-prep", { ticker: webhookTarget }, `Earnings prep triggered for ${webhookTarget}. Check email.`)} style={{ ...fireStyle, opacity: webhookTarget ? 1 : 0.4 }}>{webhookLoading ? "…" : "Fire"}</button>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", width: 70, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>🔍 Scan</span>
             <select style={selectStyle} value={webhookTarget} onChange={(e) => setWebhookTarget(e.target.value)}>
               <option value="">Select layer…</option>

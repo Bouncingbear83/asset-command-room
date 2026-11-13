@@ -1,10 +1,10 @@
+import EarningsBriefButton from "@/components/EarningsBriefButton";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/PriceChart";
 import { LONG_RANGES, fetchPriceSeries, type LongRangeLabel } from "@/lib/priceSeries";
 import type { DailyPricePoint } from "@/hooks/useDailyPrices";
 import ClaudePromptButton from "@/components/ClaudePromptButton";
-import { triggerWebhook } from "@/lib/webhooks";
 import { type PortfolioData, type LiveHolding } from "@/hooks/usePortfolioData";
 import type { PriceDataMap } from "@/hooks/useDailyPrices";
 import { useFactSheetData, type FactSheetData } from "./useFactSheetData";
@@ -939,16 +939,15 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                 View in Scores ↗
               </a>
               {data.earnings && (
-                <button
-                  onClick={() => triggerWebhook("stellar-earnings-prep", { ticker: tkr }, `Earnings prep triggered for ${tkr}. Check email.`)}
+                <EarningsBriefButton
+                  ticker={tkr}
+                  label="📋 Brief ➜"
                   style={{
                     fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em",
                     border: "1px solid var(--accent)", color: "var(--accent)", background: "none",
-                    padding: "4px 12px", borderRadius: 2, cursor: "pointer",
+                    padding: "4px 12px", borderRadius: 2,
                   }}
-                >
-                  Earnings prep ➜
-                </button>
+                />
               )}
             </div>
 
