@@ -473,7 +473,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               )}
               {data.score && (data.score.buyLow || data.score.buyHigh) && (
                 <div style={{ marginTop: 10, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>
-                  Buy zone: {fmtNum(data.score.buyLow)} – {fmtNum(data.score.buyHigh)}
+                  Max buy: {fmtNum(data.score.buyHigh)} | Retest line: {fmtNum(data.score.buyLow)}
                 </div>
               )}
             </div>

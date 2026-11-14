@@ -522,7 +522,8 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
       let zoneStatus: ZoneStatus;
       if (currentPrice == null) zoneStatus = "PRE_IPO";
       else if (!zone) zoneStatus = "WAITING";
-      else if (currentPrice <= zone.high && currentPrice >= zone.low) zoneStatus = "IN_ZONE";
+      // OB v3.16.3 s5b/s6 — buy_low is a retest line, never a bound: below it still IN_ZONE.
+      else if (currentPrice <= zone.high) zoneStatus = "IN_ZONE";
       else if (currentPrice <= zone.high * 1.10) zoneStatus = "APPROACHING";
       else zoneStatus = "WAITING";
 

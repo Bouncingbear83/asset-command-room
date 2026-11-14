@@ -263,8 +263,12 @@ export function holdAlert(h: HoldingIn, irrBbRaw: number | null | undefined): Ho
 }
 
 // ── Entry zone parsing (display only) ──
-/** F3 — only a purely numeric range (or single numeric value) is a zone; text conditions are not. */
-export function parseZone(entry: string | undefined): { low: number; high: number } | null {
+/**
+ * F3 — only a purely numeric range (or single numeric value) is a zone; text conditions are not.
+ * OB v3.16.3 s5b/s6 — a range "A-B" yields high = B as the only limit; A is retestLine
+ * (display only), never a lower bound in any zone test.
+ */
+export function parseZone(entry: string | undefined): { high: number; retestLine: number | null } | null {
   const s = String(entry ?? "").trim();
   if (!s) return null;
   const P = "[$£€¥]?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:p|c|USD|GBP|EUR|JPY)?";
@@ -274,12 +278,12 @@ export function parseZone(entry: string | undefined): { low: number; high: numbe
   if (range) {
     const a = toN(range[1]), b = toN(range[2]);
     if (!(a > 0 && b > 0)) return null;
-    return { low: Math.min(a, b), high: Math.max(a, b) };
+    return { high: Math.max(a, b), retestLine: Math.min(a, b) };
   }
   if (single) {
     const n = toN(single[1]);
     if (!(n > 0)) return null;
-    return s.startsWith("<") || s.startsWith("≤") ? { low: 0, high: n } : { low: n, high: n };
+    return { high: n, retestLine: null };
   }
   return null;
 }
@@ -874,12 +878,12 @@ export function buildSurface(a: BuildArgs): Surface {
     if (stale.has(t)) { dropLog("R24 QUARTET_STALE_HIGH (wake suppressed)", { ticker: t, trigger_type: "WAKE" }); continue; }
     if (px == null || px <= 0) continue;
     const zone = parseZone(w.entry);
-    if (zone && px < zone.low && st.startsWith("WAIT_PRICE")) {
-      emit({ ...base, trigger_type: "BELOW_ZONE", title: "Below zone: thesis check", lane, severity: "AMBER", reason: `Px ${px} < buy_low ${zone.low}` });
-      continue;
-    }
+    // OB v3.16.3 s5b/s6 — buy_low is a retest line, never a bound: below it the name stays IN_ZONE.
+    const belowRetest = zone?.retestLine != null && px < zone.retestLine;
+    const bwTitle = "In zone, below retest line: BW re-underwrite before fire";
     if (!bandError) {
-      if (band === "ZONE") emit({ ...base, trigger_type: "IN_ZONE", title: "In zone", lane, severity: "AMBER", reason: `BAND ZONE · Px ${px}` });
+      if (band === "ZONE") emit({ ...base, trigger_type: "IN_ZONE", title: belowRetest ? bwTitle : "In zone", badge: belowRetest ? "BW_RETEST" : undefined, lane, severity: "AMBER",
+        reason: belowRetest ? `BAND ZONE · Px ${px} < retest line ${zone!.retestLine}` : `BAND ZONE · Px ${px}` });
       else if (band === "NEAR") {
         wakeWithin10++;
         emit({ ...base, trigger_type: "APPROACHING_ZONE", title: "Approaching zone", lane, severity: "GREY", reason: `BAND NEAR · Px ${px}` });
@@ -890,7 +894,8 @@ export function buildSurface(a: BuildArgs): Surface {
     const edge = w.triggerPriceNumeric && w.triggerPriceNumeric > 0 ? w.triggerPriceNumeric : zone?.high ?? null;
     if (!edge) continue;
     if (px <= edge) {
-      emit({ ...base, trigger_type: "IN_ZONE", title: "In zone", lane, severity: "AMBER", reason: `Px ${px} ≤ edge ${edge}` });
+      emit({ ...base, trigger_type: "IN_ZONE", title: belowRetest ? bwTitle : "In zone", badge: belowRetest ? "BW_RETEST" : undefined, lane, severity: "AMBER",
+        reason: belowRetest ? `Px ${px} ≤ edge ${edge} · below retest line ${zone!.retestLine}` : `Px ${px} ≤ edge ${edge}` });
     } else {
       const dist = ((px - edge) / edge) * 100;
       if (dist <= WATCH_WAKE_PCT) {

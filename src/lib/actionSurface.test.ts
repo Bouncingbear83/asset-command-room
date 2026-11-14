@@ -147,8 +147,8 @@ d2("v1.1 fixes", () => {
   });
   i2("F3 text conditions are not zones", () => {
     e2(pz("66p floor reclear + design-in")).toBeNull();
-    e2(pz("$32-40")).toEqual({ low: 32, high: 40 });
-    e2(pz("420-450p")).toEqual({ low: 420, high: 450 });
+    e2(pz("$32-40")).toEqual({ high: 40, retestLine: 32 });
+    e2(pz("420-450p")).toEqual({ high: 450, retestLine: 420 });
   });
   i2("F7 unknown ticker / dead MANUAL → BACKLOG", () => {
     const known = new Set(["ASML", "KTOS"]);
@@ -169,6 +169,18 @@ d2("WATCHLIST BAND (col AL)", () => {
     e2(run([W({ band: "ZONE" })]).decide[0]?.trigger_type).toBe("IN_ZONE");
     e2(run([W({ band: "NEAR", current: 500 })]).decide[0]?.trigger_type).toBe("APPROACHING_ZONE");
     e2(run([W({ band: "BENCH", current: 85 })]).decide).toHaveLength(0);
+  });
+  i2("OB v3.16.3: price below retest line stays IN_ZONE with BW_RETEST (never BELOW_ZONE)", () => {
+    const s = run([W({ band: "ZONE", entry: "32-40", current: 30 })]);
+    const c = s.decide.find((x) => x.ticker === "X");
+    e2(c?.trigger_type).toBe("IN_ZONE");
+    e2(c?.badge).toBe("BW_RETEST");
+    e2(c?.title).toBe("In zone, below retest line: BW re-underwrite before fire");
+    e2(s.decide.some((x) => x.trigger_type === "BELOW_ZONE")).toBe(false);
+    e2(JSON.stringify(s)).not.toContain("below zone");
+    const d = run([W({ band: "ZONE", entry: "32-40", current: 35, status: "DEPLOY" })]).decide.find((x) => x.ticker === "X");
+    e2(d?.trigger_type).toBe("IN_ZONE");
+    e2(d?.badge).toBeUndefined();
   });
   i2("ARCHIVE + ZONE → RESET_ZONE and not dead", () => {
     const w = W({ status: "ARCHIVE", band: "ZONE" });
