@@ -13,3 +13,4 @@
 - Tickers render only through TickerLabel (codes) or NamedText/withNames (free text), using the single numeric-ticker pattern in src/lib/tickerName.ts; a vitest guard blocks bare {x.ticker} JSX — numeric Asian codes must always appear with their company name.
 - Watchlist price history is read only through server-side aggregation RPCs (get_price_trajectories, get_price_series ≤500 points), never paged raw rows — payload must scale with ticker count, not history length.
 - Doctrine strip chips come from the pure doctrineChecks() in src/lib/actionSurface.ts, fed by the ActionInbox surface (onSurface) and src/lib/driverCaps.ts shared with DriversTab — one rule source for cards, chips and caps.
+- Vault metadata writes use one bulk path-conflict upsert with minimal returned fields and count/timing-only diagnostics; unequal returned/requested counts fail loudly — preserves batch integrity without exposing note content or secrets.

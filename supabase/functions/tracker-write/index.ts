@@ -25,9 +25,13 @@ export const handler = createTrackerHandler(async (body, root, key) => {
     if (Array.isArray(payload) && payload.length === 0) return json({ status: 'success', mode: newMode, requested: 0, affected: 0, rows: [] });
     const client = createClient(root, key, { auth: { persistSession: false, autoRefreshToken: false } });
     if (newMode === 'VAULT_META_UPSERT' && Array.isArray(payload)) {
+      const started = performance.now();
       const { data, error } = await client.from('vault_notes_meta').upsert(payload, { onConflict: 'path' }).select('path,type,identifier');
+      // Counts/timing only: never log note content, credentials, or request headers.
+      console.info('VAULT_META_UPSERT', JSON.stringify({ requested: payload.length, affected: data?.length ?? 0, db_ms: Math.round(performance.now() - started), code: error?.code ?? null }));
       if (error) return json({ status: 'error', mode: newMode, postgrest: error }, 502);
       const rows = data ?? [];
+      if (rows.length !== payload.length) return json({ status: 'error', mode: newMode, postgrest: { code: 'VAULT_AFFECTED_MISMATCH', message: `Expected ${payload.length} returned rows, received ${rows.length}` } }, 502);
       return json({ status: 'success', mode: newMode, requested: payload.length, affected: rows.length, rows });
     }
     if (!Array.isArray(payload)) {

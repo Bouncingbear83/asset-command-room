@@ -2,7 +2,7 @@ import { object, text, optionalFields, number, isoDate } from '../_shared/tracke
 
 export function buildVaultRows(input: unknown) {
   const body = object(input, 'body');
-  if (!Array.isArray(body.rows) || body.rows.length > 50) throw new Error('VAULT_META_UPSERT needs 0-50 rows');
+  if (!Array.isArray(body.rows) || body.rows.length > 100) throw new Error('VAULT_META_UPSERT needs 0-100 rows');
   return body.rows.map((value, index) => {
     const row = object(value, `row ${index}`);
     const path = text(row.path, 'path', 300, 1);

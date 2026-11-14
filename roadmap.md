@@ -1,3 +1,4 @@
+- [x] Investigate VAULT_META_UPSERT, add safe diagnostics/count guard and 100-row support, pass 39 tests and live 50/100-note/source_ref checks, deploy tracker-write only; historical timeout cause remains unconfirmed (03:00 logs unavailable).
 - [x] Price-history housekeeping: NO_FEED allowed, requested mappings verified, NO FEED label tested; deleted 2,238 orphan rows and 89 frozen-feed rows; protected ticker counts unchanged.
 - [x] Correct Movers aliases, fail-closed live quotes, currency labels, and suspect ranking; 36 Vitest and 3 owner-access tests pass; signed-in INR/AMG/GAM/ALM match sheet prices and day moves; live-prices deployed without snapshot/RLS changes.
 - [x] Collapse RESET_ZONE and R3_LINT and sort Decide by review/fired dates.
