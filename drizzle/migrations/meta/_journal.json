@@ -57,6 +57,13 @@
       "when": 1794076824393,
       "tag": "0007_themes_history",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794743046782,
+      "tag": "0008_allow_benchmark_price_symbol_status",
+      "breakpoints": true
     }
   ]
 }
