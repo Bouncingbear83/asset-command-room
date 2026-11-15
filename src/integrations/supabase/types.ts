@@ -21,7 +21,7 @@ export type Database = {
           context: string | null
           created_at: string
           dedupe_key: string | null
-          due_date: string
+          due_date: string | null
           id: string
           layer: string | null
           name: string | null
@@ -43,7 +43,7 @@ export type Database = {
           context?: string | null
           created_at?: string
           dedupe_key?: string | null
-          due_date: string
+          due_date?: string | null
           id?: string
           layer?: string | null
           name?: string | null
@@ -65,7 +65,7 @@ export type Database = {
           context?: string | null
           created_at?: string
           dedupe_key?: string | null
-          due_date?: string
+          due_date?: string | null
           id?: string
           layer?: string | null
           name?: string | null
@@ -1570,6 +1570,7 @@ export type Database = {
           trade_count: number
         }[]
       }
+      tracker_update_v14: { Args: { p_updates: Json }; Returns: Json }
       upsert_position_reference: {
         Args: {
           p_action?: string

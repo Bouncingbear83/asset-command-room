@@ -3,7 +3,7 @@
 // Keep the workflow's regexes, defaults, truncation and validation messages unchanged.
 import { stagedFields } from './staged.ts';
 import { buildUpdateRequests } from './update-contract.ts';
-export function buildWriteRequests(input: any) {
+export function buildWriteRequests(input: any): { json: any }[] {
 const ROOT = '/rest/v1/';
 const BASE = ROOT + 'action_tracker';
 const LRS = ROOT + 'layer_review_schedule';

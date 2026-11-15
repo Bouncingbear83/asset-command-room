@@ -1,4 +1,4 @@
-- [ ] Tracker UPDATE v1.4: strict partial patches, transactional read-back verification, scratch-row acceptance tests, deploy tracker-write only and report commit/test outputs.
+- [x] Tracker UPDATE v1.4: strict partial patches and service-only transactional RPC; 44 regression tests pass, pre-deploy and deployed scratch acceptance a-g plus rollback/null/identity/mismatch checks pass; tracker-write only deployed and verified 2026-11-15 19:15 UTC, scratch rows deleted.
 - [x] Investigate VAULT_META_UPSERT, add safe diagnostics/count guard and 100-row support, pass 39 tests and live 50/100-note/source_ref checks, deploy tracker-write only; historical timeout cause remains unconfirmed (03:00 logs unavailable).
 - [x] Price-history housekeeping: NO_FEED allowed, requested mappings verified, NO FEED label tested; deleted 2,238 orphan rows and 89 frozen-feed rows; protected ticker counts unchanged.
 - [x] Correct Movers aliases, fail-closed live quotes, currency labels, and suspect ranking; 36 Vitest and 3 owner-access tests pass; signed-in INR/AMG/GAM/ALM match sheet prices and day moves; live-prices deployed without snapshot/RLS changes.

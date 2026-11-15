@@ -2,9 +2,21 @@ import { createTrackerHandler, json, responseBody, serviceHeaders } from "../_sh
 import { buildWriteRequests } from "./contract.ts";
 import { buildVaultRows, buildPositionArgs, buildThemesHistoryRows } from './v2-contract.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { UPDATE_VERSION } from './update-contract.ts';
 
 export const handler = createTrackerHandler(async (body, root, key) => {
   const newMode = String(body?.mode || '').toUpperCase();
+  if (newMode === 'UPDATE') {
+    let requests;
+    try { requests = buildWriteRequests(body); }
+    catch (error) { return json({ status: 'error', version: UPDATE_VERSION, error: error instanceof Error ? error.message : String(error) }, 400); }
+    const client = createClient(root, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await client.rpc('tracker_update_v14', {
+      p_updates: requests.map(({ json: request }) => ({ identity: request.identity, body: request.body })),
+    });
+    if (error) return json({ status: 'error', version: UPDATE_VERSION, mode: newMode, postgrest: error }, ['22023', '22007', '22008', '22P02', '23502', '23514'].includes(error.code) ? 400 : 502);
+    return json(data, data?.status === 'PARTIAL' ? 207 : 200);
+  }
   if (newMode === 'THEMES_HISTORY_INSERT') {
     let payload;
     try { payload = buildThemesHistoryRows(body); }
