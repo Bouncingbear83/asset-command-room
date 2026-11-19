@@ -71,6 +71,13 @@
       "when": 1794770027396,
       "tag": "0009_tracker_update_v14_atomic",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795089121240,
+      "tag": "0010_allow_peer_price_symbol_status",
+      "breakpoints": true
     }
   ]
 }
