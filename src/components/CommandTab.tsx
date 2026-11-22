@@ -11,7 +11,7 @@ import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import GmExposureChip, { computeGmStats } from "@/components/command/GmExposureChip";
 import DoctrineStrip from "@/components/command/DoctrineStrip";
-import { decideLoad, doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
+import { capReviewLines, decideLoad, doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
 import { driverCapCounts } from "@/lib/driverCaps";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import BenchmarkStrip, { useIxicLast } from "@/components/command/BenchmarkStrip";
@@ -249,7 +249,7 @@ export default function CommandTab() {
         aum={canonAum}
         dpPct={dpPct}
         unpricedCount={sources.holdings.status === "ok" ? unpricedPositionCount(holdings) : 0}
-        decide={decideLoad(surface)}
+        decide={surface ? { ...decideLoad(surface)!, lines: capReviewLines(surface, basis) } : null}
         regime={regime}
         isMobile={isMobile}
       />

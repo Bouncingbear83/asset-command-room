@@ -565,6 +565,8 @@ export interface Surface {
   cashRecon: CashRecon | null;
   /** A2 — HELD names on V3A / V3A-NAV vs all HELD; null when basis was not supplied. */
   basisHeld: { v3a: number; total: number; nonV3a: string[] } | null;
+  /** R18 — cards pushed past the DECIDE cap (also present in watch). */
+  overflowCards?: Candidate[];
 }
 
 const SEV_RANK: Record<Severity, number> = { RED: 0, AMBER: 1, GREY: 2 };
@@ -1130,6 +1132,7 @@ export function buildSurface(a: BuildArgs): Surface {
     missed: all.filter((c) => c.lane === "MISSED"),
     backlog: all.filter((c) => c.lane === "BACKLOG"),
     overflow: overflowItems.length,
+    overflowCards: overflowItems,
     wakeWithin10,
     watchCount: countWatching(a, dead, heldSet, candidates),
     supersededBriefs,
@@ -1294,6 +1297,44 @@ export function cashReconChip(r: CashRecon | null): DoctrineChip {
 }
 
 /** Command header: DECIDE card count against the R18 cap. Over = verdicts beyond the cap or cards pushed to WATCH. */
+/** Rule ID behind a trigger type (cap review). */
+export function ruleIdOf(c: Pick<Candidate, "trigger_type" | "title">): string {
+  const t = String(c.trigger_type ?? "");
+  if (t === "REGIME_HALT") return "A1";
+  if (t.startsWith("RULE13_BREACH")) return "A3";
+  if (t.startsWith("HOLD_ALERT_") || t === "STOP" || t === "VERIFY_STOP") return "R11";
+  if (t === "EXIT_RECLASS") return "R13";
+  if (t === "IN_ZONE" || t === "APPROACHING_ZONE") return "R15";
+  if (t === "RESET_ZONE" || t === "R3_LINT") return "R3";
+  if (t === "RECONCILE_FILL") return "R16";
+  if (t === "GM_CAP") return "R20";
+  if (t === "IRRBB_LOW_HELD" || t === "IRRBB_DATA_CHECK") return "R23";
+  if (t === "QUARTET_STALE") return "R24";
+  if (t.startsWith("SLEEVE_FLOOR")) return "R29";
+  if (t === "CASH_RECON") return "R30";
+  if (t === "EARNINGS" || t === "THESIS_CHECK") return "R14";
+  if (t === "EARNINGS_VERDICT" || t === "CONFIRM_VERDICTS") return "R33";
+  if (t.startsWith("TRACKER_")) return String(c.title ?? "").startsWith("Missed (HIGH)") ? "R31" : "R17";
+  return t;
+}
+
+/** One review line per card: ticker · rules · basis · title. Merged cards list every member rule. */
+export function capReviewLine(c: Candidate, basis?: Record<string, string> | null): string {
+  const rules = [...new Set((c.members?.length ? c.members : [c]).map(ruleIdOf))].join("+");
+  const cls = c.ticker && c.ticker !== "G(m)" ? basis?.[c.ticker] ?? "n/a" : "—";
+  return `${c.ticker || "—"} · ${rules} · basis ${cls} · ${c.title}`;
+}
+
+/** Cap review — every DECIDE card then every overflow card, numbered, with rule IDs and basis class. */
+export function capReviewLines(s: Pick<Surface, "decide" | "overflowCards"> | null, basis?: Record<string, string> | null): string[] {
+  if (!s) return [];
+  const n = s.decide.length;
+  return [
+    ...s.decide.map((c, i) => `${i + 1}. ${capReviewLine(c, basis)}`),
+    ...(s.overflowCards ?? []).map((c, i) => `${n + i + 1}. [over cap] ${capReviewLine(c, basis)}`),
+  ];
+}
+
 export function decideLoad(s: Pick<Surface, "decide" | "overflow"> | null): { count: number; cap: number; overflow: number; breach: boolean } | null {
   if (!s) return null;
   const count = s.decide.length;

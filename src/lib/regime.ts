@@ -34,7 +34,7 @@ const gbp = (x: number) => `£${Math.round(x).toLocaleString("en-GB")}`;
 export function regimeState(i: { aumGbp: number; nasdaqLast: number | null | undefined; ixicHistoryMax?: number | null }): RegimeState {
   const newPeak = i.aumGbp > REGIME_PEAK_AUM_GBP;
   const ddRaw = newPeak ? 0 : (1 - i.aumGbp / REGIME_PEAK_AUM_GBP) * 100;
-  // Classified at displayed precision (2 dp), so 7.99996% reads and tests as 8.00%.
+  // Bands test the exact DD; display rounds. HALT H-A is tested in whole pounds.
   const ddPct = r2(ddRaw);
   const haltLineGbp = REGIME_PEAK_AUM_GBP * (1 - REGIME_HALT_PCT / 100);
   const haltMarginGbp = i.aumGbp - haltLineGbp;
@@ -42,10 +42,10 @@ export function regimeState(i: { aumGbp: number; nasdaqLast: number | null | und
 
   let state: RegimeKind = "NORMAL";
   let band: string | null = null;
-  if (ddPct >= REGIME_HALT_PCT) { state = "HALT"; band = "H-A"; }
-  else if (ddPct >= REGIME_STRESS_PCT) {
+  if (i.aumGbp <= Math.round(haltLineGbp)) { state = "HALT"; band = "H-A"; }
+  else if (ddRaw >= REGIME_STRESS_PCT) {
     state = "STRESS";
-    band = STRESS_BANDS.find((b) => ddPct >= b.from && ddPct < b.to)?.id ?? STRESS_BANDS[STRESS_BANDS.length - 1].id;
+    band = STRESS_BANDS.find((b) => ddRaw >= b.from && ddRaw < b.to)?.id ?? STRESS_BANDS[STRESS_BANDS.length - 1].id;
   }
 
   let nasdaqDdPct: number | null = null, hrGapPts: number | null = null;

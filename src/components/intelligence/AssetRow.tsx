@@ -1,3 +1,4 @@
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { CSSProperties, KeyboardEvent } from "react";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { ChevronRight, ChevronDown } from "lucide-react";
@@ -608,6 +609,7 @@ export function AssetRow({ asset, expanded, onToggle, actionCount, onActionClick
             high={asset.buy_range.high}
             currency={asset.buy_range.currency}
           />
+          <BbBasisTag ticker={asset.ticker} />
         </div>
 
         {/* Asymmetry pill */}

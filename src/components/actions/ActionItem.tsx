@@ -1,3 +1,4 @@
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
@@ -130,6 +131,7 @@ export default function ActionItemRow({ item, onResolve, onSnooze, onReopen, onD
               }}
             >
               <TickerLabel ticker={item.ticker} name={item.name} plain />
+              {/IRR-?BB|\bBB\b|bull|buy|zone|retest|trigger|quartet/i.test(String(item.summary ?? "")) && <BbBasisTag ticker={item.ticker} />}
             </span>
           )}
           <span

@@ -41,7 +41,7 @@ interface Props {
   dpPct: number | null;
   unpricedCount: number;
   /** DECIDE card count vs the R18 cap; null until the action surface has been built. */
-  decide?: { count: number; cap: number; overflow: number; breach: boolean } | null;
+  decide?: { count: number; cap: number; overflow: number; breach: boolean; lines?: string[] } | null;
   /** Sprint A · A1 — drawdown regime (OB §3.4.9a); null = AUM not available. */
   regime?: RegimeState | null;
   isMobile: boolean;
@@ -182,7 +182,7 @@ export default function CommandHeader({ riskControls, macroState, cashGbp, aum, 
         <span
           data-testid="header-decide-count"
           title={decide == null ? "Decide not built yet"
-            : `${decide.count} card${decide.count === 1 ? "" : "s"} in Decide (cap ${decide.cap})${decide.overflow ? `; ${decide.overflow} moved to Watch by the cap` : ""}`}
+            : `${decide.count} card${decide.count === 1 ? "" : "s"} in Decide (cap ${decide.cap})${decide.overflow ? `; ${decide.overflow} moved to Watch by the cap` : ""}${decide.lines?.length ? `\n\n${decide.lines.join("\n")}` : ""}`}
           style={{ ...chipBase, color: decide == null ? "var(--text-dim)" : decide.breach ? "var(--red)" : "var(--text-mid)",
             background: decide?.breach ? "var(--red-dim)" : undefined, fontWeight: decide?.breach ? 700 : undefined }}
         >

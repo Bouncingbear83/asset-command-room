@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { regimeState } from "@/lib/regime";
 import { bbBasis } from "@/lib/bbBasis";
 import { rule13Status, p3bGroups } from "@/lib/rule13";
-import { buildSurface, doctrineChecks, type WatchIn } from "@/lib/actionSurface";
+import { buildSurface, capReviewLines, doctrineChecks, type WatchIn } from "@/lib/actionSurface";
 
 const TODAY = "2026-11-22";
 const base = { holdings: [], watchlist: [], scores: [], earnings: [], tracker: [], today: TODAY };
@@ -27,10 +27,23 @@ describe("A1 regime (OB §3.4.9a)", () => {
     expect(s.decide[0].title).toBe("HALT: no new money (OB §3.4.9a)");
     expect(s.decide[0].severity).toBe("RED");
   });
-  it("1,508,820 / 27,000 → STRESS S1 by DD 8.0% but released stays £77,868 (HWM S3), AMBER", () => {
-    const r = regimeState({ aumGbp: 1508820, nasdaqLast: 27000 });
-    expect(r.state).toBe("STRESS"); expect(r.band).toBe("S1"); expect(r.ddPct.toFixed(1)).toBe("8.0");
+  it("S1 boundary: £1,508,819 (DD 8.00002%) → S1, released stays £77,868 (HWM S3)", () => {
+    const r = regimeState({ aumGbp: 1508819, nasdaqLast: 27000 });
+    expect(r.state).toBe("STRESS"); expect(r.band).toBe("S1");
     expect(r.releasedGbp).toBe(77868); expect(r.rag).toBe("AMBER");
+  });
+  it("£1,508,821 → NORMAL", () => expect(regimeState({ aumGbp: 1508821, nasdaqLast: 27000 }).state).toBe("NORMAL"));
+  it("£1,230,017 → STRESS S3", () => {
+    const r = regimeState({ aumGbp: 1230017, nasdaqLast: 22613.8 });
+    expect(r.state).toBe("STRESS"); expect(r.band).toBe("S3");
+  });
+  it("cap review lists every DECIDE and overflow card with rule ID and basis", () => {
+    const wl: WatchIn[] = Array.from({ length: 12 }, (_, i) => ({ ticker: `T${i}`, status: "WAIT_PRICE", current: 1, band: "ZONE" }));
+    const s = buildSurface({ ...base, watchlist: wl });
+    const lines = capReviewLines(s, { T0: "V3A" });
+    expect(lines).toHaveLength(12);
+    expect(lines.find((x) => x.includes("T0 ·"))).toContain("R15 · basis V3A");
+    expect(lines.filter((x) => x.includes("[over cap]"))).toHaveLength(2);
   });
   it("1,250,000 → STRESS S3, margin 1.6% AUM → RED", () => {
     const r = regimeState({ aumGbp: 1250000, nasdaqLast: 22613.8 });

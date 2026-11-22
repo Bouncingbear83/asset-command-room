@@ -1,3 +1,4 @@
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { useEffect, useMemo, useState } from "react";
 import { TickerLabel, NamedText } from "@/components/shared/TickerLabel";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
@@ -38,6 +39,9 @@ function todayISO() {
 function load<T>(k: string, fb: T): T {
   try { const r = localStorage.getItem(k); return r ? (JSON.parse(r) as T) : fb; } catch { return fb; }
 }
+
+/** A2 — cards that show a BB, IRR-BB or buy line carry the basis tag. */
+const BB_TEXT = /IRR-?BB|\bBB\b|bull|buy|zone|retest|trigger|quartet/i;
 
 const mono = (size: number, color = "var(--text-mid)"): React.CSSProperties => ({ fontFamily: "var(--font-mono)", fontSize: size, color });
 
@@ -203,6 +207,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
             ) : (
               <span style={{ ...mono(12, "var(--gold)"), fontWeight: 700 }}>{c.ticker ? <TickerLabel ticker={c.ticker} plain /> : "—"}</span>
             )}
+            {c.ticker && c.ticker !== "G(m)" && BB_TEXT.test(`${c.title} ${c.reasons.join(" ")} ${c.trigger_type}`) && <BbBasisTag ticker={c.ticker} />}
             {c.accounts.length > 0 && <span style={{ ...mono(8, "var(--text-dim)"), letterSpacing: "0.1em" }}>{c.accounts.join(" · ")}</span>}
           </div>
           <span style={{ ...mono(8, s.color), letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid color-mix(in srgb, ${s.color} 30%, transparent)`, borderRadius: 2, whiteSpace: "nowrap", justifySelf: "start" }}>

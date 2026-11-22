@@ -31,3 +31,13 @@ describe("held prices stay aligned with the sheet", () => {
   it("GAM uses GBP22.30 and a zero day move", () => expect(holdingSheetQuote(22.3, 22.3, 0)).toEqual({ price: 22.3, change: 0 }));
   it("ALM uses USD8.86 and +1.257% from the 8.75 sheet close", () => { const q = holdingSheetQuote(8.86, 8.75, 1.257); expect(q.price).toBe(8.86); expect(q.change).toBeCloseTo(1.257142); });
 });
+
+describe("Movers prices after the benchmark currency change", () => {
+  it.each([["6920.T", "JPY"], ["RHM.DE", "EUR"], ["RSW.L", "GBp"]])("%s still resolves a live symbol", (t, c) => {
+    expect(toYahooSymbol(t, new Map(), c)).toEqual({ symbol: t, skip: false });
+  });
+  it.each([["6920.T", "JPY", "JPY", 9000], ["RHM.DE", "EUR", "EUR", 1500], ["RSW.L", "GBp", "GBp", 5160]])("%s quote in %s passes the currency gate", (_t, sheet, quote) => {
+    expect(currenciesMatch(quote, sheet)).toBe(true);
+  });
+});
+
