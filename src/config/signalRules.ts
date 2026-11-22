@@ -195,3 +195,58 @@ export const MISSED_HIGH_PRIORITY = "HIGH";
  * Exception: these action types on ARCHIVE watchlist names route normally.
  */
 export const HYGIENE_EXEMPT_ON_ARCHIVE = ["CATALYST_WATCH"] as const;
+
+// ═══════════════════════════════════════════════════════════════════
+// Sprint A — A1 drawdown regime (OB v3.20.2 §3.4.9a; Weekly v1.5 C10). Display only.
+// Operator-set constants: a new peak or a new stress episode is a code change. The app flags
+// a new peak but never ratchets these at runtime.
+// ═══════════════════════════════════════════════════════════════════
+/** OB §3.4.9a — book peak AUM (GBP, cash included; same basis as HOLDINGS E60). */
+export const REGIME_PEAK_AUM_GBP = 1640021;
+/** OB §3.4.9a — date of the book peak. */
+export const REGIME_PEAK_DATE = "2026-10-05";
+/** OB §3.4.9a — drawdown (percent) at which the book enters STRESS. */
+export const REGIME_STRESS_PCT = 8;
+/** OB §3.4.9a — drawdown (percent) at which the book is in HALT (H-A): no new money. */
+export const REGIME_HALT_PCT = 25;
+/** OB §3.4.9a — stress bands and the share of STRESS_BUDGET_GBP each releases. */
+export const STRESS_BANDS = [
+  { id: "S1", from: 8, to: 15, release: 0.25 },
+  { id: "S2", from: 15, to: 20, release: 0.5 },
+  { id: "S3", from: 20, to: 25, release: 0.75 },
+] as const;
+/** OB §3.4.9a — stress deployment budget (GBP). */
+export const STRESS_BUDGET_GBP = 103824;
+/** OB §3.4.9a — operator ruling 12 Nov 2026: release is a high-water mark per episode. */
+export const STRESS_EPISODE_HWM_BAND = "S3";
+/** OB §3.4.9a H-R — Nasdaq Composite record close and its date. */
+export const NASDAQ_RECORD_CLOSE = 27477.31;
+export const NASDAQ_RECORD_DATE = "2026-10-05";
+/** OB §3.4.9a / Weekly C10 — H-R gap (book DD minus Nasdaq DD, points): RED above trigger + … */
+export const HR_TRIGGER_PTS = 10;
+/** … AMBER above release. (RED test in C10 is gap > 9: one point inside the trigger.) */
+export const HR_RELEASE_PTS = 7;
+/** Weekly C10 — H-R gap above this many points is RED. */
+export const HR_RED_PTS = 9;
+/** Weekly C10 — H-A margin below this percent of AUM is RED. */
+export const HALT_MARGIN_RED_PCT = 2;
+/** Every value derived from a live quote carries this label. */
+export const INTRADAY_LABEL = "intraday, indicative: doctrine tests at the close";
+
+// ═══════════════════════════════════════════════════════════════════
+// Sprint A — A2 BB basis (OB §3.4.5i; same tests as Daily Run C30).
+// ═══════════════════════════════════════════════════════════════════
+/** Max vault reads per page load for T4 (non-score change notes); beyond the cap → UNKNOWN. */
+export const BB_BASIS_VAULT_CAP = 12;
+/** Price-driven trigger types demoted DECIDE → WATCH on PINNED-V1 / LEGACY rows. */
+export const BB_BASIS_PRICE_TRIGGERS = ["IN_ZONE", "APPROACHING_ZONE", "IRRBB_LOW_HELD", "QUARTET_STALE", "HOLD_ALERT_TRIM"] as const;
+
+// ═══════════════════════════════════════════════════════════════════
+// Sprint A — A3 Rule 13 on deploy rows (Rule 13, P3b, P5). Caps live in src/lib/driverCaps.ts.
+// ═══════════════════════════════════════════════════════════════════
+/**
+ * Display proxy, not doctrine: a group within this many points of its soft (WARN) cap shows
+ * "RULE 13: P5 peak-mark test required (session)". The app cannot run P5 itself (it needs the
+ * 5 Oct peak marks); the session does.
+ */
+export const RULE13_P5_BUFFER_PP = 5;

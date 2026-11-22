@@ -16,6 +16,7 @@
  */
 
 import { useState } from "react";
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import type { AsymmetryQuartet, LiveAsymmetryResult } from "@/lib/liveAsymmetry";
 
 export interface AsymmetryBarProps {
@@ -30,6 +31,8 @@ export interface AsymmetryBarProps {
   currency?: string | null;
   /** Compact mode: smaller for AssetExpansion row */
   compact?: boolean;
+  /** A2 — renders the BB basis tag beside the bar. */
+  ticker?: string | null;
 }
 
 function formatNum(n: number | null | undefined, precision = 2): string {
@@ -51,9 +54,14 @@ function pctFromSpot(value: number | null, spot: number | null): string | null {
   return `${sign}${pct.toFixed(0)}%`;
 }
 
-export function AsymmetryBar({
+export function AsymmetryBar({ ticker, ...rest }: AsymmetryBarProps) {
+  const bar = <AsymmetryBarInner {...rest} />;
+  return ticker ? <div><div style={{ textAlign: "right" }}><BbBasisTag ticker={ticker} /></div>{bar}</div> : bar;
+}
+
+function AsymmetryBarInner({
   quartet, live, buyZone, triggerPrice, triggerLabel, currency, compact = false,
-}: AsymmetryBarProps) {
+}: Omit<AsymmetryBarProps, "ticker">) {
   const [hover, setHover] = useState<string | null>(null);
 
   const lo = quartet.bearSubstrateFail ?? quartet.bearThesisWeak;

@@ -1,4 +1,5 @@
 import { type CSSProperties } from "react";
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type IrrBbResult, type IrrBbBand, formatIrr, formatYears } from "@/lib/computeIrrBb";
 
@@ -25,9 +26,15 @@ interface Props {
   result: IrrBbResult;
   /** Show "N/A" instead of "---" for names with no bb_target_date by design. */
   showNa?: boolean;
+  /** A2 — renders the BB basis tag beside the pill. */
+  ticker?: string | null;
 }
 
-export function IrrBbPill({ result, showNa }: Props) {
+export function IrrBbPill({ ticker, ...rest }: Props) {
+  return <>{IrrBbPillInner(rest)}{ticker ? <BbBasisTag ticker={ticker} /> : null}</>;
+}
+
+function IrrBbPillInner({ result, showNa }: Omit<Props, "ticker">) {
   const { irrBb, band, nearTerm, aboveBull, priceDevFlag, yearsRemaining,
     bbTargetDate, divYield, livePrice, bullBase } = result;
 

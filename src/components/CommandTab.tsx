@@ -14,7 +14,9 @@ import DoctrineStrip from "@/components/command/DoctrineStrip";
 import { decideLoad, doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
 import { driverCapCounts } from "@/lib/driverCaps";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
-import BenchmarkStrip from "@/components/command/BenchmarkStrip";
+import BenchmarkStrip, { useIxicLast } from "@/components/command/BenchmarkStrip";
+import { regimeState } from "@/lib/regime";
+import { useBbBasis } from "@/hooks/useBbBasis";
 import LayerReviewCalendar from "@/components/LayerReviewCalendar";
 import ToolsCard from "@/components/command/ToolsCard";
 import ScheduledReviewsCard from "@/components/ScheduledReviewsCard";
@@ -135,12 +137,32 @@ export default function CommandTab() {
     const s = computeGmStats(scores, holdings, watchlist);
     return s.total > 0 ? gmStatus(s.aggregatePct, s.deployed.length, todayIso) : null;
   }, [scores, holdings, watchlist, todayIso]);
+  // ── Sprint A (display only) ──
+  const ixicLast = useIxicLast();
+  const regime = useMemo(() => (canonAum != null ? regimeState({ aumGbp: canonAum, nasdaqLast: ixicLast }) : null), [canonAum, ixicLast]);
+  const bb = useBbBasis();
+  const basis = useMemo(() => (bb.ready ? Object.fromEntries(Object.entries(bb.byTicker).map(([t, r]) => [t, r.cls])) : null), [bb.ready, bb.byTicker]);
+  const rule13 = useMemo(() => {
+    if (factorWeights.loading || factorWeights.error || factorWeights.latest.length === 0) return null;
+    const groupPct: Record<string, number> = {};
+    for (const r of factorWeights.latest) groupPct[String(r.factor_group).trim().toUpperCase()] = r.current_pct;
+    const meta: Record<string, { group: string; primary: string }> = {};
+    for (const h of holdings) {
+      const t = h.ticker.trim().toUpperCase();
+      if (!meta[t] && (h.factor_group || h.factor_primary)) meta[t] = { group: String(h.factor_group ?? "").trim().toUpperCase(), primary: String(h.factor_primary ?? "").trim().toUpperCase() };
+    }
+    for (const w of watchlist) {
+      const t = w.ticker.trim().toUpperCase();
+      if (!meta[t] && (w as any).factor_group) meta[t] = { group: String((w as any).factor_group).trim().toUpperCase(), primary: "" };
+    }
+    return { meta, groupPct };
+  }, [factorWeights.loading, factorWeights.error, factorWeights.latest, holdings, watchlist]);
   const doctrine = useMemo(
     () => doctrineChecks({
-      gm: gmState, dpPct, surface,
+      gm: gmState, dpPct, surface, regime, basisHeld: surface?.basisHeld ?? null,
       driverCaps: factorWeights.loading || factorWeights.error || factorWeights.latest.length === 0 ? null : driverCapCounts(factorWeights.latest),
     }),
-    [gmState, dpPct, surface, factorWeights.loading, factorWeights.error, factorWeights.latest],
+    [gmState, dpPct, surface, regime, factorWeights.loading, factorWeights.error, factorWeights.latest],
   );
   const blockedSleeves = useMemo(() => (surface?.sleeveFloors ?? []).filter((f) => f.below).map((f) => f.sleeve), [surface]);
 
@@ -228,6 +250,7 @@ export default function CommandTab() {
         dpPct={dpPct}
         unpricedCount={sources.holdings.status === "ok" ? unpricedPositionCount(holdings) : 0}
         decide={decideLoad(surface)}
+        regime={regime}
         isMobile={isMobile}
       />
 
@@ -247,11 +270,13 @@ export default function CommandTab() {
 
       {/* ── CARD 2: ACTION INBOX ── */}
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} transactions={transactions}
-        cashBySleeve={cashBySleeve} cashRecon={cashRecon} onSurface={setSurface} />
+        cashBySleeve={cashBySleeve} cashRecon={cashRecon} onSurface={setSurface}
+        regime={regime} basis={basis} rule13={rule13} />
 
       {/* ── CARD 3: CAPITAL QUEUE ── */}
       <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={dpPct} scores={scores}
-        staleQuartets={surface?.staleQuartets} blockedSleeves={blockedSleeves} />
+        staleQuartets={surface?.staleQuartets} blockedSleeves={blockedSleeves}
+        halt={regime?.state === "HALT"} basis={basis} rule13={rule13} />
 
       {/* ── CARD 4: OPPORTUNITY MAP (scatter, desktop only) ── */}
       <OpportunityScatter

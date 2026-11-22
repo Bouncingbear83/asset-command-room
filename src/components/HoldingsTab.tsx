@@ -548,7 +548,7 @@ function UnifiedView({
                           {displayDayMobile != null ? `${displayDayMobile >= 0 ? "+" : ""}${displayDayMobile.toFixed(2)}%` : "—"} day
                         </span>
                         {h.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={h.liveAsymmetry} />}
-                        {h.irrBbResult && <IrrBbPill result={h.irrBbResult} />}
+                        {h.irrBbResult && <IrrBbPill result={h.irrBbResult} ticker={h.ticker} />}
                       </div>
 
 
@@ -737,7 +737,7 @@ function UnifiedView({
                         {!isMobile && (
                           <td style={{ padding: cellPad, textAlign: "right" }}>
                             <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              {h.irrBbResult ? <IrrBbPill result={h.irrBbResult} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}
+                              {h.irrBbResult ? <IrrBbPill result={h.irrBbResult} ticker={h.ticker} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4 }}>—</span>}
                               {h.irrBbResult?.priceDevFlag && <PriceDevChip flag />}
                             </div>
                           </td>

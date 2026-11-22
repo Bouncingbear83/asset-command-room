@@ -578,7 +578,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
             return null;
           })()}
           {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
-          {row.irrBbResult && <IrrBbPill result={row.irrBbResult} />}
+          {row.irrBbResult && <IrrBbPill result={row.irrBbResult} ticker={row.item.ticker} />}
           <WatchlistSparkline points={trajectory?.spark30d ?? []} symbolStatus={trajectory?.symbolStatus} zone={zone} width={sparkW} height={28} mood={mood} />
 
           {daysSinceReview != null && (
@@ -693,7 +693,7 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
         })()}
         <ProfileChip profile={row.return_profile} subtype={row.compounder_subtype} />
         {row.liveAsymmetry?.baseRatio != null && <AsymmetryPill asymmetry={row.liveAsymmetry} />}
-        {row.irrBbResult && <IrrBbPill result={row.irrBbResult} />}
+        {row.irrBbResult && <IrrBbPill result={row.irrBbResult} ticker={row.item.ticker} />}
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)", flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {item.name}
         </span>

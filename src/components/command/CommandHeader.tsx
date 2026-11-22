@@ -1,5 +1,7 @@
 import { DP_MIN_PCT, DP_MAX_PCT } from "@/config/signalRules";
 import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
+import type { RegimeState } from "@/lib/regime";
+import { INTRADAY_LABEL } from "@/config/signalRules";
 import { LiveLayer, LiveRiskControl, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 
 
@@ -40,6 +42,8 @@ interface Props {
   unpricedCount: number;
   /** DECIDE card count vs the R18 cap; null until the action surface has been built. */
   decide?: { count: number; cap: number; overflow: number; breach: boolean } | null;
+  /** Sprint A · A1 — drawdown regime (OB §3.4.9a); null = AUM not available. */
+  regime?: RegimeState | null;
   isMobile: boolean;
 }
 
@@ -85,7 +89,7 @@ export function computeDpPct(layers: { name: string; mv: number }[], cashGbp: nu
   return (cashGbp / denom) * 100;
 }
 
-export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, unpricedCount, decide = null, isMobile }: Props) {
+export default function CommandHeader({ riskControls, macroState, cashGbp, aum, dpPct, unpricedCount, decide = null, regime = null, isMobile }: Props) {
   const risk = deriveRiskCounts(riskControls);
   const macro = deriveMacroCounts(macroState);
 
@@ -160,6 +164,19 @@ export default function CommandHeader({ riskControls, macroState, cashGbp, aum, 
           {macro.amber > 0 && <span style={{ ...chipBase, color: "var(--amber)", background: "var(--amber-dim)" }}>{macro.amber}⚠</span>}
           {macro.red > 0 && <span style={{ ...chipBase, color: "var(--red)", background: "var(--red-dim)", fontWeight: 700 }}>{macro.red}✗</span>}
         </div>
+
+        {/* Regime (A1, OB §3.4.9a) */}
+        {(() => {
+          if (regime == null) return <span id="regime-item" style={{ ...chipBase, color: "var(--text-dim)" }}>REGIME NO DATA</span>;
+          const c = regime.rag === "RED" ? "var(--red)" : regime.rag === "AMBER" ? "var(--amber)" : "var(--green)";
+          const bg = regime.rag === "RED" ? "var(--red-dim)" : regime.rag === "AMBER" ? "var(--amber-dim)" : "var(--green-dim)";
+          return (
+            <span id="regime-item" data-testid="header-regime" title={`${regime.tooltip}\nAUM and ^IXIC: ${INTRADAY_LABEL}`}
+              style={{ ...chipBase, color: c, background: bg, fontWeight: regime.rag === "RED" ? 700 : undefined, scrollMarginTop: 80 }}>
+              {regime.label}
+            </span>
+          );
+        })()}
 
         {/* DECIDE load (R18 cap) */}
         <span

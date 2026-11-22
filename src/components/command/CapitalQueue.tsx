@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { DP_MIN_PCT, QUEUE_BLOCK_ACTIONS, QUEUE_MIN_GBP } from "@/config/signalRules";
 import { buildDeadSet, parseZone, sleeveOf } from "@/lib/actionSurface";
+import { type BbBasis, isLintBasis, basisLintBadge, BASIS_UNVERIFIED } from "@/lib/bbBasis";
+import { rule13Status, p3bGroups } from "@/lib/rule13";
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { LiveHolding, LiveWatchItem, LiveLayer, LiveMacroStateRow } from "@/hooks/usePortfolioData";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,6 +55,10 @@ interface QueueItem {
   tier: number | null;
   /** Why the row is not Armed (R24 stale quartet / R29 sleeve floor). */
   badge?: string;
+  /** A3 — factor_group / factor_primary and Rule 13 / basis info badges (row may still be Armed). */
+  factorGroup?: string;
+  factorPrimary?: string;
+  info?: string[];
 }
 
 const ACTION_STYLE: Record<string, { color: string; bg: string }> = {
@@ -76,12 +83,31 @@ interface Props {
   staleQuartets?: Record<string, number>;
   /** R29 — sleeves below the cash floor; holdings rows in these sleeves are never Armed. */
   blockedSleeves?: string[];
+  /** A1 — HALT (OB §3.4.9a): every Armed row disabled. */
+  halt?: boolean;
+  /** A2 — ticker → BB basis class; PINNED-V1 / LEGACY rows are never Armed. */
+  basis?: Record<string, BbBasis> | null;
+  /** A3 — factor meta and group spot weights (Rule 13 caps from driverCaps.ts). */
+  rule13?: { meta: Record<string, { group: string; primary: string }>; groupPct: Record<string, number> } | null;
 }
 
 const NO_STALE: Record<string, number> = {};
 const NO_SLEEVES: string[] = [];
 
-export default function CapitalQueue({ holdings, watchlist, layers, macroState, dpPct = null, scores = [], staleQuartets = NO_STALE, blockedSleeves = NO_SLEEVES }: Props) {
+/** A2 / A3 — basis tag, factor_group · factor_primary and Rule 13 / basis info badges. */
+function rowMeta(d: QueueItem) {
+  return (
+    <span style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--text-dim)" }}>
+      <BbBasisTag ticker={d.ticker} />
+      {(d.factorGroup || d.factorPrimary) && <span>{d.factorGroup || "—"} · {d.factorPrimary || "—"}</span>}
+      {(d.info ?? []).map((b) => (
+        <span key={b} style={{ color: "var(--amber)", letterSpacing: "0.06em", border: "1px solid var(--amber)", padding: "0 4px", borderRadius: 2, whiteSpace: "nowrap" }}>{b}</span>
+      ))}
+    </span>
+  );
+}
+
+export default function CapitalQueue({ holdings, watchlist, layers, macroState, dpPct = null, scores = [], staleQuartets = NO_STALE, blockedSleeves = NO_SLEEVES, halt = false, basis = null, rule13 = null }: Props) {
   const [gapsOpen, setGapsOpen] = useState(false);
   const dpGate = dpPct == null || dpPct > DP_MIN_PCT;
   const dead = useMemo(() => buildDeadSet(holdings, watchlist, scores), [holdings, watchlist, scores]);
@@ -110,6 +136,23 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
     const gapItems: QueueItem[] = [];
     const blocked = (a: string) => (QUEUE_BLOCK_ACTIONS as readonly string[]).some((b) => a.toUpperCase().includes(b));
 
+    // Sprint A — HALT / basis lint / Rule 13 BREACH block Armed; OVERRIDE / P5 / UNVERIFIED are info only.
+    const sprintA = (ticker: string): { block?: string; info: string[]; factorGroup?: string; factorPrimary?: string } => {
+      const t = ticker.toUpperCase();
+      const info: string[] = [];
+      let block: string | undefined;
+      const cls = basis?.[t];
+      if (isLintBasis(cls)) block = basisLintBadge(cls!);
+      else if (cls === "UNKNOWN") info.push(BASIS_UNVERIFIED);
+      const m = rule13?.meta[t];
+      if (m) {
+        const r = rule13Status(m.group, rule13!.groupPct[m.group]);
+        if (r.blocksArmed) block = block ?? r.badge!; else if (r.badge) info.push(r.badge);
+      }
+      if (halt) block = "HALT: no new money (OB §3.4.9a)";
+      return { block, info, factorGroup: m?.group, factorPrimary: m?.primary };
+    };
+
     holdings.forEach((h) => {
       if (dead.has(h.ticker.toUpperCase())) return;
       const target = h.deploy_target_gbp;
@@ -128,7 +171,9 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
       const age = staleQuartets[h.ticker.toUpperCase()];
       const sleeve = sleeveOf(h.account);
       const sleeveBlocked = !!sleeve && blockedSleeves.includes(sleeve);
-      const badge = age != null ? `STALE QUARTET ${age}d` : sleeveBlocked ? `${sleeve} FLOOR` : undefined;
+      const sa = sprintA(h.ticker);
+      Object.assign(row, { info: sa.info, factorGroup: sa.factorGroup, factorPrimary: sa.factorPrimary });
+      const badge = sa.block ?? (age != null ? `STALE QUARTET ${age}d` : sleeveBlocked ? `${sleeve} FLOOR` : undefined);
       if (triggerMet && !blk && dpGate && !badge) items.push(row);
       else gapItems.push({ ...row, action: "GAP", badge });
     });
@@ -149,7 +194,9 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
       const edge = w.triggerPriceNumeric && w.triggerPriceNumeric > 0 ? w.triggerPriceNumeric : parseZone(w.entry)?.high ?? 0;
       const row: QueueItem = { ticker: w.ticker, action, amount, layer: w.layer, context, price: px, priority, layerGap, isWatchlist: true, tier };
       const age = staleQuartets[w.ticker.toUpperCase()];
-      const badge = age != null ? `STALE QUARTET ${age}d` : undefined;
+      const sa = sprintA(w.ticker);
+      Object.assign(row, { info: sa.info, factorGroup: sa.factorGroup, factorPrimary: sa.factorPrimary });
+      const badge = sa.block ?? (age != null ? `STALE QUARTET ${age}d` : undefined);
       if (px > 0 && edge > 0 && px <= edge && dpGate && !badge) items.push(row);
       else gapItems.push({ ...row, action: "GAP", badge });
     });
@@ -162,7 +209,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
     items.sort(sorter);
     gapItems.sort((a, b) => b.amount - a.amount);
     return { queue: items, gaps: gapItems };
-  }, [holdings, watchlist, layerGapMap, holdingsTickers, dead, dpGate, staleQuartets, blockedSleeves]);
+  }, [holdings, watchlist, layerGapMap, holdingsTickers, dead, dpGate, staleQuartets, blockedSleeves, halt, basis, rule13]);
 
   const deployTotal = queue.reduce((sum, d) => sum + d.amount, 0);
   const mp = isMobile ? "10px 12px" : "10px 16px";
@@ -196,7 +243,14 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
             Nothing armed
           </div>
         ) : (
-          queue.map((d, i) => {
+          p3bGroups(queue).flatMap((grp) => [
+            grp.primary ? (
+              <div key={`p3b-${grp.primary}`} data-testid="p3b-group" style={{ fontFamily: "var(--font-mono)", fontSize: 8, letterSpacing: "0.12em", color: "var(--amber)", padding: "6px 0 2px", textTransform: "uppercase" }}>
+                {grp.primary} · one per session (P3b)
+              </div>
+            ) : null,
+            ...grp.rows.map((d) => {
+            const i = queue.indexOf(d);
             const actionStyle = ACTION_STYLE[d.action] ?? ACTION_STYLE.BUY;
             const isUnderweight = d.layerGap < -1.5;
 
@@ -229,6 +283,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
                     <span style={{ color: "var(--text-dim)" }}>·</span>
                     <span style={{ color: "var(--text-mid)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.context}</span>
                   </div>
+                  <div style={{ paddingLeft: 22 }}>{rowMeta(d)}</div>
                 </div>
               );
             }
@@ -257,9 +312,10 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)", minWidth: 60 }}>{d.layer}</span>
                 {isUnderweight && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: "var(--amber)" }}>({d.layerGap.toFixed(1)}pp)</span>}
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-mid)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.context}</span>
+                {rowMeta(d)}
               </div>
             );
-          })
+          })])
         )}
         {gaps.length > 0 && (
           <div style={{ marginTop: 10, borderTop: "1px solid var(--rim)", paddingTop: 8 }}>
@@ -276,6 +332,7 @@ export default function CapitalQueue({ holdings, watchlist, layers, macroState, 
                 <span style={{ minWidth: 60 }}>{g.layer}</span>
                 {g.badge && <span style={{ color: "var(--amber)", fontSize: 8, letterSpacing: "0.08em", border: "1px solid var(--amber)", padding: "0 4px", borderRadius: 2, whiteSpace: "nowrap" }}>{g.badge}</span>}
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.context}</span>
+                {rowMeta(g)}
               </div>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import EarningsBriefButton from "@/components/EarningsBriefButton";
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriceChart } from "@/components/PriceChart";
@@ -473,7 +474,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
               )}
               {data.score && (data.score.buyLow || data.score.buyHigh) && (
                 <div style={{ marginTop: 10, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mid)" }}>
-                  Max buy: {fmtNum(data.score.buyHigh)} | Retest line: {fmtNum(data.score.buyLow)}
+                  Max buy: {fmtNum(data.score.buyHigh)} | Retest line: {fmtNum(data.score.buyLow)} <BbBasisTag ticker={ticker} />
                 </div>
               )}
             </div>
@@ -739,6 +740,7 @@ export default function HoldingFactSheet({ ticker, portfolio, priceData, onClose
                   </div>
 
                   <AsymmetryBar
+                    ticker={ticker}
                     quartet={quartet}
                     live={live}
                     buyZone={buyZone}

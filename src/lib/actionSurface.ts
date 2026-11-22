@@ -56,6 +56,10 @@ import {
   DP_MAX_PCT,
 } from "@/config/signalRules";
 import { normBand } from "@/lib/watchlistBands";
+import { BB_BASIS_PRICE_TRIGGERS, INTRADAY_LABEL } from "@/config/signalRules";
+import type { RegimeState } from "@/lib/regime";
+import { type BbBasis, isLintBasis, isV3a, basisLintBadge, BASIS_UNVERIFIED } from "@/lib/bbBasis";
+import { rule13Status } from "@/lib/rule13";
 
 export type Lane = "DECIDE" | "PREPARE" | "WATCH" | "BACKLOG" | "MISSED";
 export type Severity = "RED" | "AMBER" | "GREY";
@@ -527,6 +531,12 @@ export interface BuildArgs {
   cashBySleeve?: { SIPP: number | null; ISA: number | null; Bordier: number | null } | null;
   /** R30 — inputs for the four cash checks; absent = not evaluated. */
   cashRecon?: CashReconIn | null;
+  /** Sprint A · A1 — drawdown regime; HALT emits the top-ranked RED card. */
+  regime?: RegimeState | null;
+  /** Sprint A · A2 — ticker → BB basis class (HELD + WATCHLIST). Absent = not evaluated. */
+  basis?: Record<string, BbBasis> | null;
+  /** Sprint A · A3 — ticker → factor_group / factor_primary, and group → spot weight %. */
+  rule13?: { meta: Record<string, { group: string; primary: string }>; groupPct: Record<string, number> } | null;
 }
 
 export interface Surface {
@@ -553,6 +563,8 @@ export interface Surface {
   sleeveFloors: SleeveFloor[] | null;
   /** R30 — cash reconciliation; null when either side is missing. */
   cashRecon: CashRecon | null;
+  /** A2 — HELD names on V3A / V3A-NAV vs all HELD; null when basis was not supplied. */
+  basisHeld: { v3a: number; total: number; nonV3a: string[] } | null;
 }
 
 const SEV_RANK: Record<Severity, number> = { RED: 0, AMBER: 1, GREY: 2 };
@@ -623,6 +635,7 @@ const bandRank = (c: Candidate) => c.verdict ? (VERDICT_BAND_ORDER as readonly s
 
 /** R33 overflow order: 0 RED doctrine · 1 KILL/RED verdict · 2 other RED · 3 AMBER · 4 GREY. */
 export function decideTier(c: Candidate): number {
+  if (c.trigger_type === "REGIME_HALT") return -1; // A1 — HALT outranks every other card
   const one = (m: Candidate) => m.doctrine && m.severity === "RED" ? 0 : isRedVerdict(m) ? 1 : m.severity === "RED" ? 2 : m.severity === "AMBER" ? 3 : 4;
   return Math.min(...(c.members?.length ? c.members : [c]).map(one));
 }
@@ -1040,6 +1053,52 @@ export function buildSurface(a: BuildArgs): Surface {
     if (card) card.brief = { id: r.id, note_path: sp.note_path ?? null, viewed: !!sp.viewed_at, payload: sp };
   }
 
+  // ── Sprint A · A1 HALT (OB §3.4.9a) ──
+  if (a.regime?.state === "HALT") {
+    byKey.set(":REGIME_HALT", { key: ":REGIME_HALT", ticker: "", trigger_type: "REGIME_HALT", title: "HALT: no new money (OB §3.4.9a)",
+      lane: "DECIDE", severity: "RED", doctrine: true, fired_at: today, source: "REGIME", source_ref: null, accounts: [], gate_test: null,
+      verdict_at: null, next_review: null, reasons: [`${a.regime.label} (${INTRADAY_LABEL}); every Capital Queue Armed row disabled`] });
+  }
+
+  // ── Sprint A · A2 basis lint + A3 Rule 13 on price-driven / deploy cards ──
+  const addBadge = (c: Candidate, b: string) => { if (!c.badge?.includes(b)) c.badge = c.badge ? `${c.badge} · ${b}` : b; };
+  const breachGroups = new Map<string, string[]>();
+  for (const c of byKey.values()) {
+    if (!c.ticker || c.verdict) continue;
+    const priceDriven = (BB_BASIS_PRICE_TRIGGERS as readonly string[]).includes(c.trigger_type)
+      || (c.trigger_type.startsWith("HOLD_ALERT_") && c.trigger_type.includes("TRIM"));
+    const cls = a.basis?.[c.ticker];
+    if (a.basis && priceDriven) {
+      if (isLintBasis(cls)) { if (c.lane === "DECIDE") c.lane = "WATCH"; addBadge(c, basisLintBadge(cls!)); }
+      else if (cls === "UNKNOWN") addBadge(c, BASIS_UNVERIFIED);
+    }
+    if (a.rule13 && (c.trigger_type === "IN_ZONE" || c.trigger_type === "APPROACHING_ZONE")) {
+      const m = a.rule13.meta[c.ticker];
+      if (m) {
+        c.reasons.push(`Factor ${m.group || "—"} · ${m.primary || "—"}`);
+        const r = rule13Status(m.group, a.rule13.groupPct[m.group.toUpperCase()]);
+        if (r.badge) addBadge(c, r.badge);
+        if (r.level === "BREACH") {
+          if (c.lane === "DECIDE") c.lane = "WATCH";
+          const g = m.group.toUpperCase();
+          breachGroups.set(g, [...(breachGroups.get(g) ?? []), c.ticker]);
+        }
+      }
+    }
+  }
+  for (const [g, tickers] of breachGroups) {
+    byKey.set(`:RULE13_BREACH_${g}`, { key: `:RULE13_BREACH_${g}`, ticker: "", trigger_type: `RULE13_BREACH_${g}`, title: `RULE 13 BREACH: ${g}: no add`,
+      lane: "DECIDE", severity: "RED", fired_at: today, source: "DRIVERS", source_ref: null, accounts: [], gate_test: null, verdict_at: null, next_review: null,
+      reasons: [`${g} ${a.rule13!.groupPct[g].toFixed(1)}% at hard cap; deploy cards held back: ${[...new Set(tickers)].sort().join(", ")}`] });
+  }
+  let basisHeld: Surface["basisHeld"] = null;
+  if (a.basis) {
+    // HELD = SCORES Held_Status HELD rows (C30 digest basis); cash lines and unscored rows are not counted.
+    const held = [...new Set(a.scores.filter((s) => up(s.heldStatus) === "HELD").map((s) => up(s.ticker)))].filter(Boolean).sort();
+    const nonV3a = held.filter((t) => !isV3a(a.basis![t]));
+    basisHeld = { v3a: held.length - nonV3a.length, total: held.length, nonV3a };
+  }
+
   // ── Lanes + R18 cap ──
   const candidates = Array.from(byKey.values());
   const groupedTypes = new Set(["RESET_ZONE", "R3_LINT"]);
@@ -1080,6 +1139,7 @@ export function buildSurface(a: BuildArgs): Surface {
     irrbbLow,
     sleeveFloors: floors,
     cashRecon: recon,
+    basisHeld,
   };
 }
 
@@ -1137,11 +1197,22 @@ export interface DoctrineInput {
   surface: Pick<Surface, "decide" | "watch" | "hygiene" | "staleQuartets" | "staleQuartetsHeld" | "irrbbLow" | "sleeveFloors" | "cashRecon"> | null;
   /** DriversTab caps (Rule #13) counts; null = no data. */
   driverCaps: { breach: number; warn: number; ok: number } | null;
+  /** A1 — when the key is present the Regime chip leads the strip (null = no data). */
+  regime?: RegimeState | null;
+  /** A2 — when the key is present a "BB basis" chip is shown (null = no data). */
+  basisHeld?: { v3a: number; total: number; nonV3a: string[] } | null;
 }
 /** One RAG chip per doctrine check. GREY = not evaluated (counts as not green). */
 export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
   const chips: DoctrineChip[] = [];
   const sf = i.surface;
+  if ("regime" in i) {
+    const r = i.regime;
+    chips.push(r == null
+      ? { id: "regime", label: "Regime", rag: "GREY", detail: "No data", link: { tab: "command", anchor: "regime-item" } }
+      : { id: "regime", label: `Regime ${r.state === "STRESS" ? `STRESS ${r.band}` : r.state}`, rag: r.rag, detail: r.tooltip, link: { tab: "command", anchor: "regime-item" } });
+    if (r?.newPeak) chips.push({ id: "regime-peak", label: "NEW PEAK: update REGIME_PEAK_AUM_GBP", rag: "AMBER", detail: "AUM above the operator-set peak constant; the app never ratchets it", link: { tab: "command", anchor: "regime-item" } });
+  }
   chips.push(i.gm == null
     ? { id: "gm", label: "G(m)", rag: "GREY", detail: "No data", link: { tab: "command", anchor: "gm-exposure" } }
     : { id: "gm", label: "G(m)", rag: i.gm.level === "BREACH" ? "RED" : i.gm.level === "SOFT" ? "AMBER" : "GREEN",
@@ -1185,6 +1256,13 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
     chips.push(cashReconChip(sf.cashRecon));
     chips.push({ id: "hygiene", label: `Tracker hygiene${sf.hygiene.length ? ` ${sf.hygiene.length}` : ""}`, rag: sf.hygiene.length ? "AMBER" : "GREEN",
       detail: sf.hygiene.length ? `${sf.hygiene.length} OPEN rows on dead names` : "No OPEN rows on dead names", link: { tab: "actions", params: { view: "hygiene" } } });
+  }
+  if ("basisHeld" in i) {
+    const b = i.basisHeld;
+    chips.push(b == null
+      ? { id: "basis", label: "BB basis", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
+      : { id: "basis", label: `BB basis HELD V3A ${b.v3a} / ${b.total}`, rag: b.nonV3a.length ? "AMBER" : "GREEN",
+          detail: b.nonV3a.length ? `Not V3A: ${b.nonV3a.join(", ")}` : "Every HELD row is V3A or V3A-NAV", link: { tab: "holdings" } });
   }
   const dc = i.driverCaps;
   chips.push(dc == null

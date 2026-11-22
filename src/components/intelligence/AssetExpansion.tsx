@@ -670,6 +670,7 @@ export function AssetExpansion({ asset }: Props) {
             </div>
 
             <AsymmetryBar
+              ticker={asset.ticker}
               quartet={q}
               live={live}
               buyZone={asset.buy_range ? { low: asset.buy_range.low, high: asset.buy_range.high } : null}

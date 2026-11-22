@@ -7,7 +7,7 @@ import ClaudePromptButton from "@/components/ClaudePromptButton";
 import TickerButton from "@/components/factsheet/TickerButton";
 import { useActionTracker } from "@/components/actions/useActionTracker";
 import { computeGmStats } from "@/components/command/GmExposureChip";
-import { buildSurface, decideMembers, type Candidate, type CashReconIn, type Severity, type Surface } from "@/lib/actionSurface";
+import { buildSurface, decideMembers, type Candidate, type BuildArgs, type CashReconIn, type Severity, type Surface } from "@/lib/actionSurface";
 import { DECIDE_CAP, WATCH_WAKE_PCT } from "@/config/signalRules";
 import EarningsVerdictCard from "@/components/EarningsVerdictCard";
 import ConfirmVerdictsCard from "@/components/ConfirmVerdictsCard";
@@ -53,9 +53,13 @@ interface Props {
   cashRecon?: CashReconIn | null;
   /** Lets the Command tab feed the Doctrine strip from the same surface. */
   onSurface?: (s: Surface) => void;
+  /** Sprint A — regime (A1), BB basis (A2), Rule 13 meta (A3); display only. */
+  regime?: BuildArgs["regime"];
+  basis?: BuildArgs["basis"];
+  rule13?: BuildArgs["rule13"];
 }
 
-export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [], cashBySleeve = null, cashRecon = null, onSurface }: Props) {
+export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [], cashBySleeve = null, cashRecon = null, onSurface, regime = null, basis = null, rule13 = null }: Props) {
   const isMobile = useIsMobile();
   const today = todayISO();
   const tracker = useActionTracker({ watchlist, holdings, earnings, scores });
@@ -81,8 +85,8 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   );
 
   const surface = useMemo(
-    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions, cashBySleeve, cashRecon }),
-    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions, cashBySleeve, cashRecon],
+    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions, cashBySleeve, cashRecon, regime, basis, rule13 }),
+    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions, cashBySleeve, cashRecon, regime, basis, rule13],
   );
   useEffect(() => { onSurface?.(surface); }, [surface, onSurface]);
 
@@ -204,6 +208,7 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
           <span style={{ ...mono(8, s.color), letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid color-mix(in srgb, ${s.color} 30%, transparent)`, borderRadius: 2, whiteSpace: "nowrap", justifySelf: "start" }}>
             <NamedText text={c.title} />
           </span>
+          {c.badge && <span data-testid="card-badge" style={{ ...mono(8, "var(--amber)"), letterSpacing: "0.08em", gridColumn: "1 / -1", whiteSpace: "normal" }}>{c.badge}</span>}
           <span style={{ ...mono(10), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}><NamedText text={c.reasons[0]} /></span>
           {c.ticker && c.ticker !== "G(m)" ? (
             <div onClick={(e) => e.stopPropagation()}>

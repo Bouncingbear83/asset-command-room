@@ -149,7 +149,7 @@ export default function OpportunityRank({ scores, holdings, watchlist }: Props) 
           {entry.score ?? "\u2014"}
         </td>
         <td style={{ ...tdStyle, textAlign: "center", padding: "5px 4px" }}>
-          <IrrBbPill result={entry.result} showNa={isNa} />
+          <IrrBbPill result={entry.result} showNa={isNa} ticker={entry.ticker} />
         </td>
         <td style={{ ...tdStyle, textAlign: "center", padding: "5px 4px" }}>
           <AsymmetryPill asymmetry={asym} />

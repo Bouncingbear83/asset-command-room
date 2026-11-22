@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useRef } from "react";
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import {
   ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, Cell, ZAxis, Customized,
@@ -830,7 +831,7 @@ export default function OpportunityScatter({ scores, holdings, watchlist }: Prop
                     }}>
                       {d.profileLabel}
                     </div>
-                    <div>IRR-BB: <span style={{ color: "var(--green)" }}>{d.irrBb.toFixed(1)}%</span>
+                    <div>IRR-BB: <span style={{ color: "var(--green)" }}>{d.irrBb.toFixed(1)}%</span><BbBasisTag ticker={d.ticker} />
                       {priceMode === "entry" && !d.held && d.entryIrrBb !== null && d.entryIrrBb !== d.irrBb && (
                         <span style={{ fontSize: 8, color: "var(--text-dim)", marginLeft: 4 }}>
                           (live: {dots.find((x) => x.ticker === d.ticker)?.irrBb.toFixed(1)}%)

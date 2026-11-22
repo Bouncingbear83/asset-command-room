@@ -9,7 +9,7 @@
  * but with its own fetch/cache cycle to avoid polluting the portfolio cache.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -27,60 +27,61 @@ const BENCHMARKS = [
   { yahoo: "^N225", label: "NKY", fullLabel: "Nikkei 225" },
 ] as const;
 
+/** live-prices only quotes un-suffixed symbols with a USD sheet currency; ^IXIC (A1 H-R) needs it. */
+const BENCHMARK_CURRENCIES: Record<string, string> = { "^IXIC": "USD", "^STOXX50E": "EUR", "^N225": "JPY" };
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let benchmarkCache: { ts: number; data: BenchmarkMap } | null = null;
+
+let inflight: Promise<BenchmarkMap> | null = null;
+
+/** Shared with the regime item (A1): one live-prices call per 5 minutes for the benchmark tickers. */
+export function fetchBenchmarks(): Promise<BenchmarkMap> {
+  if (benchmarkCache && Date.now() - benchmarkCache.ts < CACHE_TTL_MS) return Promise.resolve(benchmarkCache.data);
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const tickers = BENCHMARKS.map((b) => b.yahoo);
+      const { data: result, error } = await supabase.functions.invoke("live-prices", { body: { tickers, currencies: BENCHMARK_CURRENCIES } });
+      if (error) { console.error("[BenchmarkStrip] edge function error:", error); return {}; }
+      const prices = result?.prices ?? {};
+      const mapped: BenchmarkMap = {};
+      for (const b of BENCHMARKS) {
+        const raw = prices[b.yahoo] ?? prices[b.yahoo.toUpperCase()] ?? null;
+        if (raw) mapped[b.yahoo] = { price: raw.price, changePercent: raw.changePercent ?? null, marketState: raw.marketState ?? "" };
+      }
+      benchmarkCache = { ts: Date.now(), data: mapped };
+      return mapped;
+    } catch (err) {
+      console.error("[BenchmarkStrip] fetch failed:", err);
+      return {};
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
+}
+
+/** ^IXIC last from the same live-quote path as the strip; null = no quote (H-R NOT MEASURED). */
+export function useIxicLast(): number | null {
+  const [px, setPx] = useState<number | null>(benchmarkCache?.data["^IXIC"]?.price ?? null);
+  useEffect(() => {
+    let live = true;
+    void fetchBenchmarks().then((m) => { if (live) setPx(typeof m["^IXIC"]?.price === "number" ? m["^IXIC"].price : null); });
+    return () => { live = false; };
+  }, []);
+  return px;
+}
 
 export default function BenchmarkStrip() {
   const [data, setData] = useState<BenchmarkMap>({});
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
-  const fetched = useRef(false);
 
   useEffect(() => {
-    if (benchmarkCache && Date.now() - benchmarkCache.ts < CACHE_TTL_MS) {
-      setData(benchmarkCache.data);
-      setLoading(false);
-      return;
-    }
-
-    if (fetched.current) return;
-    fetched.current = true;
-
-    (async () => {
-      try {
-        const tickers = BENCHMARKS.map((b) => b.yahoo);
-        const { data: result, error } = await supabase.functions.invoke(
-          "live-prices",
-          { body: { tickers } },
-        );
-
-        if (error) {
-          console.error("[BenchmarkStrip] edge function error:", error);
-          setLoading(false);
-          return;
-        }
-
-        const prices = result?.prices ?? {};
-        const mapped: BenchmarkMap = {};
-        for (const b of BENCHMARKS) {
-          const raw = prices[b.yahoo] ?? prices[b.yahoo.toUpperCase()] ?? null;
-          if (raw) {
-            mapped[b.yahoo] = {
-              price: raw.price,
-              changePercent: raw.changePercent ?? null,
-              marketState: raw.marketState ?? "",
-            };
-          }
-        }
-
-        benchmarkCache = { ts: Date.now(), data: mapped };
-        setData(mapped);
-      } catch (err) {
-        console.error("[BenchmarkStrip] fetch failed:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    let live = true;
+    void fetchBenchmarks().then((m) => { if (live) { setData(m); setLoading(false); } });
+    return () => { live = false; };
   }, []);
 
   const hasData = BENCHMARKS.some((b) => data[b.yahoo]);

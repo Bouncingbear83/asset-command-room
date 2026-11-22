@@ -615,7 +615,7 @@ export function AssetRow({ asset, expanded, onToggle, actionCount, onActionClick
           <AsymmetryPill asymmetry={asset.liveAsymmetry} />
         </div>
         <div style={{ width: COL.irrBb, minWidth: COL.irrBb, maxWidth: COL.irrBb, flexShrink: 0, display: "flex", justifyContent: "center" }}>
-          {asset.irrBbResult ? <IrrBbPill result={asset.irrBbResult} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4, fontFamily: "var(--font-mono)", fontSize: 10 }}>—</span>}
+          {asset.irrBbResult ? <IrrBbPill result={asset.irrBbResult} ticker={asset.ticker} /> : <span style={{ color: "var(--text-dim)", opacity: 0.4, fontFamily: "var(--font-mono)", fontSize: 10 }}>—</span>}
         </div>
         <div style={{ width: COL.status, minWidth: COL.status, maxWidth: COL.status, flexShrink: 0 }}>
           <StatusChip status={asset.held_status} />

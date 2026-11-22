@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useRef } from "react";
+import { BbBasisTag } from "@/components/shared/BbBasisTag";
 import { LiveHolding, LiveWatchItem, LiveScore } from "@/hooks/usePortfolioData";
 import { useIrrBb } from "@/hooks/useIrrBb";
 import { useQuartetMap } from "@/hooks/useQuartetMap";
@@ -398,6 +399,7 @@ export default function OpportunityQuadrants({ scores, holdings, watchlist }: Pr
                         }}>
                           {e.irrBb.toFixed(1)}%
                         </span>
+                        <BbBasisTag ticker={e.ticker} />
                         <span style={{
                           fontFamily: "var(--font-mono)", fontSize: 8,
                           color: "var(--text-dim)",
