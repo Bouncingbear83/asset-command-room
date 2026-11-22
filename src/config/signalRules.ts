@@ -65,7 +65,11 @@ export const DEAD_FILTER_EVERYWHERE = true;
 export const HOLD_ALERT_STATUSES = ["EXIT_ZONE", "STOP_BREACH", "ADD_ZONE", "THESIS_BREAK"] as const;
 
 /** R12 — dated verdict tokens; paired with a YYYY-MM-DD date in the review note. */
-export const VERDICT_TOKENS = ["HOLD", "NO ADD", "COMMITTED", "CLOSED", "ARCHIVED", "EXITED", "FILLED", "DONE"] as const;
+export const VERDICT_TOKENS = [
+  "HOLD", "NO ADD", "COMMITTED", "CLOSED", "ARCHIVED", "EXITED", "FILLED", "DONE",
+  // Sprint B1-1
+  "NOT EARNED", "NOT ARMED", "DISARMED", "BLOCKED", "SUSPENDED", "RETIRED", "FROZEN",
+] as const;
 
 /** R13 — automation prefixes: never events, only annotate WATCH. */
 export const AUTOMATION_PREFIXES = ["M_WL", "M_", "W_", "Q_REVIEW"] as const;
@@ -250,3 +254,32 @@ export const BB_BASIS_PRICE_TRIGGERS = ["IN_ZONE", "APPROACHING_ZONE", "IRRBB_LO
  * 5 Oct peak marks); the session does.
  */
 export const RULE13_P5_BUFFER_PP = 5;
+
+// ═══════════════════════════════════════════════════════════════════
+// Sprint B1 — R25 single-name ceiling, R27 tier cross-down, R4 deployment drought. Display only.
+// ═══════════════════════════════════════════════════════════════════
+/** R25 — single-name ceilings (% of header AUM), first match wins: G(m) → PRE_PRODUCTION → Core → Satellite. */
+export const CEILING_CORE_PCT = 7;
+export const CEILING_SAT_PCT = 4;
+export const CEILING_GM_PCT = 1;
+export const CEILING_PREPROD_PCT = 1.5;
+/** R25 — over the ceiling by more than this many points is RED. */
+export const CEILING_RED_MARGIN_PP = 2;
+/** R25 — return profiles exempt from the ceiling. */
+export const CEILING_EXEMPT_PROFILES = ["HEDGE", "VEHICLE"] as const;
+/** R27 — composite thresholds watched for a downward cross (SCORE_LOG latest vs previous row). */
+export const TIER_THRESHOLDS = [80, 60, 40] as const;
+/** R27 — the latest SCORE_LOG row must be this recent (days). */
+export const TIER_CROSS_MAX_AGE_DAYS = 30;
+/** R4 — episode counter start (operator ruling 12 Nov 2026). */
+export const STRESS_RELEASE_DATE = "2026-11-06";
+/** R4 — weekdays without a BUY before the calibration review is due. */
+export const R4_DAYS = 15;
+/** R4 — net dry powder estimate (percent of AUM) above which the drought counts. */
+export const R4_NET_DP_PCT = 12;
+/** R4 — ops-state USD earmark (LHX T2 + BWXT T2 at 1.3240); display estimate only. */
+export const USD_EARMARK_GBP = 17123;
+/** R4 — a weekday counts as completed after this UTC hour (US close). */
+export const R4_CLOSE_UTC_HOUR = 21;
+/** R4 — an OPEN action_tracker row whose summary contains this owns the card's lifecycle. */
+export const R4_TRACKER_TOKEN = "R4 deployment-drought";

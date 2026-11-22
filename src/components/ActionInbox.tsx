@@ -15,6 +15,7 @@ import ConfirmVerdictsCard from "@/components/ConfirmVerdictsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { proxyWebhook } from "@/lib/ownerFunction";
 import { openVaultNote } from "@/lib/navigate";
+import { lastCompletedWeekday } from "@/lib/sprintB1";
 
 /**
  * Action Surface (spec v1) — Command tab.
@@ -61,9 +62,13 @@ interface Props {
   regime?: BuildArgs["regime"];
   basis?: BuildArgs["basis"];
   rule13?: BuildArgs["rule13"];
+  /** Sprint B1 — header AUM, gross cash (E65) and SCORE_LOG; null = not evaluated. */
+  aumGbp?: number | null;
+  grossCashGbp?: number | null;
+  scoreLog?: BuildArgs["scoreLog"];
 }
 
-export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [], cashBySleeve = null, cashRecon = null, onSurface, regime = null, basis = null, rule13 = null }: Props) {
+export default function ActionInbox({ holdings, watchlist, earnings, scores = [], transactions = [], cashBySleeve = null, cashRecon = null, onSurface, regime = null, basis = null, rule13 = null, aumGbp = null, grossCashGbp = null, scoreLog = null }: Props) {
   const isMobile = useIsMobile();
   const today = todayISO();
   const tracker = useActionTracker({ watchlist, holdings, earnings, scores });
@@ -83,14 +88,15 @@ export default function ActionInbox({ holdings, watchlist, earnings, scores = []
   const trackerRows = useMemo(
     () => tracker.items.filter((i) => i.persisted).map((i) => ({
       id: i.id, ticker: i.ticker, action_type: i.action_type, due_date: i.due_date, summary: i.summary,
-      status: i.status, priority: i.priority, layer: i.layer, source: i.source, dedupe_key: i.dedupe_key, apply_target: i.apply_target, staged_payload: i.staged_payload,
+      status: i.status, priority: i.priority, layer: i.layer, source: i.source, dedupe_key: i.dedupe_key, apply_target: i.apply_target, staged_payload: i.staged_payload, resolved_at: i.resolved_at,
     })),
     [tracker.items],
   );
 
   const surface = useMemo(
-    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions, cashBySleeve, cashRecon, regime, basis, rule13 }),
-    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions, cashBySleeve, cashRecon, regime, basis, rule13],
+    () => buildSurface({ holdings, watchlist, scores, earnings, tracker: trackerRows, today, gm, sharesBaseline: baseline, transactions, cashBySleeve, cashRecon, regime, basis, rule13,
+      aumGbp, grossCashGbp, scoreLog, r4AsOf: lastCompletedWeekday(new Date()) }),
+    [holdings, watchlist, scores, earnings, trackerRows, today, gm, baseline, transactions, cashBySleeve, cashRecon, regime, basis, rule13, aumGbp, grossCashGbp, scoreLog],
   );
   useEffect(() => { onSurface?.(surface); }, [surface, onSurface]);
 

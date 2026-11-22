@@ -11,7 +11,7 @@ import OpportunityScatter from "@/components/command/OpportunityScatter";
 import OpportunityQuadrants from "@/components/command/OpportunityQuadrants";
 import GmExposureChip, { computeGmStats } from "@/components/command/GmExposureChip";
 import DoctrineStrip from "@/components/command/DoctrineStrip";
-import { capReviewLines, decideLoad, doctrineChecks, extractDpMentions, gmStatus, type Surface } from "@/lib/actionSurface";
+import { capReviewLines, decideLoad, doctrineChecks, extractDpMentions, gmStatus, r4Line, type Surface } from "@/lib/actionSurface";
 import { driverCapCounts } from "@/lib/driverCaps";
 import { useFactorGroupWeights } from "@/hooks/useFactorGroupWeights";
 import BenchmarkStrip, { useIxicLast } from "@/components/command/BenchmarkStrip";
@@ -101,7 +101,7 @@ const ragChipStyle = (color: string): React.CSSProperties => ({
 });
 
 export default function CommandTab() {
-  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, narrativeStamp, earningsCalendar, cashBlock, sources, transactions } =
+  const { holdings, watchlist, layers, scores, riskControls, macroState, narrativeData, narrativeStamp, earningsCalendar, cashBlock, sources, transactions, scoreLog } =
     usePortfolio();
   const [surface, setSurface] = useState<Surface | null>(null);
   const factorWeights = useFactorGroupWeights();
@@ -250,7 +250,7 @@ export default function CommandTab() {
         dpPct={dpPct}
         unpricedCount={sources.holdings.status === "ok" ? unpricedPositionCount(holdings) : 0}
         decide={surface ? { ...decideLoad(surface)!, lines: capReviewLines(surface, basis) } : null}
-        regime={regime}
+        regime={regime && surface?.r4 ? { ...regime, tooltip: `${regime.tooltip}\n${r4Line(surface.r4)}` } : regime}
         isMobile={isMobile}
       />
 
@@ -271,7 +271,8 @@ export default function CommandTab() {
       {/* ── CARD 2: ACTION INBOX ── */}
       <ActionInbox holdings={holdings} watchlist={watchlist} earnings={earningsCalendar} scores={scores} transactions={transactions}
         cashBySleeve={cashBySleeve} cashRecon={cashRecon} onSurface={setSurface}
-        regime={regime} basis={basis} rule13={rule13} />
+        regime={regime} basis={basis} rule13={rule13}
+        aumGbp={canonAum} grossCashGbp={cashGbp} scoreLog={sources.scoreLog.status === "ok" ? scoreLog : null} />
 
       {/* ── CARD 3: CAPITAL QUEUE ── */}
       <CapitalQueue holdings={holdings} watchlist={watchlist} layers={layers} macroState={macroState} dpPct={dpPct} scores={scores}

@@ -56,10 +56,11 @@ import {
   DP_MAX_PCT,
 } from "@/config/signalRules";
 import { normBand } from "@/lib/watchlistBands";
-import { BB_BASIS_PRICE_TRIGGERS, INTRADAY_LABEL } from "@/config/signalRules";
+import { BB_BASIS_PRICE_TRIGGERS, INTRADAY_LABEL, R4_DAYS } from "@/config/signalRules";
 import type { RegimeState } from "@/lib/regime";
 import { type BbBasis, isLintBasis, isV3a, basisLintBadge, BASIS_UNVERIFIED } from "@/lib/bbBasis";
 import { rule13Status } from "@/lib/rule13";
+import { positionCeilings, tierCrossDowns, r4Drought, isR4Row, type CeilingRow, type TierDrop, type R4State, type ScoreLogIn } from "@/lib/sprintB1";
 
 export type Lane = "DECIDE" | "PREPARE" | "WATCH" | "BACKLOG" | "MISSED";
 export type Severity = "RED" | "AMBER" | "GREY";
@@ -101,6 +102,8 @@ export interface HoldingIn {
   deploy_note?: string; notes?: string; action?: string; currency?: string;
   /** Market value in GBP (R29 sleeve value). */
   mv?: number;
+  /** R25 — fallback tier when SCORES has none. */
+  tier?: string;
 }
 export interface WatchIn {
   ticker: string; layer?: string; status: string; current: number | string | null;
@@ -117,13 +120,15 @@ export interface ScoreIn {
   bullBase?: number | null; bullBearAtDate?: string | null; bbTargetDate?: string | null; livePrice?: number | null;
   /** SCORES RETURN_PROFILE — HEDGE / VEHICLE are exempt from R23. */
   returnProfile?: string;
+  /** R25 — SCORES Q tier and AX framework. */
+  tier?: string; framework?: string;
 }
 export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; fiscalPeriod?: string; confirmed?: boolean }
 export interface TxnIn { ticker: string; account?: string; date: string; action: string }
 export interface TrackerRowIn {
   id: string; ticker: string | null; action_type: string; due_date: string; summary: string;
   status: string; priority?: string; layer?: string | null; source?: string | null; dedupe_key?: string | null;
-  apply_target?: string | null; staged_payload?: any;
+  apply_target?: string | null; staged_payload?: any; resolved_at?: string | null;
 }
 
 // ── Dates ──
@@ -204,6 +209,9 @@ export function findVerdict(note: string | null | undefined): string | null {
   const re = new RegExp(`(\\d{4}-\\d{2}-\\d{2})[^\\n]*?\\b(${tokens})\\b`, "i");
   const m = s.match(re);
   if (m) return m[1];
+  // B1-1 — "14 Nov 2026 … NOT EARNED" style dates count too.
+  const uk = s.match(new RegExp(`\\b(\\d{1,2})\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?\\s+(\\d{4})\\b[^\\n]*?\\b(${tokens})\\b`, "i"));
+  if (uk) return `${uk[3]}-${String(MONTHS[uk[2].slice(0, 3).toUpperCase()]).padStart(2, "0")}-${uk[1].padStart(2, "0")}`;
   if (s.toUpperCase().includes(OPERATOR_TOKEN)) return "OPERATOR";
   return null;
 }
@@ -537,6 +545,13 @@ export interface BuildArgs {
   basis?: Record<string, BbBasis> | null;
   /** Sprint A · A3 — ticker → factor_group / factor_primary, and group → spot weight %. */
   rule13?: { meta: Record<string, { group: string; primary: string }>; groupPct: Record<string, number> } | null;
+  /** Sprint B1 — header AUM (R25 denominator, R4 net DP) and HOLDINGS E65 gross cash (R4). Absent = not evaluated. */
+  aumGbp?: number | null;
+  grossCashGbp?: number | null;
+  /** B1-3 — SCORE_LOG rows. Absent = not evaluated. */
+  scoreLog?: ScoreLogIn[] | null;
+  /** B1-4 — last completed weekday (counter end). Absent = R4 not evaluated. */
+  r4AsOf?: string | null;
 }
 
 export interface Surface {
@@ -567,6 +582,12 @@ export interface Surface {
   basisHeld: { v3a: number; total: number; nonV3a: string[] } | null;
   /** R18 — cards pushed past the DECIDE cap (also present in watch). */
   overflowCards?: Candidate[];
+  /** B1-2 R25 — names over their ceiling; null = not evaluated. */
+  ceilings?: CeilingRow[] | null;
+  /** B1-3 R27 — tier cross-downs that raised a card; null = not evaluated. */
+  tierDrops?: TierDrop[] | null;
+  /** B1-4 R4 — drought counter; null = not evaluated. */
+  r4?: R4State | null;
 }
 
 const SEV_RANK: Record<Severity, number> = { RED: 0, AMBER: 1, GREY: 2 };
@@ -972,6 +993,41 @@ export function buildSurface(a: BuildArgs): Surface {
     }
   }
 
+  // ── B1-2 R25 POSITION_OVER_CEILING (trim REVIEW, never a trade instruction; not price-driven) ──
+  const ceilings = a.aumGbp != null ? positionCeilings(a.holdings, a.scores, a.aumGbp) : null;
+  const k = (x: number) => `£${Math.round(x).toLocaleString("en-GB")}`;
+  for (const c of ceilings ?? []) {
+    emit({ ticker: c.ticker, trigger_type: "POSITION_OVER_CEILING", title: "Over ceiling: trim review (OB §3.4)", lane: "DECIDE", severity: c.severity,
+      fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
+      layer: a.holdings.find((h) => up(h.ticker) === c.ticker)?.layer,
+      reason: `Weight ${c.weightPct.toFixed(1)}% vs ${c.basis} ceiling ${c.ceilingPct}% · ${k(c.overGbp)} above · held in ${c.accounts.join(", ") || "—"}` });
+    const card = byKey.get(`${c.ticker}:POSITION_OVER_CEILING`);
+    if (card) card.accounts = [...c.accounts];
+  }
+
+  // ── B1-3 R27 TIER_CROSS_DOWN ──
+  let tierDrops: TierDrop[] | null = null;
+  if (a.scoreLog) {
+    const heldNames = new Set<string>([...heldSet, ...a.scores.filter((s) => up(s.heldStatus) === "HELD").map((s) => up(s.ticker))]);
+    const verdictOf = (t: string) => a.holdings.filter((h) => up(h.ticker) === t)
+      .map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).filter((v): v is string => !!v && v !== "OPERATOR").sort().pop() ?? null;
+    tierDrops = tierCrossDowns(a.scoreLog, heldNames, today, verdictOf);
+    for (const d of tierDrops) {
+      emit({ ticker: d.ticker, trigger_type: "TIER_CROSS_DOWN", title: `Tier drop: ${d.prev} -> ${d.next} (${d.tier})`, lane: "DECIDE", severity: d.severity,
+        fired_at: d.date, source: "SCORE_LOG", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
+        reason: `SCORE_LOG ${d.date} · crossed ${d.threshold}${d.note ? ` · ${d.note.slice(0, 140)}` : ""}` });
+    }
+  }
+
+  // ── B1-4 R4 deployment drought (OB §3.4.9a R4) ──
+  const r4 = a.r4AsOf ? r4Drought({ asOf: a.r4AsOf, regimeState: a.regime?.state, grossCashGbp: a.grossCashGbp, aumGbp: a.aumGbp, transactions: a.transactions, tracker: a.tracker }) : null;
+  if (r4?.fire) {
+    byKey.set(":R4_DROUGHT", { key: ":R4_DROUGHT", ticker: "", trigger_type: "R4_DROUGHT",
+      title: "R4 gate calibration review due within 5 trading days (OB §3.4.9a R4): blocker census, single-gate >50% test, NO CHANGE or numbered candidate. Never a fire or waiver.",
+      lane: "DECIDE", severity: "AMBER", fired_at: today, source: r4.trackerId ? "TRACKER" : "REGIME", source_ref: r4.trackerId, accounts: [], gate_test: null,
+      verdict_at: null, next_review: null, reasons: [r4.reason] });
+  }
+
   // ── action_tracker (R17) ──
   const briefs: TrackerRowIn[] = [];
   const hygiene: Candidate[] = [];
@@ -985,6 +1041,7 @@ export function buildSurface(a: BuildArgs): Surface {
     if (up(r.status) !== "OPEN") continue;
     const sp = r.staged_payload;
     if (sp?.kind === "EARNINGS_BRIEF") { briefs.push(r); continue; } // never a card
+    if (r4?.fire && r.id === r4.trackerId && isR4Row(r.summary)) continue; // B1-4 — the R4 card is linked to this row
     if (sp?.kind === "EARNINGS_VERDICT") {
       // Engine verdicts are never merged, superseded or dead-filtered; keyed by tracker id.
       const ticker = up(sp.ticker ?? r.ticker);
@@ -1143,6 +1200,10 @@ export function buildSurface(a: BuildArgs): Surface {
     sleeveFloors: floors,
     cashRecon: recon,
     basisHeld,
+    // Keys present only when the caller supplied the inputs (chips then show GREY on null).
+    ...("aumGbp" in a ? { ceilings } : {}),
+    ...("scoreLog" in a ? { tierDrops } : {}),
+    r4,
   };
 }
 
@@ -1197,7 +1258,7 @@ export interface DoctrineInput {
   gm: GmState | null;
   dpPct: number | null;
   /** null until the surface has been built (chips show GREY / no data). */
-  surface: Pick<Surface, "decide" | "watch" | "hygiene" | "staleQuartets" | "staleQuartetsHeld" | "irrbbLow" | "sleeveFloors" | "cashRecon"> | null;
+  surface: (Pick<Surface, "decide" | "watch" | "hygiene" | "staleQuartets" | "staleQuartetsHeld" | "irrbbLow" | "sleeveFloors" | "cashRecon"> & Partial<Pick<Surface, "ceilings" | "tierDrops" | "r4">>) | null;
   /** DriversTab caps (Rule #13) counts; null = no data. */
   driverCaps: { breach: number; warn: number; ok: number } | null;
   /** A1 — when the key is present the Regime chip leads the strip (null = no data). */
@@ -1213,7 +1274,8 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
     const r = i.regime;
     chips.push(r == null
       ? { id: "regime", label: "Regime", rag: "GREY", detail: "No data", link: { tab: "command", anchor: "regime-item" } }
-      : { id: "regime", label: `Regime ${r.state === "STRESS" ? `STRESS ${r.band}` : r.state}`, rag: r.rag, detail: r.tooltip, link: { tab: "command", anchor: "regime-item" } });
+      : { id: "regime", label: `Regime ${r.state === "STRESS" ? `STRESS ${r.band}` : r.state}`, rag: r.rag,
+          detail: [r.tooltip, r4Line(sf?.r4)].filter(Boolean).join("\n"), link: { tab: "command", anchor: "regime-item" } });
     if (r?.newPeak) chips.push({ id: "regime-peak", label: "NEW PEAK: update REGIME_PEAK_AUM_GBP", rag: "AMBER", detail: "AUM above the operator-set peak constant; the app never ratchets it", link: { tab: "command", anchor: "regime-item" } });
   }
   chips.push(i.gm == null
@@ -1257,6 +1319,22 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
           detail: below.length ? below.map((f) => `${f.sleeve} ${f.pct.toFixed(1)}%`).join(", ") + ` < ${SLEEVE_FLOOR_PCT}%` : `All sleeves ≥ ${SLEEVE_FLOOR_PCT}% cash`,
           link: { tab: "command", anchor: "capital-queue" } });
     chips.push(cashReconChip(sf.cashRecon));
+    if ("ceilings" in sf) {
+      const c = sf.ceilings;
+      const red = (c ?? []).filter((x) => x.severity === "RED").length;
+      chips.push(c == null
+        ? { id: "concentration", label: "Concentration", rag: "GREY", detail: "No data", link: { tab: "holdings" } }
+        : { id: "concentration", label: `Concentration${c.length ? ` ${c.length}` : ""}`, rag: red ? "RED" : c.length ? "AMBER" : "GREEN",
+            detail: c.length ? c.map((x) => `${x.ticker} ${x.weightPct.toFixed(1)}% vs ${x.ceilingPct}%`).join(", ") : "No name over its single-name ceiling", link: { tab: "holdings" } });
+    }
+    if ("tierDrops" in sf) {
+      const d = sf.tierDrops;
+      const red = (d ?? []).filter((x) => x.severity === "RED").length;
+      chips.push(d == null
+        ? { id: "tiers", label: "Tiers", rag: "GREY", detail: "No data", link: { tab: "intelligence" } }
+        : { id: "tiers", label: `Tiers${d.length ? ` ${d.length}` : ""}`, rag: red ? "RED" : d.length ? "AMBER" : "GREEN",
+            detail: d.length ? d.map((x) => `${x.ticker} ${x.prev}→${x.next} (${x.date})`).join(", ") : "No held tier cross-down in 30 days", link: { tab: "intelligence" } });
+    }
     chips.push({ id: "hygiene", label: `Tracker hygiene${sf.hygiene.length ? ` ${sf.hygiene.length}` : ""}`, rag: sf.hygiene.length ? "AMBER" : "GREEN",
       detail: sf.hygiene.length ? `${sf.hygiene.length} OPEN rows on dead names` : "No OPEN rows on dead names", link: { tab: "actions", params: { view: "hygiene" } } });
   }
@@ -1273,6 +1351,12 @@ export function doctrineChecks(i: DoctrineInput): DoctrineChip[] {
     : { id: "drivers", label: "Driver caps", rag: dc.breach ? "RED" : dc.warn ? "AMBER" : "GREEN",
         detail: `${dc.breach} breach · ${dc.warn} warn · ${dc.ok} ok`, link: { tab: "drivers" } });
   return chips;
+}
+
+/** B1-4 — regime tooltip line for the R4 counter. */
+export function r4Line(r: R4State | null | undefined): string {
+  if (!r) return "";
+  return r.fire ? `R4 drought: day ${r.day} of ${R4_DAYS}: calibration review due` : `R4 drought: day ${r.day} of ${R4_DAYS}`;
 }
 
 /** R30 chip. RED on any failed check; GREY when fewer than 4 ran (never green); AMBER for stale DP quotes. */
@@ -1310,6 +1394,9 @@ export function ruleIdOf(c: Pick<Candidate, "trigger_type" | "title">): string {
   if (t === "GM_CAP") return "R20";
   if (t === "IRRBB_LOW_HELD" || t === "IRRBB_DATA_CHECK") return "R23";
   if (t === "QUARTET_STALE") return "R24";
+  if (t === "POSITION_OVER_CEILING") return "R25";
+  if (t === "TIER_CROSS_DOWN") return "R27";
+  if (t === "R4_DROUGHT") return "R4";
   if (t.startsWith("SLEEVE_FLOOR")) return "R29";
   if (t === "CASH_RECON") return "R30";
   if (t === "EARNINGS" || t === "THESIS_CHECK") return "R14";
