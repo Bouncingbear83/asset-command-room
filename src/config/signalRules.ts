@@ -283,3 +283,13 @@ export const USD_EARMARK_GBP = 17123;
 export const R4_CLOSE_UTC_HOUR = 21;
 /** R4 — an OPEN action_tracker row whose summary contains this owns the card's lifecycle. */
 export const R4_TRACKER_TOKEN = "R4 deployment-drought";
+/** B1.1 R27 — return profiles exempt from tier-drop cards. */
+export const TIER_CROSS_EXEMPT_PROFILES = ["HEDGE", "VEHICLE"] as const;
+/** B1.1 R14 — a CONFIRMED tracker row of these types resolved after the print clears the post-print thesis check. */
+export const THESIS_DONE_TRACKER_TYPES = ["THESIS_CHECK", "EARNINGS_GATE"] as const;
+/** B1.1 — OPEN tracker types that schedule a DECIDE decision (card moves to WATCH until due_date passes). */
+export const SCHEDULED_TRACKER_TYPES = ["THESIS_CHECK", "KILL_CHECK", "REVIEW_DUE", "DATA_FIX", "F5_INDEPENDENT"] as const;
+/** B1.1 — dedupe_key token that also counts as a scheduling row. */
+export const SCHEDULED_DEDUPE_TOKEN = "|F5_INDEPENDENT|";
+/** B1.1 — trigger types never moved by a scheduled decision (deploy / HALT / R25 / R30). */
+export const SCHEDULED_EXEMPT_TRIGGERS = ["IN_ZONE", "APPROACHING_ZONE", "RECONCILE_FILL", "REGIME_HALT", "POSITION_OVER_CEILING", "CASH_RECON"] as const;

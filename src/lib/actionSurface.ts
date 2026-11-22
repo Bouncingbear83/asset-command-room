@@ -15,7 +15,8 @@ import {
   VERDICT_TOKENS,
   AUTOMATION_PREFIXES,
   EARNINGS_PREPARE_DAYS,
-  THESIS_CHECK_BUSINESS_DAYS,
+  THESIS_CHECK_BUSINESS_DAYS, THESIS_DONE_TRACKER_TYPES, TIER_CROSS_EXEMPT_PROFILES,
+  SCHEDULED_TRACKER_TYPES, SCHEDULED_DEDUPE_TOKEN, SCHEDULED_EXEMPT_TRIGGERS,
   WATCH_WAKE_PCT,
   LIMIT_ORDER_REGEX,
   FILLED_TOKEN,
@@ -60,7 +61,7 @@ import { BB_BASIS_PRICE_TRIGGERS, INTRADAY_LABEL, R4_DAYS } from "@/config/signa
 import type { RegimeState } from "@/lib/regime";
 import { type BbBasis, isLintBasis, isV3a, basisLintBadge, BASIS_UNVERIFIED } from "@/lib/bbBasis";
 import { rule13Status } from "@/lib/rule13";
-import { positionCeilings, tierCrossDowns, r4Drought, isR4Row, type CeilingRow, type TierDrop, type R4State, type ScoreLogIn } from "@/lib/sprintB1";
+import { anyDate, positionCeilings, tierCrossDowns, r4Drought, isR4Row, type CeilingRow, type TierDrop, type R4State, type ScoreLogIn } from "@/lib/sprintB1";
 
 export type Lane = "DECIDE" | "PREPARE" | "WATCH" | "BACKLOG" | "MISSED";
 export type Severity = "RED" | "AMBER" | "GREY";
@@ -122,6 +123,8 @@ export interface ScoreIn {
   returnProfile?: string;
   /** R25 — SCORES Q tier and AX framework. */
   tier?: string; framework?: string;
+  /** B1.1 R14 — SCORES score_date; on/after the print clears the post-print thesis check. */
+  scoreDate?: unknown;
 }
 export interface EarningsIn { ticker: string; nextEarningsDate?: string | null; fiscalPeriod?: string; confirmed?: boolean }
 export interface TxnIn { ticker: string; account?: string; date: string; action: string }
@@ -956,6 +959,14 @@ export function buildSurface(a: BuildArgs): Surface {
     holdingNotes.set(t, [holdingNotes.get(t), stripAutoEarn(h.trigger_review_note), stripAutoEarn(h.notes)].filter(Boolean).join(" | "));
   }
   const wlNotes = new Map(a.watchlist.map((w) => [up(w.ticker), stripAutoEarn(w.triggerReviewNote)]));
+  // B1.1 R14 done-test: rescored on/after the print, or a CONFIRMED THESIS_CHECK / EARNINGS_GATE row resolved after it.
+  const thesisDone = (t: string, print: string) => {
+    const sd = anyDate(scoreBy.get(t)?.scoreDate);
+    if (sd && sd >= print) return true;
+    return (a.tracker ?? []).some((r) => up(r.ticker) === t && up(r.status) === "CONFIRMED"
+      && (THESIS_DONE_TRACKER_TYPES as readonly string[]).includes(up(r.action_type))
+      && !!r.resolved_at && String(r.resolved_at).slice(0, 10) > print);
+  };
   for (const e of a.earnings) {
     const t = up(e.ticker);
     if (!heldSet.has(t)) continue;
@@ -975,6 +986,7 @@ export function buildSurface(a: BuildArgs): Surface {
       const check = addBusinessDays(d, THESIS_CHECK_BUSINESS_DAYS);
       const cd = daysFrom(today, check);
       if (cd < -MISSED_AFTER_DAYS) continue;
+      if (thesisDone(t, d)) { dropLog("R14 done-test (rescored / confirmed after print)", { ticker: t, trigger_type: "THESIS_CHECK" }); continue; }
       const lane: Lane = cd > 0 ? "PREPARE" : "DECIDE";
       emit({ ticker: t, trigger_type: "THESIS_CHECK", title: `Post-print thesis check (print ${d})`, lane, severity: "GREY",
         fired_at: check, source: "EARNINGS", source_ref: null, gate_test: gateMatch ?? null, verdict_at: null, next_review: check,
@@ -1011,7 +1023,8 @@ export function buildSurface(a: BuildArgs): Surface {
     const heldNames = new Set<string>([...heldSet, ...a.scores.filter((s) => up(s.heldStatus) === "HELD").map((s) => up(s.ticker))]);
     const verdictOf = (t: string) => a.holdings.filter((h) => up(h.ticker) === t)
       .map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).filter((v): v is string => !!v && v !== "OPERATOR").sort().pop() ?? null;
-    tierDrops = tierCrossDowns(a.scoreLog, heldNames, today, verdictOf);
+    const exemptProfiles = new Set(a.scores.filter((s) => (TIER_CROSS_EXEMPT_PROFILES as readonly string[]).includes(up(s.returnProfile))).map((s) => up(s.ticker)));
+    tierDrops = tierCrossDowns(a.scoreLog, heldNames, today, verdictOf, exemptProfiles);
     for (const d of tierDrops) {
       emit({ ticker: d.ticker, trigger_type: "TIER_CROSS_DOWN", title: `Tier drop: ${d.prev} -> ${d.next} (${d.tier})`, lane: "DECIDE", severity: d.severity,
         fired_at: d.date, source: "SCORE_LOG", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
@@ -1156,6 +1169,28 @@ export function buildSurface(a: BuildArgs): Surface {
     const held = [...new Set(a.scores.filter((s) => up(s.heldStatus) === "HELD").map((s) => up(s.ticker)))].filter(Boolean).sort();
     const nonV3a = held.filter((t) => !isV3a(a.basis![t]));
     basisHeld = { v3a: held.length - nonV3a.length, total: held.length, nonV3a };
+  }
+
+  // ── B1.1 scheduled decision: an OPEN scheduling tracker row (due ≥ today) parks the ticker's DECIDE cards in WATCH ──
+  const sched = new Map<string, TrackerRowIn>();
+  for (const r of a.tracker ?? []) {
+    const t = up(r.ticker), due = isoDate(r.due_date);
+    if (!t || up(r.status) !== "OPEN" || !due || due < today) continue;
+    const typed = (SCHEDULED_TRACKER_TYPES as readonly string[]).includes(up(r.action_type)) || up(r.dedupe_key).includes(SCHEDULED_DEDUPE_TOKEN);
+    if (!typed) continue;
+    const prev = sched.get(t);
+    if (!prev || due < isoDate(prev.due_date)) sched.set(t, r);
+  }
+  for (const c of byKey.values()) {
+    if (c.lane !== "DECIDE" || !c.ticker || c.verdict) continue;
+    const r = sched.get(c.ticker);
+    if (!r || c.source_ref === r.id) continue;
+    const tt = c.trigger_type;
+    if ((SCHEDULED_EXEMPT_TRIGGERS as readonly string[]).includes(tt) || tt.includes("ADD_ZONE") || tt.includes("DEPLOY")) continue;
+    if (tt.startsWith("TRACKER_") && c.title.startsWith("Missed (HIGH)")) continue; // R31
+    c.lane = "WATCH";
+    c.badge = [c.badge, `scheduled: ${r.dedupe_key || r.id} ${isoDate(r.due_date)}`].filter(Boolean).join(" · ");
+    dropLog("B1.1 scheduled decision → WATCH", c);
   }
 
   // ── Lanes + R18 cap ──

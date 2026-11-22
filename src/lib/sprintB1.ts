@@ -77,30 +77,38 @@ export interface TierDrop { ticker: string; prev: number; next: number; threshol
 export const tierOf = (s: number) => (s >= 80 ? "Core" : s >= 60 ? "Satellite" : s >= 40 ? "Spec" : "below 40");
 
 /**
- * R27 — HELD names only: latest vs previous SCORE_LOG composite crossed 80 / 60 / 40 downward,
- * latest row ≤ 30 days old, and no dated operator verdict (verdictDate) on/after the log date.
+ * R27 — HELD names only (HEDGE / VEHICLE exempt): the composite crossed 80 / 60 / 40 downward and is still below.
+ * The 30-day window applies to the SCORE_LOG row where it first fell below (later restamps don't refresh it),
+ * and no dated operator verdict (verdictDate) on/after that crossing date.
  */
-export function tierCrossDowns(log: ScoreLogIn[], held: Set<string>, today: string, verdictDate: (ticker: string) => string | null): TierDrop[] {
+export function tierCrossDowns(log: ScoreLogIn[], held: Set<string>, today: string, verdictDate: (ticker: string) => string | null, exempt?: Set<string>): TierDrop[] {
   const by = new Map<string, { date: string; score: number; note: string }[]>();
   for (const r of log) {
     const t = up(r.ticker), d = anyDate(r.date);
-    if (!t || !d || r.score == null || !Number.isFinite(r.score) || !held.has(t)) continue;
+    if (!t || !d || r.score == null || !Number.isFinite(r.score) || !held.has(t) || exempt?.has(t)) continue;
     by.set(t, [...(by.get(t) ?? []), { date: d, score: r.score, note: String(r.changeNote ?? "").trim() }]);
   }
   const out: TierDrop[] = [];
   for (const [t, rows] of by) {
     if (rows.length < 2) continue;
-    rows.sort((a, b) => b.date.localeCompare(a.date));
-    const [latest, prev] = rows;
-    const age = days(latest.date, today);
-    if (age < 0 || age > TIER_CROSS_MAX_AGE_DAYS) continue;
-    const crossed = TIER_THRESHOLDS.filter((th) => prev.score >= th && latest.score < th);
-    if (!crossed.length) continue;
+    rows.sort((a, b) => a.date.localeCompare(b.date));
+    const latest = rows[rows.length - 1];
+    let best: TierDrop | null = null;
+    for (const th of TIER_THRESHOLDS) {
+      if (latest.score >= th) continue;
+      // Walk back over the run of rows below th; the crossing row is the first of that run.
+      let i = rows.length - 1;
+      while (i > 0 && rows[i - 1].score < th) i--;
+      if (i === 0) continue; // never above th in the log
+      const cross = rows[i], prev = rows[i - 1];
+      const age = days(cross.date, today);
+      if (age < 0 || age > TIER_CROSS_MAX_AGE_DAYS) continue;
+      if (!best || th < best.threshold) best = { ticker: t, prev: prev.score, next: cross.score, threshold: th, tier: tierOf(latest.score), date: cross.date, note: cross.note, severity: th <= 60 ? "RED" : "AMBER" };
+    }
+    if (!best) continue;
     const v = verdictDate(t);
-    if (v && /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= latest.date) continue;
-    const threshold = Math.min(...crossed);
-    out.push({ ticker: t, prev: prev.score, next: latest.score, threshold, tier: tierOf(latest.score), date: latest.date, note: latest.note,
-      severity: threshold <= 60 ? "RED" : "AMBER" });
+    if (v && /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= best.date) continue;
+    out.push(best);
   }
   return out.sort((a, b) => a.ticker.localeCompare(b.ticker));
 }
