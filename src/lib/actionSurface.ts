@@ -841,7 +841,7 @@ export function buildSurface(a: BuildArgs): Surface {
       && rows.some((h) => isSuperseded(stripAutoEarn(h.trigger_review_note), h.trigger_review_date, today))) lane = "WATCH"; // R12
     if (r.kind === "LOW" && r.severity === "RED" && rows.some((h) => hasRedExitVerdict(h.trigger_review_note))) lane = "WATCH";
     if (r.kind === "LOW") irrbbLow.push({ ticker: r.ticker, severity: r.severity, superseded: lane !== "DECIDE" });
-    const verdict = rows.map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).find(Boolean) ?? null;
+    const verdict = rows.map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).filter((v): v is string => !!v).sort((x, y) => (x === "OPERATOR" ? -1 : y === "OPERATOR" ? 1 : x.localeCompare(y))).pop() ?? null; // B1.2 latest across accounts
     const nextReview = rows.map((h) => isoDate(h.trigger_review_date)).filter(Boolean).sort()[0] || null;
     const base = {
       ticker: r.ticker, trigger_type: r.kind === "LOW" ? "IRRBB_LOW_HELD" : "IRRBB_DATA_CHECK",
