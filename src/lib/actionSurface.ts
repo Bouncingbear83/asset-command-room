@@ -209,12 +209,12 @@ export function findVerdict(note: string | null | undefined): string | null {
   const s = stripAutoEarn(note);
   if (!s.trim()) return null;
   const tokens = (VERDICT_TOKENS as readonly string[]).map((t) => t.replace(/ /g, "\\s+")).join("|");
-  const re = new RegExp(`(\\d{4}-\\d{2}-\\d{2})[^\\n]*?\\b(${tokens})\\b`, "i");
-  const m = s.match(re);
-  if (m) return m[1];
-  // B1-1 — "14 Nov 2026 … NOT EARNED" style dates count too.
-  const uk = s.match(new RegExp(`\\b(\\d{1,2})\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?\\s+(\\d{4})\\b[^\\n]*?\\b(${tokens})\\b`, "i"));
-  if (uk) return `${uk[3]}-${String(MONTHS[uk[2].slice(0, 3).toUpperCase()]).padStart(2, "0")}-${uk[1].padStart(2, "0")}`;
+  // B1.2 — every dated verdict (ISO or "14 Nov 2026"); the most recent date wins, not the first match.
+  const found: string[] = [];
+  for (const m of s.matchAll(new RegExp(`(\\d{4}-\\d{2}-\\d{2})(?=[^\\n]*?\\b(?:${tokens})\\b)`, "gi"))) found.push(m[1]);
+  for (const m of s.matchAll(new RegExp(`\\b(\\d{1,2})\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?\\s+(\\d{4})\\b(?=[^\\n]*?\\b(?:${tokens})\\b)`, "gi")))
+    found.push(`${m[3]}-${String(MONTHS[m[2].slice(0, 3).toUpperCase()]).padStart(2, "0")}-${m[1].padStart(2, "0")}`);
+  if (found.length) return found.sort().pop()!;
   if (s.toUpperCase().includes(OPERATOR_TOKEN)) return "OPERATOR";
   return null;
 }
@@ -1009,8 +1009,12 @@ export function buildSurface(a: BuildArgs): Surface {
   const ceilings = a.aumGbp != null ? positionCeilings(a.holdings, a.scores, a.aumGbp) : null;
   const k = (x: number) => `£${Math.round(x).toLocaleString("en-GB")}`;
   for (const c of ceilings ?? []) {
-    emit({ ticker: c.ticker, trigger_type: "POSITION_OVER_CEILING", title: "Over ceiling: trim review (OB §3.4)", lane: "DECIDE", severity: c.severity,
-      fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: null, next_review: null,
+    // B1.2 — R12 applies: a dated verdict + future HOLDINGS AI review date parks the card in WATCH (chip still counts it).
+    const sup = a.holdings.filter((h) => up(h.ticker) === c.ticker && isSuperseded(stripAutoEarn(h.trigger_review_note), h.trigger_review_date, today));
+    const supVerdict = sup.map((h) => findVerdict(stripAutoEarn(h.trigger_review_note))).filter((v): v is string => !!v).sort().pop() ?? null;
+    const supReview = sup.map((h) => isoDate(h.trigger_review_date)).filter(Boolean).sort()[0] || null;
+    emit({ ticker: c.ticker, trigger_type: "POSITION_OVER_CEILING", title: "Over ceiling: trim review (OB §3.4)", lane: sup.length ? "WATCH" : "DECIDE", severity: c.severity,
+      fired_at: today, source: "HOLDINGS", source_ref: null, gate_test: null, verdict_at: sup.length ? supVerdict : null, next_review: supReview,
       layer: a.holdings.find((h) => up(h.ticker) === c.ticker)?.layer,
       reason: `Weight ${c.weightPct.toFixed(1)}% vs ${c.basis} ceiling ${c.ceilingPct}% · ${k(c.overGbp)} above · held in ${c.accounts.join(", ") || "—"}` });
     const card = byKey.get(`${c.ticker}:POSITION_OVER_CEILING`);
