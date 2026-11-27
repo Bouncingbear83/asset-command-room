@@ -1,40 +1,20 @@
-## Status: Everything in this prompt is already implemented
+# Fix the Watchlist segments debug table
 
-Reviewed the three deliverables against the current codebase — all shipped in prior turns:
+## Likely cause
+The table appears only when the address has `debug=segments` as its own setting, and only on the Watchlist tab. When you're already on the Watchlist, the address ends `?tab=watchlist`. Adding `?debug=segments` to that gives `?tab=watchlist?debug=segments`. The app reads that as one setting, a tab called "watchlist?debug=segments". It doesn't recognise that tab, so it opens Command, and it never sees the debug switch. The address that works is `?tab=watchlist&debug=segments`, but you shouldn't have to know that.
 
-### Deliverable 1 — `register-mcp-client` edge function ✅
-`supabase/functions/register-mcp-client/index.ts` exists and matches spec:
-- POST with `{ client_name, redirect_uris, token_endpoint_auth_method }`
-- Verifies caller JWT via `asUser.auth.getUser()`, rejects unauthenticated
-- Calls `${SUPABASE_URL}/auth/v1/admin/oauth/clients` with service-role `apikey` + `Authorization` headers
-- Sends `grant_types: ["authorization_code","refresh_token"]`, `response_types: ["code"]`
-- Returns `{ client_id, client_secret, redirect_uris, token_endpoint_auth_method }`
-- CORS headers present
-- Minor deviation: sends `client_name` (not `name`) to the admin API — this is the field Supabase actually accepts and is working in production, so no change needed
+The first step is to confirm this in the preview, signed in: open the malformed address and the `&` address, and check which one shows the table.
 
-### Deliverable 2 — `McpConnectorSection.tsx` UI ✅
-Already contains:
-- Client name input (defaults to "Claude AI")
-- Redirect dropdown with Claude / ChatGPT / Custom
-- Auth method selector (`client_secret_basic` default, `none` option)
-- "Create client" button with loading state and error display
-- Post-create success state: Client ID + Client Secret with copy buttons, "copy the secret now, it won't be shown again" warning, "Register another" reset
-- Numbered connection instructions (MCP endpoint, Advanced Settings paste, consent approval)
-- Existing "Load client IDs" list preserved below
+## Changes
+1. Read the address leniently: treat a second `?` as `&`, and also accept `#debug=segments`. This applies both to choosing the tab and to the debug switch.
+2. If `debug=segments` is present and no tab is named, open the Watchlist tab directly.
+3. Show a small "Segments debug" label above the table, so it's obvious when the table is on.
+4. Keep the debug setting in the address when you switch tabs, as it is kept now.
 
-Plus extras already added: localStorage persistence of name/redirect/selected client_id, precise 401/502 error messages, per-redirect copy buttons.
+## Check
+In the preview, open `/?debug=segments`, `/?tab=watchlist?debug=segments` and `/?tab=watchlist&debug=segments`. Each should land on the Watchlist with the parity table under the chips. Nothing else changes, and nothing writes to the sheet or the database.
 
-### Deliverable 3 — Defensive casts in MCP tools ✅
-`src/lib/mcp/tools/list-scores.ts` and `src/lib/mcp/tools/get-vault-note.ts` already use `(sb.from as any)("table_name")` with `as { data: ...; error: any }` result casts.
-
----
-
-## Recommendation
-
-**No plan needed — no code changes required.** Everything specified is live. If you want, I can:
-
-1. Rename the admin API field from `client_name` to `name` to match the prompt verbatim (currently `client_name` works, so this is cosmetic), **or**
-2. Add a small "Test connection" button that pings the MCP endpoint after registration to confirm it responds, **or**
-3. Leave as-is.
-
-Let me know which (if any) you want, otherwise this ticket is closed.
+## Technical details
+- Add a shared `readUrlParams()` helper in `src/lib`, which normalises `location.search` (replacing extra `?` with `&`) and merges in hash params. `tabFromUrl()` in `Index.tsx` and the `debug` check in `BandChipView.tsx` both use it.
+- `tabFromUrl()` defaults to Watchlist when `debug=segments` is present and no tab is named.
+- Add a vitest for the helper covering the three address forms.
