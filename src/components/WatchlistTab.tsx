@@ -1,3 +1,4 @@
+import { RULES_VERSION } from "@/lib/segmentRules";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { TickerLabel } from "@/components/shared/TickerLabel";
 import { openClaudeWithText, CLAUDE_PROJECT_BASE } from "@/lib/claudePromptUrl";
@@ -1524,6 +1525,7 @@ export default function WatchlistTab({ liveData, macroState, scores = [], holdin
           <SkeletonRow />
         </div>
       )}
+      <div style={{ marginTop: 16, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-dim)", letterSpacing: "0.1em" }}>Segments {RULES_VERSION}</div>
     </div>
   );
 }

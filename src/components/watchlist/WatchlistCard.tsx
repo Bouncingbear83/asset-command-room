@@ -1,3 +1,5 @@
+import { archiveGapPct, currencyAffix, fmtCcy } from "@/lib/segmentRules";
+import { normStatusToken } from "@/lib/watchlistBands";
 import EarningsBriefButton from "@/components/EarningsBriefButton";
 import { useState, type CSSProperties } from "react";
 import { TickerLabel } from "@/components/shared/TickerLabel";
@@ -509,6 +511,9 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   const tintStyle = TINT_STYLE[tint];
+  // ARCHIVE rows never show SCORES buy_low/buy_high: re-engage level = WL I, gap = E / I − 1.
+  const isArchiveRow = normStatusToken(item.status).startsWith("ARCHIVE");
+  const archiveGap = archiveGapPct(row.currentPrice ?? item.current, item.triggerPriceNumeric);
 
   // ── Compact desktop variant ──
   if (isCompact && !showFull) {
@@ -554,9 +559,18 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
             Cur <span style={{ color: "var(--text)" }}>{formatPrice(row.currentPrice, item.currency, item.ticker)}</span>
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-dim)" }}>
-            Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
+            {isArchiveRow
+              ? <>Re-engage <span style={{ color: "var(--gold)" }} title={currencyAffix(item.currency).code}>{fmtCcy(item.triggerPriceNumeric, item.currency)}</span></>
+              : <>Tgt <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span></>}
           </span>
           {(() => {
+            if (isArchiveRow) {
+              return archiveGap == null ? null : (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: archiveGap <= 0 ? "var(--green)" : "var(--text-mid)" }}>
+                  Gap {archiveGap >= 0 ? "+" : ""}{archiveGap.toFixed(1)}%
+                </span>
+              );
+            }
             if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low) {
               const cp = row.currentPrice;
               if (cp != null) {
@@ -757,10 +771,16 @@ export function WatchlistCard({ row, variant, hideActions, tint = "none", action
             <span style={{ color: "var(--text-dim)", fontSize: 9 }}>30d</span>
           </div>
           <div>
-            <span style={{ color: "var(--text-dim)" }}>Target: </span>
-            <span style={{ color: "var(--gold)" }}>{formatZone(zone, item.currency, item.ticker)}</span>
+            <span style={{ color: "var(--text-dim)" }}>{isArchiveRow ? "Re-engage: " : "Target: "}</span>
+            <span style={{ color: "var(--gold)" }} title={isArchiveRow ? currencyAffix(item.currency).code : undefined}>
+              {isArchiveRow ? fmtCcy(item.triggerPriceNumeric, item.currency) : formatZone(zone, item.currency, item.ticker)}
+            </span>
           </div>
           {(() => {
+            if (isArchiveRow) return (
+              <div><span style={{ color: "var(--text-dim)" }}>Gap: </span>
+                <span style={{ color: "var(--text-mid)", fontWeight: 600 }}>{archiveGap == null ? "—" : `${archiveGap >= 0 ? "+" : ""}${archiveGap.toFixed(1)}% vs re-engage`}</span></div>
+            );
             // IN_ZONE → "Position: X% through zone" (lower = closer to bottom = better)
             const cp = row.currentPrice;
             if (row.zoneStatus === "IN_ZONE" && zone && zone.high > zone.low && cp != null) {
