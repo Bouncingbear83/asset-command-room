@@ -1,3 +1,4 @@
+import { isSegmentsDebug } from "@/lib/urlParams";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Chip, ChipGroup } from "@/components/shared/filters";
@@ -76,7 +77,7 @@ export default function BandChipView({ rows, chip, onChip, actionCounts, onActio
   const gates = useGateRows();
   const trackers = useSegTrackers();
   const [showSuppressed, setShowSuppressed] = useState(false);
-  const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "segments";
+  const debug = typeof window !== "undefined" && isSegmentsDebug();
   const resetTickers = useMemo(() => rows
     .filter((r) => normStatusToken(r.item.status).startsWith("ARCHIVE") && normBand((r.item as any).band) === "ZONE")
     .map((r) => r.item.ticker).filter(Boolean).sort(), [rows]);
@@ -169,6 +170,7 @@ export default function BandChipView({ rows, chip, onChip, actionCounts, onActio
       )}
       {debug && (
         <div style={{ marginTop: 12, overflowX: "auto", border: "1px solid var(--rim)" }}>
+          <div style={{ ...mono(9, "var(--gold)"), padding: "6px 8px", letterSpacing: "0.12em" }}>SEGMENTS DEBUG · {rows.length} rows</div>
           <table style={{ ...mono(9, "var(--text-mid)"), borderCollapse: "collapse", width: "100%" }}>
             <thead><tr>{["ticker", "H", "AL", "state", "test matched", "reason text", "tracker key used"].map((h) => <th key={h} style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid var(--rim)" }}>{h}</th>)}</tr></thead>
             <tbody>{rows.map((r, i) => { const s = segs.get(r)!; return (

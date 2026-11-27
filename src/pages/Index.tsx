@@ -1,3 +1,4 @@
+import { readUrlParams } from "@/lib/urlParams";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortfolio } from "@/data/PortfolioProvider";
@@ -47,7 +48,9 @@ SLUG_TO_TAB["earnings"] = "Signals";
 
 function tabFromUrl(): Tab {
   if (typeof window === "undefined") return "Command";
-  const slug = new URLSearchParams(window.location.search).get("tab");
+  const params = readUrlParams();
+  const slug = params.get("tab");
+  if (!slug && params.get("debug") === "segments") return "Watchlist";
   return (slug && SLUG_TO_TAB[slug]) || "Command";
 }
 
@@ -104,7 +107,7 @@ export default function Index() {
 
   // Sync active tab → URL (?tab=slug); default Command emits no param.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = readUrlParams(undefined, "");
     const slug = TAB_SLUGS[active];
     if (active === "Command") params.delete("tab");
     else params.set("tab", slug);
